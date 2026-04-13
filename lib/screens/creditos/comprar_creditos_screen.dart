@@ -88,6 +88,23 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
     }
   }
 
+  String _btnLabel() {
+    if (_isPackTab) {
+      if (_selectedPack == null) return 'Seleccioná un pack';
+      final precio = (_packs[_selectedPack!]['precio'] as num).toInt();
+      return 'Pagar \$${_fmt(precio)}';
+    } else {
+      if (_selectedPlan == null) return 'Seleccioná un plan';
+      final precio = (_planes[_selectedPlan!]['precio'] as num).toInt();
+      return 'Suscribirme por \$${_fmt(precio)}/mes';
+    }
+  }
+
+  String _fmt(int n) => n.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (m) => '${m[1]}.',
+      );
+
   @override
   Widget build(BuildContext context) {
     final loading = _isPackTab ? _loadingPacks : _loadingPlanes;
@@ -136,24 +153,35 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
           Container(
             padding: EdgeInsets.fromLTRB(
               20,
-              16,
+              12,
               20,
               MediaQuery.of(context).padding.bottom + 16,
             ),
             color: AppColors.white,
-            child: SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: (loading || selected == null) ? null : _continuar,
-                child: Text(
-                  selected != null
-                      ? 'Continuar al checkout'
-                      : _isPackTab
-                          ? 'Seleccioná un pack'
-                          : 'Seleccioná un plan',
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!_isPackTab && selected != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Renovación automática · Cancelá cuando quieras',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.grey,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: (loading || selected == null) ? null : _continuar,
+                    child: Text(_btnLabel()),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ],
@@ -358,6 +386,21 @@ class _SuscripcionesTab extends StatelessWidget {
     required this.onSelect,
   });
 
+  String? _badge(String nombre) {
+    final n = nombre.toLowerCase();
+    if (n.contains('explorer')) return 'MÁS POPULAR';
+    if (n.contains('unlimited')) return 'MEJOR VALOR';
+    return null;
+  }
+
+  String? _subtitulo(String nombre) {
+    final n = nombre.toLowerCase();
+    if (n.contains('starter')) return '~2 clases de pilates + 1 yoga';
+    if (n.contains('explorer')) return '~5 clases de pilates o 1 cerámica + yoga';
+    if (n.contains('unlimited')) return '~10 clases o combinación libre';
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (loading) {
@@ -394,7 +437,9 @@ class _SuscripcionesTab extends StatelessWidget {
           final i = entry.key;
           final plan = entry.value;
           final selected = selectedIndex == i;
-          final destacado = plan['destacado'] == true;
+          final nombre = plan['nombre']?.toString() ?? '';
+          final badge = _badge(nombre);
+          final subtitulo = _subtitulo(nombre);
           return GestureDetector(
             onTap: () => onSelect(i),
             child: AnimatedContainer(
@@ -402,10 +447,10 @@ class _SuscripcionesTab extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: selected ? AppColors.primary : AppColors.white,
+                color: selected ? const Color(0xFFFDF0E8) : AppColors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: selected ? AppColors.primary : AppColors.lightGrey,
+                  color: selected ? AppColors.primary : const Color(0xFFE8E5E0),
                   width: 2,
                 ),
               ),
@@ -416,25 +461,25 @@ class _SuscripcionesTab extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          plan['nombre']?.toString() ?? '',
-                          style: TextStyle(
+                          nombre,
+                          style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
-                            color: selected ? AppColors.white : AppColors.black,
+                            color: AppColors.black,
                           ),
                         ),
                       ),
-                      if (destacado)
+                      if (badge != null)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: selected ? AppColors.white : AppColors.primary,
+                            color: AppColors.primary,
                             borderRadius: BorderRadius.circular(9999),
                           ),
                           child: Text(
-                            'Más popular',
-                            style: TextStyle(
-                              color: selected ? AppColors.primary : AppColors.white,
+                            badge,
+                            style: const TextStyle(
+                              color: AppColors.white,
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                             ),
@@ -442,34 +487,35 @@ class _SuscripcionesTab extends StatelessWidget {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     plan['descripcion']?.toString() ?? '',
-                    style: TextStyle(
-                      color: selected ? Colors.white70 : AppColors.grey,
-                      fontSize: 13,
-                    ),
+                    style: const TextStyle(color: AppColors.grey, fontSize: 13),
                   ),
-                  const SizedBox(height: 12),
+                  if (subtitulo != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitulo,
+                      style: const TextStyle(color: AppColors.grey, fontSize: 12),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
                         '${plan['creditos']}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.w700,
-                          color: selected ? AppColors.white : AppColors.black,
+                          color: AppColors.black,
                         ),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 6, left: 4),
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 6, left: 4),
                         child: Text(
                           'cr/mes',
-                          style: TextStyle(
-                            color: selected ? Colors.white60 : AppColors.grey,
-                            fontSize: 14,
-                          ),
+                          style: TextStyle(color: AppColors.grey, fontSize: 14),
                         ),
                       ),
                       const Spacer(),
@@ -478,48 +524,37 @@ class _SuscripcionesTab extends StatelessWidget {
                         children: [
                           Text(
                             '\$${_fmt((plan['precio'] as num).toInt())}',
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w700,
-                              color: selected ? AppColors.white : AppColors.black,
+                              color: AppColors.black,
                             ),
                           ),
-                          Text(
+                          const Text(
                             'por mes',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: selected ? Colors.white60 : AppColors.grey,
-                            ),
+                            style: TextStyle(fontSize: 12, color: AppColors.grey),
                           ),
                         ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
-                      Icon(
-                        Icons.autorenew_rounded,
-                        size: 14,
-                        color: selected ? Colors.white70 : AppColors.primary,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'Se renueva automáticamente cada mes',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: selected ? Colors.white70 : AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
                       Icon(
                         selected
                             ? Icons.check_circle_rounded
                             : Icons.radio_button_unchecked_rounded,
-                        color: selected ? AppColors.white : AppColors.lightGrey,
-                        size: 24,
+                        color: selected ? AppColors.primary : AppColors.lightGrey,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Renovación automática mensual',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.grey,
+                        ),
                       ),
                     ],
                   ),
