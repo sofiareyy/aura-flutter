@@ -43,7 +43,7 @@ Deno.serve(async (req: Request) => {
         user_id: user.id,
         type: 'plan',
         status: 'pending',
-        amount: plan_precio,
+        amount: Math.round(plan_precio),
         creditos: plan_creditos,
         plan_nombre,
       })
