@@ -626,7 +626,7 @@ class _ResultCard extends StatelessWidget {
                       Text(
                         [categoria, barrio]
                             .where((e) => e.isNotEmpty)
-                            .join(' Â· '),
+                            .join(' · '),
                         style: const TextStyle(
                           color: Color(0xFFD0C6BD),
                           fontSize: 10,
@@ -662,7 +662,7 @@ class _ResultCard extends StatelessWidget {
                             child: Text(
                               clase['fecha'] != null
                                   ? _formatFecha(clase['fecha'].toString())
-                                  : 'Hoy Â· 20:30 hs',
+                                  : 'Hoy · 20:30 hs',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -687,9 +687,9 @@ class _ResultCard extends StatelessWidget {
 
   static String _formatFecha(String raw) {
     final date = DateTime.tryParse(raw);
-    if (date == null) return 'Hoy Â· 20:30 hs';
+    if (date == null) return 'Hoy · 20:30 hs';
     final hour = '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')} hs';
-    return 'Hoy Â· $hour';
+    return 'Hoy · $hour';
   }
 }
 

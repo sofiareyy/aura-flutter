@@ -244,7 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 10),
                     child: Text(
-                      'o ingresÃ¡ con',
+                      'o ingresá con',
                       style: TextStyle(
                         color: Color(0xFF5F5953),
                         fontSize: 12,
@@ -272,7 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     text: const TextSpan(
                       children: [
                         TextSpan(
-                          text: 'Â¿No tenÃ©s cuenta? ',
+                          text: '¿No tenés cuenta? ',
                           style: TextStyle(
                             color: Color(0xFF8A8179),
                             fontSize: 14,

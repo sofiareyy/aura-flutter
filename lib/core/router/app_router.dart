@@ -32,6 +32,7 @@ import '../../screens/admin/admin_usuarios_screen.dart';
 import '../../screens/admin/admin_reservas_screen.dart';
 import '../../screens/admin/admin_config_screen.dart';
 import '../../screens/admin/admin_historial_screen.dart';
+import '../../screens/admin/admin_liquidaciones_screen.dart';
 import '../../screens/creditos/mis_creditos_screen.dart';
 import '../../screens/onboarding/creditos_onboarding_screen.dart';
 import '../../screens/creditos/comprar_creditos_screen.dart';
@@ -147,6 +148,10 @@ final appRouter = GoRouter(
         GoRoute(
           path: '/admin/config',
           builder: (context, state) => const AdminConfigScreen(),
+        ),
+        GoRoute(
+          path: '/admin/liquidaciones',
+          builder: (context, state) => const AdminLiquidacionesScreen(),
         ),
       ],
     ),

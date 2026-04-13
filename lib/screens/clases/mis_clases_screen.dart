@@ -424,7 +424,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
   Future<void> _loadStudio() async {
     try {
-      // Generar clases de las prÃ³ximas 2 semanas explÃ­citamente
+      // Generar clases de las próximas 2 semanas explícitamente
       // (no silenciado, para que los errores sean visibles)
       await _service.generarProximasSemanasDesdeHorarios();
     } catch (e) {
@@ -1598,7 +1598,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                       if (dayClasses.isEmpty)
                         const Padding(
                           padding: EdgeInsets.only(top: 40),
-                          child: Center(child: Text('No hay clases cargadas para este dÃ­a', style: TextStyle(color: Color(0xFF8F877F)))),
+                          child: Center(child: Text('No hay clases cargadas para este día', style: TextStyle(color: Color(0xFF8F877F)))),
                         )
                       else
                         ...dayClasses.map((c) => Padding(
@@ -1610,7 +1610,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            'PrÃ³ximas reservas',
+                            'Próximas reservas',
                             style: TextStyle(
                               color: AppColors.black,
                               fontSize: 18,
@@ -1640,7 +1640,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                             borderRadius: BorderRadius.circular(18),
                           ),
                           child: const Text(
-                            'TodavÃ­a no tenÃ©s reservas prÃ³ximas.',
+                            'Todavía no tenés reservas próximas.',
                             style: TextStyle(color: Color(0xFF8F877F), fontSize: 14),
                           ),
                         )
@@ -1790,10 +1790,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
             children: const [
               _WeekHeader('LUN'),
               _WeekHeader('MAR'),
-              _WeekHeader('MIÃ‰'),
+              _WeekHeader('MIÉ'),
               _WeekHeader('JUE'),
               _WeekHeader('VIE'),
-              _WeekHeader('SÃB'),
+              _WeekHeader('SÁB'),
               _WeekHeader('DOM'),
             ],
           ),
@@ -1895,7 +1895,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                     ),
                     const SizedBox(height: 2),
                     const Text(
-                      'TocÃ¡ para elegir otra semana',
+                      'Tocá para elegir otra semana',
                       style: TextStyle(color: Color(0xFF9A928B), fontSize: 11),
                     ),
                   ],
@@ -1913,7 +1913,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         ),
         const SizedBox(height: 8),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: const [
-          _WeekHeader('LUN'), _WeekHeader('MAR'), _WeekHeader('MIÃ‰'), _WeekHeader('JUE'), _WeekHeader('VIE'), _WeekHeader('SÃB'), _WeekHeader('DOM')
+          _WeekHeader('LUN'), _WeekHeader('MAR'), _WeekHeader('MIÉ'), _WeekHeader('JUE'), _WeekHeader('VIE'), _WeekHeader('SÁB'), _WeekHeader('DOM')
         ]),
         const SizedBox(height: 8),
         Row(
@@ -1944,7 +1944,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       return [_InfoPanel(title: 'No se pudieron cargar los horarios fijos', body: _error ?? 'Hubo un problema leyendo la tabla horarios_fijos.')];
     }
     if (_horarios.isEmpty) {
-      return const [_InfoPanel(title: 'TodavÃ­a no hay horarios fijos', body: 'PodÃ©s cargar una grilla semanal tipo Deportnet con el botÃ³n "Nuevo horario".')];
+      return const [_InfoPanel(title: 'Todavía no hay horarios fijos', body: 'Podés cargar una grilla semanal tipo Deportnet con el botón "Nuevo horario".')];
     }
     final grouped = <int, List<Map<String, dynamic>>>{};
     for (final h in _horarios) {
@@ -2118,7 +2118,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     if (minutes == 30) return 'Hasta 30 min antes';
     if (minutes % 1440 == 0) {
       final dias = minutes ~/ 1440;
-      return dias == 1 ? 'Hasta 1 dÃ­a antes' : 'Hasta $dias dÃ­as antes';
+      return dias == 1 ? 'Hasta 1 día antes' : 'Hasta $dias días antes';
     }
     if (minutes % 60 == 0) {
       final horas = minutes ~/ 60;
@@ -2126,8 +2126,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     }
     return 'Hasta $minutes min antes';
   }
-  String _shortDay(int d) => const {1: 'Lun', 2: 'Mar', 3: 'MiÃ©', 4: 'Jue', 5: 'Vie', 6: 'SÃ¡b', 7: 'Dom'}[d] ?? 'Lun';
-  String _dayName(int d) => const {1: 'Lunes', 2: 'Martes', 3: 'MiÃ©rcoles', 4: 'Jueves', 5: 'Viernes', 6: 'SÃ¡bado', 7: 'Domingo'}[d] ?? 'Lunes';
+  String _shortDay(int d) => const {1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb', 7: 'Dom'}[d] ?? 'Lun';
+  String _dayName(int d) => const {1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 7: 'Domingo'}[d] ?? 'Lunes';
   String _timeText(TimeOfDay t) => DateFormat('HH:mm').format(DateTime(2024, 1, 1, t.hour, t.minute));
 }
 
@@ -2180,7 +2180,7 @@ class _StudioClassCard extends StatelessWidget {
         const SizedBox(height: 6),
         Text('Instructora: $instructor', style: const TextStyle(color: Color(0xFF8F877F), fontSize: 14)),
         const SizedBox(height: 12),
-        const Text('OcupaciÃ³n', style: TextStyle(color: Color(0xFF8F877F), fontSize: 13)),
+        const Text('Ocupación', style: TextStyle(color: Color(0xFF8F877F), fontSize: 13)),
         const SizedBox(height: 4),
         Row(children: [
           Expanded(
@@ -2303,7 +2303,7 @@ class _HorarioFijoCard extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(nombre, style: const TextStyle(color: AppColors.black, fontSize: 15, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
-              Text(extras.join(' Â· '), style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13)),
+              Text(extras.join(' · '), style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13)),
             ]),
           ),
           Switch(
@@ -2511,7 +2511,7 @@ class _UpcomingReservaCard extends StatelessWidget {
                     if (fecha != null) ...[
                       const SizedBox(height: 6),
                       Text(
-                        DateFormat('EEE d MMM Â· HH:mm', 'es').format(fecha),
+                        DateFormat('EEE d MMM · HH:mm', 'es').format(fecha),
                         style: const TextStyle(
                           color: AppColors.primary,
                           fontSize: 12,

@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
@@ -74,7 +73,7 @@ class _ReservaConfirmadaScreenState extends State<ReservaConfirmadaScreen> {
   ) async {
     final start = fecha ?? DateTime.now().add(const Duration(days: 1));
     final end = start.add(const Duration(minutes: 60));
-    final fmt = (DateTime d) =>
+    String fmt(DateTime d) =>
         '${d.toUtc().toIso8601String().replaceAll('-', '').replaceAll(':', '').split('.').first}Z';
 
     final details = Uri.encodeComponent(
