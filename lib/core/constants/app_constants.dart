@@ -1,4 +1,7 @@
 class AppConstants {
+  /// Reemplazá este valor con el DSN de tu proyecto en https://sentry.io
+  static const String sentryDsn = 'REEMPLAZAR_CON_TU_DSN_DE_SENTRY';
+
   static const String supabaseUrl =
       'https://hvgqpzvornlnxmsbqnwg.supabase.co';
   static const String supabaseAnonKey =
@@ -8,6 +11,7 @@ class AppConstants {
   static const String tableEstudios = 'estudios';
   static const String tableClases = 'clases';
   static const String tableReservas = 'reservas';
+  static const String tableNotificacionesEstudio = 'notificaciones_estudio';
 
   static const List<Map<String, dynamic>> packsCreditos = [
     {

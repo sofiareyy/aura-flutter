@@ -1,10 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/estudio_admin_service.dart';
 import '../../services/media_upload_service.dart';
+import '../../services/notificaciones_service.dart';
 import '../../services/reservas_service.dart';
 import '../../services/admin_service.dart';
 
@@ -116,6 +117,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   Future<void> _editClaseDialog(Map<String, dynamic> clase) async {
     final claseId = (clase['id'] as num?)?.toInt();
     if (claseId == null) return;
+    final messenger = ScaffoldMessenger.of(context);
     final categoriasDisponibles = await _loadCategoriasDisponibles(
       clase['categoria']?.toString(),
     );
@@ -142,6 +144,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final fechaOrig = DateTime.tryParse(clase['fecha']?.toString() ?? '');
     DateTime fechaSel = fechaOrig ?? DateTime.now();
     TimeOfDay horaSel = TimeOfDay(hour: fechaSel.hour, minute: fechaSel.minute);
+    if (!mounted) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setD) => AlertDialog(
@@ -278,9 +281,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       };
       await _service.editarClase(claseId, payload);
       await _loadStudio();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Clase actualizada')));
+      NotificacionesService.instance.scheduleListaAsistentesReminder(
+        claseId: claseId,
+        claseNombre: payload['nombre']?.toString() ?? '',
+        fechaClase: fechaSel,
+        cantidadReservas: 0,
+        estudioNombre: '',
+      ).ignore();
+      messenger.showSnackBar(const SnackBar(content: Text('Clase actualizada')));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo guardar: ${e.toString()}')));
+      messenger.showSnackBar(SnackBar(content: Text('No se pudo guardar: ${e.toString()}')));
     } finally {
       n.dispose(); ins.dispose(); insDesc.dispose(); incluye.dispose(); imagenUrl.dispose(); galeria.dispose(); cupos.dispose(); cred.dispose();
     }
@@ -290,24 +300,114 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final claseId = (clase['id'] as num?)?.toInt();
     if (claseId == null) return;
     final nombre = clase['nombre']?.toString() ?? 'esta clase';
-    final ok = await showDialog<bool>(
+
+    final ok = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cancelar clase'),
-        content: Text('Â¿Cancelar "$nombre"? Se cancelarÃ¡n todas las reservas activas. Esta acciÃ³n no se puede deshacer.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No, volver')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('SÃ­, cancelar', style: TextStyle(color: Color(0xFFF44336)))),
-        ],
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20, 20, 20, 24 + MediaQuery.of(ctx).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8E5E0),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Cancelar "$nombre"',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.black,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Todos los alumnos que reservaron recibirán sus créditos de vuelta automáticamente.',
+              style: TextStyle(
+                color: Color(0xFF8F877F),
+                fontSize: 14,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE53935),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text(
+                  'Cancelar clase',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF8F877F),
+                  side: const BorderSide(color: Color(0xFFE8E5E0)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text(
+                  'Volver',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
+
     if (ok != true || !mounted) return;
     try {
-      await _service.cancelarClase(claseId);
+      final devueltos = await _reservasService.cancelarClaseConDevolucion(claseId, nombre);
       await _loadStudio();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Clase cancelada')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            devueltos > 0
+                ? 'Clase cancelada. Se devolvieron créditos a $devueltos alumno${devueltos != 1 ? 's' : ''}.'
+                : 'Clase cancelada.',
+          ),
+        ),
+      );
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo cancelar: ${e.toString()}')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo cancelar: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -377,6 +477,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
   Future<void> _openForm([Map<String, dynamic>? item]) async {
     final edit = item != null;
+    final messenger = ScaffoldMessenger.of(context);
     final categoriasDisponibles = await _loadCategoriasDisponibles(
       item?['categoria']?.toString(),
     );
@@ -405,6 +506,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     TimeOfDay t = TimeOfDay(hour: int.tryParse(hh.first) ?? 8, minute: int.tryParse(hh.length > 1 ? hh[1] : '0') ?? 0);
     int dur = (item?['duracion_min'] as num?)?.toInt() ?? 60;
     String? cat = item?['categoria']?.toString();
+    if (!mounted) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setD) {
@@ -548,7 +650,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       n.dispose(); i.dispose(); iDesc.dispose(); incluye.dispose(); imagenUrl.dispose(); galeria.dispose(); s.dispose(); c.dispose(); cr.dispose(); return;
     }
     if (n.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Completá al menos el nombre de la clase')));
+      messenger.showSnackBar(const SnackBar(content: Text('Completá al menos el nombre de la clase')));
       n.dispose(); i.dispose(); iDesc.dispose(); incluye.dispose(); imagenUrl.dispose(); galeria.dispose(); s.dispose(); c.dispose(); cr.dispose(); return;
     }
     final payload = {
@@ -577,7 +679,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           _horarios = _horarios.map((h) => ((h['id'] as num?)?.toInt() == (updated['id'] as num?)?.toInt()) ? updated : h).toList();
           _sortFixed();
         });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Horario fijo actualizado')));
+        messenger.showSnackBar(const SnackBar(content: Text('Horario fijo actualizado')));
       } else {
         final inserted = await _service.crearHorarioFijo(payload);
         setState(() {
@@ -587,10 +689,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           _tablaOk = true;
           _error = null;
         });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Horario fijo guardado')));
+        messenger.showSnackBar(const SnackBar(content: Text('Horario fijo guardado')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo guardar: ${e.toString()}')));
+      messenger.showSnackBar(SnackBar(content: Text('No se pudo guardar: ${e.toString()}')));
       setState(() {
         _tablaOk = false;
         _error = e.toString();
@@ -601,6 +703,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
   Future<void> _openGridForm() async {
+    final messenger = ScaffoldMessenger.of(context);
     final categoriasDisponibles = await _loadCategoriasDisponibles();
     final n = TextEditingController();
     final i = TextEditingController();
@@ -618,6 +721,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     TimeOfDay horaInicio = const TimeOfDay(hour: 7, minute: 0);
     TimeOfDay horaFin = const TimeOfDay(hour: 21, minute: 0);
 
+    if (!mounted) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -854,7 +958,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     }
 
     if (n.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Completá al menos el nombre de la clase')),
       );
       n.dispose();
@@ -868,7 +972,6 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       cr.dispose();
       return;
     }
-
     final payloadBase = {
       'nombre': n.text.trim(),
       'lugares_total': int.tryParse(c.text.trim()) ?? 12,
@@ -971,10 +1074,477 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     }
   }
 
+  Widget _buildDesktopContent() {
+    const headerStyle = TextStyle(
+      color: Color(0xFF888888),
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1,
+    );
+
+    final start = _weekStart(_weekAnchor);
+    final days = List.generate(7, (i) => start.add(Duration(days: i)));
+    // All clases for the selected week, flattened and sorted
+    final weekClases = days.expand((d) => _classesOn(d)).toList()
+      ..sort((a, b) => (a['fecha']?.toString() ?? '').compareTo(b['fecha']?.toString() ?? ''));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Header row ────────────────────────────────────────────────────
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _SegmentButton(
+                    label: 'Horarios fijos',
+                    selected: _showFixed,
+                    onTap: () => setState(() => _showFixed = true),
+                  ),
+                  _SegmentButton(
+                    label: 'Clases cargadas',
+                    selected: !_showFixed,
+                    onTap: () => setState(() => _showFixed = false),
+                  ),
+                ],
+              ),
+            ),
+            const Spacer(),
+            OutlinedButton(
+              onPressed: _openGridForm,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Crear grilla'),
+            ),
+            const SizedBox(width: 10),
+            ElevatedButton.icon(
+              onPressed: () => _openForm(),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Nueva clase'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // ── Horarios fijos table ──────────────────────────────────────────
+        if (_showFixed) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              border: const Border(bottom: BorderSide(color: AppColors.warmBorder)),
+            ),
+            child: const Row(
+              children: [
+                SizedBox(width: 80, child: Text('DÍA', style: headerStyle)),
+                SizedBox(width: 72, child: Text('HORA', style: headerStyle)),
+                Expanded(flex: 3, child: Text('CLASE', style: headerStyle)),
+                Expanded(flex: 2, child: Text('INSTRUCTOR', style: headerStyle)),
+                SizedBox(width: 60, child: Text('CUPOS', style: headerStyle, textAlign: TextAlign.center)),
+                SizedBox(width: 72, child: Text('CRÉDITOS', style: headerStyle, textAlign: TextAlign.center)),
+                SizedBox(width: 72, child: Text('ESTADO', style: headerStyle, textAlign: TextAlign.center)),
+                SizedBox(width: 60, child: SizedBox()),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                : _horarios.isEmpty
+                    ? Center(
+                        child: Text(
+                          'Todavía no hay horarios fijos.\nUsá "Crear grilla" o "Nueva clase" para empezar.',
+                          style: const TextStyle(color: AppColors.grey, fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    : Container(
+                        decoration: const BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+                        ),
+                        child: ListView.separated(
+                          itemCount: _horarios.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.warmBorder),
+                          itemBuilder: (context, index) {
+                            final h = _horarios[index];
+                            final dia = (h['dia_semana'] as num?)?.toInt() ?? 1;
+                            final hora = h['hora_inicio']?.toString() ?? '--:--';
+                            final nombre = h['nombre']?.toString() ?? 'Clase';
+                            final instructor = h['instructor']?.toString();
+                            final cupos = (h['lugares_total'] as num?)?.toInt() ?? 0;
+                            final creditos = (h['creditos'] as num?)?.toInt() ?? 0;
+                            final activo = h['activo'] != false;
+                            return InkWell(
+                              onTap: () => _openForm(h),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 80,
+                                      child: Text(
+                                        _shortDay(dia),
+                                        style: const TextStyle(
+                                          color: AppColors.black,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 72,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.blackSoft,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          hora.length > 5 ? hora.substring(0, 5) : hora,
+                                          style: const TextStyle(
+                                            color: AppColors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      flex: 3,
+                                      child: Text(
+                                        nombre,
+                                        style: const TextStyle(
+                                          color: AppColors.black,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        instructor ?? '—',
+                                        style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 60,
+                                      child: Text(
+                                        '$cupos',
+                                        style: const TextStyle(color: AppColors.black, fontSize: 13),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 72,
+                                      child: Text(
+                                        '$creditos cr.',
+                                        style: const TextStyle(color: AppColors.black, fontSize: 13),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 72,
+                                      child: Center(
+                                        child: Switch(
+                                          value: activo,
+                                          activeColor: AppColors.primary,
+                                          onChanged: _togglingFixed ? null : (v) => _toggleFixed((h['id'] as num?)?.toInt() ?? 0, v),
+                                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 60,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            onPressed: () => _openForm(h),
+                                            icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF8F877F)),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                          ),
+                                          IconButton(
+                                            onPressed: () => _deleteFixed((h['id'] as num?)?.toInt() ?? 0),
+                                            icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFE53935)),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+          ),
+        ] else ...[
+          // ── Clases cargadas: week selector + table ────────────────────
+          Row(
+            children: [
+              IconButton(
+                onPressed: () => setState(() => _weekAnchor = _weekAnchor.subtract(const Duration(days: 7))),
+                icon: const Icon(Icons.chevron_left_rounded),
+              ),
+              Expanded(
+                child: Text(
+                  '${DateFormat('d MMM', 'es').format(days.first)} — ${DateFormat('d MMM yyyy', 'es').format(days.last)}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.black, fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+              IconButton(
+                onPressed: () => setState(() => _weekAnchor = _weekAnchor.add(const Duration(days: 7))),
+                icon: const Icon(Icons.chevron_right_rounded),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 38,
+                child: ElevatedButton.icon(
+                  onPressed: _publishingWeek ? null : _generateWeek,
+                  icon: _publishingWeek
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white))
+                      : const Icon(Icons.auto_awesome_rounded, size: 16),
+                  label: Text(_publishingWeek ? 'Generando...' : 'Generar semana'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Table header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              border: const Border(bottom: BorderSide(color: AppColors.warmBorder)),
+            ),
+            child: const Row(
+              children: [
+                SizedBox(width: 80, child: Text('HORA', style: headerStyle)),
+                Expanded(flex: 3, child: Text('CLASE', style: headerStyle)),
+                Expanded(flex: 2, child: Text('INSTRUCTOR', style: headerStyle)),
+                SizedBox(width: 100, child: Text('CUPOS', style: headerStyle, textAlign: TextAlign.center)),
+                SizedBox(width: 80, child: Text('CRÉDITOS', style: headerStyle, textAlign: TextAlign.center)),
+                SizedBox(width: 100, child: Text('ESTADO', style: headerStyle, textAlign: TextAlign.center)),
+                SizedBox(width: 48, child: SizedBox()),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                : weekClases.isEmpty
+                    ? Center(
+                        child: Text(
+                          'Sin clases para esta semana.\nUsá "Generar semana" para crear desde los horarios fijos.',
+                          style: const TextStyle(color: AppColors.grey, fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    : Container(
+                        decoration: const BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+                        ),
+                        child: ListView.separated(
+                          itemCount: weekClases.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.warmBorder),
+                          itemBuilder: (context, index) {
+                            final c = weekClases[index];
+                            final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
+                            final hora = dt != null ? DateFormat('HH:mm').format(dt) : '--:--';
+                            final diaLabel = dt != null ? DateFormat('EEE d/M', 'es').format(dt) : '';
+                            final nombre = c['nombre']?.toString() ?? 'Clase';
+                            final instructor = c['instructor']?.toString();
+                            final total = (c['lugares_total'] as num?)?.toInt() ?? 0;
+                            final disp = (c['lugares_disponibles'] as num?)?.toInt() ?? 0;
+                            final ocupados = (total - disp).clamp(0, total);
+                            final creditos = (c['creditos'] as num?)?.toInt() ?? 0;
+                            final dt2 = DateTime.tryParse(c['fecha']?.toString() ?? '');
+                            final now2 = DateTime.now();
+                            final status = dt2 == null
+                                ? 'Programada'
+                                : (dt2.isBefore(now2) && now2.difference(dt2).inMinutes < 90)
+                                    ? 'En curso'
+                                    : dt2.difference(now2).inHours < 8
+                                        ? 'Confirmada'
+                                        : 'Programada';
+                            final statusColor = status == 'Confirmada'
+                                ? const Color(0xFFE3F3E5)
+                                : status == 'En curso'
+                                    ? const Color(0xFFFFF3DE)
+                                    : const Color(0xFFF1E7FF);
+                            return InkWell(
+                              onTap: () => _showClaseSheet(c),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 80,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.blackSoft,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              hora,
+                                              style: const TextStyle(color: AppColors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            diaLabel,
+                                            style: const TextStyle(color: Color(0xFF9A928B), fontSize: 10),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 3,
+                                      child: Text(
+                                        nombre,
+                                        style: const TextStyle(color: AppColors.black, fontSize: 14, fontWeight: FontWeight.w600),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        instructor ?? '—',
+                                        style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 100,
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            '$ocupados / $total',
+                                            style: const TextStyle(color: AppColors.black, fontSize: 13, fontWeight: FontWeight.w600),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          LinearProgressIndicator(
+                                            value: total > 0 ? ocupados / total : 0,
+                                            backgroundColor: const Color(0xFFEEEEEE),
+                                            color: AppColors.primary,
+                                            minHeight: 4,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 80,
+                                      child: Text(
+                                        '$creditos cr.',
+                                        style: const TextStyle(color: AppColors.black, fontSize: 13),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 100,
+                                      child: Center(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: statusColor,
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Text(
+                                            status,
+                                            style: TextStyle(
+                                              color: status == 'En curso'
+                                                  ? const Color(0xFF7C5400)
+                                                  : status == 'Confirmada'
+                                                      ? const Color(0xFF2E7D32)
+                                                      : const Color(0xFF6B3FA0),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 48,
+                                      child: IconButton(
+                                        onPressed: () => _showClaseSheet(c),
+                                        icon: const Icon(Icons.more_vert_rounded, size: 18, color: Color(0xFF8F877F)),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+          ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
     final dayClasses = _reservedClassesOn(_selectedDay);
     final upcomingReservas = _proximasReservas;
+
+    if (isDesktop && _studio) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: _loading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            : Padding(
+                padding: const EdgeInsets.all(28),
+                child: _buildDesktopContent(),
+              ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _loading

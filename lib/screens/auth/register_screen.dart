@@ -57,7 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
 
       await context.read<AppProvider>().refrescarUsuario();
-      if (mounted) context.go('/home');
+      if (mounted) context.go('/creditos-onboarding');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

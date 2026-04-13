@@ -20,8 +20,13 @@ class _MisReservasScreenState extends State<MisReservasScreen>
     with SingleTickerProviderStateMixin {
   final _reservasService = ReservasService();
   late TabController _tabCtrl;
-  List<Map<String, dynamic>> _reservas = [];
+  List<Map<String, dynamic>> _proximas = [];
+  List<Map<String, dynamic>> _historial = [];
   bool _loading = true;
+  bool _loadingMore = false;
+  bool _hasMoreHistorial = true;
+  int _historialOffset = 0;
+  static const _pageSize = 20;
 
   @override
   void initState() {
@@ -39,22 +44,50 @@ class _MisReservasScreenState extends State<MisReservasScreen>
   Future<void> _cargar() async {
     final authUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
     if (authUserId.isEmpty) {
-      if (mounted) setState(() { _reservas = []; _loading = false; });
+      if (mounted) setState(() { _proximas = []; _historial = []; _loading = false; });
       return;
     }
-    setState(() => _loading = true);
+    setState(() { _loading = true; _historialOffset = 0; _hasMoreHistorial = true; });
     await context.read<AppProvider>().refrescarUsuario();
-    final data = await _reservasService.getReservasUsuario(authUserId);
-    if (mounted) setState(() { _reservas = data; _loading = false; });
+
+    final results = await Future.wait([
+      _reservasService.getReservasUsuario(authUserId),
+      _reservasService.getHistorialReservas(authUserId, limit: _pageSize, offset: 0),
+    ]);
+
+    if (!mounted) return;
+    final historial = results[1];
+    setState(() {
+      _proximas = results[0];
+      _historial = historial;
+      _historialOffset = historial.length;
+      _hasMoreHistorial = historial.length == _pageSize;
+      _loading = false;
+    });
   }
 
-  List<Map<String, dynamic>> get _proximas => _reservas
-      .where((r) => r['estado'] != 'cancelada' && r['estado'] != 'completada')
-      .toList();
-
-  List<Map<String, dynamic>> get _pasadas => _reservas
-      .where((r) => r['estado'] == 'cancelada' || r['estado'] == 'completada')
-      .toList();
+  Future<void> _cargarMasHistorial() async {
+    if (_loadingMore || !_hasMoreHistorial) return;
+    final authUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
+    if (authUserId.isEmpty) return;
+    setState(() => _loadingMore = true);
+    try {
+      final mas = await _reservasService.getHistorialReservas(
+        authUserId,
+        limit: _pageSize,
+        offset: _historialOffset,
+      );
+      if (!mounted) return;
+      setState(() {
+        _historial = [..._historial, ...mas];
+        _historialOffset += mas.length;
+        _hasMoreHistorial = mas.length == _pageSize;
+        _loadingMore = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
 
   bool _puedeCancelar(Map<String, dynamic> reserva) {
     final clase = reserva['clases'] as Map<String, dynamic>?;
@@ -215,7 +248,7 @@ class _MisReservasScreenState extends State<MisReservasScreen>
   }
 
   Widget _buildHistorial() {
-    if (_pasadas.isEmpty) {
+    if (_historial.isEmpty) {
       return _EmptyState(
         title: 'Tu historial está vacío',
         subtitle: 'Tus clases completadas o canceladas aparecerán acá.',
@@ -227,8 +260,31 @@ class _MisReservasScreenState extends State<MisReservasScreen>
       color: AppColors.primary,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        itemCount: _pasadas.length,
-        itemBuilder: (context, i) => _HistorialCard(reserva: _pasadas[i]),
+        itemCount: _historial.length + (_hasMoreHistorial || _loadingMore ? 1 : 0),
+        itemBuilder: (context, i) {
+          if (i == _historial.length) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: _loadingMore
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
+                      )
+                    : TextButton.icon(
+                        onPressed: _cargarMasHistorial,
+                        icon: const Icon(Icons.expand_more_rounded, size: 18),
+                        label: const Text('Cargar más'),
+                      ),
+              ),
+            );
+          }
+          return _HistorialCard(reserva: _historial[i]);
+        },
       ),
     );
   }
@@ -312,6 +368,8 @@ class _ProximaCard extends StatelessWidget {
                         ),
                         child: Text(
                           categoria,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: AppColors.primary,
                             fontSize: 10,
@@ -335,6 +393,8 @@ class _ProximaCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         estudio?['nombre']?.toString() ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: AppColors.grey,
                           fontSize: 13,
@@ -483,6 +543,11 @@ class _HistorialCard extends StatelessWidget {
         estadoBg = const Color(0xFFFFEBEE);
         estadoLabel = 'Cancelada';
         break;
+      case 'cancelada_por_estudio':
+        estadoColor = const Color(0xFFE65100);
+        estadoBg = const Color(0xFFFFF3E0);
+        estadoLabel = 'Cancelada por el estudio';
+        break;
       default:
         estadoColor = AppColors.grey;
         estadoBg = AppColors.lightGrey;
@@ -490,6 +555,7 @@ class _HistorialCard extends StatelessWidget {
             ? '${estado[0].toUpperCase()}${estado.substring(1)}'
             : 'Desconocido';
     }
+    final creditos = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -548,6 +614,17 @@ class _HistorialCard extends StatelessWidget {
                     DateFormat('d MMM yyyy · HH:mm', 'es').format(fecha),
                     style: const TextStyle(
                         color: AppColors.mutedText, fontSize: 11),
+                  ),
+                ],
+                if (estado == 'cancelada_por_estudio' && creditos > 0) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    'Se te devolvieron $creditos crédito${creditos != 1 ? 's' : ''}',
+                    style: const TextStyle(
+                      color: Color(0xFF2E7D32),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ],

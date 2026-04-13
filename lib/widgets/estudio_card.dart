@@ -64,6 +64,8 @@ class EstudioCard extends StatelessWidget {
                   children: [
                     Text(
                       estudio.nombre,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppColors.white,
                         fontSize: 16,
@@ -77,10 +79,14 @@ class EstudioCard extends StatelessWidget {
                           const Icon(Icons.location_on_outlined,
                               color: AppColors.white, size: 12),
                           const SizedBox(width: 2),
-                          Text(
-                            estudio.barrio!,
-                            style: const TextStyle(
-                                color: AppColors.white, fontSize: 11),
+                          Flexible(
+                            child: Text(
+                              estudio.barrio!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: AppColors.white, fontSize: 11),
+                            ),
                           ),
                           const SizedBox(width: 8),
                         ],
@@ -133,6 +139,8 @@ class EstudioCard extends StatelessWidget {
                 children: [
                   Text(
                     estudio.nombre,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -146,10 +154,14 @@ class EstudioCard extends StatelessWidget {
                         const Icon(Icons.location_on_outlined,
                             color: AppColors.grey, size: 13),
                         const SizedBox(width: 2),
-                        Text(
-                          estudio.barrio!,
-                          style: const TextStyle(
-                              color: AppColors.grey, fontSize: 12),
+                        Flexible(
+                          child: Text(
+                            estudio.barrio!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                color: AppColors.grey, fontSize: 12),
+                          ),
                         ),
                       ],
                     ),

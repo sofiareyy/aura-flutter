@@ -97,6 +97,8 @@ class ClaseCard extends StatelessWidget {
                     children: [
                       Text(
                         clase['nombre'] ?? 'Clase',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -107,6 +109,8 @@ class ClaseCard extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           estudio['nombre'] ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 13,
                             color: AppColors.grey,

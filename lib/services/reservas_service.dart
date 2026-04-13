@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/constants/app_constants.dart';
 import '../models/reserva.dart';
 import 'aura_gestion_service.dart';
+import 'notificaciones_estudio_service.dart';
 import 'notificaciones_service.dart';
 import 'usuarios_service.dart';
 
@@ -21,27 +22,86 @@ class ReservasService {
         .from(AppConstants.tableReservas)
         .select()
         .eq('usuario_id', effectiveUserId)
+        .neq('estado', 'cancelada')
+        .neq('estado', 'completada')
+        .neq('estado', 'cancelada_por_estudio')
         .order('created_at', ascending: false);
 
-    final result = <Map<String, dynamic>>[];
-    for (final r in (reservas as List)) {
-      final clase = await _supabase
-          .from(AppConstants.tableClases)
+    return _joinClasesEstudios(reservas as List);
+  }
+
+  /// Paginated fetch of past reservations (cancelled or completed).
+  Future<List<Map<String, dynamic>>> getHistorialReservas(
+    String userId, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    if (userId.isEmpty) return [];
+
+    final reservas = await _supabase
+        .from(AppConstants.tableReservas)
+        .select()
+        .eq('usuario_id', userId)
+        .or('estado.eq.cancelada,estado.eq.completada,estado.eq.cancelada_por_estudio')
+        .order('created_at', ascending: false)
+        .range(offset, offset + limit - 1);
+
+    return _joinClasesEstudios(reservas as List);
+  }
+
+  /// Batch-joins classes and studios to a list of reservations.
+  /// Replaces the old serial N+1 loop.
+  Future<List<Map<String, dynamic>>> _joinClasesEstudios(List rows) async {
+    if (rows.isEmpty) return [];
+
+    final claseIds = rows
+        .map((r) => (r['clase_id'] as num?)?.toInt())
+        .whereType<int>()
+        .toSet()
+        .toList();
+
+    if (claseIds.isEmpty) return List<Map<String, dynamic>>.from(rows);
+
+    final clasesRows = await _supabase
+        .from(AppConstants.tableClases)
+        .select()
+        .inFilter('id', claseIds);
+
+    final estudioIds = (clasesRows as List)
+        .map((c) => (c['estudio_id'] as num?)?.toInt())
+        .whereType<int>()
+        .toSet()
+        .toList();
+
+    final Map<int, Map<String, dynamic>> estudiosMap = {};
+    if (estudioIds.isNotEmpty) {
+      final estudiosRows = await _supabase
+          .from(AppConstants.tableEstudios)
           .select()
-          .eq('id', r['clase_id'])
-          .maybeSingle();
-      if (clase != null) {
-        final estudio = await _supabase
-            .from(AppConstants.tableEstudios)
-            .select()
-            .eq('id', clase['estudio_id'])
-            .maybeSingle();
-        result.add({...r, 'clases': {...clase, 'estudios': estudio}});
-      } else {
-        result.add(Map<String, dynamic>.from(r));
+          .inFilter('id', estudioIds);
+      for (final e in (estudiosRows as List)) {
+        final id = (e['id'] as num?)?.toInt();
+        if (id != null) estudiosMap[id] = Map<String, dynamic>.from(e);
       }
     }
-    return result;
+
+    final clasesMap = <int, Map<String, dynamic>>{};
+    for (final c in clasesRows) {
+      final id = (c['id'] as num?)?.toInt();
+      if (id != null) {
+        final estudioId = (c['estudio_id'] as num?)?.toInt();
+        clasesMap[id] = {
+          ...Map<String, dynamic>.from(c),
+          'estudios': estudioId != null ? estudiosMap[estudioId] : null,
+        };
+      }
+    }
+
+    return rows.map<Map<String, dynamic>>((r) {
+      final claseId = (r['clase_id'] as num?)?.toInt();
+      final clase = claseId != null ? clasesMap[claseId] : null;
+      return {...Map<String, dynamic>.from(r), if (clase != null) 'clases': clase};
+    }).toList();
   }
 
   Future<Reserva?> crearReserva({
@@ -117,7 +177,7 @@ class ReservasService {
           ? null
           : await _supabase
               .from(AppConstants.tableEstudios)
-              .select('nombre')
+              .select('nombre, direccion')
               .eq('id', claseDetalle['estudio_id'])
               .maybeSingle();
       final fechaDetalle = DateTime.tryParse(
@@ -130,7 +190,21 @@ class ReservasService {
           titulo: claseDetalle['nombre']?.toString() ?? 'Tu clase',
           estudioNombre: estudio?['nombre']?.toString() ?? 'Aura',
           fechaClase: fechaDetalle,
+          direccionEstudio: estudio?['direccion']?.toString(),
         );
+      }
+
+      // Notify studio (fire-and-forget — never blocks the reservation)
+      if (claseDetalle != null) {
+        final estudioId = (claseDetalle['estudio_id'] as num?)?.toInt();
+        if (estudioId != null) {
+          _notifyStudio(
+            userId,
+            estudioId,
+            claseDetalle['nombre']?.toString() ?? 'la clase',
+            claseId,
+          ).ignore();
+        }
       }
 
       return Reserva.fromMap(data);
@@ -144,6 +218,28 @@ class ReservasService {
       }
       rethrow;
     }
+  }
+
+  Future<void> _notifyStudio(
+    String userId,
+    int estudioId,
+    String claseNombre,
+    int claseId,
+  ) async {
+    try {
+      final profile = await _supabase
+          .from(AppConstants.tableUsuarios)
+          .select('nombre')
+          .eq('id', userId)
+          .maybeSingle();
+      final nombre = profile?['nombre']?.toString() ?? 'Un usuario';
+      await NotificacionesEstudioService.instance.insertarNuevaReserva(
+        estudioId: estudioId,
+        claseNombre: claseNombre,
+        usuarioNombre: nombre,
+        claseId: claseId,
+      );
+    } catch (_) {}
   }
 
   Future<void> cancelarReserva(String codigoQr) async {
@@ -172,6 +268,77 @@ class ReservasService {
     await NotificacionesService.instance.cancelReservaReminder(notifId);
   }
 
+  /// Called by the studio to cancel a class.
+  /// Returns credits to every confirmed reservation and marks them
+  /// as 'cancelada_por_estudio'. Returns the number of users refunded.
+  Future<int> cancelarClaseConDevolucion(int claseId, String claseNombre) async {
+    final reservas = await _supabase
+        .from(AppConstants.tableReservas)
+        .select()
+        .eq('clase_id', claseId)
+        .eq('estado', 'confirmada');
+
+    int devueltos = 0;
+    for (final raw in (reservas as List)) {
+      final reserva = Map<String, dynamic>.from(raw);
+      final userId = reserva['usuario_id']?.toString() ?? '';
+      final creditos = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
+      final reservaId = (reserva['id'] as num?)?.toInt();
+
+      if (userId.isNotEmpty && creditos > 0) {
+        final vencimiento = DateTime.now().add(const Duration(days: 90));
+        try {
+          await _supabase.rpc('grant_user_credits', params: {
+            'p_user_id': userId,
+            'p_amount': creditos,
+            'p_source': 'devolucion_cancelacion',
+            'p_description': 'Devolución por clase cancelada: $claseNombre',
+            'p_expires_at': vencimiento.toIso8601String(),
+          });
+        } catch (_) {
+          await _usuariosService.agregarCreditos(userId, creditos);
+        }
+        devueltos++;
+      }
+
+      if (reservaId != null) {
+        await _supabase
+            .from(AppConstants.tableReservas)
+            .update({'estado': 'cancelada_por_estudio'})
+            .eq('id', reservaId);
+      }
+    }
+
+    // Mark the class itself as cancelled
+    await _supabase
+        .from(AppConstants.tableClases)
+        .update({'estado': 'cancelada'})
+        .eq('id', claseId);
+
+    return devueltos;
+  }
+
+  /// Returns current-month reservations (confirmada or presente) with class data joined.
+  Future<List<Map<String, dynamic>>> getReservasMes([String? userId]) async {
+    final effectiveUserId = userId ?? _supabase.auth.currentUser?.id ?? '';
+    if (effectiveUserId.isEmpty) return [];
+
+    final now = DateTime.now();
+    final firstDay = DateTime(now.year, now.month, 1);
+    final lastDay = DateTime(now.year, now.month + 1, 1);
+
+    final reservas = await _supabase
+        .from(AppConstants.tableReservas)
+        .select()
+        .eq('usuario_id', effectiveUserId)
+        .inFilter('estado', ['confirmada', 'presente'])
+        .gte('created_at', firstDay.toIso8601String())
+        .lt('created_at', lastDay.toIso8601String())
+        .order('created_at', ascending: false);
+
+    return _joinClasesEstudios(reservas as List);
+  }
+
   Future<bool> tieneReserva(String userId, int claseId) async {
     final data = await _supabase
         .from(AppConstants.tableReservas)
@@ -181,6 +348,22 @@ class ReservasService {
         .neq('estado', 'cancelada')
         .maybeSingle();
     return data != null;
+  }
+
+  /// Marca una reserva existente como confirmada (check-in) y registra el momento.
+  /// Retorna la reserva actualizada, o null si el código QR no existe.
+  Future<Reserva?> confirmarReserva(String codigoQr) async {
+    final data = await _supabase
+        .from(AppConstants.tableReservas)
+        .update({
+          'estado': 'confirmada',
+          'checked_in_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('codigo_qr', codigoQr)
+        .select()
+        .maybeSingle();
+    if (data == null) return null;
+    return Reserva.fromMap(data);
   }
 
   Future<Map<String, dynamic>?> getReservaPorQr(String codigoQr) async {

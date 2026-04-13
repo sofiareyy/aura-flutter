@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -88,22 +89,42 @@ class _ReservaConfirmadaScreenState extends State<ReservaConfirmadaScreen> {
     );
   }
 
-  Future<void> _compartirReserva(
-    String className,
-    String studioName,
-    String codigoQr,
-    DateTime? fecha,
-  ) async {
-    final when = fecha != null
-        ? DateFormat('EEEE d MMMM · HH:mm', 'es').format(fecha)
+Future<void> _abrirShareSheet({
+    required String className,
+    required String studioName,
+    required DateTime? fecha,
+    required String? direccion,
+  }) async {
+    final fechaStr = fecha != null
+        ? "${DateFormat("EEEE d 'de' MMMM, HH:mm", 'es').format(fecha)}hs"
         : 'Próximamente';
-    await Share.share(
-      'Tengo reserva confirmada en Aura.\n'
-      'Clase: $className\n'
-      'Estudio: $studioName\n'
-      'Fecha: $when\n'
-      'Código de asistencia: $codigoQr',
-      subject: 'Reserva Aura confirmada',
+
+    final mensaje = '¡Me anoté en $className en $studioName! 🧡\n'
+        '📅 $fechaStr\n'
+        '📍 ${direccion?.isNotEmpty == true ? direccion : studioName}\n'
+        'Reservá en Aura: somosauraar.netlify.app';
+
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _ShareSheet(
+        mensaje: mensaje,
+        onCopied: () {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('¡Copiado al portapapeles! 📋'),
+                backgroundColor: Color(0xFF1A1A1A),
+              ),
+            );
+          }
+        },
+      ),
     );
   }
 
@@ -391,6 +412,14 @@ class _ReservaConfirmadaScreenState extends State<ReservaConfirmadaScreen> {
                       ),
                     ),
                     const SizedBox(height: 18),
+                    // ── Cómo llegar ──────────────────────────────────────
+                    if (estudio != null) ...[
+                      _ComoLlegarCard(
+                        estudio: estudio,
+                        abrirUrl: _abrirUrl,
+                      ),
+                      const SizedBox(height: 18),
+                    ],
                     Row(
                       children: [
                         Expanded(
@@ -410,11 +439,11 @@ class _ReservaConfirmadaScreenState extends State<ReservaConfirmadaScreen> {
                           child: _MiniAction(
                             icon: Icons.share_outlined,
                             label: 'Compartir',
-                            onTap: () => _compartirReserva(
-                              className,
-                              studioName,
-                              codigoQr ?? widget.codigoQr,
-                              fecha,
+                            onTap: () => _abrirShareSheet(
+                              className: className,
+                              studioName: studioName,
+                              fecha: fecha,
+                              direccion: estudio?['direccion']?.toString(),
                             ),
                           ),
                         ),
@@ -459,6 +488,318 @@ class _ReservaConfirmadaScreenState extends State<ReservaConfirmadaScreen> {
     );
   }
 }
+
+// ─── Cómo llegar ─────────────────────────────────────────────────────────────
+
+class _ComoLlegarCard extends StatelessWidget {
+  final Map<String, dynamic> estudio;
+  final Future<void> Function(String) abrirUrl;
+
+  const _ComoLlegarCard({required this.estudio, required this.abrirUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    final direccion = estudio['direccion']?.toString() ?? '';
+    final nombre = estudio['nombre']?.toString() ?? '';
+    final lat = (estudio['lat'] as num?)?.toDouble();
+    final lng = (estudio['lng'] as num?)?.toDouble();
+    final hasCoords = lat != null && lng != null;
+    final hasAddress = direccion.isNotEmpty;
+
+    if (!hasAddress && !hasCoords) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'CÓMO LLEGAR',
+            style: TextStyle(
+              color: Color(0xFF9A928B),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.location_on_rounded,
+                color: Color(0xFFE8763A),
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  hasAddress ? direccion : nombre,
+                  style: const TextStyle(
+                    color: Color(0xFF1A1A1A),
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (hasCoords) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _MapButton(
+                    label: 'Google Maps',
+                    icon: Icons.map_outlined,
+                    onTap: () => abrirUrl(
+                      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _MapButton(
+                    label: 'Waze',
+                    icon: Icons.navigation_outlined,
+                    onTap: () => abrirUrl(
+                      'https://waze.com/ul?ll=$lat,$lng&navigate=yes',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MapButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _MapButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFF1A1A1A),
+        side: const BorderSide(color: Color(0xFFE8E5E0)),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        textStyle: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Share Sheet ─────────────────────────────────────────────────────────────
+
+class _ShareSheet extends StatelessWidget {
+  final String mensaje;
+  final VoidCallback onCopied;
+
+  const _ShareSheet({required this.mensaje, required this.onCopied});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          20, 16, 20, 24 + MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE0DDD9),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Compartir reserva',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // WhatsApp
+          _ShareOptionRow(
+            iconWidget: Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                color: Color(0xFF25D366),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Text(
+                  'W',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+            ),
+            label: 'Invitar por WhatsApp',
+            onTap: () async {
+              final encoded = Uri.encodeComponent(mensaje);
+              final uri = Uri.parse('whatsapp://send?text=$encoded');
+              bool launched = false;
+              try {
+                launched = await launchUrl(uri,
+                    mode: LaunchMode.externalApplication);
+              } catch (_) {}
+              if (!launched) {
+                await launchUrl(
+                  Uri.parse('https://wa.me/?text=$encoded'),
+                  mode: LaunchMode.externalApplication,
+                );
+              }
+              if (context.mounted) Navigator.pop(context);
+            },
+          ),
+          const SizedBox(height: 4),
+
+          // Copy
+          _ShareOptionRow(
+            iconWidget: Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                color: Color(0xFF8F877F),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Icon(Icons.copy_rounded, color: Colors.white, size: 20),
+              ),
+            ),
+            label: 'Copiar información',
+            onTap: () async {
+              await Clipboard.setData(ClipboardData(text: mensaje));
+              if (context.mounted) Navigator.pop(context);
+              onCopied();
+            },
+          ),
+          const SizedBox(height: 4),
+
+          // Share via other apps
+          _ShareOptionRow(
+            iconWidget: Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE8763A),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child:
+                    Icon(Icons.share_rounded, color: Colors.white, size: 20),
+              ),
+            ),
+            label: 'Otras apps',
+            onTap: () {
+              Navigator.pop(context);
+              Share.share(mensaje);
+            },
+          ),
+
+          const Divider(height: 24),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: Color(0xFF8F877F), fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShareOptionRow extends StatelessWidget {
+  final Widget iconWidget;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ShareOptionRow({
+    required this.iconWidget,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Row(
+          children: [
+            iconWidget,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFFB0A8A0),
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Mini Action ──────────────────────────────────────────────────────────────
 
 class _MiniAction extends StatelessWidget {
   final IconData icon;

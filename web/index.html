@@ -31,6 +31,21 @@
 
   <title>aura_app</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Deep link: redirige a la app nativa si está instalada -->
+  <script>
+    (function () {
+      try {
+        var path = window.location.pathname;
+        var search = window.location.search;
+        if (path.indexOf('payment-result') > -1 && search.indexOf('pago_id') > -1) {
+          setTimeout(function () {
+            window.location.href = 'aura://payment-result' + search;
+          }, 300);
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <!--

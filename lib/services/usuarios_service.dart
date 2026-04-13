@@ -1,4 +1,5 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+﻿import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/constants/app_constants.dart';
 import '../models/usuario.dart';
 
@@ -112,7 +113,8 @@ class UsuariosService {
         'pack_nombre': packNombre,
         'creditos': creditos,
         'amount': amount,
-        if (vigenciaDias != null) 'vigencia_dias': vigenciaDias,
+        'vigencia_dias': vigenciaDias,
+        'platform': kIsWeb ? 'web' : 'mobile',
       },
     );
     if (res.status != 200) {
@@ -135,6 +137,7 @@ class UsuariosService {
         'plan_nombre': planNombre,
         'plan_creditos': planCreditos,
         'plan_precio': planPrecio,
+        'platform': kIsWeb ? 'web' : 'mobile',
       },
     );
     if (res.status != 200) {

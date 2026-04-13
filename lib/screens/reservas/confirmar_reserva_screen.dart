@@ -64,6 +64,7 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
 
   Future<void> _confirmar() async {
     final provider = context.read<AppProvider>();
+    final messenger = ScaffoldMessenger.of(context);
     final authUserId = provider.userId;
     if (authUserId.isEmpty) return;
 
@@ -76,7 +77,7 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
 
     final creditos = (_clase?['creditos'] as num?)?.toInt() ?? 1;
     if (usuario.creditos < creditos) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(
           content: Text('No tenés suficientes créditos'),
           backgroundColor: AppColors.error,
@@ -219,6 +220,8 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
                           const SizedBox(height: 14),
                           Text(
                             clase['nombre']?.toString() ?? 'Clase',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: AppColors.black,
                               fontSize: 18,
@@ -228,6 +231,8 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
                           const SizedBox(height: 6),
                           Text(
                             '${estudio?['nombre'] ?? 'Studio Zen'} · ${estudio?['barrio'] ?? 'Palermo'}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Color(0xFF8F877F),
                               fontSize: 15,

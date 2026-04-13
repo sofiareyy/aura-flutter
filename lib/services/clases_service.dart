@@ -12,7 +12,7 @@ String _toSupaDate(DateTime dt) {
 class ClasesService {
   final _supabase = Supabase.instance.client;
 
-  Future<List<Map<String, dynamic>>> getProximasClases({int limit = 10}) async {
+  Future<List<Map<String, dynamic>>> getProximasClases({int limit = 20, int offset = 0}) async {
     final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
     final semanasAdelante = ahora.add(const Duration(days: 21));
     final clases = await _supabase
@@ -21,7 +21,7 @@ class ClasesService {
         .gte('fecha', _toSupaDate(ahora))
         .lte('fecha', _toSupaDate(semanasAdelante))
         .order('fecha')
-        .limit(limit);
+        .range(offset, offset + limit - 1);
     final withEstudios =
         await _attachEstudios(List<Map<String, dynamic>>.from(clases as List));
     return _attachOcupacion(withEstudios);

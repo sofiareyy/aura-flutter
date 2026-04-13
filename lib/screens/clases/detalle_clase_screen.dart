@@ -10,6 +10,7 @@ import '../../services/aura_gestion_service.dart';
 import '../../services/clases_service.dart';
 import '../../services/reservas_service.dart';
 import '../../services/reviews_service.dart';
+import '../../services/waitlist_service.dart';
 import '../../widgets/study_review_sheet.dart';
 
 class DetalleClaseScreen extends StatefulWidget {
@@ -26,6 +27,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
   final _reservasService = ReservasService();
   final _reviewsService = ReviewsService();
   final _gestionService = AuraGestionService();
+  final _waitlistService = WaitlistService();
 
   Map<String, dynamic>? _clase;
   bool _loading = true;
@@ -33,6 +35,9 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
   bool _reservando = false;
   bool _canReview = false;
   bool _esGratuita = false;
+  bool _enListaEspera = false;
+  bool _togglingWaitlist = false;
+  int _waitlistCount = 0;
   List<Map<String, dynamic>> _reviews = [];
 
   @override
@@ -42,9 +47,9 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
   }
 
   Future<void> _cargar() async {
+    final provider = context.read<AppProvider>();
     try {
       final clase = await _clasesService.getClase(widget.claseId);
-      final provider = context.read<AppProvider>();
       bool yaReservado = false;
 
       if (clase != null && provider.userId.isNotEmpty) {
@@ -68,12 +73,23 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
       // Verificar si la reserva es gratuita (alumno directo)
       final userEmail =
           Supabase.instance.client.auth.currentUser?.email ?? '';
-      final esGratuita = userEmail.isNotEmpty
-          ? await _gestionService.reservaEsGratuita(
-              claseId: widget.claseId,
-              userEmail: userEmail,
-            )
-          : false;
+
+      final futures = await Future.wait([
+        userEmail.isNotEmpty
+            ? _gestionService.reservaEsGratuita(
+                claseId: widget.claseId,
+                userEmail: userEmail,
+              )
+            : Future.value(false),
+        provider.userId.isNotEmpty
+            ? _waitlistService.isOnWaitlist(widget.claseId, provider.userId)
+            : Future.value(false),
+        _waitlistService.getCount(widget.claseId),
+      ]);
+
+      final esGratuita = futures[0] as bool;
+      final enListaEspera = futures[1] as bool;
+      final waitlistCount = futures[2] as int;
 
       if (!mounted) return;
       setState(() {
@@ -82,6 +98,8 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
         _canReview = canReview;
         _reviews = reviews;
         _esGratuita = esGratuita;
+        _enListaEspera = enListaEspera;
+        _waitlistCount = waitlistCount;
         _loading = false;
       });
     } catch (_) {
@@ -217,6 +235,54 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     }
   }
 
+  Future<void> _toggleListaEspera() async {
+    final userId = context.read<AppProvider>().userId;
+    if (userId.isEmpty || _togglingWaitlist) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _togglingWaitlist = true);
+    try {
+      if (_enListaEspera) {
+        await _waitlistService.leave(widget.claseId, userId);
+        if (!mounted) return;
+        setState(() {
+          _enListaEspera = false;
+          _waitlistCount = (_waitlistCount - 1).clamp(0, 9999);
+        });
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Te quitaste de la lista de espera.'),
+            backgroundColor: AppColors.blackSoft,
+          ),
+        );
+      } else {
+        await _waitlistService.join(widget.claseId, userId);
+        if (!mounted) return;
+        setState(() {
+          _enListaEspera = true;
+          _waitlistCount = _waitlistCount + 1;
+        });
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('¡Anotado! Te avisamos si se libera un lugar.'),
+            backgroundColor: AppColors.blackSoft,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo actualizar la lista de espera.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _togglingWaitlist = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -268,7 +334,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
           slivers: [
             SliverToBoxAdapter(
               child: SizedBox(
-                height: 280,
+                height: 300,
                 width: double.infinity,
                 child: Stack(
                   children: [
@@ -280,17 +346,17 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                         imageMode: clase['imagen_ajuste']?.toString(),
                       ),
                     ),
-                    // Gradiente: negro opaco abajo → transparente arriba
+                    // Gradiente: cubre el 40% inferior con negro opaco
                     Positioned.fill(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.bottomCenter,
                             end: Alignment.topCenter,
-                            stops: const [0.0, 0.5, 1.0],
+                            stops: const [0.0, 0.4, 1.0],
                             colors: [
-                              Colors.black.withValues(alpha: 0.85),
-                              Colors.black.withValues(alpha: 0.3),
+                              Color(0xE6000000), // #000 alpha 0.9
+                              Colors.transparent,
                               Colors.transparent,
                             ],
                           ),
@@ -301,12 +367,11 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                     Positioned(
                       top: 0,
                       left: 0,
-                      right: 0,
                       child: SafeArea(
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                          padding: const EdgeInsets.only(top: 10, left: 16),
                           child: _CircleAction(
-                            icon: Icons.arrow_back_rounded,
+                            icon: Icons.arrow_back,
                             onTap: () => context.pop(),
                           ),
                         ),
@@ -342,6 +407,8 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                           const SizedBox(height: 10),
                           Text(
                             clase['nombre']?.toString() ?? 'Clase',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: AppColors.white,
                               fontSize: 24,
@@ -356,11 +423,13 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                 : null,
                             child: Text(
                               '$estudioNombre - $barrio',
-                              style: const TextStyle(
-                                color: Color(0xFFE7E0D9),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.85),
                                 fontSize: 15,
                                 decoration: TextDecoration.underline,
-                                decorationColor: Color(0xFFE7E0D9),
+                                decorationColor: Colors.white.withValues(alpha: 0.85),
                               ),
                             ),
                           ),
@@ -435,6 +504,12 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                 context.push(uri.toString());
                               },
                             ),
+                            if (_canReview)
+                              _HeaderActionPill(
+                                icon: Icons.star_outline_rounded,
+                                label: 'Dejar reseña',
+                                onTap: _dejarResena,
+                              ),
                           ],
                         ),
                       ],
@@ -770,21 +845,28 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
           left: 20,
           right: 20,
           bottom: MediaQuery.of(context).padding.bottom + 16,
-          child: SizedBox(
-            height: 56,
-            child: ElevatedButton(
-              onPressed: _yaReservado ? null : !disponible ? null : _irAConfirmar,
-              child: Text(
-                _yaReservado
-                    ? 'Ya reservada'
-                    : !disponible
-                        ? (reservaCerrada ? 'Reservas cerradas' : 'Sin lugares')
-                        : _esGratuita
-                            ? 'Reservar gratis'
-                            : 'Reservar · $creditos créditos',
-              ),
-            ),
-          ),
+          child: lugaresDisp <= 0 && !_yaReservado && !reservaCerrada
+              ? _WaitlistButton(
+                  enListaEspera: _enListaEspera,
+                  waitlistCount: _waitlistCount,
+                  loading: _togglingWaitlist,
+                  onTap: _toggleListaEspera,
+                )
+              : SizedBox(
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _yaReservado ? null : !disponible ? null : _irAConfirmar,
+                    child: Text(
+                      _yaReservado
+                          ? 'Ya reservada'
+                          : !disponible
+                              ? (reservaCerrada ? 'Reservas cerradas' : 'Sin lugares')
+                              : _esGratuita
+                                  ? 'Reservar gratis'
+                                  : 'Reservar · $creditos créditos',
+                    ),
+                  ),
+                ),
         ),
       ],
     );
@@ -921,10 +1003,10 @@ class _CircleAction extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.35),
+          color: Colors.black.withValues(alpha: 0.4),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: AppColors.white, size: 22),
+        child: Icon(icon, color: Colors.white, size: 20),
       ),
     );
   }
@@ -1221,18 +1303,18 @@ class _HeaderActionPill extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.16),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: Colors.white.withOpacity(0.28)),
+          border: Border.all(color: Colors.black12),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 15, color: AppColors.white),
+            Icon(icon, size: 15, color: AppColors.black),
             const SizedBox(width: 6),
             Text(
               label,
               style: const TextStyle(
-                color: AppColors.white,
+                color: AppColors.black,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -1240,6 +1322,78 @@ class _HeaderActionPill extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _WaitlistButton extends StatelessWidget {
+  final bool enListaEspera;
+  final int waitlistCount;
+  final bool loading;
+  final VoidCallback onTap;
+
+  const _WaitlistButton({
+    required this.enListaEspera,
+    required this.waitlistCount,
+    required this.loading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (waitlistCount > 0)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              '$waitlistCount ${waitlistCount == 1 ? 'persona' : 'personas'} esperando un lugar',
+              style: const TextStyle(color: AppColors.grey, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        SizedBox(
+          height: 56,
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: loading ? null : onTap,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: enListaEspera
+                  ? const Color(0xFFE65100)
+                  : AppColors.primary,
+              side: BorderSide(
+                color: enListaEspera
+                    ? const Color(0xFFE65100)
+                    : AppColors.primary,
+              ),
+              backgroundColor: enListaEspera
+                  ? const Color(0xFFFFF3E0)
+                  : Colors.transparent,
+            ),
+            icon: loading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  )
+                : Icon(
+                    enListaEspera
+                        ? Icons.notifications_off_outlined
+                        : Icons.notifications_active_outlined,
+                    size: 20,
+                  ),
+            label: Text(
+              enListaEspera
+                  ? 'Salir de la lista de espera'
+                  : 'Anotarme a la lista de espera',
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

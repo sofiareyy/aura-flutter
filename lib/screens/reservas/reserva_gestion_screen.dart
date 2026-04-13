@@ -75,14 +75,18 @@ class _ReservaGestionScreenState extends State<ReservaGestionScreen> {
 
     setState(() => _confirmando = true);
     try {
-      // TODO: reemplazar por ReservasService.confirmarReserva() si se crea esa API específica.
+      // Crear reserva gratuita (alumno directo, 0 créditos) y luego confirmar check-in.
       final reserva = await _reservasService.crearReserva(
         userId: userId,
         claseId: widget.claseId,
         creditosUsados: 0,
       );
       if (!mounted) return;
-      if (reserva != null && (reserva.codigoQr?.isNotEmpty ?? false)) {
+
+      if (reserva?.codigoQr?.isNotEmpty == true) {
+        // Registrar check-in inmediato para alumnos directos
+        await _reservasService.confirmarReserva(reserva!.codigoQr!);
+        if (!mounted) return;
         context.go('/reserva-confirmada/${Uri.encodeComponent(reserva.codigoQr!)}');
       } else {
         AuraGestionDesign.showSuccessSnackBar(
@@ -203,11 +207,15 @@ class _ReservaGestionScreenState extends State<ReservaGestionScreen> {
               const SizedBox(height: 12),
               Text(
                 nombreClase,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: AuraGestionDesign.titleStyle(size: 18),
               ),
               const SizedBox(height: 4),
               Text(
                 nombreEstudio,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: AuraGestionDesign.bodyStyle(
                   color: AuraGestionDesign.textSecondary,
                   size: 14,

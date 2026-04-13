@@ -10,6 +10,9 @@ class Usuario {
   final String? subscriptionStatus;
   final DateTime? renewalDate;
   final int? estudioAsociadoId;
+  final bool notifReservas;
+  final bool notifRecordatorios;
+  final bool notifPromos;
 
   const Usuario({
     required this.id,
@@ -23,6 +26,9 @@ class Usuario {
     this.subscriptionStatus,
     this.renewalDate,
     this.estudioAsociadoId,
+    this.notifReservas = true,
+    this.notifRecordatorios = true,
+    this.notifPromos = false,
   });
 
   factory Usuario.fromMap(Map<String, dynamic> map) {
@@ -42,6 +48,9 @@ class Usuario {
           ? DateTime.tryParse(map['renewal_date'].toString())
           : null,
       estudioAsociadoId: (map['estudio_asociado_id'] as num?)?.toInt(),
+      notifReservas: map['notifs_reservas'] as bool? ?? true,
+      notifRecordatorios: map['notifs_recordatorios'] as bool? ?? true,
+      notifPromos: map['notifs_promos'] as bool? ?? false,
     );
   }
 
@@ -83,6 +92,9 @@ class Usuario {
       subscriptionStatus: subscriptionStatus ?? this.subscriptionStatus,
       renewalDate: renewalDate ?? this.renewalDate,
       estudioAsociadoId: estudioAsociadoId ?? this.estudioAsociadoId,
+      notifReservas: notifReservas,
+      notifRecordatorios: notifRecordatorios,
+      notifPromos: notifPromos,
     );
   }
 }

@@ -10,6 +10,7 @@ import '../../models/usuario.dart';
 import '../../providers/app_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/favoritos_service.dart';
+import '../../services/usuarios_service.dart';
 
 class MiPerfilScreen extends StatefulWidget {
   const MiPerfilScreen({super.key});
@@ -21,6 +22,7 @@ class MiPerfilScreen extends StatefulWidget {
 class _MiPerfilScreenState extends State<MiPerfilScreen> {
   final _authService = AuthService();
   final _favoritosService = FavoritosService();
+  final _usuariosService = UsuariosService();
 
   bool _loadingFavoritos = true;
   List<Estudio> _favoritos = const [];
@@ -98,15 +100,26 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                       ),
                       const SizedBox(width: 10),
                       _StatBox(
-                        value: usuario?.creditosVencimiento != null ? 'Sí' : 'No',
-                        label: 'Vencimiento',
-                        icon: Icons.hourglass_bottom_rounded,
+                        value: (usuario?.plan?.isNotEmpty == true)
+                            ? usuario!.plan!
+                            : 'Sin plan',
+                        valueColor: (usuario?.plan?.isNotEmpty == true)
+                            ? AppColors.primary
+                            : AppColors.grey,
+                        label: 'Plan',
+                        icon: Icons.workspace_premium_rounded,
                       ),
                       const SizedBox(width: 10),
                       _StatBox(
-                        value: '${_favoritos.length}',
-                        label: 'Favoritos',
-                        icon: Icons.favorite_rounded,
+                        value: usuario?.creditosVencimiento != null
+                            ? DateFormat('d MMM', 'es')
+                                .format(usuario!.creditosVencimiento!)
+                            : '—',
+                        valueColor: usuario?.creditosVencimiento != null
+                            ? AppColors.black
+                            : AppColors.grey,
+                        label: 'Vence',
+                        icon: Icons.hourglass_bottom_rounded,
                       ),
                     ],
                   ),
@@ -177,7 +190,9 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                       _MenuItem(
                         icon: Icons.workspace_premium_rounded,
                         label: 'Plan mensual',
-                        subtitle: 'Opcional: suscripción automática',
+                        subtitle: usuario?.subscriptionStatus == 'active' && (usuario?.plan ?? '').isNotEmpty
+                            ? 'Activo: ${usuario!.plan}'
+                            : 'Opcional: suscripción automática',
                         onTap: () => context.push('/cambiar-plan'),
                       ),
                       _MenuItem(
@@ -187,7 +202,21 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  if (usuario?.subscriptionStatus == 'active' &&
+                      (usuario?.plan ?? '').isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4, bottom: 4),
+                      child: Center(
+                        child: TextButton(
+                          onPressed: _cancelarSuscripcion,
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.error,
+                          ),
+                          child: const Text('Cancelar suscripción'),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
                   _FavoritosSection(
                     estudios: _favoritos,
                     loading: _loadingFavoritos,
@@ -284,6 +313,54 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _cancelarSuscripcion() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final provider = context.read<AppProvider>();
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar suscripción'),
+        content: const Text(
+          '¿Estás segura? Vas a perder el acceso a los créditos automáticos al final del período actual.\n\nTus créditos existentes no se eliminan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Mantener plan'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Sí, cancelar',
+              style: TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    try {
+      await _usuariosService.cancelarSuscripcion();
+      if (!mounted) return;
+      await provider.refrescarUsuario();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Suscripción cancelada. Tus créditos actuales siguen disponibles.'),
+          backgroundColor: AppColors.blackSoft,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   Future<void> _cerrarSesion(BuildContext context) async {
@@ -407,11 +484,13 @@ class _StatBox extends StatelessWidget {
   final String value;
   final String label;
   final IconData icon;
+  final Color? valueColor;
 
   const _StatBox({
     required this.value,
     required this.label,
     required this.icon,
+    this.valueColor,
   });
 
   @override
@@ -431,10 +510,10 @@ class _StatBox extends StatelessWidget {
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: AppColors.black,
+                color: valueColor ?? AppColors.black,
               ),
             ),
             Text(

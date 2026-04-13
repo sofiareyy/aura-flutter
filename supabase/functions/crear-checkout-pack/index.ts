@@ -33,7 +33,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json().catch(() => null)
-    const { pack_nombre, creditos, amount, vigencia_dias } = body ?? {}
+    const { pack_nombre, creditos, amount, vigencia_dias, platform } = body ?? {}
 
     if (!pack_nombre || typeof creditos !== 'number' || typeof amount !== 'number') {
       return json({ error: 'Faltan campos: pack_nombre, creditos, amount' }, 400)
@@ -82,10 +82,12 @@ Deno.serve(async (req: Request) => {
     const appBaseUrl = ((configuredBaseUrl && !configuredBaseUrl.includes('example.com')) ? configuredBaseUrl : fallbackBaseUrl).replace(/\/$/, '')
     const webhookUrl = `${supabaseUrl}/functions/v1/mp-webhook`
     const externalRef = `user_id=${user.id}|type=pack|pack=${encodeURIComponent(packConfig.nombre)}|creditos=${packConfig.creditos}|vigencia=${packConfig.vigenciaDias}|pago_id=${pago.id}`
+    const isMobile = platform === 'mobile'
+    const backUrlBase = isMobile ? 'aura://payment-result' : `${appBaseUrl}/payment-result`
     const backUrls = {
-      success: `${appBaseUrl}/payment-result?status=success&pago_id=${pago.id}`,
-      failure: `${appBaseUrl}/payment-result?status=failure&pago_id=${pago.id}`,
-      pending: `${appBaseUrl}/payment-result?status=pending&pago_id=${pago.id}`,
+      success: `${backUrlBase}?status=success&pago_id=${pago.id}`,
+      failure: `${backUrlBase}?status=failure&pago_id=${pago.id}`,
+      pending: `${backUrlBase}?status=pending&pago_id=${pago.id}`,
     }
 
     const mpPayload = {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/estudio.dart';
 import '../models/usuario.dart';
@@ -34,11 +35,50 @@ class AppProvider extends ChangeNotifier {
       }
       _usuario = usuario;
 
+      // Sentry: adjuntar usuario para identificar errores por cuenta
+      if (usuario != null) {
+        final uid = usuario.id;
+        final email = Supabase.instance.client.auth.currentUser?.email;
+        Sentry.configureScope((scope) {
+          scope.setUser(SentryUser(id: uid, email: email));
+        });
+      }
+
       // Cargar estudio asociado
       await _cargarEstudioAsociado(usuario);
 
       if (uid.isNotEmpty) {
-        await NotificacionesService.instance.syncReservasDelUsuario(uid);
+        final notifRecordatorios = usuario?.notifRecordatorios ?? true;
+
+        // Recordatorios de reservas (1h antes de cada clase)
+        await NotificacionesService.instance.syncReservasDelUsuario(
+          uid,
+          notifEnabled: notifRecordatorios,
+        );
+
+        // Recordatorio de vencimiento de créditos (3 días antes)
+        if (notifRecordatorios &&
+            usuario?.creditosVencimiento != null &&
+            (usuario?.creditos ?? 0) > 0) {
+          await NotificacionesService.instance.scheduleCreditsExpiryReminder(
+            expiresAt: usuario!.creditosVencimiento!,
+          );
+        } else {
+          await NotificacionesService.instance.cancelCreditsExpiryReminder();
+        }
+
+        // Recordatorio de renovación de plan (2 días antes)
+        if (notifRecordatorios &&
+            usuario?.renewalDate != null &&
+            usuario?.plan != null &&
+            usuario?.subscriptionStatus == 'active') {
+          await NotificacionesService.instance.scheduleRenewalReminder(
+            renewalDate: usuario!.renewalDate!,
+            planNombre: usuario.plan!,
+          );
+        } else {
+          await NotificacionesService.instance.cancelRenewalReminder();
+        }
       }
     } catch (_) {
     } finally {
@@ -105,6 +145,7 @@ class AppProvider extends ChangeNotifier {
   void limpiarUsuario() {
     _usuario = null;
     _estudioAsociado = null;
+    Sentry.configureScope((scope) => scope.setUser(null));
     notifyListeners();
   }
 }

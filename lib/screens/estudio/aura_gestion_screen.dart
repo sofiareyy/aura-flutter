@@ -121,26 +121,25 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
                 return;
               }
               setModalState(() => saving = true);
+              final nav = Navigator.of(context);
               try {
                 await _gestionService.agregarAlumno(
                   estudioId: _estudioId!,
                   nombre: nombreController.text,
                   email: emailController.text,
                 );
-                if (!mounted) return;
-                Navigator.of(context).pop();
+                nav.pop();
                 await _cargar();
                 if (!mounted) return;
+                // ignore: use_build_context_synchronously
                 AuraGestionDesign.showSuccessSnackBar(
                   this.context,
                   'Alumno agregado.',
                 );
               } catch (e) {
                 setModalState(() => saving = false);
-                AuraGestionDesign.showErrorSnackBar(
-                  context,
-                  'No pudimos agregar este alumno.',
-                );
+                // ignore: use_build_context_synchronously
+                AuraGestionDesign.showErrorSnackBar(context, 'No pudimos agregar este alumno.');
               }
             }
 
@@ -233,25 +232,24 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
           builder: (context, setModalState) {
             Future<void> confirm() async {
               setModalState(() => saving = true);
+              final nav = Navigator.of(context);
               try {
                 await _gestionService.cambiarModoEstudio(
                   estudioId: _estudioId!,
                   modo: selected,
                 );
-                if (!mounted) return;
-                Navigator.of(context).pop();
+                nav.pop();
                 await _cargar();
                 if (!mounted) return;
+                // ignore: use_build_context_synchronously
                 AuraGestionDesign.showSuccessSnackBar(
                   this.context,
                   'Modo actualizado.',
                 );
               } catch (_) {
                 setModalState(() => saving = false);
-                AuraGestionDesign.showErrorSnackBar(
-                  context,
-                  'No pudimos cambiar el modo.',
-                );
+                // ignore: use_build_context_synchronously
+                AuraGestionDesign.showErrorSnackBar(context, 'No pudimos cambiar el modo.');
               }
             }
 
@@ -383,8 +381,293 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
     );
   }
 
+  Widget _buildDesktopContent() {
+    const headerStyle = TextStyle(
+      color: Color(0xFF888888),
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Top row: search + add button ──────────────────────────────────
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                style: AuraGestionDesign.bodyStyle(),
+                decoration: AuraGestionDesign.inputDecoration(
+                  label: 'Buscar alumno',
+                  hint: 'Nombre o email',
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: AuraGestionDesign.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton.icon(
+              onPressed: _mostrarAgregarAlumnoSheet,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Agregar alumno'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AuraGestionDesign.accent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AuraGestionDesign.buttonRadius),
+                ),
+                textStyle: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // ── Modo card (compact horizontal) ────────────────────────────────
+        _buildModoCardDesktop(),
+        const SizedBox(height: 24),
+
+        // ── Table header ──────────────────────────────────────────────────
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: AuraGestionDesign.card,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            border: Border(bottom: BorderSide(color: AuraGestionDesign.border)),
+          ),
+          child: const Row(
+            children: [
+              Expanded(flex: 3, child: Text('NOMBRE', style: headerStyle)),
+              Expanded(flex: 4, child: Text('EMAIL', style: headerStyle)),
+              SizedBox(width: 96, child: Text('ESTADO', style: headerStyle)),
+              SizedBox(width: 60, child: SizedBox()),
+            ],
+          ),
+        ),
+
+        // ── Table rows ────────────────────────────────────────────────────
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator(color: AuraGestionDesign.accent))
+              : _filtrados.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: AuraGestionDesign.softBadge,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Icon(Icons.groups_rounded, color: AuraGestionDesign.accent, size: 32),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _alumnos.isEmpty ? 'Todavía no agregaste alumnos' : 'Sin resultados para tu búsqueda',
+                            style: AuraGestionDesign.bodyStyle(weight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Container(
+                      decoration: BoxDecoration(
+                        color: AuraGestionDesign.card,
+                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                      ),
+                      child: ListView.separated(
+                        itemCount: _filtrados.length,
+                        separatorBuilder: (_, __) => Divider(height: 1, color: AuraGestionDesign.border),
+                        itemBuilder: (context, index) {
+                          final alumno = _filtrados[index];
+                          final nombre = alumno['nombre']?.toString().trim().isNotEmpty == true
+                              ? alumno['nombre'].toString().trim()
+                              : 'Alumno';
+                          final email = alumno['email']?.toString() ?? '';
+                          final activo = alumno['activo'] == true;
+                          return InkWell(
+                            onTap: () => _mostrarAlumnoActionsSheet(alumno),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              child: Row(
+                                children: [
+                                  // Avatar + nombre
+                                  Expanded(
+                                    flex: 3,
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 32,
+                                          height: 32,
+                                          decoration: BoxDecoration(
+                                            color: AuraGestionDesign.softBadge,
+                                            borderRadius: BorderRadius.circular(999),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              nombre.substring(0, 1).toUpperCase(),
+                                              style: AuraGestionDesign.bodyStyle(
+                                                color: AuraGestionDesign.accent,
+                                                weight: FontWeight.w700,
+                                                size: 13,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            nombre,
+                                            style: AuraGestionDesign.bodyStyle(weight: FontWeight.w600),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Email
+                                  Expanded(
+                                    flex: 4,
+                                    child: Text(
+                                      email,
+                                      style: AuraGestionDesign.bodyStyle(
+                                        color: AuraGestionDesign.textSecondary,
+                                        size: 13,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  // Estado pill
+                                  SizedBox(
+                                    width: 96,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: activo ? const Color(0xFFE9F7EF) : const Color(0xFFF1F0EE),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        activo ? 'Activo' : 'Inactivo',
+                                        style: AuraGestionDesign.bodyStyle(
+                                          color: activo ? const Color(0xFF2E7D32) : AuraGestionDesign.textSecondary,
+                                          size: 12,
+                                          weight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                  // Acciones
+                                  SizedBox(
+                                    width: 60,
+                                    child: IconButton(
+                                      onPressed: () => _mostrarAlumnoActionsSheet(alumno),
+                                      icon: const Icon(Icons.more_vert_rounded, color: AuraGestionDesign.textSecondary),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModoCardDesktop() {
+    final isGestion = _modo == 'gestion';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: AuraGestionDesign.premiumCard,
+        borderRadius: BorderRadius.circular(AuraGestionDesign.cardRadius),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Modo actual',
+                  style: AuraGestionDesign.titleStyle(size: 14, color: Colors.white70),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AuraGestionDesign.softBadge,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        isGestion ? 'Gestión Gratuita' : 'Marketplace Aura',
+                        style: AuraGestionDesign.bodyStyle(
+                          color: AuraGestionDesign.accent,
+                          size: 13,
+                          weight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Text(
+                        isGestion
+                            ? 'Tus alumnos reservan gratis sin consumir créditos.'
+                            : 'Aparecés en Aura para nuevos alumnos. Comisión 30%.',
+                        style: AuraGestionDesign.bodyStyle(
+                          color: AuraGestionDesign.creamText.withOpacity(0.75),
+                          size: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          OutlinedButton(
+            onPressed: _mostrarCambiarModoSheet,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white24),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AuraGestionDesign.buttonRadius),
+              ),
+              textStyle: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            child: const Text('Cambiar modo'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
+
+    if (isDesktop) {
+      return Scaffold(
+        backgroundColor: AuraGestionDesign.background,
+        body: Padding(
+          padding: const EdgeInsets.all(32),
+          child: _buildDesktopContent(),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AuraGestionDesign.background,
       appBar: AppBar(

@@ -25,6 +25,10 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   List<String> _categorias = const ['Todos'];
   String _categoriaSeleccionada = 'Todos';
   bool _loading = true;
+  bool _loadingMore = false;
+  bool _hasMoreClases = true;
+  int _clasesOffset = 0;
+  static const _pageSize = 20;
   bool _categoriaInicialAplicada = false;
   bool _showAllDestacados = false;
   int? _estudioAsociadoId;
@@ -63,20 +67,43 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
 
     final results = await Future.wait([
       _estudiosService.getEstudios(),
-      _clasesService.getProximasClases(limit: 20),
+      _clasesService.getProximasClases(limit: _pageSize, offset: 0),
       _estudiosService.getCategorias(),
     ]);
 
     if (!mounted) return;
+    final nuevasClases = results[1] as List<Map<String, dynamic>>;
     setState(() {
       _estudios = results[0] as List<Estudio>;
-      _clases = results[1] as List<Map<String, dynamic>>;
+      _clases = nuevasClases;
+      _clasesOffset = nuevasClases.length;
+      _hasMoreClases = nuevasClases.length == _pageSize;
       _categorias = results[2] as List<String>;
       if (!_categorias.contains(_categoriaSeleccionada)) {
         _categoriaSeleccionada = 'Todos';
       }
       _loading = false;
     });
+  }
+
+  Future<void> _cargarMasClases() async {
+    if (_loadingMore || !_hasMoreClases) return;
+    setState(() => _loadingMore = true);
+    try {
+      final mas = await _clasesService.getProximasClases(
+        limit: _pageSize,
+        offset: _clasesOffset,
+      );
+      if (!mounted) return;
+      setState(() {
+        _clases = [..._clases, ...mas];
+        _clasesOffset += mas.length;
+        _hasMoreClases = mas.length == _pageSize;
+        _loadingMore = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingMore = false);
+    }
   }
 
   void _abrirMapa() {
@@ -126,7 +153,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   @override
   Widget build(BuildContext context) {
     final destacados = _showAllDestacados ? _estudiosFiltrados : _estudiosFiltrados.take(2).toList();
-    final lista = _clasesConEstudio.take(6).toList();
+    final lista = _clasesConEstudio;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -304,11 +331,33 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                   ),
                 )
               else if (destacados.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Text(
-                    'No encontramos resultados.',
-                    style: TextStyle(color: Color(0xFF8C847C)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.search_off_rounded, size: 44, color: Color(0xFFB2A89F)),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'No encontramos resultados',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Probá con otro término o categoría.',
+                        style: TextStyle(color: Color(0xFF8C847C), fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton.icon(
+                        onPressed: () => setState(() {
+                          _searchCtrl.clear();
+                          _categoriaSeleccionada = 'Todos';
+                        }),
+                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        label: const Text('Limpiar filtros'),
+                      ),
+                    ],
                   ),
                 )
               else ...[
@@ -355,7 +404,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                       style: TextStyle(color: Color(0xFF8C847C)),
                     ),
                   )
-                else
+                else ...[
                   ...lista.asMap().entries.map(
                         (entry) => Padding(
                           padding: const EdgeInsets.only(bottom: 12),
@@ -368,6 +417,27 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                           ),
                         ),
                       ),
+                  if (_hasMoreClases || _loadingMore)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4, bottom: 4),
+                      child: Center(
+                        child: _loadingMore
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.primary,
+                                ),
+                              )
+                            : TextButton.icon(
+                                onPressed: _cargarMasClases,
+                                icon: const Icon(Icons.expand_more_rounded, size: 18),
+                                label: const Text('Cargar más clases'),
+                              ),
+                      ),
+                    ),
+                ],
               ],
             ],
           ),

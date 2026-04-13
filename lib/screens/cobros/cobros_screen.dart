@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/estudio_admin_service.dart';
@@ -47,8 +48,191 @@ class _CobrosScreenState extends State<CobrosScreen> {
     }
   }
 
+  Widget _buildDesktopContent() {
+    if (_error != null) return _InfoCard(message: _error!);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 3 metric tiles
+        Row(
+          children: [
+            _MetricTile(
+              value: _moneyCompact(_montoCobrado),
+              label: 'cobrado',
+              color: const Color(0xFFE3F3E5),
+              valueColor: const Color(0xFF2FAD5B),
+            ),
+            const SizedBox(width: 12),
+            _MetricTile(
+              value: '${_reservasNoCanceladas.length}',
+              label: 'Reservas',
+              color: const Color(0xFFFFF3DE),
+              valueColor: AppColors.primary,
+            ),
+            const SizedBox(width: 12),
+            _MetricTile(
+              value: _moneyCompact(_ticketPromedio),
+              label: 'por reserva',
+              color: const Color(0xFFF1F1F1),
+              valueColor: AppColors.black,
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        // Chart + próximo cobro
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 3,
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Ingresos mensuales',
+                      style: TextStyle(color: Color(0xFF9A928B), fontSize: 13),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: 120,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: _buildMonthlyBars(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.blackSoft,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Próximo cobro', style: TextStyle(color: Color(0xFFA39B94), fontSize: 13)),
+                    const SizedBox(height: 10),
+                    Text(_money(_montoPendiente), style: const TextStyle(color: AppColors.primary, fontSize: 28, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 6),
+                    Text('${_reservasMesActual.length} reservas · $_mesActualCapitalizado', style: const TextStyle(color: Color(0xFFA39B94), fontSize: 13)),
+                    const SizedBox(height: 16),
+                    Text('Pago el $_diaPago', style: const TextStyle(color: Color(0xFFA39B94), fontSize: 13)),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 40,
+                      child: ElevatedButton(
+                        onPressed: () => _verDetalle(context),
+                        child: const Text('Ver detalle'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        // Historial tabla
+        const Text(
+          'HISTORIAL',
+          style: TextStyle(color: Color(0xFF8F877F), fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
+          child: _historial.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text('Todavía no hay historial de cobros.', style: TextStyle(color: Color(0xFF8F877F))),
+                )
+              : Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF7F5F2),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Expanded(child: Text('Mes', style: TextStyle(color: Color(0xFF888888), fontSize: 11, fontWeight: FontWeight.w700))),
+                          SizedBox(width: 80, child: Text('Reservas', style: TextStyle(color: Color(0xFF888888), fontSize: 11, fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
+                          SizedBox(width: 120, child: Text('Monto neto', style: TextStyle(color: Color(0xFF888888), fontSize: 11, fontWeight: FontWeight.w700), textAlign: TextAlign.right)),
+                          SizedBox(width: 90, child: Text('Estado', style: TextStyle(color: Color(0xFF888888), fontSize: 11, fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
+                        ],
+                      ),
+                    ),
+                    ..._historial.asMap().entries.map((e) {
+                      final item = e.value;
+                      final isPending = item['estado'] == 'Pendiente';
+                      final statusColor = isPending ? AppColors.primary : const Color(0xFF43A047);
+                      final statusBg = isPending ? const Color(0xFFFFF3DE) : const Color(0xFFE3F3E5);
+                      return Container(
+                        decoration: BoxDecoration(
+                          border: Border(top: BorderSide(color: Colors.grey.shade100)),
+                          borderRadius: e.key == _historial.length - 1
+                              ? const BorderRadius.vertical(bottom: Radius.circular(16))
+                              : null,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        child: Row(
+                          children: [
+                            Expanded(child: Text(item['mes'] as String, style: const TextStyle(color: AppColors.black, fontSize: 14, fontWeight: FontWeight.w600))),
+                            SizedBox(width: 80, child: Text('${item['reservas']}', style: const TextStyle(color: Color(0xFF8F877F), fontSize: 14), textAlign: TextAlign.center)),
+                            SizedBox(width: 120, child: Text(_money(item['monto'] as int), style: TextStyle(color: statusColor, fontSize: 14, fontWeight: FontWeight.w700), textAlign: TextAlign.right)),
+                            SizedBox(
+                              width: 90,
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(999)),
+                                  child: Text(item['estado'] as String, style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
+
+    if (isDesktop) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: _loading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            : RefreshIndicator(
+                onRefresh: _cargar,
+                color: AppColors.primary,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: _buildDesktopContent(),
+                ),
+              ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _loading
@@ -125,7 +309,7 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                 SizedBox(
                                   height: 42,
                                   child: ElevatedButton(
-                                    onPressed: () {},
+                                    onPressed: () => _verDetalle(context),
                                     child: const Text('Ver detalle'),
                                   ),
                                 ),
@@ -413,6 +597,330 @@ class _CobrosScreenState extends State<CobrosScreen> {
     );
   }
 
+  Future<(Map<int, String>, Map<String, String>)> _loadDetalleData() async {
+    final reservas = _reservasMesActual;
+
+    final claseIds = reservas
+        .map((r) => (r['clase_id'] as num?)?.toInt())
+        .whereType<int>()
+        .toSet()
+        .toList();
+    final userIds = reservas
+        .map((r) => r['usuario_id']?.toString())
+        .whereType<String>()
+        .toSet()
+        .toList();
+
+    final client = Supabase.instance.client;
+
+    final Map<int, String> claseNames = {};
+    if (claseIds.isNotEmpty) {
+      final data = await client
+          .from('clases')
+          .select('id, nombre')
+          .inFilter('id', claseIds);
+      for (final row in (data as List)) {
+        final id = (row['id'] as num?)?.toInt();
+        if (id != null) claseNames[id] = row['nombre']?.toString() ?? '—';
+      }
+    }
+
+    final Map<String, String> userNames = {};
+    if (userIds.isNotEmpty) {
+      final data = await client
+          .from('usuarios')
+          .select('id, nombre')
+          .inFilter('id', userIds);
+      for (final row in (data as List)) {
+        final id = row['id']?.toString();
+        if (id != null) userNames[id] = row['nombre']?.toString() ?? '—';
+      }
+    }
+
+    return (claseNames, userNames);
+  }
+
+  void _verDetalle(BuildContext context) {
+    final reservas = _reservasMesActual;
+    final moneyFmt = NumberFormat.currency(
+      locale: 'es_AR',
+      symbol: '\$',
+      decimalDigits: 0,
+    );
+    final comision = _comisionAura;
+    final totalBruto = reservas.fold<int>(0, (acc, r) {
+      final creditos = (r['creditos_usados'] as num?)?.toInt() ?? 0;
+      final valorCredito =
+          (_estudio?['valor_credito'] as num?)?.toInt() ?? 6000;
+      return acc + creditos * valorCredito;
+    });
+    final comisionMonto = (totalBruto * comision / 100).round();
+    final aTransferir = _montoPendiente;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.65,
+        minChildSize: 0.4,
+        maxChildSize: 0.94,
+        expand: false,
+        builder: (_, controller) => Container(
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD4CEC9),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Detalle del mes',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.black,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${reservas.length} reservas',
+                      style: const TextStyle(
+                        color: Color(0xFF8F877F),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: reservas.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Sin reservas este mes.',
+                          style: TextStyle(color: Color(0xFF8F877F)),
+                        ),
+                      )
+                    : FutureBuilder<(Map<int, String>, Map<String, String>)>(
+                        future: _loadDetalleData(),
+                        builder: (context, snap) {
+                          final claseNames =
+                              snap.data?.$1 ?? <int, String>{};
+                          final userNames =
+                              snap.data?.$2 ?? <String, String>{};
+                          final isLoading = !snap.hasData;
+
+                          return ListView.separated(
+                            controller: controller,
+                            padding:
+                                const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                            itemCount: reservas.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
+                            itemBuilder: (_, i) {
+                              final r = reservas[i];
+                              final dt = DateTime.tryParse(
+                                  r['created_at']?.toString() ?? '');
+                              final claseId =
+                                  (r['clase_id'] as num?)?.toInt();
+                              final userId =
+                                  r['usuario_id']?.toString() ?? '';
+                              final creditos =
+                                  (r['creditos_usados'] as num?)
+                                      ?.toInt() ??
+                                  0;
+                              final monto = _montoReserva(r);
+                              final estado =
+                                  r['estado']?.toString() ?? '';
+                              final isPresentado = estado == 'presente';
+                              final claseNombre = isLoading
+                                  ? '…'
+                                  : (claseNames[claseId] ?? '—');
+                              final userNombre = isLoading
+                                  ? '…'
+                                  : (userNames[userId] ?? '—');
+
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 14),
+                                child: Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFF3DE),
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        dt != null
+                                            ? DateFormat('d', 'es')
+                                                .format(dt)
+                                            : '—',
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            claseNombre,
+                                            style: const TextStyle(
+                                              color: AppColors.black,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          Text(
+                                            userNombre,
+                                            style: const TextStyle(
+                                              color: Color(0xFF8F877F),
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Row(
+                                            children: [
+                                              Text(
+                                                '$creditos crédito${creditos == 1 ? '' : 's'}',
+                                                style: const TextStyle(
+                                                  color: Color(0xFFB0A8A0),
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                              if (dt != null) ...[
+                                                const Text(
+                                                  ' · ',
+                                                  style: TextStyle(
+                                                      color: Color(
+                                                          0xFFB0A8A0),
+                                                      fontSize: 11),
+                                                ),
+                                                Text(
+                                                  DateFormat('d MMM', 'es')
+                                                      .format(dt),
+                                                  style: const TextStyle(
+                                                    color:
+                                                        Color(0xFFB0A8A0),
+                                                    fontSize: 11,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          moneyFmt.format(monto),
+                                          style: const TextStyle(
+                                            color: AppColors.black,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          padding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: isPresentado
+                                                ? const Color(0xFFE3F3E5)
+                                                : const Color(0xFFFFF3DE),
+                                            borderRadius:
+                                                BorderRadius.circular(99),
+                                          ),
+                                          child: Text(
+                                            isPresentado
+                                                ? 'Presente'
+                                                : 'Confirmada',
+                                            style: TextStyle(
+                                              color: isPresentado
+                                                  ? const Color(0xFF2FAD5B)
+                                                  : AppColors.primary,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+              ),
+              // Desglose financiero
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+                decoration: const BoxDecoration(
+                  color: AppColors.white,
+                  border:
+                      Border(top: BorderSide(color: Color(0xFFEDE7E1))),
+                ),
+                child: Column(
+                  children: [
+                    _DetalleRow(
+                      label: 'Total bruto',
+                      value: moneyFmt.format(totalBruto),
+                    ),
+                    const SizedBox(height: 6),
+                    _DetalleRow(
+                      label:
+                          'Comisión Aura (${comision.toStringAsFixed(comision.truncateToDouble() == comision ? 0 : 1)}%)',
+                      value: '- ${moneyFmt.format(comisionMonto)}',
+                      valueColor: AppColors.error,
+                    ),
+                    const Divider(height: 16),
+                    _DetalleRow(
+                      label: 'A transferir',
+                      value: moneyFmt.format(aTransferir),
+                      bold: true,
+                      valueColor: AppColors.primary,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   bool get _hasBankData =>
       (_estudio?['cbu']?.toString() ?? '').isNotEmpty ||
       (_estudio?['alias']?.toString() ?? '').isNotEmpty;
@@ -627,6 +1135,45 @@ class _BankRow extends StatelessWidget {
           const Icon(Icons.chevron_right_rounded, color: Color(0xFFC0B8B0)),
         ],
       ),
+    );
+  }
+}
+
+class _DetalleRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool bold;
+  final Color? valueColor;
+
+  const _DetalleRow({
+    required this.label,
+    required this.value,
+    this.bold = false,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: bold ? AppColors.black : const Color(0xFF8F877F),
+            fontSize: bold ? 15 : 13,
+            fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: TextStyle(
+            color: valueColor ?? (bold ? AppColors.black : const Color(0xFF8F877F)),
+            fontSize: bold ? 17 : 13,
+            fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

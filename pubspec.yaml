@@ -27,6 +27,10 @@ dependencies:
   latlong2: ^0.9.1
   flutter_local_notifications: ^17.2.3
   timezone: ^0.9.4
+  app_links: ^6.3.2
+  connectivity_plus: ^7.1.1
+  shared_preferences: ^2.3.3
+  sentry_flutter: ^8.9.0
 
 dev_dependencies:
   flutter_test:

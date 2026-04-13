@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -18,6 +20,8 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
   List<Map<String, dynamic>> _asistentes = [];
   Map<String, dynamic>? _claseSeleccionada;
   bool _loading = true;
+  DateTime _now = DateTime.now();
+  Timer? _bannerTimer;
 
   // Scanner
   late bool _usarCamara;
@@ -32,10 +36,14 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     _usarCamara = !kIsWeb;
     if (_usarCamara) _cameraController = MobileScannerController();
     _cargar();
+    _bannerTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
   }
 
   @override
   void dispose() {
+    _bannerTimer?.cancel();
     _qrController.dispose();
     _qrFocusNode.dispose();
     _cameraController?.dispose();
@@ -198,10 +206,290 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     });
   }
 
+  // ── Banner ─────────────────────────────────────────────────────────────────
+
+  Widget _buildBanner() {
+    final fecha = DateTime.tryParse(
+      _claseSeleccionada?['fecha']?.toString() ?? '',
+    );
+    if (fecha == null) return const SizedBox.shrink();
+
+    final mins = fecha.difference(_now).inMinutes;
+    if (mins <= 0 || mins > 120) return const SizedBox.shrink();
+
+    final String titulo;
+    if (mins > 60) {
+      final horas = mins ~/ 60;
+      final minutosRest = mins % 60;
+      final horasStr = horas == 1 ? '1 hora' : '$horas horas';
+      titulo = minutosRest == 0
+          ? 'La clase empieza en $horasStr'
+          : 'La clase empieza en $horasStr y $minutosRest minuto${minutosRest != 1 ? 's' : ''}';
+    } else {
+      titulo = '¡La clase empieza en $mins minuto${mins != 1 ? 's' : ''}!';
+    }
+
+    final totalReservas = _asistentes.length;
+    final totalCupos =
+        (_claseSeleccionada?['lugares_total'] as num?)?.toInt() ?? 0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDF0E8),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.access_time_rounded,
+            color: Color(0xFFE8763A),
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: const TextStyle(
+                    color: Color(0xFF1A1A1A),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$totalReservas alumnos confirmados de $totalCupos cupos',
+                  style: const TextStyle(
+                    color: Color(0xFF8F877F),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Desktop ────────────────────────────────────────────────────────────────
+
+  Widget _buildDesktopContent() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Left: class selector + scanner
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Class selector card
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('CLASE ACTIVA', style: TextStyle(color: Color(0xFFB0A8A0), fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1)),
+                          const SizedBox(height: 6),
+                          Text(
+                            _claseSeleccionada?['nombre']?.toString() ?? 'Sin clase',
+                            style: const TextStyle(color: AppColors.black, fontSize: 18, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_clases.length > 1)
+                      TextButton(onPressed: _mostrarSelectorClases, child: const Text('Cambiar', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600))),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildBanner(),
+              // Scanner
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(color: AppColors.blackSoft, borderRadius: BorderRadius.circular(16)),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(_usarCamara ? 'Cámara' : 'Lector USB', style: const TextStyle(color: Color(0xFF9A928B), fontSize: 13, fontWeight: FontWeight.w600)),
+                        GestureDetector(
+                          onTap: _cambiarModo,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(color: const Color(0xFF2A2A2A), borderRadius: BorderRadius.circular(20)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(_usarCamara ? Icons.keyboard_rounded : Icons.camera_alt_rounded, color: AppColors.primary, size: 14),
+                                const SizedBox(width: 6),
+                                Text(_usarCamara ? 'Usar lector' : 'Usar cámara', style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        height: 260,
+                        child: _usarCamara
+                            ? _CameraScanner(controller: _cameraController!, procesando: _procesando, onDetect: _validarQR)
+                            : _USBScanner(
+                                controller: _qrController,
+                                focusNode: _qrFocusNode,
+                                procesando: _procesando,
+                                onSubmit: (v) {
+                                  _validarQR(v);
+                                  _qrController.clear();
+                                  _qrFocusNode.requestFocus();
+                                },
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      _usarCamara ? 'Apuntá la cámara al QR del usuario' : 'Pasá el lector QR por el código del usuario',
+                      style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 20),
+        // Right: stats + attendee table
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Stats row
+              Row(
+                children: [
+                  Expanded(child: _CountBox(value: _presentes.toString(), label: 'Presentes', color: const Color(0xFFE3F3E5), valueColor: const Color(0xFF43A047))),
+                  const SizedBox(width: 8),
+                  Expanded(child: _CountBox(value: _pendientes.toString(), label: 'Pendientes', color: const Color(0xFFFFF3DE), valueColor: AppColors.primary)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _CountBox(value: _ausentes.toString(), label: 'Ausentes', color: const Color(0xFFF1F1F1), valueColor: const Color(0xFF6E6761))),
+                ],
+              ),
+              const SizedBox(height: 14),
+              // Attendees table
+              const Text('LISTA DE ASISTENTES', style: TextStyle(color: Color(0xFF8F877F), fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1)),
+              const SizedBox(height: 10),
+              if (_asistentes.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: Text('Sin reservas para esta clase', style: TextStyle(color: Color(0xFF9A928B)))),
+                )
+              else
+                Container(
+                  decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: const BoxDecoration(color: Color(0xFFF7F5F2), borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+                        child: const Row(
+                          children: [
+                            Expanded(child: Text('Nombre', style: TextStyle(color: Color(0xFF888888), fontSize: 11, fontWeight: FontWeight.w700))),
+                            SizedBox(width: 90, child: Text('Estado', style: TextStyle(color: Color(0xFF888888), fontSize: 11, fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
+                          ],
+                        ),
+                      ),
+                      ..._asistentes.asMap().entries.map((e) {
+                        final a = e.value;
+                        final user = a['usuario'] as Map<String, dynamic>?;
+                        final nombre = user?['nombre']?.toString() ?? 'Sin nombre';
+                        final estado = a['estado']?.toString() ?? 'reservada';
+                        final esPresente = estado == 'presente';
+                        return Container(
+                          decoration: BoxDecoration(
+                            border: Border(top: BorderSide(color: Colors.grey.shade100)),
+                            borderRadius: e.key == _asistentes.length - 1 ? const BorderRadius.vertical(bottom: Radius.circular(16)) : null,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 32, height: 32,
+                                decoration: BoxDecoration(color: _avatarColor(nombre), shape: BoxShape.circle),
+                                child: Center(child: Text(_initials(nombre), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700))),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(child: Text(nombre, style: const TextStyle(color: AppColors.black, fontSize: 14, fontWeight: FontWeight.w500))),
+                              SizedBox(
+                                width: 90,
+                                child: Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: esPresente ? const Color(0xFFE3F3E5) : const Color(0xFFFFF3DE),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      esPresente ? 'Presente' : 'Pendiente',
+                                      style: TextStyle(
+                                        color: esPresente ? const Color(0xFF43A047) : AppColors.primary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
+
+    if (isDesktop) {
+      return GestureDetector(
+        onTap: () { if (!_usarCamara && !_procesando) _qrFocusNode.requestFocus(); },
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          body: _loading
+              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              : RefreshIndicator(
+                  onRefresh: _cargar,
+                  color: AppColors.primary,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: _buildDesktopContent(),
+                  ),
+                ),
+        ),
+      );
+    }
+
     return GestureDetector(
       // Re-enfocar el campo USB si el usuario toca fuera
       onTap: () {
@@ -294,6 +582,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      _buildBanner(),
 
                       // Scanner
                       Container(

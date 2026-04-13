@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../models/estudio.dart';
@@ -10,6 +11,7 @@ import '../../providers/app_provider.dart';
 import '../../services/clases_service.dart';
 import '../../services/estudios_service.dart';
 import '../../services/location_service.dart';
+import '../../services/notificaciones_service.dart';
 import '../../services/studio_geo_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -30,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<String> _categorias = const ['Todos'];
   bool _loading = true;
   bool _requestingLocation = false;
+  bool _bannerDismissed = false;
   String _categoriaSeleccionada = 'Todos';
   AuraLocationState _locationState =
       const AuraLocationState(status: AuraLocationStatus.unknown);
@@ -63,6 +66,25 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _cargar();
+    _checkBannerDismissed();
+  }
+
+  Future<void> _checkBannerDismissed() async {
+    final prefs = await SharedPreferences.getInstance();
+    final dismissedDate = prefs.getString('credits_expiry_banner_dismissed');
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    if (dismissedDate == today && mounted) {
+      setState(() => _bannerDismissed = true);
+    }
+  }
+
+  Future<void> _dismissBanner() async {
+    setState(() => _bannerDismissed = true);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'credits_expiry_banner_dismissed',
+      DateFormat('yyyy-MM-dd').format(DateTime.now()),
+    );
   }
 
   Future<void> _cargar() async {
@@ -72,6 +94,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       await provider.cargarUsuario();
+      // Schedule credits expiry notifications after user is loaded
+      final vencimiento = provider.usuario?.creditosVencimiento;
+      if (vencimiento != null) {
+        NotificacionesService.instance
+            .scheduleCreditsExpiryReminder(expiresAt: vencimiento)
+            .ignore();
+      }
       final results = await Future.wait([
         _clasesService.getProximasClases(limit: 5),
         _estudiosService.getCategorias(),
@@ -227,6 +256,28 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: _PlanCard(usuario: usuario),
                   ),
                 ),
+                // ── Credits expiry banner ─────────────────────────────
+                if (!_bannerDismissed && usuario != null) ...[
+                  SliverToBoxAdapter(
+                    child: Builder(
+                      builder: (ctx) {
+                        final venc = usuario.creditosVencimiento;
+                        if (venc == null) return const SizedBox.shrink();
+                        final dias = venc.difference(DateTime.now()).inDays;
+                        if (dias < 0 || dias > 7) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                          child: _CreditosExpiryBanner(
+                            dias: dias,
+                            creditos: usuario.creditos,
+                            onDismiss: _dismissBanner,
+                            onExplorar: () => context.push('/explorar'),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -577,6 +628,103 @@ class _HomeScreenState extends State<HomeScreen> {
     return limpio.substring(0, 1).toUpperCase();
   }
 }
+
+// ─── Credits expiry banner ────────────────────────────────────────────────────
+
+class _CreditosExpiryBanner extends StatelessWidget {
+  final int dias;
+  final int creditos;
+  final VoidCallback onDismiss;
+  final VoidCallback onExplorar;
+
+  const _CreditosExpiryBanner({
+    required this.dias,
+    required this.creditos,
+    required this.onDismiss,
+    required this.onExplorar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDF0E8),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.access_time_rounded,
+            color: Color(0xFFE8763A),
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  dias == 0
+                      ? 'Tus créditos vencen hoy'
+                      : 'Tus créditos vencen en $dias ${dias == 1 ? 'día' : 'días'}',
+                  style: const TextStyle(
+                    color: Color(0xFF1A1A1A),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Tenés $creditos crédito${creditos != 1 ? 's' : ''} disponibles — reservá algo',
+                  style: const TextStyle(
+                    color: Color(0xFF8F877F),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: onExplorar,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE8763A),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              minimumSize: const Size(0, 0),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 0,
+              textStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            child: const Text('Explorar'),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onDismiss,
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(
+                Icons.close_rounded,
+                color: Color(0xFF8F877F),
+                size: 18,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Plan card ────────────────────────────────────────────────────────────────
 
 class _PlanCard extends StatelessWidget {
   final dynamic usuario;

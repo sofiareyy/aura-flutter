@@ -8,7 +8,9 @@ const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const MP_PACKS_ACCESS_TOKEN =
   Deno.env.get('MP_PACKS_ACCESS_TOKEN') ?? Deno.env.get('MP_ACCESS_TOKEN')!
 const MP_SUBSCRIPTIONS_ACCESS_TOKEN =
-  Deno.env.get('MP_SUBSCRIPTIONS_ACCESS_TOKEN') ?? Deno.env.get('MP_ACCESS_TOKEN')!
+  Deno.env.get('MP_SUSCRIPCIONES_ACCESS_TOKEN') ??
+  Deno.env.get('MP_SUBSCRIPTIONS_ACCESS_TOKEN') ??
+  Deno.env.get('MP_ACCESS_TOKEN')!
 const MP_WEBHOOK_SECRET = Deno.env.get('MP_WEBHOOK_SECRET')
 const MP_PACKS_WEBHOOK_SECRET = Deno.env.get('MP_PACKS_WEBHOOK_SECRET')
 const MP_SUBSCRIPTIONS_WEBHOOK_SECRET = Deno.env.get('MP_SUBSCRIPTIONS_WEBHOOK_SECRET')
@@ -107,8 +109,9 @@ async function procesarPago(paymentId: string) {
   const type = params['type'] ?? 'pack'
   const creditos = parseInt(params['creditos'] ?? '0', 10)
   const packNombre = params['pack'] ?? ''
+  const planNombre = params['plan'] ?? ''
 
-  if (type !== 'pack') {
+  if (type !== 'pack' && type !== 'plan') {
     console.log('mp-webhook: notificación ignorada, tipo no soportado', { paymentId, type })
     return
   }
@@ -158,13 +161,14 @@ async function procesarPago(paymentId: string) {
         .from('pagos')
         .insert({
           user_id: userId,
-          type: 'pack',
+          type,
           mp_payment_id: mpPaymentId,
           mp_preference_id: preferenceId || null,
           status,
           amount: Math.round((payment.transaction_amount ?? 0)),
           creditos,
-          pack_nombre: packNombre || null,
+          pack_nombre: type === 'pack' ? (packNombre || null) : null,
+          plan_nombre: type === 'plan' ? (planNombre || null) : null,
         })
         .select('id')
         .single()
@@ -172,29 +176,81 @@ async function procesarPago(paymentId: string) {
     }
   }
 
-  if (status !== 'approved') return
-
-  const expiryStr = expirationDate(packValidityDays(params, packNombre, creditos))
-  const { error: rpcErr } = await supabase.rpc('grant_user_credits', {
-    p_user_id: userId,
-    p_amount: creditos,
-    p_source: 'pack',
-    p_expires_at: expiryStr,
-  })
-
-  if (rpcErr) {
-    console.warn('mp-webhook: grant_user_credits fallo, usando fallback:', rpcErr.message)
-    const { data: userRow } = await supabase
-      .from('usuarios')
-      .select('creditos')
-      .eq('id', userId)
-      .single()
-    if (userRow) {
+  if (status !== 'approved') {
+    // Guardar el estado real del rechazo para que la app pueda mostrarlo
+    if (targetPagoId && (status === 'rejected' || status === 'cancelled')) {
       await supabase
-        .from('usuarios')
-        .update({ creditos: (userRow.creditos ?? 0) + creditos, creditos_vencimiento: expiryStr })
-        .eq('id', userId)
+        .from('pagos')
+        .update({ status, mp_payment_id: mpPaymentId })
+        .eq('id', targetPagoId)
+      console.log(`mp-webhook: pago ${mpPaymentId} ${status} por el banco, usuario ${userId}`)
     }
+    return
+  }
+
+  if (type === 'pack') {
+    const expiryStr = expirationDate(packValidityDays(params, packNombre, creditos))
+    const { error: rpcErr } = await supabase.rpc('grant_user_credits', {
+      p_user_id: userId,
+      p_amount: creditos,
+      p_source: 'pack',
+      p_expires_at: expiryStr,
+    })
+
+    if (rpcErr) {
+      console.warn('mp-webhook: grant_user_credits fallo (pack), usando fallback:', rpcErr.message)
+      const { data: userRow } = await supabase
+        .from('usuarios')
+        .select('creditos')
+        .eq('id', userId)
+        .single()
+      if (userRow) {
+        await supabase
+          .from('usuarios')
+          .update({ creditos: (userRow.creditos ?? 0) + creditos, creditos_vencimiento: expiryStr })
+          .eq('id', userId)
+      }
+    }
+
+    console.log(`mp-webhook: acreditados ${creditos} créditos pack (${packNombre}) al usuario ${userId}`)
+  } else if (type === 'plan') {
+    // Suscripción mensual: otorgar créditos con vencimiento de 30 días
+    const expiryStr = expirationDate(30)
+    const { error: rpcErr } = await supabase.rpc('grant_user_credits', {
+      p_user_id: userId,
+      p_amount: creditos,
+      p_source: 'plan',
+      p_expires_at: expiryStr,
+    })
+
+    if (rpcErr) {
+      console.warn('mp-webhook: grant_user_credits fallo (plan), usando fallback:', rpcErr.message)
+      const { data: userRow } = await supabase
+        .from('usuarios')
+        .select('creditos')
+        .eq('id', userId)
+        .single()
+      if (userRow) {
+        await supabase
+          .from('usuarios')
+          .update({ creditos: (userRow.creditos ?? 0) + creditos, creditos_vencimiento: expiryStr })
+          .eq('id', userId)
+      }
+    }
+
+    // Actualizar estado del plan en el usuario
+    const nextRenewal = new Date()
+    nextRenewal.setDate(nextRenewal.getDate() + 30)
+    await supabase
+      .from('usuarios')
+      .update({
+        plan: planNombre || null,
+        subscription_status: 'active',
+        renewal_date: nextRenewal.toISOString().split('T')[0],
+      })
+      .eq('id', userId)
+
+    console.log(`mp-webhook: acreditados ${creditos} créditos plan (${planNombre}) al usuario ${userId}`)
   }
 
   if (targetPagoId) {
@@ -203,8 +259,6 @@ async function procesarPago(paymentId: string) {
       .update({ status: 'approved', mp_payment_id: mpPaymentId })
       .eq('id', targetPagoId)
   }
-
-  console.log(`mp-webhook: acreditados ${creditos} creditos (${packNombre}) al usuario ${userId}`)
 }
 
 async function procesarPreapproval(preapprovalId: string) {
@@ -266,6 +320,20 @@ async function procesarPreapproval(preapprovalId: string) {
         .update({ status: 'approved' })
         .eq('id', pagoByPreapproval.id)
     }
+
+    console.log(`mp-webhook: suscripción ${preapprovalId} activa para usuario ${userId}`)
+  } else if (status === 'cancelled' || status === 'paused') {
+    // MP agotó reintentos o el usuario canceló — limpiar plan del usuario
+    await supabase
+      .from('usuarios')
+      .update({
+        plan: null,
+        subscription_status: status,
+        renewal_date: null,
+      })
+      .eq('id', userId)
+
+    console.log(`mp-webhook: suscripción ${preapprovalId} ${status} para usuario ${userId}`)
   }
 }
 
@@ -276,7 +344,7 @@ Deno.serve(async (req: Request) => {
     const id = url.searchParams.get('id')
     console.log('mp-webhook: GET recibido', { topic, id, url: req.url })
 
-    if (topic === 'payment' && id) {
+    if ((topic === 'payment' || topic === 'subscription_authorized_payment') && id) {
       queueMicrotask(async () => {
         try {
           await procesarPago(id)
@@ -325,7 +393,7 @@ Deno.serve(async (req: Request) => {
         const dataId = ((notification.data as Record<string, unknown>)?.id as string | undefined)
         console.log('mp-webhook: POST parseado', { type, dataId })
 
-        if (type === 'payment' && dataId) {
+        if ((type === 'payment' || type === 'subscription_authorized_payment') && dataId) {
           await procesarPago(dataId)
         } else if ((type === 'preapproval' || type === 'subscription_preapproval') && dataId) {
           await procesarPreapproval(dataId)

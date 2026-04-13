@@ -92,7 +92,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
               padding: const EdgeInsets.all(20),
               children: [
                 const Text(
-                  'Dejamos estas preferencias listas para el lanzamiento. Aunque todavía no haya push real en todos los casos, ya podés definir cómo querés recibir avisos.',
+                  'Controlá qué notificaciones querés recibir. Los cambios se aplican la próxima vez que iniciás sesión.',
                   style: TextStyle(color: AppColors.grey, height: 1.5),
                 ),
                 const SizedBox(height: 20),
@@ -104,7 +104,8 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                 ),
                 _SwitchTile(
                   title: 'Recordatorios',
-                  subtitle: 'Mensajes previos a tus próximas clases y experiencias.',
+                  subtitle:
+                      'Aviso 1 hora antes de tus clases, 3 días antes de que venzan tus créditos, y 2 días antes de que se renueve tu plan.',
                   value: _recordatorios,
                   onChanged: (value) => setState(() => _recordatorios = value),
                 ),

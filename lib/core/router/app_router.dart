@@ -33,7 +33,9 @@ import '../../screens/admin/admin_reservas_screen.dart';
 import '../../screens/admin/admin_config_screen.dart';
 import '../../screens/admin/admin_historial_screen.dart';
 import '../../screens/creditos/mis_creditos_screen.dart';
+import '../../screens/onboarding/creditos_onboarding_screen.dart';
 import '../../screens/creditos/comprar_creditos_screen.dart';
+import '../../screens/creditos/historial_creditos_screen.dart';
 import '../../screens/plan/cambiar_plan_screen.dart';
 import '../../screens/plan/checkout_screen.dart';
 import '../../screens/plan/payment_result_screen.dart';
@@ -42,6 +44,8 @@ import '../../screens/mapa/mapa_screen.dart';
 import '../../screens/asistencia/asistencia_screen.dart';
 import '../../screens/cobros/cobros_screen.dart';
 import '../../widgets/admin_shell.dart';
+import '../../widgets/estudio_sidebar.dart';
+import '../../widgets/estudio_top_bar.dart';
 import '../../widgets/main_shell.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -57,7 +61,13 @@ final appRouter = GoRouter(
     final isLoggedIn = Supabase.instance.client.auth.currentUser != null;
 
     // Rutas que no requieren auth
-    final publicRoutes = {'/splash', '/login', '/register', '/onboarding'};
+    final publicRoutes = {
+      '/splash',
+      '/login',
+      '/register',
+      '/onboarding',
+      '/creditos-onboarding',
+    };
     if (publicRoutes.contains(loc)) return null;
 
     // Si no está logueado, redirigir a login
@@ -80,6 +90,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/register',
       builder: (context, state) => const RegisterScreen(),
+    ),
+    GoRoute(
+      path: '/creditos-onboarding',
+      builder: (context, state) => const CreditosOnboardingScreen(),
     ),
     ShellRoute(
       navigatorKey: _shellNavigatorKey,
@@ -140,53 +154,79 @@ final appRouter = GoRouter(
       navigatorKey: _estudioNavigatorKey,
       builder: (context, state, child) {
         final loc = state.matchedLocation;
-        int idx = 0;
-        if (loc.startsWith('/estudio/clases')) idx = 1;
-        if (loc.startsWith('/estudio/asistencia')) idx = 2;
-        if (loc.startsWith('/estudio/cobros')) idx = 3;
-        if (loc.startsWith('/estudio/perfil')) idx = 4;
-        return Scaffold(
-          body: child,
-          bottomNavigationBar: BottomNavigationBar(
-            currentIndex: idx,
-            selectedItemColor: AppColors.primary,
-            unselectedItemColor: AppColors.grey,
-            backgroundColor: AppColors.white,
-            elevation: 0,
-            type: BottomNavigationBarType.fixed,
-            onTap: (i) {
-              const paths = [
-                '/estudio/dashboard',
-                '/estudio/clases',
-                '/estudio/asistencia',
-                '/estudio/cobros',
-                '/estudio/perfil',
-              ];
-              context.go(paths[i]);
-            },
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.grid_view_rounded),
-                label: 'Dashboard',
+        return LayoutBuilder(
+          builder: (ctx, constraints) {
+            final isDesktop = constraints.maxWidth >= 768;
+
+            if (isDesktop) {
+              return Scaffold(
+                backgroundColor: AppColors.background,
+                body: Row(
+                  children: [
+                    EstudioSidebar(location: loc),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          EstudioTopBar(location: loc),
+                          Expanded(child: child),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            // ── Mobile: bottom nav bar ──────────────────────────────────────
+            int idx = 0;
+            if (loc.startsWith('/estudio/clases')) idx = 1;
+            if (loc.startsWith('/estudio/asistencia')) idx = 2;
+            if (loc.startsWith('/estudio/cobros')) idx = 3;
+            if (loc.startsWith('/estudio/perfil')) idx = 4;
+            return Scaffold(
+              body: child,
+              bottomNavigationBar: BottomNavigationBar(
+                currentIndex: idx,
+                selectedItemColor: AppColors.primary,
+                unselectedItemColor: AppColors.grey,
+                backgroundColor: AppColors.white,
+                elevation: 0,
+                type: BottomNavigationBarType.fixed,
+                onTap: (i) {
+                  const paths = [
+                    '/estudio/dashboard',
+                    '/estudio/clases',
+                    '/estudio/asistencia',
+                    '/estudio/cobros',
+                    '/estudio/perfil',
+                  ];
+                  context.go(paths[i]);
+                },
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.grid_view_rounded),
+                    label: 'Dashboard',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.calendar_today_rounded),
+                    label: 'Clases',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.qr_code_scanner_rounded),
+                    label: 'Asistencia',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.payments_outlined),
+                    label: 'Cobros',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.person_outline_rounded),
+                    label: 'Perfil',
+                  ),
+                ],
               ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.calendar_today_rounded),
-                label: 'Clases',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.qr_code_scanner_rounded),
-                label: 'Asistencia',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.payments_outlined),
-                label: 'Cobros',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person_outline_rounded),
-                label: 'Perfil',
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
       routes: [
@@ -285,6 +325,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/comprar-creditos',
       builder: (context, state) => const ComprarCreditosScreen(),
+    ),
+    GoRoute(
+      path: '/historial-creditos',
+      builder: (context, state) => const HistorialCreditosScreen(),
     ),
     GoRoute(
       path: '/cambiar-plan',

@@ -38,6 +38,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
   }
 
   Future<void> _cargar() async {
+    final userId = context.read<AppProvider>().userId;
     final estudio = await _service.getEstudio(widget.estudioId);
     final clasesRaw = estudio != null && estudio.id != null
         ? await _service.getClasesDeEstudio(estudio.id!)
@@ -56,7 +57,6 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
     final clases = estudioMap != null
         ? clasesRaw.map((c) => {...c, 'estudios': estudioMap}).toList()
         : clasesRaw;
-    final userId = context.read<AppProvider>().userId;
     final esFavorito = estudio?.id != null && userId.isNotEmpty
         ? await _favoritosService.esFavorito(userId, estudio!.id!)
         : false;
@@ -168,95 +168,23 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
               .map((entry) => entry.toString().trim()))
           .where((item) => item.isNotEmpty),
     }.toList();
+
     return CustomScrollView(
       slivers: [
-        // Header image
-        SliverAppBar(
-          expandedHeight: 260,
-          pinned: true,
-          backgroundColor: AppColors.background,
-          leading: Padding(
-            padding: const EdgeInsets.all(8),
-            child: CircleAvatar(
-              backgroundColor: AppColors.white.withOpacity(0.9),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back_rounded,
-                    color: AppColors.black, size: 20),
-                onPressed: () => context.pop(),
-              ),
-            ),
-          ),
-          flexibleSpace: FlexibleSpaceBar(
-            background: e.fotoUrl != null
-                ? CachedNetworkImage(
-                    imageUrl: e.fotoUrl!,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) =>
-                        Container(color: AppColors.lightGrey),
-                    errorWidget: (_, __, ___) =>
-                        Container(color: AppColors.lightGrey),
-                  )
-                : Container(
-                    color: AppColors.primaryLight,
-                    child: const Center(
-                      child: Icon(Icons.fitness_center_rounded,
-                          color: AppColors.primary, size: 48),
-                    ),
-                  ),
-          ),
-        ),
+        // Hero fijo 300px
+        SliverToBoxAdapter(child: _buildHero()),
 
+        // Cuerpo
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Name & category
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        e.nombre,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _toggleFavorito,
-                      icon: Icon(
-                        _esFavorito
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        color: _esFavorito
-                            ? AppColors.primary
-                            : AppColors.grey,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        e.categoria,
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Rating & location
-                Row(
-                  children: [
-                    if (avgRating != null) ...[
+                // Rating
+                if (avgRating != null)
+                  Row(
+                    children: [
                       const Icon(Icons.star_rounded,
                           color: AppColors.warning, size: 16),
                       const SizedBox(width: 4),
@@ -268,118 +196,105 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                       if (_reviews.isNotEmpty) ...[
                         const SizedBox(width: 6),
                         Text(
-                          '(${_reviews.length})',
+                          '${_reviews.length} reseñas',
                           style: const TextStyle(
-                            color: AppColors.grey,
-                            fontSize: 13,
-                          ),
+                              color: AppColors.grey, fontSize: 13),
                         ),
                       ],
-                      const SizedBox(width: 12),
                     ],
-                    if (e.barrio != null) ...[
-                      const Icon(Icons.location_on_outlined,
-                          color: AppColors.grey, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        e.barrio!,
-                        style: const TextStyle(
-                            color: AppColors.grey, fontSize: 14),
-                      ),
-                    ],
-                  ],
-                ),
+                  ),
 
-                if (e.descripcion != null) ...[
+                // Descripción
+                if (e.descripcion?.isNotEmpty == true) ...[
                   const SizedBox(height: 16),
-                  Text(e.descripcion!,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: AppColors.grey)),
+                  Text(
+                    e.descripcion!,
+                    style: const TextStyle(
+                        fontSize: 14, color: AppColors.grey, height: 1.5),
+                  ),
                 ],
 
-                if (e.direccion != null) ...[
+                // Dirección con pin naranja
+                if (e.direccion?.isNotEmpty == true) ...[
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(Icons.place_outlined,
-                          color: AppColors.grey, size: 16),
+                      const Icon(Icons.place_rounded,
+                          color: AppColors.primary, size: 16),
                       const SizedBox(width: 6),
                       Expanded(
-                        child: Text(e.direccion!,
-                            style: const TextStyle(
-                                color: AppColors.grey, fontSize: 13)),
+                        child: Text(
+                          e.direccion!,
+                          style: const TextStyle(
+                              color: AppColors.grey, fontSize: 13),
+                        ),
                       ),
                     ],
                   ),
                 ],
 
-                const SizedBox(height: 20),
-
-                // Social links
-                if (e.instagram != null ||
-                    e.whatsapp != null ||
-                    e.web != null)
-                  Row(
+                // Botones sociales (solo si tienen datos)
+                if (_hasSocial(e)) ...[
+                  const SizedBox(height: 20),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
-                      if (e.instagram != null)
+                      if (e.instagram?.isNotEmpty == true)
                         _SocialButton(
                           icon: Icons.photo_camera_outlined,
                           label: 'Instagram',
                           onTap: () => _launchInstagram(e.instagram!),
                         ),
-                      if (e.whatsapp != null) ...[
-                        const SizedBox(width: 8),
+                      if (e.whatsapp?.isNotEmpty == true)
                         _SocialButton(
                           icon: Icons.chat_outlined,
                           label: 'WhatsApp',
                           onTap: () => _launchWhatsApp(e.whatsapp!),
                         ),
-                      ],
-                      if (e.web != null) ...[
-                        const SizedBox(width: 8),
+                      if (e.web?.isNotEmpty == true)
                         _SocialButton(
                           icon: Icons.language_outlined,
                           label: 'Web',
                           onTap: () => _launchUrl(e.web!),
                         ),
-                      ],
                     ],
                   ),
-
-                if (galleryUrls.isNotEmpty) ...[
-                  const SizedBox(height: 28),
-                  _GallerySection(
-                    imageUrls: galleryUrls,
-                    onTapImage: (index) => _abrirGaleria(galleryUrls, initialIndex: index),
-                  ),
                 ],
+
+                // Reseñas
                 const SizedBox(height: 28),
                 _ReviewsSection(
                   reviews: _reviews,
                   canReview: _canReview,
                   onReviewTap: () => _abrirResena(),
                 ),
+
+                // Encabezado clases
                 const SizedBox(height: 28),
-                Text('Clases disponibles',
-                    style: Theme.of(context).textTheme.titleMedium),
+                const Text(
+                  'CLASES DISPONIBLES',
+                  style: TextStyle(
+                    color: Color(0xFF8F877F),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1,
+                  ),
+                ),
                 const SizedBox(height: 12),
               ],
             ),
           ),
         ),
 
+        // Cards de clases
         if (_clases.isEmpty)
-          SliverToBoxAdapter(
+          const SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Center(
-                child: Text('No hay clases disponibles',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: AppColors.grey)),
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'No hay clases disponibles por ahora.',
+                style: TextStyle(color: AppColors.grey, fontSize: 14),
               ),
             ),
           )
@@ -398,10 +313,160 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
             ),
           ),
 
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        // Galería al final (si hay fotos)
+        if (galleryUrls.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+              child: _GallerySection(
+                imageUrls: galleryUrls,
+                onTapImage: (index) =>
+                    _abrirGaleria(galleryUrls, initialIndex: index),
+              ),
+            ),
+          ),
+
+        const SliverToBoxAdapter(child: SizedBox(height: 32)),
       ],
     );
   }
+
+  Widget _buildHero() {
+    final e = _estudio!;
+    return SizedBox(
+      height: 300,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Foto
+          e.fotoUrl?.isNotEmpty == true
+              ? CachedNetworkImage(
+                  imageUrl: e.fotoUrl!,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) =>
+                      Container(color: const Color(0xFFEDE7E1)),
+                  errorWidget: (_, __, ___) => Container(
+                    color: AppColors.primaryLight,
+                    child: const Icon(Icons.fitness_center_rounded,
+                        color: AppColors.primary, size: 48),
+                  ),
+                )
+              : Container(
+                  color: AppColors.primaryLight,
+                  child: const Center(
+                    child: Icon(Icons.fitness_center_rounded,
+                        color: AppColors.primary, size: 48),
+                  ),
+                ),
+
+          // Gradiente negro → transparente (bottom → top)
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [
+                  Color(0xD9000000), // negro 0.85
+                  Color(0x4D000000), // negro 0.3
+                  Colors.transparent,
+                ],
+                stops: [0.0, 0.5, 1.0],
+              ),
+            ),
+          ),
+
+          // Categoría + nombre + barrio (abajo izquierda)
+          Positioned(
+            left: 16,
+            right: 60,
+            bottom: 18,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    e.categoria,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  e.nombre,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (e.barrio?.isNotEmpty == true)
+                  Text(
+                    e.barrio!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 14,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // Flecha de volver (arriba izquierda)
+          Positioned(
+            top: 0,
+            left: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 10, left: 16),
+                child: _EstudioCircleAction(
+                  icon: Icons.arrow_back,
+                  onTap: () => context.pop(),
+                ),
+              ),
+            ),
+          ),
+
+          // Favorito (arriba derecha)
+          Positioned(
+            top: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 10, right: 16),
+                child: _EstudioCircleAction(
+                  icon: _esFavorito
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  onTap: _toggleFavorito,
+                  iconColor:
+                      _esFavorito ? AppColors.primary : Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _hasSocial(Estudio e) =>
+      (e.instagram?.isNotEmpty == true) ||
+      (e.whatsapp?.isNotEmpty == true) ||
+      (e.web?.isNotEmpty == true);
 
   Future<void> _abrirGaleria(List<String> imageUrls, {int initialIndex = 0}) async {
     if (imageUrls.isEmpty) return;
@@ -506,6 +571,34 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
         ),
       );
     }
+  }
+}
+
+class _EstudioCircleAction extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+  final Color iconColor;
+
+  const _EstudioCircleAction({
+    required this.icon,
+    this.onTap,
+    this.iconColor = Colors.white,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.4),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: iconColor, size: 20),
+      ),
+    );
   }
 }
 

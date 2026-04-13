@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/estudio_admin_service.dart';
+import '../../services/notificaciones_estudio_service.dart';
+import '../../widgets/notificaciones_estudio_sheet.dart';
 
 class DashboardEstudiosScreen extends StatefulWidget {
   const DashboardEstudiosScreen({super.key});
@@ -21,6 +23,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
   List<Map<String, dynamic>> _actividad = [];
   bool _loading = true;
   String? _error;
+  int _unreadNotifs = 0;
 
   @override
   void initState() {
@@ -36,6 +39,17 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
       );
       final reservas = await _service.getReservasDeEstudio(limit: 120);
 
+      int unread = 0;
+      if (estudio != null) {
+        final estudioId = (estudio['id'] as num?)?.toInt();
+        if (estudioId != null) {
+          try {
+            unread = await NotificacionesEstudioService.instance
+                .getUnreadCount(estudioId);
+          } catch (_) {}
+        }
+      }
+
       if (!mounted) return;
       setState(() {
         _estudio = estudio;
@@ -44,6 +58,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
         _actividad = _buildActividad(reservas, clases);
         _loading = false;
         _error = estudio == null ? 'No encontramos un estudio asociado.' : null;
+        _unreadNotifs = unread;
       });
     } catch (_) {
       if (!mounted) return;
@@ -54,9 +69,290 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
     }
   }
 
+  // ── Desktop ────────────────────────────────────────────────────────────────
+
+  Widget _buildDesktopContent(List<Map<String, dynamic>> clasesHoy) {
+    if (_error != null) return _DashboardError(message: _error!);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 4 stat cards in a row
+        Row(
+          children: [
+            Expanded(
+              child: _StatBox(
+                value: _reservasHoy.toString(),
+                label: 'Reservas hoy',
+                accent: const Color(0xFFDBF3E0),
+                change: _formatChange(_reservasHoy, _reservasAyer),
+                changeColor: _colorForDelta(_reservasHoy - _reservasAyer),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatBox(
+                value: _moneyCompact(_ingresosMes),
+                label: 'Ingresos mes',
+                accent: AppColors.white,
+                change: _formatChange(_ingresosMes, _ingresosMesAnterior),
+                changeColor: _colorForDelta(_ingresosMes - _ingresosMesAnterior),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatBox(
+                value: '${_ocupacionHoy}%',
+                label: 'Ocupación hoy',
+                accent: AppColors.white,
+                footer: '${clasesHoy.length} clases',
+                footerColor: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatBox(
+                value: _clases.length.toString(),
+                label: 'Clases totales',
+                accent: AppColors.white,
+                footer: 'últimos 30 días',
+                footerColor: AppColors.grey,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        // Main content: classes table + activity panel
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _SectionLabel('Clases de hoy'),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(0),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: clasesHoy.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.all(20),
+                            child: Text(
+                              'No hay clases cargadas para hoy.',
+                              style: TextStyle(color: Color(0xFF8F877F)),
+                            ),
+                          )
+                        : Column(
+                            children: [
+                              // Table header
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF7F5F2),
+                                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    SizedBox(width: 56, child: Text('Hora', style: _kTableHeader)),
+                                    SizedBox(width: 16),
+                                    Expanded(child: Text('Clase', style: _kTableHeader)),
+                                    SizedBox(width: 140, child: Text('Instructor', style: _kTableHeader)),
+                                    SizedBox(width: 120, child: Text('Ocupación', style: _kTableHeader)),
+                                    SizedBox(width: 90, child: Text('Estado', style: _kTableHeader, textAlign: TextAlign.center)),
+                                  ],
+                                ),
+                              ),
+                              ...clasesHoy.asMap().entries.map((entry) {
+                                final i = entry.key;
+                                final clase = entry.value;
+                                final status = _statusForClass(clase);
+                                final progress = _progressForClass(clase);
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      top: BorderSide(color: Colors.grey.shade100),
+                                    ),
+                                    borderRadius: i == clasesHoy.length - 1
+                                        ? const BorderRadius.vertical(bottom: Radius.circular(16))
+                                        : null,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 56,
+                                        child: Text(
+                                          _timeForClass(clase),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14,
+                                            color: AppColors.black,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Text(
+                                          clase['nombre']?.toString() ?? 'Clase',
+                                          style: const TextStyle(fontSize: 14, color: AppColors.black, fontWeight: FontWeight.w600),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: 140,
+                                        child: Text(
+                                          clase['instructor']?.toString() ?? '—',
+                                          style: const TextStyle(fontSize: 13, color: Color(0xFF8F877F)),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: 120,
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            ClipRRect(
+                                              borderRadius: BorderRadius.circular(4),
+                                              child: LinearProgressIndicator(
+                                                value: progress,
+                                                backgroundColor: const Color(0xFFF0EDE9),
+                                                color: AppColors.primary,
+                                                minHeight: 6,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _spotsLabel(clase),
+                                              style: const TextStyle(fontSize: 11, color: Color(0xFF8F877F)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: 90,
+                                        child: Center(
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: _colorForStatus(status),
+                                              borderRadius: BorderRadius.circular(999),
+                                            ),
+                                            child: Text(
+                                              status,
+                                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.black),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            SizedBox(
+              width: 280,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _SectionLabel('Actividad reciente'),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: _actividad.isEmpty
+                        ? const Text(
+                            'Todavía no hay actividad.',
+                            style: TextStyle(color: Color(0xFF8F877F)),
+                          )
+                        : Column(
+                            children: _actividad.map((item) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 14),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: item['color'] as Color,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        item['label'] as String,
+                                        style: const TextStyle(color: Color(0xFF625C57), fontSize: 13),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      item['time'] as String,
+                                      style: const TextStyle(color: Color(0xFFB0A8A0), fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  static const _kTableHeader = TextStyle(
+    color: Color(0xFF888888),
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0.5,
+  );
+
+  // ── Build ───────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final clasesHoy = _clasesDelDia(DateTime.now());
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
+
+    if (isDesktop) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: _loading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            : RefreshIndicator(
+                onRefresh: _cargar,
+                color: AppColors.primary,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: _buildDesktopContent(clasesHoy),
+                ),
+              ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _loading
@@ -95,6 +391,42 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                             ],
                           ),
                         ),
+                        Stack(
+                          alignment: Alignment.topRight,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.notifications_outlined,
+                                color: Color(0xFF5F5953),
+                              ),
+                              onPressed: () {
+                                final estudioId =
+                                    (_estudio?['id'] as num?)?.toInt();
+                                if (estudioId == null) return;
+                                showNotificacionesEstudioSheet(
+                                  context,
+                                  estudioId: estudioId,
+                                  onRead: () =>
+                                      setState(() => _unreadNotifs = 0),
+                                );
+                              },
+                            ),
+                            if (_unreadNotifs > 0)
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Container(
+                                  width: 9,
+                                  height: 9,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFE8763A),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(width: 4),
                         InkWell(
                           borderRadius: BorderRadius.circular(12),
                           onTap: () => context.go('/estudio/perfil'),

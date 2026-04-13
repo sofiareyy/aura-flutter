@@ -29,7 +29,82 @@ class AdminService {
         'p_to': to?.toIso8601String(),
       },
     );
-    return Map<String, dynamic>.from((res as List).first as Map);
+    final m = Map<String, dynamic>.from((res as List).first as Map);
+
+    final now = DateTime.now();
+    final fromStr = (from ?? now.subtract(const Duration(days: 30))).toIso8601String();
+    final toStr = (to ?? now).toIso8601String();
+    final weekEnd = now.add(const Duration(days: 7));
+    final venceHasta = now.add(const Duration(days: 3)).toIso8601String();
+    final hace24h = now.subtract(const Duration(hours: 24)).toIso8601String();
+
+    try {
+      final results = await Future.wait([
+        _client.from('usuarios').select('creditos').not('creditos', 'is', null),
+        _client.from('reservas').select('usuario_id').gte('created_at', fromStr).lte('created_at', toStr).neq('estado', 'cancelada'),
+        _client.from('clases').select('instructor').not('instructor', 'is', null).gte('fecha', fromStr).lte('fecha', toStr),
+        _client.from('reservas').select('created_at').gte('created_at', fromStr).lte('created_at', toStr).neq('estado', 'cancelada'),
+        _client.from('estudios').select('id').eq('activo', true),
+        _client.from('clases').select('estudio_id').gte('fecha', now.toIso8601String()).lte('fecha', weekEnd.toIso8601String()),
+        _client.from('usuarios').select('id').not('creditos_vencimiento', 'is', null).gt('creditos', 0).lte('creditos_vencimiento', venceHasta).gte('creditos_vencimiento', now.toIso8601String()),
+        _client.from('reservas').select('id').eq('estado', 'confirmada').isFilter('checked_in_at', null).lte('created_at', hace24h),
+      ]);
+
+      // Créditos en circulación
+      final creditosCirculacion = (results[0] as List).fold<int>(0, (s, r) => s + ((r['creditos'] as num?)?.toInt() ?? 0));
+
+      // Tasa de conversión
+      final usuariosQueReservaron = (results[1] as List).map((r) => r['usuario_id']).toSet().length;
+      final usuariosTotal = (m['usuarios_total'] as num?)?.toInt() ?? 1;
+      final tasaConversion = usuariosTotal > 0 ? (usuariosQueReservaron * 100 / usuariosTotal).round() : 0;
+
+      // Top instructor
+      final instructorCount = <String, int>{};
+      for (final row in (results[2] as List)) {
+        final ins = (row['instructor'] as String?)?.trim() ?? '';
+        if (ins.isNotEmpty) instructorCount[ins] = (instructorCount[ins] ?? 0) + 1;
+      }
+      final topInstructor = instructorCount.isEmpty
+          ? 'Sin datos'
+          : instructorCount.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+
+      // Hora pico
+      final horaCount = <int, int>{};
+      for (final row in (results[3] as List)) {
+        final dt = DateTime.tryParse(row['created_at']?.toString() ?? '');
+        if (dt != null) horaCount[dt.toLocal().hour] = (horaCount[dt.toLocal().hour] ?? 0) + 1;
+      }
+      final horaPico = horaCount.isEmpty
+          ? 'Sin datos'
+          : '${horaCount.entries.reduce((a, b) => a.value >= b.value ? a : b).key}:00 hs';
+
+      // Alertas
+      final estudiosActivos = (results[4] as List).map((r) => (r['id'] as num?)?.toInt()).toSet();
+      final estudiosConClases = (results[5] as List).map((r) => (r['estudio_id'] as num?)?.toInt()).toSet();
+      final estudiosSinClases = estudiosActivos.difference(estudiosConClases).length;
+      final creditosVenciendo = (results[6] as List).length;
+      final reservasSinCheckIn = (results[7] as List).length;
+
+      final alertas = <String>[];
+      if (estudiosSinClases > 0) alertas.add('$estudiosSinClases estudio${estudiosSinClases > 1 ? "s" : ""} sin clases esta semana');
+      if (creditosVenciendo > 0) alertas.add('$creditosVenciendo usuario${creditosVenciendo > 1 ? "s" : ""} con créditos por vencer en 3 días');
+      if (reservasSinCheckIn > 0) alertas.add('$reservasSinCheckIn reserva${reservasSinCheckIn > 1 ? "s" : ""} confirmada${reservasSinCheckIn > 1 ? "s" : ""} sin check-in hace +24 hs');
+
+      m['creditos_circulacion'] = creditosCirculacion;
+      m['tasa_conversion'] = tasaConversion;
+      m['top_instructor'] = topInstructor;
+      m['hora_pico'] = horaPico;
+      m['alertas'] = alertas;
+    } catch (_) {
+      // Métricas extendidas son opcionales; no fallan el dashboard
+      m.putIfAbsent('creditos_circulacion', () => 0);
+      m.putIfAbsent('tasa_conversion', () => 0);
+      m.putIfAbsent('top_instructor', () => 'Sin datos');
+      m.putIfAbsent('hora_pico', () => 'Sin datos');
+      m.putIfAbsent('alertas', () => <String>[]);
+    }
+
+    return m;
   }
 
   Future<List<Map<String, dynamic>>> listUsuarios({String? search}) async {
