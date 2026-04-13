@@ -38,7 +38,7 @@ Deno.serve(async (req: Request) => {
     if (!pack_nombre || typeof creditos !== 'number' || typeof amount !== 'number') {
       return json({ error: 'Faltan campos: pack_nombre, creditos, amount' }, 400)
     }
-    const packConfig = resolvePackConfig(pack_nombre, creditos, amount, vigencia_dias)
+    const packConfig = await resolvePackConfig(adminSupabase, pack_nombre, creditos, amount, vigencia_dias)
     const payerEmail = user.email ?? ''
     if (!payerEmail) {
       return json({ error: 'No encontramos un email válido para el pago.' }, 400)
@@ -135,26 +135,37 @@ Deno.serve(async (req: Request) => {
   }
 })
 
-function resolvePackConfig(
+// Lee el pack desde pricing_credit_packs en Supabase.
+// Si no lo encuentra, usa los valores del body como fallback.
+async function resolvePackConfig(
+  // deno-lint-ignore no-explicit-any
+  adminSupabase: any,
   packNombre: string,
   creditos: number,
   amount: number,
   vigenciaDias?: number,
 ) {
-  const normalized = packNombre.trim().toLowerCase()
-  const configs = [
-    { nombre: 'Pack Prueba', creditos: 20, amount: 25000, vigenciaDias: 60 },
-    { nombre: 'Pack Esencial', creditos: 50, amount: 55000, vigenciaDias: 90 },
-    { nombre: 'Pack Popular', creditos: 100, amount: 100000, vigenciaDias: 90 },
-    { nombre: 'Pack Full', creditos: 200, amount: 180000, vigenciaDias: 90 },
-  ]
+  try {
+    const { data } = await adminSupabase
+      .from('pricing_credit_packs')
+      .select('nombre, creditos, precio, vencimiento_dias')
+      .eq('activo', true)
+      .or(`nombre.ilike.${packNombre.trim()},creditos.eq.${creditos}`)
+      .maybeSingle()
 
-  const matched = configs.find((item) =>
-    item.nombre.toLowerCase() === normalized || item.creditos === creditos
-  )
+    if (data) {
+      return {
+        nombre: data.nombre as string,
+        creditos: data.creditos as number,
+        amount: data.precio as number,
+        vigenciaDias: (data.vencimiento_dias as number) ?? 90,
+      }
+    }
+  } catch (e) {
+    console.warn('resolvePackConfig: error leyendo pricing_credit_packs, usando fallback:', e)
+  }
 
-  if (matched) return matched
-
+  // Fallback: valores enviados desde Flutter
   return {
     nombre: packNombre,
     creditos,
