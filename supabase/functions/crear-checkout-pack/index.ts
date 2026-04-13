@@ -44,6 +44,17 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'No encontramos un email válido para el pago.' }, 400)
     }
 
+    // Obtener nombre del usuario para mejorar tasa de aprobación en MP
+    const { data: usuarioRow } = await adminSupabase
+      .from('usuarios')
+      .select('nombre')
+      .eq('id', user.id)
+      .maybeSingle()
+    const nombreCompleto = (usuarioRow?.nombre as string | null)?.trim() ?? ''
+    const [firstName, ...restParts] = nombreCompleto.split(' ')
+    const payerFirstName = firstName ?? ''
+    const payerLastName = restParts.join(' ')
+
     const { data: pago, error: pagoErr } = await adminSupabase
       .from('pagos')
       .insert({
@@ -82,12 +93,18 @@ Deno.serve(async (req: Request) => {
         {
           id: `pack_${packConfig.nombre.toLowerCase().replace(/\s+/g, '_')}`,
           title: `${packConfig.nombre} - ${packConfig.creditos} créditos Aura`,
+          description: `Pack de créditos Aura - ${packConfig.nombre}`,
+          category_id: 'services',
           quantity: 1,
           unit_price: Math.round(packConfig.amount),
           currency_id: 'ARS',
         },
       ],
-      payer: { email: payerEmail },
+      payer: {
+        email: payerEmail,
+        ...(payerFirstName && { first_name: payerFirstName }),
+        ...(payerLastName && { last_name: payerLastName }),
+      },
       notification_url: webhookUrl,
       back_urls: backUrls,
       auto_return: 'approved',
