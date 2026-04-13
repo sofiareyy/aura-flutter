@@ -296,9 +296,9 @@ class _IdleView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       isPlan ? 'Suscripción mensual' : 'Pack de créditos',
-                      style: TextStyle(color: Colors.white60, fontSize: 13),
+                      style: const TextStyle(color: Colors.white60, fontSize: 13),
                     ),
                     const SizedBox(height: 10),
                     Text(
