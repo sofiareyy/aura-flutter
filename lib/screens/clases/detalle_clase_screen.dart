@@ -267,47 +267,60 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
         CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
-              child: Stack(
-                children: [
-                  SizedBox(
-                    height: 292,
-                    width: double.infinity,
-                    child: _HeroImage(
-                      imageUrl: (clase['imagen_url'] ?? estudio?['foto_url'])
-                          ?.toString(),
-                      imageMode: clase['imagen_ajuste']?.toString(),
+              child: SizedBox(
+                height: 280,
+                width: double.infinity,
+                child: Stack(
+                  children: [
+                    // Imagen hero — altura fija, recortada
+                    Positioned.fill(
+                      child: _HeroImage(
+                        imageUrl: (clase['imagen_url'] ?? estudio?['foto_url'])
+                            ?.toString(),
+                        imageMode: clase['imagen_ajuste']?.toString(),
+                      ),
                     ),
-                  ),
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withOpacity(0.04),
-                            Colors.black.withOpacity(0.22),
-                            Colors.black.withOpacity(0.46),
-                          ],
+                    // Gradiente: negro opaco abajo → transparente arriba
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            stops: const [0.0, 0.5, 1.0],
+                            colors: [
+                              Colors.black.withValues(alpha: 0.85),
+                              Colors.black.withValues(alpha: 0.3),
+                              Colors.transparent,
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
+                    // Flecha volver — esquina superior izquierda
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                          child: _CircleAction(
+                            icon: Icons.arrow_back_rounded,
+                            onTap: () => context.pop(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Badge + título + estudio — esquina inferior
+                    Positioned(
+                      left: 20,
+                      right: 20,
+                      bottom: 16,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Row(
-                            children: [
-                              _CircleAction(
-                                icon: Icons.arrow_back_rounded,
-                                onTap: () => context.pop(),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 132),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -351,79 +364,81 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.star_rounded,
-                                color: Color(0xFFF5A623),
-                                size: 18,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                avgRating > 0
-                                    ? avgRating.toStringAsFixed(1)
-                                    : 'Nuevo',
-                                style: const TextStyle(
-                                  color: AppColors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                reviewCount == 0
-                                    ? 'Sin reseñas todavía'
-                                    : '$reviewCount reseñas',
-                                style: const TextStyle(
-                                  color: Color(0xFFE7E0D9),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (estudio?['id'] != null) ...[
-                            const SizedBox(height: 14),
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
-                              children: [
-                                _HeaderActionPill(
-                                  icon: Icons.storefront_outlined,
-                                  label: 'Ver estudio',
-                                  onTap: () => context.push('/estudio/${estudio!['id']}'),
-                                ),
-                                _HeaderActionPill(
-                                  icon: Icons.map_outlined,
-                                  label: 'Ver en mapa',
-                                  onTap: () {
-                                    final uri = Uri(
-                                      path: '/mapa',
-                                      queryParameters: {
-                                        if ((estudio?['categoria'] ?? '').toString().isNotEmpty)
-                                          'categoria': estudio!['categoria'].toString(),
-                                        if ((estudio?['nombre'] ?? '').toString().isNotEmpty)
-                                          'q': estudio!['nombre'].toString(),
-                                      },
-                                    );
-                                    context.push(uri.toString());
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
                         ],
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Rating
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star_rounded,
+                            color: Color(0xFFF5A623),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            avgRating > 0
+                                ? avgRating.toStringAsFixed(1)
+                                : 'Nuevo',
+                            style: const TextStyle(
+                              color: AppColors.black,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            reviewCount == 0
+                                ? 'Sin reseñas todavía'
+                                : '$reviewCount reseñas',
+                            style: const TextStyle(
+                              color: AppColors.grey,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (estudio?['id'] != null) ...[
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            _HeaderActionPill(
+                              icon: Icons.storefront_outlined,
+                              label: 'Ver estudio',
+                              onTap: () => context.push('/estudio/${estudio!['id']}'),
+                            ),
+                            _HeaderActionPill(
+                              icon: Icons.map_outlined,
+                              label: 'Ver en mapa',
+                              onTap: () {
+                                final uri = Uri(
+                                  path: '/mapa',
+                                  queryParameters: {
+                                    if ((estudio?['categoria'] ?? '').toString().isNotEmpty)
+                                      'categoria': estudio!['categoria'].toString(),
+                                    if ((estudio?['nombre'] ?? '').toString().isNotEmpty)
+                                      'q': estudio!['nombre'].toString(),
+                                  },
+                                );
+                                context.push(uri.toString());
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 16),
                       Wrap(
                         spacing: 10,
                         runSpacing: 10,
