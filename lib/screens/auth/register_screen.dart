@@ -23,6 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _authService = AuthService();
 
   bool _loading = false;
+  bool _loadingGoogle = false;
   bool _obscure = true;
   bool _showCodigoRegalo = false;
 
@@ -33,6 +34,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordCtrl.dispose();
     _codigoRegaloCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loginWithGoogle() async {
+    setState(() => _loadingGoogle = true);
+    try {
+      await _authService.signInWithGoogle();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error con Google: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _loadingGoogle = false);
+    }
   }
 
   Future<void> _register() async {
@@ -261,9 +279,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ],
                     ),
                     const SizedBox(height: 14),
-                    const _SocialButton(
-                      label: 'Continuar con Google',
+                    _SocialButton(
+                      label: _loadingGoogle ? 'Conectando...' : 'Continuar con Google',
                       icon: Icons.circle,
+                      onTap: _loadingGoogle ? null : _loginWithGoogle,
+                      loading: _loadingGoogle,
                     ),
                     const SizedBox(height: 10),
                     const _SocialButton(
@@ -432,36 +452,52 @@ class _DarkField extends StatelessWidget {
 class _SocialButton extends StatelessWidget {
   final String label;
   final IconData icon;
+  final VoidCallback? onTap;
+  final bool loading;
 
   const _SocialButton({
     required this.label,
     required this.icon,
+    this.onTap,
+    this.loading = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 42,
-      decoration: BoxDecoration(
-        color: const Color(0xFF171717),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF2A2A2A)),
-      ),
-      child: Center(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: AppColors.primary),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF989089),
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 42,
+        decoration: BoxDecoration(
+          color: const Color(0xFF171717),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF2A2A2A)),
+        ),
+        child: Center(
+          child: loading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 14, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: Color(0xFF989089),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );

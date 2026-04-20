@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../services/auth_service.dart';
 import 'onboarding_screen.dart';
 
 class AuthSplashScreen extends StatefulWidget {
@@ -38,12 +39,8 @@ class _AuthSplashScreenState extends State<AuthSplashScreen>
     final user = Supabase.instance.client.auth.currentUser;
     if (user != null) {
       try {
-        final data = await Supabase.instance.client
-            .from('usuarios')
-            .select('rol')
-            .eq('id', user.id)
-            .maybeSingle();
-        final rol = data?['rol']?.toString() ?? '';
+        // ensureUsuarioCreado crea la fila si es OAuth por primera vez
+        final rol = await AuthService().ensureUsuarioCreado();
         if (!mounted) return;
         if (rol == 'estudio' || rol == 'admin_estudio') {
           context.go('/estudio/dashboard');

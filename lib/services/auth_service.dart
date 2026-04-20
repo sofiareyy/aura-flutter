@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
@@ -39,5 +40,46 @@ class AuthService {
 
   Future<void> resetPassword(String email) async {
     await _supabase.auth.resetPasswordForEmail(email);
+  }
+
+  Future<void> signInWithGoogle() async {
+    await _supabase.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: kIsWeb
+          ? 'https://somosauraar.netlify.app'
+          : 'aura://login-callback',
+    );
+  }
+
+  /// Verifica si el usuario existe en la tabla `usuarios`.
+  /// Si no existe (OAuth por primera vez), lo crea con datos del perfil de Google.
+  /// Devuelve el rol del usuario.
+  Future<String> ensureUsuarioCreado() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) throw Exception('Sin sesión activa');
+
+    final existing = await _supabase
+        .from('usuarios')
+        .select('rol')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    if (existing != null) {
+      return existing['rol']?.toString() ?? 'usuario';
+    }
+
+    // Primera vez con OAuth: crear fila en usuarios
+    final meta = user.userMetadata ?? {};
+    final nombre = (meta['full_name'] ?? meta['name'] ?? user.email?.split('@').first ?? 'Usuario').toString().trim();
+
+    await _supabase.from('usuarios').insert({
+      'id': user.id,
+      'email': user.email,
+      'nombre': nombre,
+      'rol': 'usuario',
+      'creditos': 0,
+    });
+
+    return 'usuario';
   }
 }

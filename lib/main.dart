@@ -12,6 +12,7 @@ import 'core/constants/app_constants.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/app_provider.dart';
+import 'services/auth_service.dart';
 import 'services/notificaciones_service.dart';
 import 'widgets/connectivity_banner.dart';
 
@@ -68,6 +69,7 @@ class AuraApp extends StatefulWidget {
 
 class _AuraAppState extends State<AuraApp> {
   StreamSubscription<Uri>? _linkSub;
+  final _authService = AuthService();
 
   @override
   void initState() {
@@ -146,24 +148,53 @@ class _AuraAppState extends State<AuraApp> {
   void _handleLink(Uri uri) {
     // Soporta:
     //   aura://payment-result?status=success&pago_id=X  (custom scheme)
+    //   aura://login-callback  (OAuth Google callback en mobile)
     //   https://somosauraar.netlify.app/payment-result?... (App Links)
     final String path;
     if (uri.scheme == 'aura') {
-      // aura://payment-result → host="payment-result", path=""
       path = uri.host.isNotEmpty ? '/${uri.host}' : uri.path;
     } else {
       path = uri.path.isEmpty ? '/' : uri.path;
     }
 
+    // OAuth callback de Google en mobile
+    if (path == '/login-callback') {
+      _handleOAuthCallback();
+      return;
+    }
+
     final query = uri.query.isNotEmpty ? '?${uri.query}' : '';
     final fullPath = '$path$query';
 
-    // Pequeño delay para que el router esté listo si la app acaba de lanzar
     Future.delayed(const Duration(milliseconds: 200), () {
       try {
         appRouter.go(fullPath);
       } catch (_) {}
     });
+  }
+
+  Future<void> _handleOAuthCallback() async {
+    // La sesión ya debería estar seteada por Supabase Flutter
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    try {
+      // Crear usuario si es primera vez con OAuth
+      final rol = await _authService.ensureUsuarioCreado();
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (!mounted) return;
+        if (rol == 'estudio' || rol == 'admin_estudio') {
+          appRouter.go('/estudio/dashboard');
+        } else if (rol == 'admin') {
+          appRouter.go('/admin/dashboard');
+        } else {
+          appRouter.go('/home');
+        }
+      });
+    } catch (_) {
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted) appRouter.go('/home');
+      });
+    }
   }
 
   @override
