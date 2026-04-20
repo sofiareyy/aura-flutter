@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -22,6 +24,8 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
   bool _loading = true;
   DateTime _now = DateTime.now();
   Timer? _bannerTimer;
+  Timer? _syncTimer;
+  bool _isOffline = false;
 
   // Scanner
   late bool _usarCamara;
@@ -39,11 +43,13 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     _bannerTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
+    _syncTimer = Timer.periodic(const Duration(seconds: 15), (_) => _checkSync());
   }
 
   @override
   void dispose() {
     _bannerTimer?.cancel();
+    _syncTimer?.cancel();
     _qrController.dispose();
     _qrFocusNode.dispose();
     _cameraController?.dispose();
@@ -72,29 +78,126 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     });
   }
 
+  // ── Cache ─────────────────────────────────────────────────────────────────
+
+  Future<void> _guardarCache(int claseId, List<Map<String, dynamic>> asistentes) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('asistencia_cache_$claseId', jsonEncode(asistentes));
+    } catch (_) {}
+  }
+
+  Future<List<Map<String, dynamic>>> _leerCache(int claseId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('asistencia_cache_$claseId');
+      if (raw == null) return [];
+      final decoded = jsonDecode(raw) as List;
+      return decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> _guardarPendienteSync(String codigoQr) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('pendientes_sync') ?? '[]';
+      final lista = (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      lista.add({'codigo_qr': codigoQr, 'timestamp': DateTime.now().toIso8601String()});
+      await prefs.setString('pendientes_sync', jsonEncode(lista));
+    } catch (_) {}
+  }
+
+  Future<void> _sincronizarPendientes() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('pendientes_sync');
+      if (raw == null || raw == '[]') return;
+      final lista = (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      if (lista.isEmpty) return;
+
+      for (final item in lista) {
+        final codigo = item['codigo_qr']?.toString() ?? '';
+        if (codigo.isEmpty) continue;
+        await Supabase.instance.client.from('reservas').update({
+          'estado': 'presente',
+          'checked_in_at': DateTime.now().toIso8601String(),
+        }).eq('codigo_qr', codigo);
+      }
+
+      await prefs.setString('pendientes_sync', '[]');
+      if (mounted) {
+        setState(() {
+          _isOffline = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('✓ Cambios sincronizados correctamente'),
+            backgroundColor: const Color(0xFF43A047),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _checkSync() async {
+    if (!_isOffline) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final pendientesStr = prefs.getString('pendientes_sync');
+      if (pendientesStr == null || pendientesStr == '[]') {
+        // No pending, just try to reload
+        try {
+          final attendees = await _cargarAsistentes(_claseSeleccionada);
+          if (mounted) setState(() { _asistentes = attendees; _isOffline = false; });
+        } catch (_) {}
+        return;
+      }
+      await _sincronizarPendientes();
+    } catch (_) {}
+  }
+
   Future<List<Map<String, dynamic>>> _cargarAsistentes(
     Map<String, dynamic>? clase,
   ) async {
     if (clase == null) return [];
-    final reservas = await Supabase.instance.client
-        .from('reservas')
-        .select()
-        .eq('clase_id', clase['id'])
-        .neq('estado', 'cancelada');
+    final claseId = (clase['id'] as num?)?.toInt() ?? 0;
+    try {
+      final reservas = await Supabase.instance.client
+          .from('reservas')
+          .select()
+          .eq('clase_id', clase['id'])
+          .neq('estado', 'cancelada');
 
-    final result = <Map<String, dynamic>>[];
-    for (final r in (reservas as List)) {
-      final usuario = await Supabase.instance.client
-          .from('usuarios')
-          .select('nombre,email')
-          .eq('id', r['usuario_id'])
-          .maybeSingle();
-      result.add({
-        ...Map<String, dynamic>.from(r),
-        'usuario': usuario,
-      });
+      final result = <Map<String, dynamic>>[];
+      for (final r in (reservas as List)) {
+        final usuario = await Supabase.instance.client
+            .from('usuarios')
+            .select('nombre,email')
+            .eq('id', r['usuario_id'])
+            .maybeSingle();
+        result.add({
+          ...Map<String, dynamic>.from(r),
+          'usuario': usuario,
+        });
+      }
+      // Save to cache on success
+      await _guardarCache(claseId, result);
+      if (mounted && _isOffline) setState(() => _isOffline = false);
+      return result;
+    } catch (_) {
+      // Try loading from cache as fallback
+      final cached = await _leerCache(claseId);
+      if (cached.isNotEmpty) {
+        if (mounted) setState(() => _isOffline = true);
+        return cached;
+      }
+      return [];
     }
-    return result;
   }
 
   Future<void> _seleccionarClase(Map<String, dynamic> clase) async {
@@ -158,8 +261,37 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
         if (mounted) setState(() => _asistentes = list);
       });
     } catch (_) {
-      if (mounted) {
-        _mostrarPopup(exito: false, titulo: 'Error', subtitulo: 'Intentá de nuevo');
+      if (!mounted) return;
+      // Offline fallback: search locally
+      final match = _asistentes.where(
+        (a) => a['codigo_qr']?.toString().trim() == codigo.trim(),
+      ).toList();
+
+      if (match.isNotEmpty) {
+        final asistente = match.first;
+        final update = {
+          'estado': 'presente',
+          'checked_in_at': DateTime.now().toIso8601String(),
+        };
+        setState(() {
+          _isOffline = true;
+          _asistentes = _asistentes.map((a) {
+            if (a['codigo_qr']?.toString().trim() == codigo.trim()) {
+              return {...a, ...update};
+            }
+            return a;
+          }).toList();
+        });
+        await _guardarPendienteSync(codigo.trim());
+        final user = asistente['usuario'] as Map<String, dynamic>?;
+        _mostrarPopup(
+          exito: true,
+          titulo: user?['nombre']?.toString() ?? 'Usuario',
+          subtitulo: 'Guardado offline',
+        );
+      } else {
+        setState(() => _isOffline = true);
+        _mostrarPopup(exito: false, titulo: 'Sin conexión', subtitulo: 'QR no encontrado en caché');
       }
     } finally {
       if (mounted) setState(() => _procesando = false);
@@ -313,6 +445,33 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
               ),
               const SizedBox(height: 12),
               _buildBanner(),
+              if (_isOffline) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3E0),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.wifi_off_rounded, color: Color(0xFFE8763A), size: 18),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Sin conexión — escaneando en modo offline',
+                              style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 13, fontWeight: FontWeight.w600)),
+                            Text('Los cambios se sincronizan al reconectarte',
+                              style: TextStyle(color: Color(0xFF8F877F), fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               // Scanner
               Container(
                 padding: const EdgeInsets.all(18),
@@ -414,44 +573,78 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                         final a = e.value;
                         final user = a['usuario'] as Map<String, dynamic>?;
                         final nombre = user?['nombre']?.toString() ?? 'Sin nombre';
-                        final estado = a['estado']?.toString() ?? 'reservada';
+                        final estado = a['estado']?.toString() ?? 'confirmada';
                         final esPresente = estado == 'presente';
-                        return Container(
-                          decoration: BoxDecoration(
-                            border: Border(top: BorderSide(color: Colors.grey.shade100)),
-                            borderRadius: e.key == _asistentes.length - 1 ? const BorderRadius.vertical(bottom: Radius.circular(16)) : null,
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 32, height: 32,
-                                decoration: BoxDecoration(color: _avatarColor(nombre), shape: BoxShape.circle),
-                                child: Center(child: Text(_initials(nombre), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700))),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(child: Text(nombre, style: const TextStyle(color: AppColors.black, fontSize: 14, fontWeight: FontWeight.w500))),
-                              SizedBox(
-                                width: 90,
-                                child: Center(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: esPresente ? const Color(0xFFE3F3E5) : const Color(0xFFFFF3DE),
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                    child: Text(
-                                      esPresente ? 'Presente' : 'Pendiente',
-                                      style: TextStyle(
-                                        color: esPresente ? const Color(0xFF43A047) : AppColors.primary,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
+                        final esAusente = estado == 'ausente';
+                        final badgeColor = esPresente
+                            ? const Color(0xFFE3F3E5)
+                            : esAusente
+                                ? const Color(0xFFFFEBEE)
+                                : const Color(0xFFFFF3DE);
+                        final badgeTextColor = esPresente
+                            ? const Color(0xFF43A047)
+                            : esAusente
+                                ? const Color(0xFFE53935)
+                                : AppColors.primary;
+                        final badgeLabel = esPresente
+                            ? 'Presente'
+                            : esAusente
+                                ? 'Ausente'
+                                : 'Pendiente';
+                        return InkWell(
+                          borderRadius: e.key == _asistentes.length - 1
+                              ? const BorderRadius.vertical(bottom: Radius.circular(16))
+                              : null,
+                          onTap: () => _mostrarAccionesAsistente(a),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: Border(top: BorderSide(color: Colors.grey.shade100)),
+                              borderRadius: e.key == _asistentes.length - 1 ? const BorderRadius.vertical(bottom: Radius.circular(16)) : null,
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 32, height: 32,
+                                  decoration: BoxDecoration(color: _avatarColor(nombre), shape: BoxShape.circle),
+                                  child: Center(child: Text(_initials(nombre), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700))),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(nombre, style: const TextStyle(color: AppColors.black, fontSize: 14, fontWeight: FontWeight.w500)),
+                                      if (esPresente)
+                                        Text(
+                                          'Ingreso ${_horaIngreso(a)}',
+                                          style: const TextStyle(color: Color(0xFF9A928B), fontSize: 11),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 90,
+                                  child: Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: badgeColor,
+                                        borderRadius: BorderRadius.circular(999),
+                                      ),
+                                      child: Text(
+                                        badgeLabel,
+                                        style: TextStyle(
+                                          color: badgeTextColor,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         );
                       }),
@@ -533,6 +726,35 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
+
+                      // Offline banner
+                      if (_isOffline) ...[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF3E0),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.wifi_off_rounded, color: Color(0xFFE8763A), size: 18),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Sin conexión — escaneando en modo offline',
+                                      style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 13, fontWeight: FontWeight.w600)),
+                                    Text('Los cambios se sincronizan al reconectarte',
+                                      style: TextStyle(color: Color(0xFF8F877F), fontSize: 12)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
 
                       // Clase activa
                       Container(
@@ -736,21 +958,29 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                             children: _asistentes.map((a) {
                               final user = a['usuario'] as Map<String, dynamic>?;
                               final nombre = user?['nombre']?.toString() ?? 'Sin nombre';
-                              final estado = a['estado']?.toString() ?? 'reservada';
+                              final estado = a['estado']?.toString() ?? 'confirmada';
                               final esPresente = estado == 'presente';
+                              final esAusente = estado == 'ausente';
                               return _AttendeeRow(
                                 nombre: nombre,
                                 subtitle: esPresente
                                     ? 'Ingreso ${_horaIngreso(a)}'
-                                    : 'Pendiente',
+                                    : esAusente
+                                        ? 'Ausente'
+                                        : 'Pendiente',
                                 initials: _initials(nombre),
                                 color: _avatarColor(nombre),
                                 icon: esPresente
                                     ? Icons.check_circle_rounded
-                                    : Icons.access_time_rounded,
+                                    : esAusente
+                                        ? Icons.cancel_rounded
+                                        : Icons.access_time_rounded,
                                 iconColor: esPresente
                                     ? const Color(0xFF43A047)
-                                    : AppColors.primary,
+                                    : esAusente
+                                        ? const Color(0xFFE53935)
+                                        : const Color(0xFFB0A8A0),
+                                onTap: () => _mostrarAccionesAsistente(a),
                               );
                             }).toList(),
                           ),
@@ -760,6 +990,260 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                 ),
               ),
       ),
+    );
+  }
+
+  // ── Marcado manual ────────────────────────────────────────────────────────
+
+  Future<void> _marcarAsistente(
+    Map<String, dynamic> asistente,
+    String nuevoEstado,
+  ) async {
+    final codigoQr = asistente['codigo_qr']?.toString();
+    if (codigoQr == null || codigoQr.isEmpty) return;
+
+    final nombre = (asistente['usuario'] as Map<String, dynamic>?)?['nombre']
+            ?.toString() ??
+        'Alumno';
+
+    final update = <String, dynamic>{'estado': nuevoEstado};
+    if (nuevoEstado == 'presente') {
+      update['checked_in_at'] = DateTime.now().toIso8601String();
+    } else {
+      update['checked_in_at'] = null;
+    }
+
+    try {
+      await Supabase.instance.client
+          .from('reservas')
+          .update(update)
+          .eq('codigo_qr', codigoQr);
+      if (mounted && _isOffline) setState(() => _isOffline = false);
+    } catch (_) {
+      // Offline: queue for sync
+      await _guardarPendienteSync(codigoQr);
+      if (mounted) setState(() => _isOffline = true);
+    }
+
+    // Actualizar lista local
+    if (mounted) {
+      setState(() {
+        _asistentes = _asistentes.map((a) {
+          if (a['codigo_qr'] == codigoQr) {
+            return {...a, ...update};
+          }
+          return a;
+        }).toList();
+      });
+
+      final msg = nuevoEstado == 'presente'
+          ? '✓ $nombre marcado como presente'
+          : nuevoEstado == 'ausente'
+              ? '$nombre marcado como ausente'
+              : '$nombre marcado como pendiente';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: const Color(0xFF1A1A1A),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  }
+
+  Future<void> _mostrarAccionesAsistente(
+    Map<String, dynamic> asistente,
+  ) async {
+    final user = asistente['usuario'] as Map<String, dynamic>?;
+    final nombre = user?['nombre']?.toString() ?? 'Sin nombre';
+    final estado = asistente['estado']?.toString() ?? 'confirmada';
+    final claseNombre =
+        _claseSeleccionada?['nombre']?.toString() ?? 'Clase';
+    final fecha = DateTime.tryParse(
+      _claseSeleccionada?['fecha']?.toString() ?? '',
+    );
+    final horario = fecha != null
+        ? DateFormat('EEE d MMM · HH:mm', 'es').format(fecha)
+        : '';
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle
+              Container(
+                width: 42,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0DBD6),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Avatar
+              Container(
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE8763A),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    _initials(nombre),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Nombre
+              Text(
+                nombre,
+                style: const TextStyle(
+                  color: AppColors.black,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              // Clase y horario
+              Text(
+                '$claseNombre · $horario',
+                style: const TextStyle(
+                  color: Color(0xFF9A928B),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 24),
+              if (estado == 'presente') ...[
+                // Badge presente
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE3F3E5),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text(
+                    'Ya marcado como presente',
+                    style: TextStyle(
+                      color: Color(0xFF43A047),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Ingreso ${_horaIngreso(asistente)}',
+                  style: const TextStyle(
+                    color: Color(0xFF9A928B),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await _marcarAsistente(asistente, 'confirmada');
+                  },
+                  child: const Text(
+                    'Deshacer — marcar como pendiente',
+                    style: TextStyle(color: Color(0xFF9A928B), fontSize: 14),
+                  ),
+                ),
+              ] else if (estado == 'ausente') ...[
+                // Badge ausente
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEBEE),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text(
+                    'Marcado como ausente',
+                    style: TextStyle(
+                      color: Color(0xFFE53935),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await _marcarAsistente(asistente, 'presente');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE8763A),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      textStyle: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                    child: const Text('Cambiar a presente'),
+                  ),
+                ),
+              ] else ...[
+                // Estado confirmada / pendiente
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await _marcarAsistente(asistente, 'presente');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF43A047),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      textStyle: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                    child: const Text('✓  Marcar como presente'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await _marcarAsistente(asistente, 'ausente');
+                  },
+                  child: const Text(
+                    'Marcar como ausente',
+                    style: TextStyle(color: Color(0xFF9A928B), fontSize: 14),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -801,10 +1285,10 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       _asistentes.where((a) => a['estado'] == 'presente').length;
 
   int get _pendientes =>
-      _asistentes.where((a) => a['estado'] != 'presente' && a['estado'] != 'cancelada').length;
+      _asistentes.where((a) => a['estado'] != 'presente' && a['estado'] != 'cancelada' && a['estado'] != 'ausente').length;
 
   int get _ausentes =>
-      _asistentes.where((a) => a['estado'] == 'cancelada').length;
+      _asistentes.where((a) => a['estado'] == 'ausente').length;
 
   String _horaIngreso(Map<String, dynamic> a) {
     final dt = DateTime.tryParse(a['checked_in_at']?.toString() ?? '');
@@ -890,12 +1374,97 @@ class _USBScanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // En web: campo de texto visible para ingresar el código manualmente
+    if (kIsWeb) {
+      return Container(
+        color: const Color(0xFF2A2A2A),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.keyboard_rounded,
+              size: 36,
+              color: Color(0xFF595959),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Ingresá el código de reserva',
+              style: TextStyle(
+                color: Color(0xFF8F877F),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              focusNode: focusNode,
+              autofocus: true,
+              enabled: !procesando,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (v) {
+                onSubmit(v);
+                controller.clear();
+                focusNode.requestFocus();
+              },
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+              decoration: InputDecoration(
+                hintText: 'Ej: abc123-xyz...',
+                hintStyle: const TextStyle(color: Color(0xFF555555)),
+                filled: true,
+                fillColor: const Color(0xFF333333),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                suffixIcon: procesando
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      )
+                    : IconButton(
+                        icon: const Icon(
+                          Icons.check_circle_rounded,
+                          color: AppColors.primary,
+                        ),
+                        onPressed: () {
+                          if (controller.text.trim().isNotEmpty) {
+                            onSubmit(controller.text.trim());
+                            controller.clear();
+                            focusNode.requestFocus();
+                          }
+                        },
+                      ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'El alumno te muestra el código en su teléfono',
+              style: TextStyle(color: Color(0xFF555555), fontSize: 11),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // En mobile/desktop con lector USB: campo oculto que captura el input
     return Container(
       color: const Color(0xFF2A2A2A),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Campo invisible que captura el input del lector USB
           Opacity(
             opacity: 0,
             child: TextField(
@@ -906,7 +1475,6 @@ class _USBScanner extends StatelessWidget {
               decoration: const InputDecoration(border: InputBorder.none),
             ),
           ),
-          // UI visual
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -930,7 +1498,6 @@ class _USBScanner extends StatelessWidget {
               ],
             ),
           ),
-          // Esquinas del viewfinder
           const Positioned(top: 16, left: 16, child: _ScannerCorner()),
           const Positioned(top: 16, right: 16, child: _ScannerCorner(flipX: true)),
           const Positioned(bottom: 16, left: 16, child: _ScannerCorner(flipY: true)),
@@ -1079,6 +1646,7 @@ class _AttendeeRow extends StatelessWidget {
   final Color color;
   final IconData icon;
   final Color iconColor;
+  final VoidCallback? onTap;
 
   const _AttendeeRow({
     required this.nombre,
@@ -1087,11 +1655,15 @@ class _AttendeeRow extends StatelessWidget {
     required this.color,
     required this.icon,
     required this.iconColor,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
@@ -1134,6 +1706,7 @@ class _AttendeeRow extends StatelessWidget {
           ),
           Icon(icon, color: iconColor),
         ],
+      ),
       ),
     );
   }

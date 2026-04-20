@@ -12,8 +12,13 @@ import '../../services/reservas_service.dart';
 
 class ReservaConfirmadaScreen extends StatefulWidget {
   final String codigoQr;
+  final bool fromNotification;
 
-  const ReservaConfirmadaScreen({super.key, required this.codigoQr});
+  const ReservaConfirmadaScreen({
+    super.key,
+    required this.codigoQr,
+    this.fromNotification = false,
+  });
 
   @override
   State<ReservaConfirmadaScreen> createState() => _ReservaConfirmadaScreenState();
@@ -169,7 +174,63 @@ Future<void> _abrirShareSheet({
       backgroundColor: AppColors.background,
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : _buildContent(),
+          : _checkClaseFinalizada() ?? _buildContent(),
+    );
+  }
+
+  Widget? _checkClaseFinalizada() {
+    if (!widget.fromNotification) return null;
+    final clase = _reserva?['clases'] as Map<String, dynamic>?;
+    final fecha = clase?['fecha'] != null
+        ? DateTime.tryParse(clase!['fecha'].toString())
+        : null;
+    if (fecha == null) return null;
+    final limite = fecha.add(const Duration(hours: 2));
+    if (DateTime.now().isBefore(limite)) return null;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.event_busy_rounded,
+              size: 64,
+              color: Color(0xFFB0A8A0),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Esta clase ya finalizó',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.black,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Podés ver el detalle de tus reservas pasadas en Mis reservas.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF8F877F),
+                fontSize: 15,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () => context.go('/mis-reservas'),
+                child: const Text('Ver mis reservas'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -15,6 +15,30 @@ String _toSupaDate(DateTime dt) {
 class EstudioAdminService {
   final SupabaseClient _client = Supabase.instance.client;
 
+  Future<bool> getTutorialCompletado() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return true;
+    try {
+      final row = await _client
+          .from('usuarios')
+          .select('tutorial_completado')
+          .eq('id', uid)
+          .maybeSingle();
+      return (row?['tutorial_completado'] as bool?) ?? false;
+    } catch (_) {
+      return true; // Si falla, no mostramos el tutorial
+    }
+  }
+
+  Future<void> marcarTutorialCompletado() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return;
+    await _client
+        .from('usuarios')
+        .update({'tutorial_completado': true})
+        .eq('id', uid);
+  }
+
   Future<int?> getCurrentStudioId() async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return null;

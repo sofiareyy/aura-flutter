@@ -19,6 +19,8 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
   bool _loading = true;
   bool _savingCredit = false;
   bool _savingCategory = false;
+  bool _savingToggleCreditos = false;
+  bool _estudiosDefinenCreditos = false;
   String? _error;
   Map<String, dynamic>? _pricing;
   List<String> _categories = [];
@@ -44,10 +46,18 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
       _error = null;
     });
     try {
-      final pricing = await _service.getPricingSnapshot();
-      final categories = await _service.listStudyCategories();
-      final plans = await _service.listPricingPlans();
-      final packs = await _service.listPricingPacks();
+      final results = await Future.wait([
+        _service.getPricingSnapshot(),
+        _service.listStudyCategories(),
+        _service.listPricingPlans(),
+        _service.listPricingPacks(),
+        _service.getConfigGlobal('estudios_definen_creditos'),
+      ]);
+      final pricing = results[0] as Map<String, dynamic>;
+      final categories = results[1] as List<String>;
+      final plans = results[2] as List<Map<String, dynamic>>;
+      final packs = results[3] as List<Map<String, dynamic>>;
+      final configCreditos = results[4] as String?;
       if (!mounted) return;
       _creditValueCtrl.text =
           '${(pricing['valor_credito'] as num?)?.toInt() ?? 6000}';
@@ -56,6 +66,7 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
         _categories = categories;
         _plans = plans;
         _packs = packs;
+        _estudiosDefinenCreditos = configCreditos == 'true';
         _loading = false;
       });
     } catch (e) {
@@ -64,6 +75,38 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
         _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _toggleEstudiosDefinenCreditos(bool value) async {
+    setState(() => _savingToggleCreditos = true);
+    try {
+      await _service.setConfigGlobal(
+        'estudios_definen_creditos',
+        value ? 'true' : 'false',
+      );
+      if (!mounted) return;
+      setState(() => _estudiosDefinenCreditos = value);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            value
+                ? 'Los estudios ahora pueden definir sus propios créditos.'
+                : 'Los créditos son asignados automáticamente por Aura.',
+          ),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _savingToggleCreditos = false);
     }
   }
 
@@ -465,6 +508,35 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
                                     ),
                                   )
                                 : const Text('Guardar valor'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _Panel(
+                    title: 'Créditos por clase',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Controlá si los estudios pueden definir el precio de cada clase o si Aura lo asigna según la categoría.',
+                          style: TextStyle(color: AppColors.grey, height: 1.5),
+                        ),
+                        const SizedBox(height: 8),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: _estudiosDefinenCreditos,
+                          onChanged: _savingToggleCreditos ? null : _toggleEstudiosDefinenCreditos,
+                          title: const Text(
+                            'Permitir que estudios definan sus propios créditos',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            _estudiosDefinenCreditos
+                                ? 'Activo — cada estudio puede editar los créditos al crear o editar una clase.'
+                                : 'Inactivo — el precio lo define Aura según la categoría. Los estudios no pueden modificarlo.',
+                            style: const TextStyle(color: AppColors.grey, height: 1.4),
                           ),
                         ),
                       ],

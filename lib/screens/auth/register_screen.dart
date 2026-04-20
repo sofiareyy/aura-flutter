@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
@@ -18,16 +19,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _nombreCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _codigoRegaloCtrl = TextEditingController();
   final _authService = AuthService();
 
   bool _loading = false;
   bool _obscure = true;
+  bool _showCodigoRegalo = false;
 
   @override
   void dispose() {
     _nombreCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _codigoRegaloCtrl.dispose();
     super.dispose();
   }
 
@@ -54,6 +58,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
         context.go('/login');
         return;
+      }
+
+      // Apply gift code if provided
+      final codigoRaw = _codigoRegaloCtrl.text.trim();
+      if (codigoRaw.isNotEmpty) {
+        final codigo = codigoRaw.toUpperCase();
+        try {
+          final regalo = await Supabase.instance.client
+              .from('regalos')
+              .select()
+              .eq('codigo', codigo)
+              .eq('usado', false)
+              .maybeSingle();
+          if (regalo != null) {
+            final uid = response.user?.id ?? '';
+            if (uid.isNotEmpty) {
+              await Supabase.instance.client.from('usuarios').update({
+                'creditos': (regalo['creditos'] as num).toInt(),
+              }).eq('id', uid);
+              await Supabase.instance.client
+                  .from('regalos')
+                  .update({'usado': true})
+                  .eq('codigo', codigo);
+            }
+          }
+        } catch (_) {
+          // Gift code application failure is non-critical
+        }
       }
 
       await context.read<AppProvider>().refrescarUsuario();
@@ -191,6 +223,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         return null;
                       },
                     ),
+                    const SizedBox(height: 16),
+                    GestureDetector(
+                      onTap: () =>
+                          setState(() => _showCodigoRegalo = !_showCodigoRegalo),
+                      child: const Text(
+                        '¿Tenés un código de regalo?',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (_showCodigoRegalo) ...[
+                      const SizedBox(height: 8),
+                      _DarkField(
+                        controller: _codigoRegaloCtrl,
+                        hintText: 'GIFT-XXXXXXXX',
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     Row(
                       children: const [

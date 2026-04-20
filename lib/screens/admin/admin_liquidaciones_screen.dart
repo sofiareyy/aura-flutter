@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../services/admin_service.dart';
 
 class AdminLiquidacionesScreen extends StatefulWidget {
   const AdminLiquidacionesScreen({super.key});
@@ -14,12 +15,15 @@ class AdminLiquidacionesScreen extends StatefulWidget {
 
 class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
   final _client = Supabase.instance.client;
+  final _adminService = AdminService();
 
   // Últimos 6 meses (más reciente primero)
   late List<String> _meses;
   late String _mesSeleccionado;
 
   bool _loading = true;
+  bool _enviandoAviso = false;
+  bool _enviandoReporte = false;
   String? _error;
 
   // Por estudio: { estudio_id, nombre, cantidad_reservas, monto_total, monto_pagar, estado, fecha_pago, comprobante_nota }
@@ -269,6 +273,112 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
     }
   }
 
+  Future<void> _enviarAvisoCobro() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Enviar aviso de cobro'),
+        content: const Text(
+          '¿Querés enviar el email de aviso a todos los estudios con reservas este mes?\n\nSolo se envía a estudios con monto > \$0.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Enviar', style: TextStyle(color: AppColors.primary)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() => _enviandoAviso = true);
+    try {
+      final result = await _adminService.enviarAvisoCobro();
+      if (!mounted) return;
+      final enviados = result['enviados'] as int? ?? 0;
+      final errores = result['errores'] as int? ?? 0;
+      final omitidos = result['omitidos'] as int? ?? 0;
+      final msg = errores == 0
+          ? '✓ $enviados aviso${enviados != 1 ? 's' : ''} enviado${enviados != 1 ? 's' : ''}. $omitidos sin reservas.'
+          : '$enviados enviados · $errores con error · $omitidos sin reservas.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: errores == 0 ? const Color(0xFF1A1A1A) : AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _enviandoAviso = false);
+    }
+  }
+
+  Future<void> _enviarReporteMensual() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Enviar reporte mensual'),
+        content: const Text(
+          '¿Querés enviar el reporte mensual a todos los estudios con reservas el mes pasado?\n\nSolo se envía a estudios con actividad.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Enviar', style: TextStyle(color: AppColors.primary)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() => _enviandoReporte = true);
+    try {
+      final result = await _adminService.enviarReporteMensual();
+      if (!mounted) return;
+      final enviados = result['enviados'] as int? ?? 0;
+      final errores = result['errores'] as int? ?? 0;
+      final omitidos = result['omitidos'] as int? ?? 0;
+      final msg = errores == 0
+          ? '✓ $enviados reporte${enviados != 1 ? 's' : ''} enviado${enviados != 1 ? 's' : ''}. $omitidos sin actividad.'
+          : '$enviados enviados · $errores con error · $omitidos sin actividad.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: errores == 0 ? const Color(0xFF1A1A1A) : AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _enviandoReporte = false);
+    }
+  }
+
   void _abrirBottomSheet(Map<String, dynamic> estudio) {
     showModalBottomSheet(
       context: context,
@@ -430,6 +540,66 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
           Text(
             '${pendientes.length} estudio${pendientes.length != 1 ? 's' : ''} pendiente${pendientes.length != 1 ? 's' : ''}',
             style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _enviandoAviso ? null : _enviarAvisoCobro,
+              icon: _enviandoAviso
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.send_rounded, size: 16),
+              label: Text(
+                _enviandoAviso ? 'Enviando...' : 'Enviar aviso de cobro manualmente',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _enviandoReporte ? null : _enviarReporteMensual,
+              icon: _enviandoReporte
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.bar_chart_rounded, size: 16),
+              label: Text(
+                _enviandoReporte ? 'Enviando...' : 'Enviar reporte mensual manualmente',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2A2A2A),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ),
         ],
       ),

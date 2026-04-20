@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
@@ -73,7 +74,55 @@ class _AuraAppState extends State<AuraApp> {
     super.initState();
     if (!kIsWeb) {
       _initDeepLinks();
+      _initNotificationHandlers();
     }
+  }
+
+  void _initNotificationHandlers() {
+    NotificacionesService.instance.setNotificationTapHandler(
+      _handleNotificationPayload,
+    );
+    // App lanzada desde notificación (estaba completamente cerrada)
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final details =
+          await NotificacionesService.instance.getLaunchDetails();
+      final payload = details?.notificationResponse?.payload;
+      if (payload != null && payload.isNotEmpty) {
+        _handleNotificationPayload(payload);
+      }
+    });
+  }
+
+  void _handleNotificationPayload(String payload) {
+    try {
+      final data = jsonDecode(payload) as Map<String, dynamic>;
+      final tipo = data['tipo']?.toString();
+      if (tipo == 'recordatorio_clase') {
+        final codigoQr = data['codigo_qr']?.toString() ?? '';
+        if (codigoQr.isNotEmpty) {
+          Future.delayed(const Duration(milliseconds: 200), () {
+            try {
+              appRouter.go('/reserva-confirmada/$codigoQr?from_notif=true');
+            } catch (_) {}
+          });
+        }
+      } else if (tipo == 'recordatorio_resena') {
+        final estudioId = data['estudio_id'];
+        if (estudioId != null) {
+          Future.delayed(const Duration(milliseconds: 200), () {
+            try {
+              appRouter.go('/estudio/$estudioId');
+            } catch (_) {}
+          });
+        }
+      } else if (tipo == 'inactividad_creditos') {
+        Future.delayed(const Duration(milliseconds: 200), () {
+          try {
+            appRouter.go('/explorar');
+          } catch (_) {}
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _initDeepLinks() async {

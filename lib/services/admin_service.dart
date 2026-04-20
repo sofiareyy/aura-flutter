@@ -447,4 +447,42 @@ class AdminService {
     final res = await _client.rpc('admin_list_activity_logs');
     return List<Map<String, dynamic>>.from(res as List);
   }
+
+  Future<Map<String, dynamic>> enviarAvisoCobro() async {
+    final result = await _client.functions.invoke('aviso-cobro-manana');
+    if (result.status != 200) {
+      final msg = (result.data as Map?)?['error']?.toString() ?? 'Error al enviar avisos';
+      throw Exception(msg);
+    }
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> enviarReporteMensual() async {
+    final result = await _client.functions.invoke('reporte-mensual-estudios');
+    if (result.status != 200) {
+      final msg = (result.data as Map?)?['error']?.toString() ?? 'Error al enviar reportes';
+      throw Exception(msg);
+    }
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<String?> getConfigGlobal(String clave) async {
+    try {
+      final res = await _client
+          .from('configuracion_global')
+          .select('valor')
+          .eq('clave', clave)
+          .maybeSingle();
+      return res?['valor']?.toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setConfigGlobal(String clave, String valor) async {
+    await _client.from('configuracion_global').upsert(
+      {'clave': clave, 'valor': valor, 'updated_at': DateTime.now().toIso8601String()},
+      onConflict: 'clave',
+    );
+  }
 }

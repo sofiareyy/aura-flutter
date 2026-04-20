@@ -38,6 +38,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
   bool _enListaEspera = false;
   bool _togglingWaitlist = false;
   int _waitlistCount = 0;
+  int _invitadasCount = 0;
   List<Map<String, dynamic>> _reviews = [];
 
   @override
@@ -91,6 +92,19 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
       final enListaEspera = futures[1] as bool;
       final waitlistCount = futures[2] as int;
 
+      // Count "amigas que van" (invitaciones no canceladas)
+      int invitadasCount = 0;
+      try {
+        final invCount = await Supabase.instance.client
+            .from('invitaciones_grupo')
+            .select('id')
+            .eq('clase_id', widget.claseId)
+            .neq('estado', 'cancelado');
+        invitadasCount = (invCount as List).length;
+      } catch (_) {
+        // Non-critical
+      }
+
       if (!mounted) return;
       setState(() {
         _clase = clase;
@@ -100,6 +114,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
         _esGratuita = esGratuita;
         _enListaEspera = enListaEspera;
         _waitlistCount = waitlistCount;
+        _invitadasCount = invitadasCount;
         _loading = false;
       });
     } catch (_) {
@@ -281,6 +296,140 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     } finally {
       if (mounted) setState(() => _togglingWaitlist = false);
     }
+  }
+
+  Future<void> _mostrarInvitarAmigas() async {
+    final clase = _clase;
+    if (clase == null) return;
+    final claseId = widget.claseId;
+    final claseNombre = clase['nombre']?.toString() ?? 'Clase';
+
+    final List<TextEditingController> emailControllers = [
+      TextEditingController(),
+    ];
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: StatefulBuilder(
+          builder: (ctx2, setSheetState) => Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFFF7F5F2),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: EdgeInsets.fromLTRB(
+                20, 16, 20, MediaQuery.of(ctx).padding.bottom + 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFCCC5BD),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                const Text(
+                  'Ir juntas 👯',
+                  style: TextStyle(
+                    color: AppColors.black,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Cada una paga sus propios créditos al confirmar',
+                  style: TextStyle(color: AppColors.grey, fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                ...emailControllers.asMap().entries.map((entry) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: TextField(
+                        controller: entry.value,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: InputDecoration(
+                          labelText: 'Email de tu amiga',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: entry.key == emailControllers.length - 1 &&
+                                  emailControllers.length < 3
+                              ? IconButton(
+                                  icon: const Icon(Icons.add_circle_outline,
+                                      color: AppColors.primary),
+                                  onPressed: () {
+                                    setSheetState(() {
+                                      emailControllers
+                                          .add(TextEditingController());
+                                    });
+                                  },
+                                )
+                              : null,
+                        ),
+                      ),
+                    )),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final emails = emailControllers
+                          .map((c) => c.text.trim())
+                          .where((e) => e.isNotEmpty)
+                          .toList();
+                      if (emails.isEmpty) return;
+                      Navigator.pop(ctx);
+                      try {
+                        final uid =
+                            context.read<AppProvider>().userId;
+                        for (final email in emails) {
+                          await Supabase.instance.client
+                              .from('invitaciones_grupo')
+                              .insert({
+                            'invitador_id': uid,
+                            'clase_id': claseId,
+                            'invitado_email': email.toLowerCase(),
+                            'estado': 'pendiente',
+                          });
+                        }
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  '✓ Invitaciones enviadas a $claseNombre'),
+                              backgroundColor: AppColors.blackSoft,
+                            ),
+                          );
+                          await _cargar();
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('No se pudieron enviar: $e'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Enviar invitación'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -819,6 +968,38 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: _mostrarInvitarAmigas,
+                        icon: const Text('👯', style: TextStyle(fontSize: 16)),
+                        label: const Text('Invitá amigas a esta clase'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          minimumSize: const Size(double.infinity, 48),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                      ),
+                      if (_invitadasCount > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryLight,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '$_invitadasCount amiga${_invitadasCount > 1 ? 's van' : ' va'} a esta clase',
+                              style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 18),
                       _SectionBlock(
                         title: 'Reservas',

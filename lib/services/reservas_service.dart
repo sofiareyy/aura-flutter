@@ -170,7 +170,7 @@ class ReservasService {
 
       final claseDetalle = await _supabase
           .from(AppConstants.tableClases)
-          .select('nombre, fecha, estudio_id')
+          .select('nombre, fecha, estudio_id, duracion_min')
           .eq('id', claseId)
           .maybeSingle();
       final estudio = claseDetalle == null
@@ -191,7 +191,20 @@ class ReservasService {
           estudioNombre: estudio?['nombre']?.toString() ?? 'Aura',
           fechaClase: fechaDetalle,
           direccionEstudio: estudio?['direccion']?.toString(),
+          codigoQr: codigoQr,
         );
+        final estudioId = (claseDetalle['estudio_id'] as num?)?.toInt();
+        final duracionMin = (claseDetalle['duracion_min'] as num?)?.toInt() ?? 60;
+        if (estudioId != null) {
+          NotificacionesService.instance.scheduleResenaReminder(
+            reservaId: notifId,
+            claseNombre: claseDetalle['nombre']?.toString() ?? 'Tu clase',
+            estudioNombre: estudio?['nombre']?.toString() ?? 'Aura',
+            estudioId: estudioId,
+            fechaClase: fechaDetalle,
+            duracionMin: duracionMin,
+          ).ignore();
+        }
       }
 
       // Notify studio (fire-and-forget — never blocks the reservation)

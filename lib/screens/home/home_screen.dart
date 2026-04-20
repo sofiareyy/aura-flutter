@@ -5,9 +5,12 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../core/theme/app_theme.dart';
 import '../../models/estudio.dart';
 import '../../providers/app_provider.dart';
+import '../../services/aviso_alumnos_service.dart';
 import '../../services/clases_service.dart';
 import '../../services/estudios_service.dart';
 import '../../services/location_service.dart';
@@ -28,11 +31,15 @@ class _HomeScreenState extends State<HomeScreen> {
   final _studioGeoService = StudioGeoService();
 
   List<Map<String, dynamic>> _proximasClases = [];
+  List<Map<String, dynamic>> _sugerencias = [];
   List<Estudio> _estudios = [];
   List<String> _categorias = const ['Todos'];
+  final _avisoService = AvisoAlumnosService();
   bool _loading = true;
   bool _requestingLocation = false;
   bool _bannerDismissed = false;
+  bool _tieneHistorialCreditos = true;
+  int _unreadNotifs = 0;
   String _categoriaSeleccionada = 'Todos';
   AuraLocationState _locationState =
       const AuraLocationState(status: AuraLocationStatus.unknown);
@@ -101,6 +108,31 @@ class _HomeScreenState extends State<HomeScreen> {
             .scheduleCreditsExpiryReminder(expiresAt: vencimiento)
             .ignore();
       }
+      // Detectar si el usuario tiene historial de créditos (solo cuando tiene 0)
+      if ((provider.usuario?.creditos ?? 0) == 0) {
+        final uid = Supabase.instance.client.auth.currentUser?.id;
+        if (uid != null) {
+          try {
+            final historial = await Supabase.instance.client
+                .from('creditos_movimientos')
+                .select('id')
+                .eq('usuario_id', uid)
+                .limit(1);
+            if (mounted) {
+              setState(() => _tieneHistorialCreditos = (historial as List).isNotEmpty);
+            }
+          } catch (_) {
+            // Si falla, asumimos que tiene historial para no mostrar el estado de nuevo usuario
+          }
+        }
+      } else {
+        if (mounted) setState(() => _tieneHistorialCreditos = true);
+      }
+      // Cargar notificaciones no leídas (non-blocking)
+      _avisoService.getUnreadCount().then((count) {
+        if (mounted) setState(() => _unreadNotifs = count);
+      }).ignore();
+
       final results = await Future.wait([
         _clasesService.getProximasClases(limit: 5),
         _estudiosService.getCategorias(),
@@ -127,11 +159,37 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         });
       }
+      _cargarSugerencias().ignore();
     } catch (_) {
       // Dejamos UI vacia si falla la carga.
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _cargarSugerencias() async {
+    final provider = context.read<AppProvider>();
+    final uid = provider.userId;
+    if (uid.isEmpty) return;
+    final sugerencias = await _clasesService.getClasesSugeridas(userId: uid);
+    if (mounted) setState(() => _sugerencias = sugerencias);
+  }
+
+  Future<void> _mostrarNotificaciones() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => _NotificacionesSheet(
+        service: _avisoService,
+        onLeidas: () {
+          if (mounted) setState(() => _unreadNotifs = 0);
+        },
+      ),
+    );
   }
 
   String _saludo() {
@@ -225,6 +283,32 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                           ),
+                          Stack(
+                            alignment: Alignment.topRight,
+                            children: [
+                              IconButton(
+                                onPressed: _mostrarNotificaciones,
+                                icon: const Icon(
+                                  Icons.notifications_outlined,
+                                  color: AppColors.black,
+                                ),
+                              ),
+                              if (_unreadNotifs > 0)
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: Container(
+                                    width: 9,
+                                    height: 9,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(width: 4),
                           GestureDetector(
                             onTap: () => context.go('/perfil'),
                             child: Container(
@@ -253,7 +337,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-                    child: _PlanCard(usuario: usuario),
+                    child: usuario == null || (usuario.creditos) > 0
+                        ? _PlanCard(usuario: usuario)
+                        : !_tieneHistorialCreditos
+                            ? _NuevoUsuarioCard(
+                                onVerPacks: () => context.push('/comprar-creditos'),
+                              )
+                            : _SinCreditosCard(
+                                onComprar: () => context.push('/comprar-creditos'),
+                                onVerReservas: () => context.push('/mis-clases'),
+                              ),
                   ),
                 ),
                 // ── Credits expiry banner ─────────────────────────────
@@ -408,6 +501,63 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                   ),
                 ),
+                if (_sugerencias.isNotEmpty) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'PARA VOS ✨',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  letterSpacing: 0.8,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          GestureDetector(
+                            onTap: () => context.push('/explorar'),
+                            child: const Text(
+                              'Ver más',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 270,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: _sugerencias.length,
+                        itemBuilder: (context, index) {
+                          final clase = _sugerencias[index];
+                          return SizedBox(
+                            width: 320,
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 14),
+                              child: _HomeNearbyClassCard(
+                                clase: clase,
+                                onTap: () =>
+                                    context.push('/clase/${clase['id']}'),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
@@ -842,6 +992,276 @@ class _PlanCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Notificaciones del estudio ──────────────────────────────────────────────
+
+class _NotificacionesSheet extends StatefulWidget {
+  final AvisoAlumnosService service;
+  final VoidCallback onLeidas;
+
+  const _NotificacionesSheet({required this.service, required this.onLeidas});
+
+  @override
+  State<_NotificacionesSheet> createState() => _NotificacionesSheetState();
+}
+
+class _NotificacionesSheetState extends State<_NotificacionesSheet> {
+  List<Map<String, dynamic>> _items = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  Future<void> _cargar() async {
+    final items = await widget.service.getNotificaciones();
+    await widget.service.marcarTodasLeidas();
+    widget.onLeidas();
+    if (mounted) setState(() { _items = items; _loading = false; });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 42, height: 5,
+              decoration: BoxDecoration(color: const Color(0xFFE0DBD6), borderRadius: BorderRadius.circular(999)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Notificaciones',
+            style: TextStyle(color: AppColors.black, fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 14),
+          if (_loading)
+            const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator(color: AppColors.primary)))
+          else if (_items.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(
+                child: Text('Sin notificaciones', style: TextStyle(color: Color(0xFF8F877F))),
+              ),
+            )
+          else
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: _items.length,
+                separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF0EDE9)),
+                itemBuilder: (_, i) {
+                  final item = _items[i];
+                  final titulo = item['titulo']?.toString() ?? '';
+                  final mensaje = item['mensaje']?.toString() ?? '';
+                  final leida = item['leida'] == true;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 8, height: 8,
+                          margin: const EdgeInsets.only(top: 5, right: 10),
+                          decoration: BoxDecoration(
+                            color: leida ? Colors.transparent : AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (titulo.isNotEmpty)
+                                Text(titulo, style: const TextStyle(color: AppColors.black, fontSize: 14, fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 2),
+                              Text(mensaje, style: const TextStyle(color: Color(0xFF5F5953), fontSize: 13, height: 1.45)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Estado: usuario nuevo (nunca compró) ─────────────────────────────────────
+
+class _NuevoUsuarioCard extends StatelessWidget {
+  final VoidCallback onVerPacks;
+
+  const _NuevoUsuarioCard({required this.onVerPacks});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.star_rounded,
+            color: Color(0xFFE8763A),
+            size: 40,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Bienvenida a Aura. 🧡',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFFF7F5F2),
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Comprá tu primer pack y empezá a reservar pilates, yoga, cerámica y más en Pilar.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF8F877F),
+              fontSize: 13,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: onVerPacks,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE8763A),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              child: const Text('Ver packs de créditos'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Estado: se acabaron los créditos ────────────────────────────────────────
+
+class _SinCreditosCard extends StatelessWidget {
+  final VoidCallback onComprar;
+  final VoidCallback onVerReservas;
+
+  const _SinCreditosCard({
+    required this.onComprar,
+    required this.onVerReservas,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.account_balance_wallet_rounded,
+            color: Color(0xFFE8763A),
+            size: 40,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Te quedaste sin créditos',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFFF7F5F2),
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Recargá para seguir reservando tus clases favoritas.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF8F877F),
+              fontSize: 13,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: onComprar,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE8763A),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              child: const Text('Comprar créditos'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton(
+              onPressed: onVerReservas,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFF7F5F2),
+                side: const BorderSide(color: Color(0xFFF7F5F2), width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              child: const Text('Ver mis reservas futuras'),
+            ),
           ),
         ],
       ),

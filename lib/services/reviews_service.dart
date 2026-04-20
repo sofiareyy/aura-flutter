@@ -85,5 +85,23 @@ class ReviewsService {
       'rating': rating,
       'comentario': comentario.trim(),
     }, onConflict: 'estudio_id,usuario_id');
+
+    // Recalcular rating promedio del estudio
+    try {
+      final ratings = await _supabase
+          .from('study_reviews')
+          .select('rating')
+          .eq('estudio_id', estudioId);
+      final list = (ratings as List);
+      if (list.isNotEmpty) {
+        final avg = list
+                .map((r) => (r['rating'] as num).toDouble())
+                .reduce((a, b) => a + b) /
+            list.length;
+        await _supabase
+            .from('estudios')
+            .update({'rating': avg}).eq('id', estudioId);
+      }
+    } catch (_) {}
   }
 }

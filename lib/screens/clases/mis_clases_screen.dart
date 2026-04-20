@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
+import '../../services/aviso_alumnos_service.dart';
 import '../../services/estudio_admin_service.dart';
 import '../../services/media_upload_service.dart';
 import '../../services/notificaciones_service.dart';
@@ -28,11 +29,14 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   final _reservasService = ReservasService();
   final _mediaUploadService = MediaUploadService();
   final _adminService = AdminService();
+  final _avisoService = AvisoAlumnosService();
   List<Map<String, dynamic>> _clases = [], _horarios = [];
   List<String> _categorias = [];
   List<Map<String, dynamic>> _reservas = [];
   bool _loading = true, _tablaOk = true, _studio = false, _showFixed = true, _publishingWeek = false, _togglingFixed = false;
+  bool _estudiosDefinenCreditos = true;
   String? _error;
+  String? _estudioNombre;
   DateTime _selectedDay = DateTime.now(), _weekAnchor = DateTime.now(), _monthAnchor = DateTime.now();
 
   Future<String?> _subirImagenClase() async {
@@ -109,6 +113,51 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         onCancel: () async {
           Navigator.pop(context);
           await _confirmarCancelacion(clase);
+        },
+        onAvisar: () async {
+          Navigator.pop(context);
+          await _mostrarAvisoSheet(clase);
+        },
+      ),
+    );
+  }
+
+  Future<void> _mostrarAvisoSheet(Map<String, dynamic> clase) async {
+    final claseId = (clase['id'] as num?)?.toInt();
+    if (claseId == null) return;
+    final claseNombre = clase['nombre']?.toString() ?? 'Clase';
+    final estudioNombre = _estudioNombre ?? 'Aura';
+    final cantAlumnos = await _avisoService.contarAlumnosReservados(claseId);
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => _AvisoSheet(
+        claseId: claseId,
+        claseNombre: claseNombre,
+        cantidadAlumnos: cantAlumnos,
+        estudioNombre: estudioNombre,
+        onEnviar: (mensaje, tipo) async {
+          await _avisoService.enviarAviso(
+            claseId: claseId,
+            mensaje: mensaje,
+            tipo: tipo,
+            tituloEstudio: estudioNombre,
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('✓ Aviso enviado a $cantAlumnos alumnos'),
+                backgroundColor: const Color(0xFF1A1A1A),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            );
+          }
         },
       ),
     );
@@ -230,7 +279,23 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
             const SizedBox(height: 10),
             TextField(controller: cupos, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: 'Cupos totales')),
             const SizedBox(height: 10),
-            TextField(controller: cred, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: 'Créditos')),
+            if (_estudiosDefinenCreditos)
+              TextField(controller: cred, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: 'Créditos'))
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InputDecorator(
+                    decoration: const InputDecoration(hintText: 'Créditos'),
+                    child: Text(cred.text.isEmpty ? '10' : cred.text),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Precio definido por Aura según categoría',
+                    style: TextStyle(color: AppColors.grey, fontSize: 12),
+                  ),
+                ],
+              ),
             const SizedBox(height: 10),
             if (categoriasDisponibles.isEmpty)
               const InputDecorator(
@@ -438,13 +503,22 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
     try {
       final now = DateTime.now().toUtc().subtract(const Duration(hours: 3));
-      final clases = await _service.getClasesDeEstudio(
-        from: now.subtract(const Duration(days: 1)),
-        to: now.add(const Duration(days: 14)),
-        limit: 200,
-      );
-      final horarios = await _service.getHorariosFijosDeEstudio();
-      final categoriasAdmin = await _adminService.listStudyCategories();
+      final results = await Future.wait([
+        _service.getClasesDeEstudio(
+          from: now.subtract(const Duration(days: 1)),
+          to: now.add(const Duration(days: 14)),
+          limit: 200,
+        ),
+        _service.getHorariosFijosDeEstudio(),
+        _adminService.listStudyCategories(),
+        _adminService.getConfigGlobal('estudios_definen_creditos'),
+        _service.getCurrentStudio(),
+      ]);
+      final clases = results[0] as List<Map<String, dynamic>>;
+      final horarios = results[1] as List<Map<String, dynamic>>;
+      final categoriasAdmin = results[2] as List<String>;
+      final configCreditos = results[3] as String?;
+      final estudio = results[4] as Map<String, dynamic>?;
       final categorias = <String>{
         ...categoriasAdmin.where((item) => item.trim().isNotEmpty),
         ...horarios
@@ -460,6 +534,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         _clases = clases;
         _horarios = horarios;
         _categorias = categorias;
+        _estudiosDefinenCreditos = configCreditos == 'true';
+        _estudioNombre = estudio?['nombre']?.toString();
         _loading = false;
         _tablaOk = true;
         _error = null;
@@ -567,7 +643,23 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
               const SizedBox(height: 10),
               TextField(controller: c, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Cupos')),
               const SizedBox(height: 10),
-              TextField(controller: cr, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Créditos de la clase')),
+              if (_estudiosDefinenCreditos)
+                TextField(controller: cr, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Créditos de la clase'))
+              else
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InputDecorator(
+                      decoration: const InputDecoration(labelText: 'Créditos de la clase'),
+                      child: Text(cr.text.isEmpty ? '10' : cr.text),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Precio definido por Aura según categoría',
+                      style: TextStyle(color: AppColors.grey, fontSize: 12),
+                    ),
+                  ],
+                ),
               const SizedBox(height: 10),
               DropdownButtonFormField<int>(
                 value: cierreReserva,
@@ -839,11 +931,27 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                   decoration: const InputDecoration(labelText: 'Cupos'),
                 ),
                 const SizedBox(height: 10),
-                TextField(
-                  controller: cr,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Créditos de la clase'),
-                ),
+                if (_estudiosDefinenCreditos)
+                  TextField(
+                    controller: cr,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Créditos de la clase'),
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      InputDecorator(
+                        decoration: const InputDecoration(labelText: 'Créditos de la clase'),
+                        child: Text(cr.text.isEmpty ? '10' : cr.text),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Precio definido por Aura según categoría',
+                        style: TextStyle(color: AppColors.grey, fontSize: 12),
+                      ),
+                    ],
+                  ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<int>(
                   value: cierreReserva,
@@ -1505,6 +1613,13 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                         ),
                                       ),
                                     ),
+                                    IconButton(
+                                      onPressed: () => _mostrarAvisoSheet(c),
+                                      icon: const Icon(Icons.notifications_outlined, size: 18, color: Color(0xFF8F877F)),
+                                      tooltip: 'Avisar a alumnos',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                    ),
                                     SizedBox(
                                       width: 48,
                                       child: IconButton(
@@ -1603,7 +1718,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                       else
                         ...dayClasses.map((c) => Padding(
                               padding: const EdgeInsets.only(bottom: 16),
-                              child: _StudioClassCard(clase: c, studioMode: _studio),
+                              child: _StudioClassCard(
+                                clase: c,
+                                studioMode: _studio,
+                                onAvisar: _studio ? () => _mostrarAvisoSheet(c) : null,
+                              ),
                             )),
                       const SizedBox(height: 28),
                       Row(
@@ -2141,7 +2260,8 @@ class _WeekHeader extends StatelessWidget {
 class _StudioClassCard extends StatelessWidget {
   final Map<String, dynamic> clase;
   final bool studioMode;
-  const _StudioClassCard({required this.clase, required this.studioMode});
+  final VoidCallback? onAvisar;
+  const _StudioClassCard({required this.clase, required this.studioMode, this.onAvisar});
   @override
   Widget build(BuildContext context) {
     final dt = DateTime.tryParse(clase['fecha']?.toString() ?? '');
@@ -2209,7 +2329,7 @@ class _StudioClassCard extends StatelessWidget {
             const SizedBox(width: 8),
             _ActionButton(label: 'Editar', background: const Color(0xFFF1F1F1), foreground: const Color(0xFF6A635D), onTap: () {}),
             const SizedBox(width: 8),
-            _ActionButton(label: 'Cancelar', background: const Color(0xFFF44336), foreground: AppColors.white, onTap: () {}),
+            _ActionButton(label: 'Avisar', background: const Color(0xFFF1F1F1), foreground: const Color(0xFF6A635D), onTap: onAvisar ?? () {}),
           ]),
       ]),
     );
@@ -2234,6 +2354,241 @@ class _StudioClassCard extends StatelessWidget {
         return const Color(0xFFF1E7FF);
     }
   }
+}
+
+// ─── Aviso a alumnos ─────────────────────────────────────────────────────────
+
+class _AvisoSheet extends StatefulWidget {
+  final int claseId;
+  final String claseNombre;
+  final int cantidadAlumnos;
+  final String estudioNombre;
+  final Future<void> Function(String mensaje, String tipo) onEnviar;
+
+  const _AvisoSheet({
+    required this.claseId,
+    required this.claseNombre,
+    required this.cantidadAlumnos,
+    required this.estudioNombre,
+    required this.onEnviar,
+  });
+
+  @override
+  State<_AvisoSheet> createState() => _AvisoSheetState();
+}
+
+class _AvisoSheetState extends State<_AvisoSheet> {
+  final _ctrl = TextEditingController();
+  bool _urgente = false;
+  bool _enviando = false;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _enviar() async {
+    if (_ctrl.text.trim().isEmpty) return;
+    setState(() => _enviando = true);
+    try {
+      await widget.onEnviar(
+        _ctrl.text.trim(),
+        _urgente ? 'urgente' : 'aviso_general',
+      );
+      if (mounted) Navigator.of(context).pop();
+    } finally {
+      if (mounted) setState(() => _enviando = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mensaje = _ctrl.text.trim();
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20, 12, 20,
+        20 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 42,
+              height: 5,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE0DBD6),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          // Título
+          const Text(
+            'Avisar a alumnos',
+            style: TextStyle(color: AppColors.black, fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${widget.cantidadAlumnos} alumno${widget.cantidadAlumnos != 1 ? 's' : ''} va${widget.cantidadAlumnos != 1 ? 'n' : ''} a recibir una notificación',
+            style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          // Campo de texto
+          StatefulBuilder(
+            builder: (_, setLocal) => TextField(
+              controller: _ctrl,
+              maxLines: 4,
+              minLines: 2,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: 'Ej: La clase de hoy se traslada al salón 2. ¡Los esperamos!',
+                hintStyle: const TextStyle(color: Color(0xFFB0A8A0), fontSize: 14),
+                filled: true,
+                fillColor: const Color(0xFFF7F5F2),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.all(14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          // Selector de urgencia
+          Row(
+            children: [
+              _UrgenciaChip(
+                label: '📢  Aviso general',
+                selected: !_urgente,
+                onTap: () => setState(() => _urgente = false),
+              ),
+              const SizedBox(width: 10),
+              _UrgenciaChip(
+                label: '🚨  Urgente',
+                selected: _urgente,
+                onTap: () => setState(() => _urgente = true),
+              ),
+            ],
+          ),
+          // Preview
+          if (mensaje.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A1A1A),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        widget.estudioNombre,
+                        style: const TextStyle(
+                          color: Color(0xFFF7F5F2),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (_urgente) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'URGENTE',
+                            style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    mensaje,
+                    style: const TextStyle(color: Color(0xFFF7F5F2), fontSize: 13, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 18),
+          // Botón enviar
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: (_enviando || mensaje.isEmpty) ? null : _enviar,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+              child: _enviando
+                  ? const SizedBox(
+                      width: 20, height: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                    )
+                  : Text('Enviar a ${widget.cantidadAlumnos} alumno${widget.cantidadAlumnos != 1 ? 's' : ''}'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Botón cancelar
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: _enviando ? null : () => Navigator.of(context).pop(),
+              child: const Text('Cancelar', style: TextStyle(color: Color(0xFF8F877F))),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UrgenciaChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _UrgenciaChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.blackSoft : const Color(0xFFF1F1F1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : const Color(0xFF6A635D),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      );
 }
 
 class _ActionButton extends StatelessWidget {
@@ -2366,7 +2721,8 @@ class _WeekClassChip extends StatelessWidget {
 class _ClaseDetalleSheet extends StatelessWidget {
   final Map<String, dynamic> clase;
   final VoidCallback onEdit, onCancel;
-  const _ClaseDetalleSheet({required this.clase, required this.onEdit, required this.onCancel});
+  final VoidCallback? onAvisar;
+  const _ClaseDetalleSheet({required this.clase, required this.onEdit, required this.onCancel, this.onAvisar});
 
   @override
   Widget build(BuildContext context) {
@@ -2406,6 +2762,18 @@ class _ClaseDetalleSheet extends StatelessWidget {
         _DetailRow(icon: Icons.people_outline_rounded, text: '$ocupados/$total reservas · $disponibles disponibles'),
         _DetailRow(icon: Icons.timer_outlined, text: '$duracion min · $creditos créditos'),
         const SizedBox(height: 20),
+        if (onAvisar != null) ...[
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: onAvisar,
+              icon: const Icon(Icons.notifications_outlined, size: 16, color: Color(0xFF8F877F)),
+              label: const Text('Avisar a alumnos', style: TextStyle(color: Color(0xFF8F877F))),
+              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12)),
+            ),
+          ),
+          const SizedBox(height: 4),
+        ],
         Row(children: [
           Expanded(
             child: OutlinedButton.icon(

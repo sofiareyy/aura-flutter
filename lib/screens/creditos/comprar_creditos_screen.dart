@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/pricing_service.dart';
@@ -18,6 +19,7 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
 
   int? _selectedPack;
   int? _selectedPlan;
+  int? _selectedPackGift;
   bool _loadingPacks = true;
   bool _loadingPlanes = true;
   List<Map<String, dynamic>> _packs = [];
@@ -26,7 +28,7 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() => setState(() {}));
     _loadPacks();
     _loadPlanes();
@@ -62,8 +64,14 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
   }
 
   bool get _isPackTab => _tabController.index == 0;
+  bool get _isGiftTab => _tabController.index == 2;
 
   void _continuar() {
+    if (_isGiftTab) {
+      if (_selectedPackGift == null) return;
+      _abrirBottomSheetRegalo();
+      return;
+    }
     if (_isPackTab) {
       if (_selectedPack == null) return;
       final pack = _packs[_selectedPack!];
@@ -89,6 +97,10 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
   }
 
   String _btnLabel() {
+    if (_isGiftTab) {
+      if (_selectedPackGift == null) return 'Seleccioná un pack para regalar';
+      return 'Continuar →';
+    }
     if (_isPackTab) {
       if (_selectedPack == null) return 'Seleccioná un pack';
       final precio = (_packs[_selectedPack!]['precio'] as num).toInt();
@@ -105,10 +117,168 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
         (m) => '${m[1]}.',
       );
 
+  void _abrirBottomSheetRegalo() {
+    final emailCtrl = TextEditingController();
+    final mensajeCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF7F5F2),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.fromLTRB(
+              20, 16, 20, MediaQuery.of(ctx).padding.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCCC5BD),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              const Text(
+                '¿A quién le regalás?',
+                style: TextStyle(
+                    color: AppColors.black,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email de la persona',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: mensajeCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Mensaje (opcional)',
+                  hintText: '¡Espero que lo disfrutes! 🧡',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              StatefulBuilder(
+                builder: (ctx2, setSheetState) {
+                  return SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final email = emailCtrl.text.trim();
+                        final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                        if (!regex.hasMatch(email)) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Ingresá un email válido'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                          return;
+                        }
+                        Navigator.pop(ctx);
+                        _enviarRegalo(email, mensajeCtrl.text);
+                      },
+                      child: const Text('Continuar →'),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _enviarRegalo(String email, String mensaje) async {
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      final pack = _packs[_selectedPackGift!];
+      final codigo =
+          'GIFT-${DateTime.now().millisecondsSinceEpoch.toRadixString(16).toUpperCase().substring(0, 8)}';
+
+      await Supabase.instance.client.from('regalos').insert({
+        'remitente_id': uid,
+        'destinatario_email': email.toLowerCase().trim(),
+        'creditos': (pack['creditos'] as num).toInt(),
+        'codigo': codigo,
+        'usado': false,
+        'mensaje':
+            mensaje.trim().isEmpty ? null : mensaje.trim(),
+      });
+
+      // Check if recipient has an account
+      final usuario = await Supabase.instance.client
+          .from('usuarios')
+          .select('id, creditos')
+          .eq('email', email.toLowerCase().trim())
+          .maybeSingle();
+
+      if (usuario != null) {
+        final newCreditos =
+            ((usuario['creditos'] as num?)?.toInt() ?? 0) +
+                (pack['creditos'] as num).toInt();
+        await Supabase.instance.client
+            .from('usuarios')
+            .update({'creditos': newCreditos})
+            .eq('id', usuario['id']);
+        await Supabase.instance.client
+            .from('regalos')
+            .update({'usado': true})
+            .eq('codigo', codigo);
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              '¡Regalo enviado! $email recibirá un código para canjear sus créditos 🧡'),
+          backgroundColor: AppColors.blackSoft,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo enviar el regalo: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final loading = _isPackTab ? _loadingPacks : _loadingPlanes;
-    final selected = _isPackTab ? _selectedPack : _selectedPlan;
+    final loading = _isGiftTab
+        ? _loadingPacks
+        : _isPackTab
+            ? _loadingPacks
+            : _loadingPlanes;
+    final selected = _isGiftTab
+        ? _selectedPackGift
+        : _isPackTab
+            ? _selectedPack
+            : _selectedPlan;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -126,6 +296,7 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
           tabs: const [
             Tab(text: 'Packs'),
             Tab(text: 'Suscripciones'),
+            Tab(text: '🎁 Regalar'),
           ],
         ),
       ),
@@ -147,6 +318,12 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
                   selectedIndex: _selectedPlan,
                   onSelect: (i) => setState(() => _selectedPlan = i),
                 ),
+                _RegalarTab(
+                  packs: _packs,
+                  loading: _loadingPacks,
+                  selectedIndex: _selectedPackGift,
+                  onSelect: (i) => setState(() => _selectedPackGift = i),
+                ),
               ],
             ),
           ),
@@ -161,7 +338,7 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (!_isPackTab && selected != null)
+                if (!_isPackTab && !_isGiftTab && selected != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Text(
@@ -557,6 +734,140 @@ class _SuscripcionesTab extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  String _fmt(int n) => n.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (m) => '${m[1]}.',
+      );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Tab: Regalar (gift a pack to a friend)
+// ─────────────────────────────────────────────────────────────
+
+class _RegalarTab extends StatelessWidget {
+  final List<Map<String, dynamic>> packs;
+  final bool loading;
+  final int? selectedIndex;
+  final void Function(int) onSelect;
+
+  const _RegalarTab({
+    required this.packs,
+    required this.loading,
+    required this.selectedIndex,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    }
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Text('Regalá créditos', style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: Colors.white,
+        )),
+        const SizedBox(height: 6),
+        Text(
+          'Elegí un pack y enviáselo a alguien especial.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
+        ),
+        const SizedBox(height: 20),
+        ...packs.asMap().entries.map((entry) {
+          final i = entry.key;
+          final pack = entry.value;
+          final selected = selectedIndex == i;
+          final vigencia = (pack['vigencia_dias'] as num?)?.toInt() ?? 90;
+          return GestureDetector(
+            onTap: () => onSelect(i),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: selected ? AppColors.primary : const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: selected ? AppColors.primary : const Color(0xFF3A3A3A),
+                  width: 2,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${pack['nombre']} · ${pack['creditos']} créditos',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              pack['descripcion']?.toString() ?? '',
+                              style: TextStyle(
+                                color: selected ? Colors.white70 : Colors.white54,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Vigencia: $vigencia días',
+                              style: TextStyle(
+                                color: selected ? Colors.white70 : Colors.white54,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              '\$${_fmt((pack['precio'] as num).toInt())}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(
+                        selected
+                            ? Icons.check_circle_rounded
+                            : Icons.radio_button_unchecked_rounded,
+                        color: selected ? AppColors.white : Colors.white38,
+                        size: 24,
+                      ),
+                    ],
+                  ),
+                  // Gift bow decoration top-right
+                  Positioned(
+                    top: 0,
+                    right: 30,
+                    child: Text(
+                      '🎁',
+                      style: TextStyle(
+                        fontSize: selected ? 22 : 18,
+                      ),
+                    ),
                   ),
                 ],
               ),

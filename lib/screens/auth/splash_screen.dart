@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'onboarding_screen.dart';
 
@@ -27,9 +30,41 @@ class _AuthSplashScreenState extends State<AuthSplashScreen>
   }
 
   Future<void> _runTransition() async {
-    await Future<void>.delayed(const Duration(milliseconds: 2200));
+    await Future<void>.delayed(const Duration(milliseconds: kIsWeb ? 800 : 2200));
     if (!mounted || _navigating) return;
     _navigating = true;
+
+    // Si el usuario ya tiene sesión activa, redirigir según su rol
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      try {
+        final data = await Supabase.instance.client
+            .from('usuarios')
+            .select('rol')
+            .eq('id', user.id)
+            .maybeSingle();
+        final rol = data?['rol']?.toString() ?? '';
+        if (!mounted) return;
+        if (rol == 'estudio' || rol == 'admin_estudio') {
+          context.go('/estudio/dashboard');
+        } else if (rol == 'admin') {
+          context.go('/admin/dashboard');
+        } else {
+          context.go('/home');
+        }
+        return;
+      } catch (_) {
+        if (mounted) context.go('/home');
+        return;
+      }
+    }
+
+    // Sin sesión: en web ir a landing, en mobile ir a onboarding
+    if (kIsWeb) {
+      if (mounted) context.go('/landing');
+      return;
+    }
+
     await _controller.reverse();
     if (!mounted) return;
     Navigator.of(context).pushReplacement(

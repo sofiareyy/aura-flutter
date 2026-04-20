@@ -33,6 +33,14 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   bool _showAllDestacados = false;
   int? _estudioAsociadoId;
 
+  // Filtros avanzados
+  Set<int> _diasFiltro = {};
+  Set<String> _horarioFiltro = {};
+  int _maxCreditos = 50;
+
+  int get _cantFiltrosActivos =>
+      _diasFiltro.length + _horarioFiltro.length + (_maxCreditos < 50 ? 1 : 0);
+
   @override
   void initState() {
     super.initState();
@@ -146,8 +154,262 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
     final filteredIds = _estudiosFiltrados.map((e) => e.id).toSet();
     return _clases.where((clase) {
       final estudio = clase['estudios'] as Map<String, dynamic>?;
-      return filteredIds.isEmpty || filteredIds.contains(estudio?['id']);
+      if (filteredIds.isNotEmpty && !filteredIds.contains(estudio?['id'])) {
+        return false;
+      }
+      // Filtro por día de la semana
+      if (_diasFiltro.isNotEmpty) {
+        final fecha = DateTime.tryParse(clase['fecha']?.toString() ?? '');
+        if (fecha == null || !_diasFiltro.contains(fecha.weekday)) return false;
+      }
+      // Filtro por horario
+      if (_horarioFiltro.isNotEmpty) {
+        final fecha = DateTime.tryParse(clase['fecha']?.toString() ?? '');
+        if (fecha == null) return false;
+        final hora = fecha.hour;
+        final matchesHorario = _horarioFiltro.any((h) {
+          switch (h) {
+            case 'manana':
+              return hora >= 6 && hora <= 11;
+            case 'mediodia':
+              return hora >= 12 && hora <= 14;
+            case 'tarde':
+              return hora >= 15 && hora <= 18;
+            case 'noche':
+              return hora >= 19 && hora <= 22;
+            default:
+              return false;
+          }
+        });
+        if (!matchesHorario) return false;
+      }
+      // Filtro por créditos
+      final creditos = (clase['creditos'] as num?)?.toInt() ?? 99;
+      if (creditos > _maxCreditos) return false;
+
+      return true;
     }).toList();
+  }
+
+  void _mostrarFiltros() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        Set<int> diasTemp = Set.from(_diasFiltro);
+        Set<String> horarioTemp = Set.from(_horarioFiltro);
+        int creditosTemp = _maxCreditos;
+
+        const diasLabels = {1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb', 7: 'Dom'};
+        const horarioLabels = {
+          'manana': 'Mañana',
+          'mediodia': 'Mediodía',
+          'tarde': 'Tarde',
+          'noche': 'Noche',
+        };
+
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                  20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 5,
+                      decoration: BoxDecoration(
+                          color: const Color(0xFFE0DBD6),
+                          borderRadius: BorderRadius.circular(999)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Filtros',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.black),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text('Día',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF403A35))),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: diasLabels.entries.map((e) {
+                      final selected = diasTemp.contains(e.key);
+                      return GestureDetector(
+                        onTap: () => setSheetState(() {
+                          if (selected) {
+                            diasTemp.remove(e.key);
+                          } else {
+                            diasTemp.add(e.key);
+                          }
+                        }),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: selected ? AppColors.black : AppColors.white,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                                color: selected
+                                    ? AppColors.black
+                                    : AppColors.warmBorder),
+                          ),
+                          child: Text(
+                            e.value,
+                            style: TextStyle(
+                              color: selected
+                                  ? AppColors.white
+                                  : const Color(0xFFC7C0B9),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text('Horario',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF403A35))),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: horarioLabels.entries.map((e) {
+                      final selected = horarioTemp.contains(e.key);
+                      return GestureDetector(
+                        onTap: () => setSheetState(() {
+                          if (selected) {
+                            horarioTemp.remove(e.key);
+                          } else {
+                            horarioTemp.add(e.key);
+                          }
+                        }),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: selected ? AppColors.black : AppColors.white,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                                color: selected
+                                    ? AppColors.black
+                                    : AppColors.warmBorder),
+                          ),
+                          child: Text(
+                            e.value,
+                            style: TextStyle(
+                              color: selected
+                                  ? AppColors.white
+                                  : const Color(0xFFC7C0B9),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Créditos máximos',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF403A35))),
+                      Text(
+                        creditosTemp < 50 ? '$creditosTemp cr' : 'Todos',
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: creditosTemp.toDouble(),
+                    min: 5,
+                    max: 50,
+                    divisions: 9,
+                    activeColor: AppColors.primary,
+                    inactiveColor: const Color(0xFFE0DBD6),
+                    onChanged: (v) =>
+                        setSheetState(() => creditosTemp = v.toInt()),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              _diasFiltro = {};
+                              _horarioFiltro = {};
+                              _maxCreditos = 50;
+                            });
+                            Navigator.of(ctx).pop();
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.black,
+                            side: const BorderSide(color: AppColors.warmBorder),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text('Limpiar',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _diasFiltro = diasTemp;
+                              _horarioFiltro = horarioTemp;
+                              _maxCreditos = creditosTemp;
+                            });
+                            Navigator.of(ctx).pop();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.black,
+                            foregroundColor: AppColors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text('Aplicar',
+                              style: TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -174,50 +436,101 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              Container(
-                height: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.warmBorder),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.search_rounded,
-                      size: 18,
-                      color: Color(0xFFC7C0B9),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _searchCtrl,
-                        decoration: const InputDecoration(
-                          hintText: 'Buscá clases, estudios...',
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                          hintStyle: TextStyle(
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 40,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.warmBorder),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.search_rounded,
+                            size: 18,
                             color: Color(0xFFC7C0B9),
-                            fontSize: 14,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchCtrl,
+                              decoration: const InputDecoration(
+                                hintText: 'Buscá clases, estudios...',
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                                hintStyle: TextStyle(
+                                  color: Color(0xFFC7C0B9),
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (_searchCtrl.text.isNotEmpty)
+                            GestureDetector(
+                              onTap: () => _searchCtrl.clear(),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                size: 18,
+                                color: Color(0xFFB4ACA5),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      SizedBox(
+                        height: 40,
+                        child: OutlinedButton.icon(
+                          onPressed: _mostrarFiltros,
+                          icon: const Icon(Icons.tune_rounded, size: 16),
+                          label: const Text('Filtrar',
+                              style: TextStyle(fontSize: 13)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.black,
+                            side: const BorderSide(color: AppColors.warmBorder),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                         ),
                       ),
-                    ),
-                    if (_searchCtrl.text.isNotEmpty)
-                      GestureDetector(
-                        onTap: () => _searchCtrl.clear(),
-                        child: const Icon(
-                          Icons.close_rounded,
-                          size: 18,
-                          color: Color(0xFFB4ACA5),
+                      if (_cantFiltrosActivos > 0)
+                        Positioned(
+                          top: -4,
+                          right: -4,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '$_cantFiltrosActivos',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               InkWell(

@@ -79,11 +79,40 @@ class AppProvider extends ChangeNotifier {
         } else {
           await NotificacionesService.instance.cancelRenewalReminder();
         }
+
+        // Recordatorio de inactividad (si tiene créditos y no reservó en 10+ días)
+        if (notifRecordatorios && (usuario?.creditos ?? 0) > 0) {
+          _checkInactividadReminder(usuario!.creditos).ignore();
+        }
       }
     } catch (_) {
     } finally {
       notifyListeners();
     }
+  }
+
+  Future<void> _checkInactividadReminder(int creditos) async {
+    try {
+      final uid = userId;
+      if (uid.isEmpty) return;
+      final ultimaReserva = await Supabase.instance.client
+          .from('reservas')
+          .select('created_at')
+          .eq('usuario_id', uid)
+          .neq('estado', 'cancelada')
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      if (ultimaReserva == null) return; // Sin reservas, skip
+      final fecha = DateTime.tryParse(
+          ultimaReserva['created_at']?.toString() ?? '');
+      if (fecha == null) return;
+      final diasDesde = DateTime.now().difference(fecha).inDays;
+      if (diasDesde >= 10) {
+        await NotificacionesService.instance
+            .scheduleInactividadReminder(creditos);
+      }
+    } catch (_) {}
   }
 
   Future<void> _cargarEstudioAsociado(Usuario? usuario) async {

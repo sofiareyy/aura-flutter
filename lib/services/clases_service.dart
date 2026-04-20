@@ -73,6 +73,74 @@ class ClasesService {
     return result;
   }
 
+  Future<List<Map<String, dynamic>>> getClasesSugeridas({
+    required String userId,
+    int limit = 3,
+  }) async {
+    if (userId.isEmpty) return [];
+    try {
+      // Get user's last 5 reservations
+      final reservas = await _supabase
+          .from('reservas')
+          .select('clase_id')
+          .eq('usuario_id', userId)
+          .neq('estado', 'cancelada')
+          .order('created_at', ascending: false)
+          .limit(5);
+      final reservaList = List<Map<String, dynamic>>.from(reservas as List);
+      if (reservaList.length < 2) return [];
+
+      final claseIds = reservaList
+          .map((r) => (r['clase_id'] as num?)?.toInt())
+          .whereType<int>()
+          .toList();
+
+      // Get categories and studio IDs from those classes
+      final clases = await _supabase
+          .from('clases')
+          .select('estudio_id, estudios(categoria)')
+          .inFilter('id', claseIds);
+      final clasesList = List<Map<String, dynamic>>.from(clases as List);
+
+      final visitedEstudios = clasesList
+          .map((c) => (c['estudio_id'] as num?)?.toInt())
+          .whereType<int>()
+          .toSet()
+          .toList();
+      final categorias = clasesList
+          .map((c) => (c['estudios'] as Map?)?['categoria']?.toString())
+          .whereType<String>()
+          .toSet()
+          .toList();
+      if (categorias.isEmpty) return [];
+
+      // Query upcoming classes from those categories, excluding visited studios
+      final ahora =
+          DateTime.now().toUtc().subtract(const Duration(hours: 3));
+      final hasta = ahora.add(const Duration(days: 14));
+      final resultado = await _supabase
+          .from('clases')
+          .select('*, estudios!inner(id, nombre, categoria, barrio, foto_url)')
+          .gte('fecha', _toSupaDate(ahora))
+          .lte('fecha', _toSupaDate(hasta))
+          .inFilter('estudios.categoria', categorias)
+          .order('fecha')
+          .limit(limit * 3);
+      final all = List<Map<String, dynamic>>.from(resultado as List);
+      final filtered = all
+          .where((c) {
+            final esId = (c['estudio_id'] as num?)?.toInt();
+            return esId != null && !visitedEstudios.contains(esId);
+          })
+          .take(limit)
+          .toList();
+      return _attachOcupacion(
+          filtered.map((c) => {...c, 'estudios': c['estudios']}).toList());
+    } catch (_) {
+      return [];
+    }
+  }
+
   Future<List<Map<String, dynamic>>> _attachEstudios(
       List<Map<String, dynamic>> clases) async {
     if (clases.isEmpty) return clases;

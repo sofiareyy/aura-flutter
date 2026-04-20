@@ -22,6 +22,7 @@ class _MisReservasScreenState extends State<MisReservasScreen>
   late TabController _tabCtrl;
   List<Map<String, dynamic>> _proximas = [];
   List<Map<String, dynamic>> _historial = [];
+  List<Map<String, dynamic>> _enEspera = [];
   bool _loading = true;
   bool _loadingMore = false;
   bool _hasMoreHistorial = true;
@@ -31,7 +32,7 @@ class _MisReservasScreenState extends State<MisReservasScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl = TabController(length: 3, vsync: this);
     _cargar();
   }
 
@@ -55,11 +56,25 @@ class _MisReservasScreenState extends State<MisReservasScreen>
       _reservasService.getHistorialReservas(authUserId, limit: _pageSize, offset: 0),
     ]);
 
+    // Load waitlist entries
+    List<Map<String, dynamic>> enEspera = [];
+    try {
+      final espera = await Supabase.instance.client
+          .from('lista_espera')
+          .select('id, clase_id, posicion, created_at, clases(nombre, fecha, estudios(nombre))')
+          .eq('usuario_id', authUserId)
+          .order('posicion');
+      enEspera = List<Map<String, dynamic>>.from(espera as List);
+    } catch (_) {
+      // Non-critical
+    }
+
     if (!mounted) return;
     final historial = results[1];
     setState(() {
       _proximas = results[0];
       _historial = historial;
+      _enEspera = enEspera;
       _historialOffset = historial.length;
       _hasMoreHistorial = historial.length == _pageSize;
       _loading = false;
@@ -132,7 +147,41 @@ class _MisReservasScreenState extends State<MisReservasScreen>
       await _reservasService.cancelarReserva(
         reserva['codigo_qr']?.toString() ?? '',
       );
+      _notificarListaEspera(reserva).ignore();
       await _cargar();
+    }
+  }
+
+  Future<void> _notificarListaEspera(Map<String, dynamic> reserva) async {
+    try {
+      final claseId = reserva['clases']?['id'] ?? reserva['clase_id'];
+      if (claseId == null) return;
+      final claseNombre =
+          reserva['clases']?['nombre']?.toString() ?? 'la clase';
+      final espera = await Supabase.instance.client
+          .from('lista_espera')
+          .select('usuario_id, posicion')
+          .eq('clase_id', claseId)
+          .order('posicion')
+          .limit(1);
+      final lista = espera as List;
+      if (lista.isNotEmpty) {
+        final nextUserId = lista.first['usuario_id']?.toString();
+        if (nextUserId != null) {
+          await Supabase.instance.client
+              .from('notificaciones_usuario')
+              .insert({
+            'usuario_id': nextUserId,
+            'titulo': '¡Se liberó un lugar! ⚡',
+            'mensaje':
+                'Tenés un lugar disponible en $claseNombre. Reservá antes de que se llene.',
+            'tipo': 'lista_espera',
+            'leida': false,
+          });
+        }
+      }
+    } catch (_) {
+      // Non-critical
     }
   }
 
@@ -185,6 +234,7 @@ class _MisReservasScreenState extends State<MisReservasScreen>
                   tabs: const [
                     Tab(text: 'Próximas'),
                     Tab(text: 'Historial'),
+                    Tab(text: 'En espera'),
                   ],
                 ),
               ),
@@ -198,6 +248,7 @@ class _MisReservasScreenState extends State<MisReservasScreen>
                 children: [
                   _buildProximas(),
                   _buildHistorial(),
+                  _buildEnEspera(),
                 ],
               ),
       ),
@@ -287,6 +338,133 @@ class _MisReservasScreenState extends State<MisReservasScreen>
         },
       ),
     );
+  }
+
+  Widget _buildEnEspera() {
+    if (_enEspera.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 40),
+          child: Text(
+            'No estás en lista de espera de ninguna clase',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.grey, fontSize: 15),
+          ),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _cargar,
+      color: AppColors.primary,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        itemCount: _enEspera.length,
+        itemBuilder: (context, i) {
+          final item = _enEspera[i];
+          final clase = item['clases'] as Map<String, dynamic>?;
+          final estudio = clase?['estudios'] as Map<String, dynamic>?;
+          final fecha = clase?['fecha'] != null
+              ? DateTime.tryParse(clase!['fecha'].toString())
+              : null;
+          final posicion = (item['posicion'] as num?)?.toInt() ?? (i + 1);
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0A000000),
+                  blurRadius: 12,
+                  offset: Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primaryLight,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '#$posicion',
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        clase?['nombre']?.toString() ?? 'Clase',
+                        style: const TextStyle(
+                          color: AppColors.black,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        estudio?['nombre']?.toString() ?? '',
+                        style: const TextStyle(
+                            color: AppColors.grey, fontSize: 13),
+                      ),
+                      if (fecha != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          DateFormat('EEE d MMM · HH:mm', 'es').format(fecha),
+                          style: const TextStyle(
+                              color: AppColors.mutedText, fontSize: 12),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () => _salirDeEspera(item),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: const Text(
+                    'Salir',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _salirDeEspera(Map<String, dynamic> item) async {
+    final claseId = (item['clase_id'] as num?)?.toInt();
+    if (claseId == null) return;
+    final uid =
+        Supabase.instance.client.auth.currentUser?.id ?? '';
+    await Supabase.instance.client
+        .from('lista_espera')
+        .delete()
+        .eq('clase_id', claseId)
+        .eq('usuario_id', uid);
+    await _cargar();
   }
 }
 

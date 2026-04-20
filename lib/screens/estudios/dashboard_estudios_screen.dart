@@ -31,13 +31,35 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
     _cargar();
   }
 
+  void _mostrarTutorial() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _TutorialSheet(
+        onCompletado: () async {
+          await _service.marcarTutorialCompletado();
+            },
+      ),
+    );
+  }
+
   Future<void> _cargar() async {
     try {
-      final estudio = await _service.getCurrentStudio();
-      final clases = await _service.getClasesDeEstudio(
-        from: DateTime.now().subtract(const Duration(days: 30)),
-      );
-      final reservas = await _service.getReservasDeEstudio(limit: 120);
+      final results = await Future.wait([
+        _service.getCurrentStudio(),
+        _service.getClasesDeEstudio(
+          from: DateTime.now().subtract(const Duration(days: 30)),
+        ),
+        _service.getReservasDeEstudio(limit: 120),
+        _service.getTutorialCompletado(),
+      ]);
+      final estudio = results[0] as Map<String, dynamic>?;
+      final clases = results[1] as List<Map<String, dynamic>>;
+      final reservas = results[2] as List<Map<String, dynamic>>;
+      final tutorialOk = results[3] as bool;
 
       int unread = 0;
       if (estudio != null) {
@@ -60,6 +82,12 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
         _error = estudio == null ? 'No encontramos un estudio asociado.' : null;
         _unreadNotifs = unread;
       });
+
+      if (!tutorialOk) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _mostrarTutorial();
+        });
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -520,6 +548,8 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                               ),
                       ),
                       const SizedBox(height: 18),
+                      _buildEstadisticasSection(),
+                      const SizedBox(height: 18),
                       const _SectionLabel('Actividad reciente'),
                       const SizedBox(height: 10),
                       Container(
@@ -574,6 +604,28 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                               ),
                       ),
                     ],
+                    const SizedBox(height: 24),
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: _mostrarTutorial,
+                        icon: const Icon(
+                          Icons.help_outline_rounded,
+                          size: 16,
+                          color: Color(0xFFB0A8A0),
+                        ),
+                        label: const Text(
+                          'Ver tutorial de nuevo',
+                          style: TextStyle(
+                            color: Color(0xFFB0A8A0),
+                            fontSize: 13,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -765,6 +817,283 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
     if (value >= 1000000) return '\$${(value / 1000000).toStringAsFixed(1)}M';
     if (value >= 1000) return '\$${(value / 1000).round()}k';
     return '\$$value';
+  }
+
+  // ── Estadísticas section ──────────────────────────────────────────────────
+
+  Widget _buildEstadisticasSection() {
+    final now = DateTime.now();
+
+    // ── Clase más popular ────────────────────────────────────────────────────
+    final claseCounts = <int, int>{};
+    for (final r in _reservas) {
+      final claseId = (r['clase_id'] as num?)?.toInt();
+      if (claseId != null) claseCounts[claseId] = (claseCounts[claseId] ?? 0) + 1;
+    }
+    String clasePopular = 'Sin datos';
+    if (claseCounts.isNotEmpty) {
+      final topId = claseCounts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+      final topClase = _clases.firstWhere(
+        (c) => (c['id'] as num?)?.toInt() == topId,
+        orElse: () => {},
+      );
+      if (topClase.isNotEmpty) {
+        clasePopular = topClase['nombre']?.toString() ?? 'Sin datos';
+      }
+    }
+
+    // ── Horario pico ─────────────────────────────────────────────────────────
+    final horaCounts = <int, int>{};
+    // Build set of clase_ids that have reservas
+    final claseIdsConReservas = claseCounts.keys.toSet();
+    for (final clase in _clases) {
+      final claseId = (clase['id'] as num?)?.toInt();
+      if (claseId == null || !claseIdsConReservas.contains(claseId)) continue;
+      final dt = DateTime.tryParse(clase['fecha']?.toString() ?? '');
+      if (dt == null) continue;
+      final hora = dt.hour;
+      horaCounts[hora] = (horaCounts[hora] ?? 0) + 1;
+    }
+    String horarioPico = 'Sin datos';
+    if (horaCounts.isNotEmpty) {
+      final topHora = horaCounts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+      horarioPico = '${topHora.toString().padLeft(2, '0')}:00 hs';
+    }
+
+    // ── Tasa de ocupación (clases del mes actual) ────────────────────────────
+    final clasesDelMes = _clases.where((c) {
+      final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
+      return dt != null && dt.year == now.year && dt.month == now.month;
+    }).toList();
+
+    double tasaOcupacion = 0;
+    if (clasesDelMes.isNotEmpty) {
+      double sumTasas = 0;
+      int count = 0;
+      for (final clase in clasesDelMes) {
+        final total = (clase['lugares_total'] as num?)?.toDouble() ?? 0;
+        final disponibles = (clase['lugares_disponibles'] as num?)?.toDouble() ?? 0;
+        if (total > 0) {
+          sumTasas += (total - disponibles).clamp(0, total) / total;
+          count++;
+        }
+      }
+      if (count > 0) tasaOcupacion = (sumTasas / count) * 100;
+    }
+
+    // ── Reservas por día de semana (mes actual) ──────────────────────────────
+    // Build clase fecha map
+    final claseFechaMap = <int, DateTime>{};
+    for (final clase in _clases) {
+      final claseId = (clase['id'] as num?)?.toInt();
+      final dt = DateTime.tryParse(clase['fecha']?.toString() ?? '');
+      if (claseId != null && dt != null) claseFechaMap[claseId] = dt;
+    }
+
+    final diasCount = List<int>.filled(7, 0); // 0=Mon..6=Sun
+    for (final r in _reservas) {
+      final claseId = (r['clase_id'] as num?)?.toInt();
+      if (claseId == null) continue;
+      final dt = claseFechaMap[claseId];
+      if (dt == null || dt.year != now.year || dt.month != now.month) continue;
+      // DateTime.weekday: 1=Mon..7=Sun
+      diasCount[dt.weekday - 1]++;
+    }
+
+    final maxDia = diasCount.reduce((a, b) => a > b ? a : b);
+    final diasLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionLabel('Estadísticas del mes'),
+        const SizedBox(height: 10),
+        // 3 stat cards
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '⭐',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      clasePopular,
+                      style: const TextStyle(
+                        color: Color(0xFF1A1A1A),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Clase popular',
+                      style: TextStyle(color: Color(0xFF8F877F), fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '🕐',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      horarioPico,
+                      style: const TextStyle(
+                        color: Color(0xFF1A1A1A),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Horario pico',
+                      style: TextStyle(color: Color(0xFF8F877F), fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '📈',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${tasaOcupacion.round()}%',
+                      style: const TextStyle(
+                        color: Color(0xFF1A1A1A),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Ocupación mes',
+                      style: TextStyle(color: Color(0xFF8F877F), fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        // Bar chart by day of week
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Reservas por día',
+                style: TextStyle(
+                  color: Color(0xFF1A1A1A),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              maxDia == 0
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Text(
+                          'Sin datos este mes',
+                          style: TextStyle(color: Color(0xFF8F877F), fontSize: 13),
+                        ),
+                      ),
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: List.generate(7, (i) {
+                        final count = diasCount[i];
+                        final barHeight = maxDia > 0 ? (count / maxDia) * 60.0 : 0.0;
+                        final isMax = count == maxDia && maxDia > 0;
+                        return Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                if (isMax)
+                                  Text(
+                                    '$count',
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                const SizedBox(height: 2),
+                                Container(
+                                  height: barHeight.clamp(4.0, 60.0),
+                                  decoration: BoxDecoration(
+                                    color: isMax
+                                        ? AppColors.primary.withOpacity(0.9)
+                                        : AppColors.primary.withOpacity(0.5),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  diasLabels[i],
+                                  style: const TextStyle(
+                                    color: Color(0xFF8F877F),
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -1066,6 +1395,186 @@ class _TodayClassRow extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Tutorial de bienvenida ───────────────────────────────────────────────────
+
+class _TutorialSheet extends StatefulWidget {
+  final Future<void> Function() onCompletado;
+
+  const _TutorialSheet({required this.onCompletado});
+
+  @override
+  State<_TutorialSheet> createState() => _TutorialSheetState();
+}
+
+class _TutorialSheetState extends State<_TutorialSheet> {
+  int _paso = 0;
+  bool _guardando = false;
+
+  static const _pasos = [
+    _PasoData(
+      icono: Icons.check_circle_rounded,
+      titulo: '¡Bienvenido a Aura! 🧡',
+      cuerpo: 'En 3 pasos rápidos te mostramos cómo empezar a recibir reservas y cobrar.',
+      boton: 'Empezar →',
+    ),
+    _PasoData(
+      icono: Icons.calendar_month_rounded,
+      titulo: 'Cargá tu primera clase',
+      cuerpo: 'Andá a Mis Clases → Nueva clase.\nElegí el horario, los cupos y listo.\nTus clases aparecen para todos los usuarios de Aura en Pilar.',
+      boton: 'Entendido →',
+    ),
+    _PasoData(
+      icono: Icons.qr_code_scanner_rounded,
+      titulo: 'El día de la clase',
+      cuerpo: 'Abrí Asistencia, escaneá el QR del alumno y confirmá su presencia.\nTambién podés marcar manualmente tocando su nombre en la lista.',
+      boton: 'Ir al panel →',
+    ),
+  ];
+
+  Future<void> _avanzar() async {
+    if (_paso < _pasos.length - 1) {
+      setState(() => _paso++);
+    } else {
+      setState(() => _guardando = true);
+      await widget.onCompletado();
+      if (mounted) Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final paso = _pasos[_paso];
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        16,
+        24,
+        24 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle naranja
+          Container(
+            width: 42,
+            height: 5,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8763A),
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(height: 28),
+          // Ícono
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8763A),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              paso.icono,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Título
+          Text(
+            paso.titulo,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Cuerpo
+          Text(
+            paso.cuerpo,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF8F877F),
+              fontSize: 14,
+              height: 1.55,
+            ),
+          ),
+          const SizedBox(height: 28),
+          // Dots indicador de progreso
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(_pasos.length, (i) {
+              final activo = i == _paso;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: activo ? 20 : 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: activo
+                      ? const Color(0xFFE8763A)
+                      : const Color(0xFF3A3A3A),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 24),
+          // Botón
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _guardando ? null : _avanzar,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE8763A),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              child: _guardando
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : Text(paso.boton),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PasoData {
+  final IconData icono;
+  final String titulo;
+  final String cuerpo;
+  final String boton;
+
+  const _PasoData({
+    required this.icono,
+    required this.titulo,
+    required this.cuerpo,
+    required this.boton,
+  });
 }
 
 class _DashboardError extends StatelessWidget {

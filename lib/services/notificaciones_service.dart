@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -14,11 +16,17 @@ class NotificacionesService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+  void Function(String payload)? _onNotificationTap;
+
+  void setNotificationTapHandler(void Function(String payload) handler) {
+    _onNotificationTap = handler;
+  }
 
   // IDs fijos para notificaciones únicas (no colisionan con reservaId que son ints pequeños)
   static const int _kCreditsExpiry7dId = 900001;
   static const int _kCreditsExpiry1dId = 900003;
   static const int _kRenewalId = 900002;
+  static const int _kInactividadId = 900010;
 
   static const _detalleChannel = AndroidNotificationDetails(
     'aura_creditos',
@@ -48,9 +56,22 @@ class NotificacionesService {
     const ios = DarwinInitializationSettings();
     const settings = InitializationSettings(android: android, iOS: ios);
 
-    await _plugin.initialize(settings);
+    await _plugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (details) {
+        final payload = details.payload;
+        if (payload != null && payload.isNotEmpty) {
+          _onNotificationTap?.call(payload);
+        }
+      },
+    );
     await _requestPermissions();
     _initialized = true;
+  }
+
+  Future<NotificationAppLaunchDetails?> getLaunchDetails() async {
+    if (kIsWeb) return null;
+    return _plugin.getNotificationAppLaunchDetails();
   }
 
   Future<void> _requestPermissions() async {
@@ -75,6 +96,7 @@ class NotificacionesService {
     required String estudioNombre,
     required DateTime fechaClase,
     String? direccionEstudio,
+    String? codigoQr,
     bool enabled = true,
   }) async {
     await initialize();
@@ -90,6 +112,13 @@ class NotificacionesService {
     final body = direccionEstudio != null && direccionEstudio.isNotEmpty
         ? '$titulo en $estudioNombre\n📍 $direccionEstudio'
         : '$titulo en $estudioNombre';
+
+    final payload = jsonEncode({
+      'tipo': 'recordatorio_clase',
+      'codigo_qr': codigoQr ?? '',
+      'clase_nombre': titulo,
+      'estudio_nombre': estudioNombre,
+    });
 
     await _plugin.zonedSchedule(
       reservaId,
@@ -109,7 +138,7 @@ class NotificacionesService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      payload: 'reserva:$reservaId',
+      payload: payload,
     );
   }
 
@@ -117,6 +146,57 @@ class NotificacionesService {
     if (kIsWeb) return;
     await initialize();
     await _plugin.cancel(reservaId);
+  }
+
+  Future<void> scheduleResenaReminder({
+    required int reservaId,
+    required String claseNombre,
+    required String estudioNombre,
+    required int estudioId,
+    required DateTime fechaClase,
+    required int duracionMin,
+  }) async {
+    await initialize();
+    if (kIsWeb) return;
+
+    final reminderAt = fechaClase
+        .add(Duration(minutes: duracionMin))
+        .add(const Duration(hours: 2));
+    if (!reminderAt.isAfter(DateTime.now())) return;
+
+    final notifId = (reservaId + 200000) % 2147483647;
+
+    await _plugin.zonedSchedule(
+      notifId,
+      '¿Cómo estuvo $claseNombre?',
+      'Dejá tu reseña y ayudá a otros a descubrir este lugar 🧡',
+      tz.TZDateTime.from(reminderAt, tz.local),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'aura_resenas',
+          'Solicitudes de reseña',
+          channelDescription: 'Te pedimos una reseña después de cada clase',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      payload: jsonEncode({
+        'tipo': 'recordatorio_resena',
+        'estudio_id': estudioId,
+        'estudio_nombre': estudioNombre,
+      }),
+    );
+  }
+
+  Future<void> cancelResenaReminder(int reservaId) async {
+    if (kIsWeb) return;
+    await initialize();
+    final notifId = (reservaId + 200000) % 2147483647;
+    await _plugin.cancel(notifId);
   }
 
   Future<void> scheduleCreditsExpiryReminder({
@@ -239,6 +319,40 @@ class NotificacionesService {
     await _plugin.cancel(_kRenewalId);
   }
 
+  Future<void> scheduleInactividadReminder(int creditos) async {
+    await initialize();
+    if (kIsWeb || creditos <= 0) return;
+    final prefs = await SharedPreferences.getInstance();
+    final ultimoStr = prefs.getString('ultimo_recordatorio_inactividad');
+    if (ultimoStr != null) {
+      final ultimo = DateTime.tryParse(ultimoStr);
+      if (ultimo != null && DateTime.now().difference(ultimo).inDays < 7) return;
+    }
+    final reminderAt = DateTime.now().add(const Duration(hours: 2));
+    await _plugin.zonedSchedule(
+      _kInactividadId,
+      'Tus créditos te esperan 🧡',
+      'Tenés $creditos créditos disponibles. ¿Qué querés hacer esta semana?',
+      tz.TZDateTime.from(reminderAt, tz.local),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'aura_inactividad',
+          'Recordatorio de actividad',
+          channelDescription: 'Te avisamos cuando tenés créditos sin usar',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      payload: jsonEncode({'tipo': 'inactividad_creditos'}),
+    );
+    await prefs.setString(
+        'ultimo_recordatorio_inactividad', DateTime.now().toIso8601String());
+  }
+
   Future<void> syncReservasDelUsuario(String userId,
       {bool notifEnabled = true}) async {
     await initialize();
@@ -247,7 +361,7 @@ class NotificacionesService {
     final client = Supabase.instance.client;
     final reservas = await client
         .from('reservas')
-        .select()
+        .select('id, clase_id, codigo_qr')
         .eq('usuario_id', userId)
         .inFilter('estado', ['confirmada', 'presente']);
 
@@ -255,6 +369,7 @@ class NotificacionesService {
       final row = Map<String, dynamic>.from(raw);
       final reservaId = (row['id'] as num?)?.toInt();
       final claseId = (row['clase_id'] as num?)?.toInt();
+      final codigoQr = row['codigo_qr']?.toString();
       if (reservaId == null || claseId == null) continue;
 
       final clase = await client
@@ -281,6 +396,7 @@ class NotificacionesService {
         titulo: clase['nombre']?.toString() ?? 'Tu clase',
         estudioNombre: estudio?['nombre']?.toString() ?? 'Aura',
         fechaClase: fecha,
+        codigoQr: codigoQr,
         enabled: notifEnabled,
       );
     }

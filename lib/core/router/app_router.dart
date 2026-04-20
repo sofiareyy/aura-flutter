@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_theme.dart';
 import '../../screens/auth/splash_screen.dart';
 import '../../screens/auth/onboarding_screen.dart';
+import '../../screens/auth/landing_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
 import '../../screens/home/home_screen.dart';
@@ -64,6 +65,7 @@ final appRouter = GoRouter(
     // Rutas que no requieren auth
     final publicRoutes = {
       '/splash',
+      '/landing',
       '/login',
       '/register',
       '/onboarding',
@@ -79,6 +81,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/splash',
       builder: (context, state) => const AuthSplashScreen(),
+    ),
+    GoRoute(
+      path: '/landing',
+      builder: (context, state) => const LandingScreen(),
     ),
     GoRoute(
       path: '/onboarding',
@@ -283,6 +289,7 @@ final appRouter = GoRouter(
       path: '/reserva-confirmada/:codigoQr',
       builder: (context, state) => ReservaConfirmadaScreen(
         codigoQr: state.pathParameters['codigoQr'] ?? '',
+        fromNotification: state.uri.queryParameters['from_notif'] == 'true',
       ),
     ),
     GoRoute(
