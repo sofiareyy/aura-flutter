@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AuthService {
   final _supabase = Supabase.instance.client;
@@ -42,12 +43,15 @@ class AuthService {
     await _supabase.auth.resetPasswordForEmail(email);
   }
 
-  Future<void> signInWithGoogle() async {
-    await _supabase.auth.signInWithOAuth(
+  Future<bool> signInWithGoogle() async {
+    return _supabase.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: kIsWeb
           ? 'https://somosauraar.netlify.app'
           : 'aura://login-callback',
+      authScreenLaunchMode: kIsWeb
+          ? LaunchMode.platformDefault
+          : LaunchMode.externalApplication,
     );
   }
 

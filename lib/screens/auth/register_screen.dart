@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
@@ -39,17 +41,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _loginWithGoogle() async {
     setState(() => _loadingGoogle = true);
     try {
-      await _authService.signInWithGoogle();
+      final launched = await Supabase.instance.client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: kIsWeb
+            ? 'https://somosauraar.netlify.app'
+            : 'aura://login-callback',
+        authScreenLaunchMode: kIsWeb
+            ? LaunchMode.platformDefault
+            : LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo abrir Google. Revisá tu conexión.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        setState(() => _loadingGoogle = false);
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error con Google: ${e.toString().replaceFirst('Exception: ', '')}'),
+          content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
           backgroundColor: AppColors.error,
         ),
       );
-    } finally {
-      if (mounted) setState(() => _loadingGoogle = false);
+      setState(() => _loadingGoogle = false);
     }
   }
 
@@ -152,7 +170,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               IconButton(
-                onPressed: () => context.go('/onboarding'),
+                onPressed: () => context.go(kIsWeb ? '/landing' : '/onboarding'),
                 icon: const Icon(
                   Icons.arrow_back_rounded,
                   color: Color(0xFF5F5A56),
@@ -284,11 +302,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       icon: Icons.circle,
                       onTap: _loadingGoogle ? null : _loginWithGoogle,
                       loading: _loadingGoogle,
-                    ),
-                    const SizedBox(height: 10),
-                    const _SocialButton(
-                      label: 'Continuar con Apple',
-                      icon: Icons.change_history_rounded,
                     ),
                     const SizedBox(height: 14),
                     SizedBox(

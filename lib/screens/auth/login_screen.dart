@@ -1,7 +1,9 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
@@ -33,22 +35,35 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _loginWithGoogle() async {
     setState(() => _loadingGoogle = true);
     try {
-      await _authService.signInWithGoogle();
-      // En web: el browser redirige a Google y vuelve a la URL raíz.
-      // Supabase Flutter procesa los tokens del hash y emite signedIn.
-      // El splash screen maneja la creación del usuario y el routing.
-      //
-      // En mobile: el deep link aura://login-callback lo captura main.dart.
+      final launched = await Supabase.instance.client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: kIsWeb
+            ? 'https://somosauraar.netlify.app'
+            : 'aura://login-callback',
+        authScreenLaunchMode: kIsWeb
+            ? LaunchMode.platformDefault
+            : LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo abrir Google. Revisá tu conexión.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        setState(() => _loadingGoogle = false);
+      }
+      // Si launched == true en web: la página redirige, el widget se destruye.
+      // En mobile: la app queda en loading hasta que vuelva el deep link.
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error con Google: ${e.toString().replaceFirst('Exception: ', '')}'),
+          content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
           backgroundColor: AppColors.error,
         ),
       );
-    } finally {
-      if (mounted) setState(() => _loadingGoogle = false);
+      setState(() => _loadingGoogle = false);
     }
   }
 
@@ -102,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               IconButton(
-                onPressed: () => context.go('/onboarding'),
+                onPressed: () => context.go(kIsWeb ? '/landing' : '/onboarding'),
                 icon: const Icon(
                   Icons.arrow_back_rounded,
                   color: Color(0xFF5F5A56),
@@ -283,11 +298,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 icon: Icons.circle,
                 onTap: _loadingGoogle ? null : _loginWithGoogle,
                 loading: _loadingGoogle,
-              ),
-              const SizedBox(height: 10),
-              const _SocialButton(
-                label: 'Continuar con Apple',
-                icon: Icons.change_history_rounded,
               ),
               const SizedBox(height: 22),
               Center(
