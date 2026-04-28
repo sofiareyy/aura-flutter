@@ -69,3 +69,7 @@ GoogleService-Info.plist
 
 # Logs
 flutter_*.log
+
+# Supabase CLI cache (genera en cada deploy de Edge Functions)
+supabase/.temp/
+supabase/.branches/
