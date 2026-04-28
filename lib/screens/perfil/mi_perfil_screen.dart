@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -381,12 +382,13 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
               title: const Text('Elegir de la galería'),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_outlined,
-                  color: AppColors.primary),
-              title: const Text('Sacar una foto'),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
-            ),
+            if (!kIsWeb)
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined,
+                    color: AppColors.primary),
+                title: const Text('Sacar una foto'),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
             const SizedBox(height: 8),
           ],
         ),

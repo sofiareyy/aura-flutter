@@ -52,12 +52,16 @@ class ReferidosService {
   }
 
   /// Devuelve cuántas personas se registraron usando el código de este usuario.
+  /// Las columnas reales en `referrals` son `referrer_user_id` y `referred_user_id`
+  /// (un nombre distinto al de la primera versión). Si la query falla por
+  /// cualquier motivo (columna inexistente, RLS, sin referidos), devolvemos 0
+  /// en lugar de propagar el error.
   Future<int> contarReferidos(String usuarioId) async {
     try {
       final rows = await _client
           .from('referrals')
-          .select('referred_id')
-          .eq('referrer_id', usuarioId);
+          .select('referred_user_id')
+          .eq('referrer_user_id', usuarioId);
       return (rows as List).length;
     } catch (_) {
       return 0;

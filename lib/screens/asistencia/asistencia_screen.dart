@@ -1435,6 +1435,19 @@ class _USBScanner extends StatelessWidget {
                 fontWeight: FontWeight.w500,
               ),
             ),
+            const SizedBox(height: 6),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                'En web ingresá el código que aparece en el ticket del alumno (formato #AUR-XXXX)',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF6E6761),
+                  fontSize: 11,
+                  height: 1.4,
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: controller,

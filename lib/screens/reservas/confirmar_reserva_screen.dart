@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -97,6 +98,12 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
       // Solo refrescamos el usuario en memoria para que la UI vea el saldo nuevo.
       await provider.refrescarUsuario();
 
+      // En web no podemos programar notif locales: mandamos email de confirmacion
+      // como reemplazo. Es non-blocking: si falla no rompe el flujo.
+      if (kIsWeb && reserva != null) {
+        _mandarEmailConfirmacion(reserva.codigoQr ?? '').ignore();
+      }
+
       if (mounted && reserva != null && (reserva.codigoQr?.isNotEmpty ?? false)) {
         context.go('/reserva-confirmada/${Uri.encodeComponent(reserva.codigoQr!)}');
       }
@@ -110,6 +117,37 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
       );
     } finally {
       if (mounted) setState(() => _reservando = false);
+    }
+  }
+
+  Future<void> _mandarEmailConfirmacion(String codigoReserva) async {
+    if (codigoReserva.isEmpty || _clase == null) return;
+    try {
+      final supabase = Supabase.instance.client;
+      final jwt = supabase.auth.currentSession?.accessToken ?? '';
+      if (jwt.isEmpty) return;
+
+      final estudio = _clase!['estudios'] as Map<String, dynamic>?;
+      final fechaIso = _clase!['fecha']?.toString() ?? '';
+      final lat = (estudio?['lat'] as num?)?.toDouble();
+      final lng = (estudio?['lng'] as num?)?.toDouble();
+
+      await supabase.functions.invoke(
+        'email-confirmacion',
+        body: {
+          'clase_nombre':
+              _clase!['nombre']?.toString() ?? 'Tu clase en Aura',
+          'estudio_nombre': estudio?['nombre']?.toString(),
+          'fecha_iso': fechaIso,
+          'direccion': estudio?['direccion']?.toString(),
+          if (lat != null) 'lat': lat,
+          if (lng != null) 'lng': lng,
+          'codigo_reserva': codigoReserva,
+        },
+        headers: {'x-aura-auth': jwt},
+      );
+    } catch (_) {
+      // El email es non-critical; no rompemos la reserva si falla.
     }
   }
 
