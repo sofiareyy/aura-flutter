@@ -19,14 +19,14 @@ class AppConstants {
       'creditos': 20,
       'precio': 25000,
       'descripcion': 'Ideal para probar Aura',
-      'vigencia_dias': 60,
+      'vigencia_dias': 30,
     },
     {
       'nombre': 'Pack Esencial',
       'creditos': 50,
       'precio': 55000,
       'descripcion': 'El pack base para usar durante el trimestre',
-      'vigencia_dias': 90,
+      'vigencia_dias': 60,
     },
     {
       'nombre': 'Pack Popular',
@@ -34,14 +34,14 @@ class AppConstants {
       'precio': 100000,
       'descripcion': 'El mas elegido para entrenar con frecuencia',
       'popular': true,
-      'vigencia_dias': 90,
+      'vigencia_dias': 60,
     },
     {
       'nombre': 'Pack Full',
       'creditos': 200,
       'precio': 180000,
       'descripcion': 'La opcion mas conveniente para cargar saldo',
-      'vigencia_dias': 90,
+      'vigencia_dias': 60,
     },
   ];
 

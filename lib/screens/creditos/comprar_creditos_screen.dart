@@ -5,6 +5,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/pricing_service.dart';
 
+// Vigencia por defecto cuando la fila no trae el dato (por creditos del pack).
+int _packVigenciaDias(Map<String, dynamic> pack) {
+  final v = (pack['vigencia_dias'] as num?)?.toInt();
+  if (v != null && v > 0) return v;
+  final creditos = (pack['creditos'] as num?)?.toInt() ?? 0;
+  return creditos <= 20 ? 30 : 60;
+}
+
 class ComprarCreditosScreen extends StatefulWidget {
   const ComprarCreditosScreen({super.key});
 
@@ -75,12 +83,14 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
     if (_isPackTab) {
       if (_selectedPack == null) return;
       final pack = _packs[_selectedPack!];
+      final creditos = (pack['creditos'] as num).toInt();
       context.push('/checkout', extra: {
         'type': 'pack',
         'nombre': pack['nombre'],
-        'creditos': (pack['creditos'] as num).toInt(),
+        'creditos': creditos,
         'precio': (pack['precio'] as num).toInt(),
-        'vigencia_dias': (pack['vigencia_dias'] as num?)?.toInt() ?? 90,
+        'vigencia_dias': (pack['vigencia_dias'] as num?)?.toInt() ??
+            _vigenciaDiasPorCreditos(creditos),
         'descripcion': pack['descripcion']?.toString() ?? '',
       });
     } else {
@@ -116,6 +126,10 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
         (m) => '${m[1]}.',
       );
+
+  // Vigencia por defecto si la fila de pricing_credit_packs no la trae.
+  // Pack Prueba (20 cr): 30 dias. Esencial/Popular/Full: 60 dias.
+  int _vigenciaDiasPorCreditos(int creditos) => creditos <= 20 ? 30 : 60;
 
   void _abrirBottomSheetRegalo() {
     final emailCtrl = TextEditingController();
@@ -432,7 +446,7 @@ class _PacksTab extends StatelessWidget {
               ),
               SizedBox(height: 6),
               Text(
-                'Pack Prueba: vence a los 60 días. Pack Esencial, Popular y Full: vencen a los 90 días.',
+                'Pack Prueba: vence a los 30 días. Pack Esencial, Popular y Full: vencen a los 60 días.',
                 style: TextStyle(color: AppColors.grey, fontSize: 12, height: 1.4),
               ),
             ],
@@ -443,7 +457,7 @@ class _PacksTab extends StatelessWidget {
           final i = entry.key;
           final pack = entry.value;
           final selected = selectedIndex == i;
-          final vigencia = (pack['vigencia_dias'] as num?)?.toInt() ?? 90;
+          final vigencia = _packVigenciaDias(pack);
           return GestureDetector(
             onTap: () => onSelect(i),
             child: AnimatedContainer(
@@ -788,7 +802,7 @@ class _RegalarTab extends StatelessWidget {
           final i = entry.key;
           final pack = entry.value;
           final selected = selectedIndex == i;
-          final vigencia = (pack['vigencia_dias'] as num?)?.toInt() ?? 90;
+          final vigencia = _packVigenciaDias(pack);
           return GestureDetector(
             onTap: () => onSelect(i),
             child: AnimatedContainer(

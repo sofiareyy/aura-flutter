@@ -33,8 +33,8 @@ function packValidityDays(params: Record<string, string>, packName: string, cred
   if (explicit > 0) return explicit
 
   const normalized = packName.trim().toLowerCase()
-  if (normalized === 'pack prueba' || creditos === 20) return 60
-  return 90
+  if (normalized === 'pack prueba' || creditos === 20) return 30
+  return 60
 }
 
 function expirationDate(validDays: number) {

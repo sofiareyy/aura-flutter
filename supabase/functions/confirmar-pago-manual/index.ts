@@ -32,8 +32,8 @@ function expirationDate(validDays: number) {
 
 function validityForPack(packName: string | null, creditos: number) {
   const normalized = (packName ?? '').trim().toLowerCase()
-  if (normalized === 'pack prueba' || creditos === 20) return 60
-  return 90
+  if (normalized === 'pack prueba' || creditos === 20) return 30
+  return 60
 }
 
 Deno.serve(async (req: Request) => {

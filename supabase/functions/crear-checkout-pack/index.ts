@@ -177,7 +177,8 @@ async function resolvePackConfig(
         nombre: data.nombre as string,
         creditos: data.creditos as number,
         amount: data.precio as number,
-        vigenciaDias: (data.vencimiento_dias as number) ?? 90,
+        vigenciaDias: (data.vencimiento_dias as number) ??
+          defaultVigenciaDias(data.creditos as number),
       }
     }
   } catch (e) {
@@ -189,8 +190,15 @@ async function resolvePackConfig(
     nombre: packNombre,
     creditos,
     amount,
-    vigenciaDias: typeof vigenciaDias === 'number' && vigenciaDias > 0 ? vigenciaDias : 90,
+    vigenciaDias: typeof vigenciaDias === 'number' && vigenciaDias > 0
+      ? vigenciaDias
+      : defaultVigenciaDias(creditos),
   }
+}
+
+// Pack Prueba (20 cr): 30 dias. Esencial / Popular / Full: 60 dias.
+function defaultVigenciaDias(creditos: number): number {
+  return creditos <= 20 ? 30 : 60
 }
 
 function json(body: unknown, status = 200) {

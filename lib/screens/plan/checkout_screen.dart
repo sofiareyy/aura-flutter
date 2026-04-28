@@ -278,7 +278,8 @@ class _IdleView extends StatelessWidget {
     final nombre = (purchase['nombre'] ?? '').toString();
     final creditos = (purchase['creditos'] as num?)?.toInt() ?? 0;
     final precio = (purchase['precio'] as num?)?.toInt() ?? 0;
-    final vigenciaDias = (purchase['vigencia_dias'] as num?)?.toInt() ?? 90;
+    final vigenciaDias = (purchase['vigencia_dias'] as num?)?.toInt() ??
+        (creditos <= 20 ? 30 : 60);
     final descripcion = (purchase['descripcion'] ?? '').toString();
 
     return Column(
