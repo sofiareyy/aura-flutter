@@ -8,10 +8,10 @@ import '../core/constants/app_constants.dart';
 /// La unica variable que cambia con la inflacion es `valor_credito_ars`
 /// en `configuracion_global`. Todos los packs se calculan automaticamente:
 ///
-///   Pack Prueba    : 20 cr  x valor x 1.00
-///   Pack Esencial  : 50 cr  x valor x 0.95
-///   Pack Popular   : 100 cr x valor x 0.90
-///   Pack Full      : 200 cr x valor x 0.85
+///   Pack Prueba    : 20 cr  x valor x 1.10
+///   Pack Esencial  : 50 cr  x valor x 1.00
+///   Pack Popular   : 100 cr x valor x 0.95
+///   Pack Full      : 200 cr x valor x 0.90
 class PricingService {
   final _client = Supabase.instance.client;
 
@@ -22,38 +22,38 @@ class PricingService {
     _PackBase(
       nombre: 'Pack Prueba',
       creditos: 20,
-      multiplicador: 1.00,
+      multiplicador: 1.10,
       vigenciaDias: 30,
-      popular: false,
+      badge: null,
       descripcion: 'Ideal para probar Aura',
-      equivalencia: '= 1 pilates + 1 yoga',
+      equivalencia: '1 pilates + 1 yoga',
     ),
     _PackBase(
       nombre: 'Pack Esencial',
       creditos: 50,
-      multiplicador: 0.95,
+      multiplicador: 1.00,
       vigenciaDias: 60,
-      popular: false,
+      badge: 'MÁS POPULAR',
       descripcion: 'El pack base para usar durante el bimestre',
-      equivalencia: '= 3 pilates + 1 yoga',
+      equivalencia: '3 pilates + 1 yoga',
     ),
     _PackBase(
       nombre: 'Pack Popular',
       creditos: 100,
-      multiplicador: 0.90,
+      multiplicador: 0.95,
       vigenciaDias: 60,
-      popular: true,
-      descripcion: 'El mas elegido para entrenar con frecuencia',
-      equivalencia: '= 7 pilates + 1 ceramica',
+      badge: 'MEJOR VALOR',
+      descripcion: 'El más elegido para entrenar con frecuencia',
+      equivalencia: '7 pilates + 1 cerámica',
     ),
     _PackBase(
       nombre: 'Pack Full',
       creditos: 200,
-      multiplicador: 0.85,
+      multiplicador: 0.90,
       vigenciaDias: 60,
-      popular: false,
-      descripcion: 'La opcion mas conveniente para cargar saldo',
-      equivalencia: '= todo lo anterior x2',
+      badge: null,
+      descripcion: 'La opción más conveniente para cargar saldo',
+      equivalencia: 'todo lo anterior x2',
     ),
   ];
 
@@ -139,7 +139,7 @@ class _PackBase {
   final int creditos;
   final double multiplicador;
   final int vigenciaDias;
-  final bool popular;
+  final String? badge;
   final String descripcion;
   final String equivalencia;
 
@@ -148,7 +148,7 @@ class _PackBase {
     required this.creditos,
     required this.multiplicador,
     required this.vigenciaDias,
-    required this.popular,
+    required this.badge,
     required this.descripcion,
     required this.equivalencia,
   });
@@ -158,7 +158,9 @@ class _PackBase {
         'creditos': creditos,
         'precio': (creditos * valorCredito * multiplicador).round(),
         'vigencia_dias': vigenciaDias,
-        'popular': popular,
+        'badge': badge,
+        // popular se mantiene por compat con codigo existente que lo lee
+        'popular': badge != null,
         'descripcion': descripcion,
         'equivalencia': equivalencia,
         'multiplicador': multiplicador,

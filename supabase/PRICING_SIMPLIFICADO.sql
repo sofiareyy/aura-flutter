@@ -1,9 +1,9 @@
--- AURA - Pricing simplificado (2026-04-28)
+-- AURA - Pricing simplificado (2026-04-28, multipliers actualizados 2026-04-28)
 -- Un solo numero (valor_credito_ars) controla todos los precios.
--- Pack Prueba    : 20 cr  x valor x 1.00
--- Pack Esencial  : 50 cr  x valor x 0.95
--- Pack Popular   : 100 cr x valor x 0.90
--- Pack Full      : 200 cr x valor x 0.85
+-- Pack Prueba    : 20 cr  x valor x 1.10  (premium per-credit, pack chico)
+-- Pack Esencial  : 50 cr  x valor x 1.00  ("MAS POPULAR")
+-- Pack Popular   : 100 cr x valor x 0.95  ("MEJOR VALOR")
+-- Pack Full      : 200 cr x valor x 0.90
 
 
 -- 1. Asegurar tabla configuracion_global (clave/valor)
@@ -71,24 +71,24 @@ begin
     return;
   end if;
 
-  -- Pack Prueba (20 cr) x 1.00
+  -- Pack Prueba (20 cr) x 1.10
   update public.pricing_credit_packs
-     set precio = round(20 * v_valor * 1.00)::bigint
+     set precio = round(20 * v_valor * 1.10)::bigint
    where creditos = 20;
 
-  -- Pack Esencial (50 cr) x 0.95
+  -- Pack Esencial (50 cr) x 1.00
   update public.pricing_credit_packs
-     set precio = round(50 * v_valor * 0.95)::bigint
+     set precio = round(50 * v_valor * 1.00)::bigint
    where creditos = 50;
 
-  -- Pack Popular (100 cr) x 0.90
+  -- Pack Popular (100 cr) x 0.95
   update public.pricing_credit_packs
-     set precio = round(100 * v_valor * 0.90)::bigint
+     set precio = round(100 * v_valor * 0.95)::bigint
    where creditos = 100;
 
-  -- Pack Full (200 cr) x 0.85
+  -- Pack Full (200 cr) x 0.90
   update public.pricing_credit_packs
-     set precio = round(200 * v_valor * 0.85)::bigint
+     set precio = round(200 * v_valor * 0.90)::bigint
    where creditos = 200;
 end;
 $$;

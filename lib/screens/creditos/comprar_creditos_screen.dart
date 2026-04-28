@@ -490,7 +490,7 @@ class _PacksTab extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            if (pack['popular'] == true) ...[
+                            if ((pack['badge']?.toString() ?? '').isNotEmpty) ...[
                               const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -499,7 +499,7 @@ class _PacksTab extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(9999),
                                 ),
                                 child: Text(
-                                  'Más elegido',
+                                  pack['badge'].toString(),
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
@@ -521,7 +521,7 @@ class _PacksTab extends StatelessWidget {
                         if ((pack['equivalencia']?.toString() ?? '').isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(
-                            pack['equivalencia'].toString(),
+                            'Ejemplo: ${pack['equivalencia']}',
                             style: TextStyle(
                               color: selected ? Colors.white : AppColors.primary,
                               fontSize: 13,
@@ -855,7 +855,7 @@ class _RegalarTab extends StatelessWidget {
                             if ((pack['equivalencia']?.toString() ?? '').isNotEmpty) ...[
                               const SizedBox(height: 6),
                               Text(
-                                pack['equivalencia'].toString(),
+                                'Ejemplo: ${pack['equivalencia']}',
                                 style: TextStyle(
                                   color: selected
                                       ? Colors.white
