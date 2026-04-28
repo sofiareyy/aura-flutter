@@ -34,6 +34,9 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
   final _qrFocusNode = FocusNode();
   MobileScannerController? _cameraController;
 
+  // Busqueda en lista de asistentes (filtra por nombre/email)
+  final _searchCtrl = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -44,6 +47,18 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       if (mounted) setState(() => _now = DateTime.now());
     });
     _syncTimer = Timer.periodic(const Duration(seconds: 15), (_) => _checkSync());
+    _searchCtrl.addListener(() => setState(() {}));
+  }
+
+  List<Map<String, dynamic>> get _asistentesFiltrados {
+    final q = _searchCtrl.text.trim().toLowerCase();
+    if (q.isEmpty) return _asistentes;
+    return _asistentes.where((a) {
+      final user = a['usuario'] as Map<String, dynamic>?;
+      final nombre = (user?['nombre']?.toString() ?? '').toLowerCase();
+      final email = (user?['email']?.toString() ?? '').toLowerCase();
+      return nombre.contains(q) || email.contains(q);
+    }).toList();
   }
 
   @override
@@ -52,6 +67,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     _syncTimer?.cancel();
     _qrController.dispose();
     _qrFocusNode.dispose();
+    _searchCtrl.dispose();
     _cameraController?.dispose();
     super.dispose();
   }
@@ -554,7 +570,15 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                   padding: EdgeInsets.all(24),
                   child: Center(child: Text('Sin reservas para esta clase', style: TextStyle(color: Color(0xFF9A928B)))),
                 )
-              else
+              else ...[
+                _AsistentesSearchField(controller: _searchCtrl),
+                const SizedBox(height: 10),
+                if (_asistentesFiltrados.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: Text('Sin coincidencias', style: TextStyle(color: Color(0xFF9A928B)))),
+                  )
+                else
                 Container(
                   decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
                   child: Column(
@@ -569,7 +593,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                           ],
                         ),
                       ),
-                      ..._asistentes.asMap().entries.map((e) {
+                      ..._asistentesFiltrados.asMap().entries.map((e) {
                         final a = e.value;
                         final user = a['usuario'] as Map<String, dynamic>?;
                         final nombre = user?['nombre']?.toString() ?? 'Sin nombre';
@@ -592,14 +616,14 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                                 ? 'Ausente'
                                 : 'Pendiente';
                         return InkWell(
-                          borderRadius: e.key == _asistentes.length - 1
+                          borderRadius: e.key == _asistentesFiltrados.length - 1
                               ? const BorderRadius.vertical(bottom: Radius.circular(16))
                               : null,
                           onTap: () => _mostrarAccionesAsistente(a),
                           child: Container(
                             decoration: BoxDecoration(
                               border: Border(top: BorderSide(color: Colors.grey.shade100)),
-                              borderRadius: e.key == _asistentes.length - 1 ? const BorderRadius.vertical(bottom: Radius.circular(16)) : null,
+                              borderRadius: e.key == _asistentesFiltrados.length - 1 ? const BorderRadius.vertical(bottom: Radius.circular(16)) : null,
                             ),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             child: Row(
@@ -651,6 +675,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                     ],
                   ),
                 ),
+              ],
             ],
           ),
         ),
@@ -948,43 +973,57 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                             ),
                           ),
                         )
-                      else
-                        Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.white,
-                            borderRadius: BorderRadius.circular(18),
+                      else ...[
+                        _AsistentesSearchField(controller: _searchCtrl),
+                        const SizedBox(height: 10),
+                        if (_asistentesFiltrados.isEmpty)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Text(
+                                'Sin coincidencias',
+                                style: TextStyle(color: Color(0xFF9A928B)),
+                              ),
+                            ),
+                          )
+                        else
+                          Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: Column(
+                              children: _asistentesFiltrados.map((a) {
+                                final user = a['usuario'] as Map<String, dynamic>?;
+                                final nombre = user?['nombre']?.toString() ?? 'Sin nombre';
+                                final estado = a['estado']?.toString() ?? 'confirmada';
+                                final esPresente = estado == 'presente';
+                                final esAusente = estado == 'ausente';
+                                return _AttendeeRow(
+                                  nombre: nombre,
+                                  subtitle: esPresente
+                                      ? 'Ingreso ${_horaIngreso(a)}'
+                                      : esAusente
+                                          ? 'Ausente'
+                                          : 'Pendiente',
+                                  initials: _initials(nombre),
+                                  color: _avatarColor(nombre),
+                                  icon: esPresente
+                                      ? Icons.check_circle_rounded
+                                      : esAusente
+                                          ? Icons.cancel_rounded
+                                          : Icons.access_time_rounded,
+                                  iconColor: esPresente
+                                      ? const Color(0xFF43A047)
+                                      : esAusente
+                                          ? const Color(0xFFE53935)
+                                          : const Color(0xFFB0A8A0),
+                                  onTap: () => _mostrarAccionesAsistente(a),
+                                );
+                              }).toList(),
+                            ),
                           ),
-                          child: Column(
-                            children: _asistentes.map((a) {
-                              final user = a['usuario'] as Map<String, dynamic>?;
-                              final nombre = user?['nombre']?.toString() ?? 'Sin nombre';
-                              final estado = a['estado']?.toString() ?? 'confirmada';
-                              final esPresente = estado == 'presente';
-                              final esAusente = estado == 'ausente';
-                              return _AttendeeRow(
-                                nombre: nombre,
-                                subtitle: esPresente
-                                    ? 'Ingreso ${_horaIngreso(a)}'
-                                    : esAusente
-                                        ? 'Ausente'
-                                        : 'Pendiente',
-                                initials: _initials(nombre),
-                                color: _avatarColor(nombre),
-                                icon: esPresente
-                                    ? Icons.check_circle_rounded
-                                    : esAusente
-                                        ? Icons.cancel_rounded
-                                        : Icons.access_time_rounded,
-                                iconColor: esPresente
-                                    ? const Color(0xFF43A047)
-                                    : esAusente
-                                        ? const Color(0xFFE53935)
-                                        : const Color(0xFFB0A8A0),
-                                onTap: () => _mostrarAccionesAsistente(a),
-                              );
-                            }).toList(),
-                          ),
-                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -1707,6 +1746,46 @@ class _AttendeeRow extends StatelessWidget {
           Icon(icon, color: iconColor),
         ],
       ),
+      ),
+    );
+  }
+}
+
+class _AsistentesSearchField extends StatelessWidget {
+  final TextEditingController controller;
+
+  const _AsistentesSearchField({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      style: const TextStyle(fontSize: 14),
+      decoration: InputDecoration(
+        hintText: 'Buscar por nombre o email',
+        hintStyle: const TextStyle(color: Color(0xFF9A928B), fontSize: 14),
+        prefixIcon: const Icon(Icons.search_rounded,
+            color: Color(0xFF9A928B), size: 20),
+        suffixIcon: controller.text.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.clear_rounded,
+                    color: Color(0xFF9A928B), size: 18),
+                onPressed: () => controller.clear(),
+              ),
+        filled: true,
+        fillColor: AppColors.white,
+        isDense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade200),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
+        ),
       ),
     );
   }
