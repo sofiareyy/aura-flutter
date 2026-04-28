@@ -9,7 +9,6 @@ import '../../providers/app_provider.dart';
 import '../../services/aura_gestion_service.dart';
 import '../../services/clases_service.dart';
 import '../../services/reservas_service.dart';
-import '../../services/usuarios_service.dart';
 
 class ConfirmarReservaScreen extends StatefulWidget {
   final int claseId;
@@ -23,7 +22,6 @@ class ConfirmarReservaScreen extends StatefulWidget {
 class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
   final _clasesService = ClasesService();
   final _reservasService = ReservasService();
-  final _usuariosService = UsuariosService();
   final _auraGestionService = AuraGestionService();
 
   Map<String, dynamic>? _clase;
@@ -95,7 +93,8 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
         creditosUsados: creditos,
       );
 
-      await _usuariosService.descontarCreditos(authUserId, creditos);
+      // El descuento ya lo hace reservasService.crearReserva via RPC consume_user_credits.
+      // Solo refrescamos el usuario en memoria para que la UI vea el saldo nuevo.
       await provider.refrescarUsuario();
 
       if (mounted && reserva != null && (reserva.codigoQr?.isNotEmpty ?? false)) {
