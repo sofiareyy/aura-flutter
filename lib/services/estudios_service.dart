@@ -82,7 +82,7 @@ class EstudiosService {
 
   Future<List<Map<String, dynamic>>> getClasesDeEstudio(int estudioId) async {
     final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
-    final semanasAdelante = ahora.add(const Duration(days: 21));
+    final semanasAdelante = ahora.add(const Duration(days: 30));
     final data = await _supabase
         .from(AppConstants.tableClases)
         .select()

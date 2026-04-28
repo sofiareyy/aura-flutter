@@ -23,6 +23,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
   int _referidosCount = 0;
   bool _loading = true;
   bool _applying = false;
+  bool _haCompradoPack = false;
 
   static const int _maxReferidos = 2;
 
@@ -40,14 +41,18 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
 
   Future<void> _cargar() async {
     final userId = context.read<AppProvider>().userId;
-    final codigo = await _service.obtenerOCrearCodigo(userId);
-    final usado = await _service.codigoYaUsado(userId);
-    final count = await _service.contarReferidos(userId);
+    final results = await Future.wait([
+      _service.obtenerOCrearCodigo(userId),
+      _service.codigoYaUsado(userId),
+      _service.contarReferidos(userId),
+      _service.haCompradoPack(userId),
+    ]);
     if (!mounted) return;
     setState(() {
-      _codigoPropio = codigo;
-      _codigoUsado = usado;
-      _referidosCount = count;
+      _codigoPropio = results[0] as String;
+      _codigoUsado = results[1] as String?;
+      _referidosCount = results[2] as int;
+      _haCompradoPack = results[3] as bool;
       _loading = false;
     });
   }
@@ -156,6 +161,61 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
   }
 
   Widget _codigoPropioCard() {
+    if (!_haCompradoPack) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE5E0DA)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2EDE8),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.lock_outline_rounded,
+                color: AppColors.grey,
+                size: 26,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Tu código está bloqueado',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Comprá tu primer pack de créditos para desbloquear tu código y empezar a invitar amigos.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.grey,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () => context.push('/comprar-creditos'),
+                child: const Text('Ver packs de créditos'),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(

@@ -1,11 +1,9 @@
--- ============================================================
--- AURA - SQL para ejecutar en Supabase SQL Editor
--- Orden: ejecutar todo de una vez o sección por sección
--- ============================================================
+-- AURA - SQL ejecutado en Supabase (2026-04-28)
+-- Esquema real de referrals: referrer_user_id, referred_user_id, referral_code (NOT NULL)
 
--- ─────────────────────────────────────────────────────────────
+
 -- 1. FAVORITOS DE ESTUDIOS
--- ─────────────────────────────────────────────────────────────
+
 create table if not exists favoritos_estudios (
   usuario_id  uuid        not null references usuarios(id) on delete cascade,
   estudio_id  int         not null references estudios(id) on delete cascade,
@@ -13,7 +11,6 @@ create table if not exists favoritos_estudios (
   primary key (usuario_id, estudio_id)
 );
 
--- RLS
 alter table favoritos_estudios enable row level security;
 
 drop policy if exists "Usuarios ven sus favoritos" on favoritos_estudios;
@@ -32,24 +29,44 @@ create policy "Usuarios borran favoritos"
   using (auth.uid() = usuario_id);
 
 
--- ─────────────────────────────────────────────────────────────
--- 2. COLUMNA estudio_id EN USUARIOS (para roles estudio)
--- ─────────────────────────────────────────────────────────────
+-- 2. COLUMNA estudio_id en usuarios (para roles estudio)
+
 alter table usuarios
   add column if not exists estudio_id int references estudios(id) on delete set null;
 
 
--- ─────────────────────────────────────────────────────────────
--- 3. COLUMNA checked_in_at EN RESERVAS (para QR de asistencia)
--- ─────────────────────────────────────────────────────────────
+-- 3. COLUMNA checked_in_at en reservas (para QR de asistencia)
+
 alter table reservas
   add column if not exists checked_in_at timestamptz;
 
 
--- ─────────────────────────────────────────────────────────────
--- 4. RPC apply_referral_code — LÍMITE 2 REFERIDOS
---    Premio: quien refiere +20 créditos, nuevo usuario +15
--- ─────────────────────────────────────────────────────────────
+-- 4. COLUMNAS codigo_referido en usuarios
+
+alter table usuarios
+  add column if not exists codigo_referido       text unique,
+  add column if not exists codigo_referido_usado text;
+
+
+-- 5. UNIQUE constraint y RLS en referrals (tabla preexistente)
+
+alter table referrals
+  drop constraint if exists referrals_referrer_referred_unique;
+
+alter table referrals
+  add constraint referrals_referrer_referred_unique
+  unique (referrer_user_id, referred_user_id);
+
+alter table referrals enable row level security;
+
+drop policy if exists "Usuarios ven sus referrals" on referrals;
+create policy "Usuarios ven sus referrals"
+  on referrals for select
+  using (auth.uid() = referrer_user_id or auth.uid() = referred_user_id);
+
+
+-- 6. RPC apply_referral_code (limite 2 referidos, +20 / +15 creditos)
+
 create or replace function apply_referral_code(
   p_user_id uuid,
   p_code    text
@@ -63,54 +80,48 @@ declare
   v_already_used   text;
   v_referrer_count int;
   v_expiry         date := current_date + interval '30 days';
+  v_code_upper     text := upper(p_code);
 begin
-  -- Verificar que el usuario no haya usado ya un código
   select codigo_referido_usado
     into v_already_used
     from usuarios
    where id = p_user_id;
 
   if v_already_used is not null and v_already_used <> '' then
-    return jsonb_build_object('ok', false, 'error', 'Ya usaste un código de referido anteriormente.');
+    return jsonb_build_object('ok', false, 'error', 'Ya usaste un codigo de referido anteriormente.');
   end if;
 
-  -- Buscar al dueño del código
   select id
     into v_referrer_id
     from usuarios
-   where upper(codigo_referido) = upper(p_code)
+   where upper(codigo_referido) = v_code_upper
    limit 1;
 
   if v_referrer_id is null then
-    return jsonb_build_object('ok', false, 'error', 'Código de referido inválido.');
+    return jsonb_build_object('ok', false, 'error', 'Codigo de referido invalido.');
   end if;
 
-  -- No puede usar su propio código
   if v_referrer_id = p_user_id then
-    return jsonb_build_object('ok', false, 'error', 'No podés usar tu propio código de referido.');
+    return jsonb_build_object('ok', false, 'error', 'No podes usar tu propio codigo de referido.');
   end if;
 
-  -- Verificar que el referrer no superó el límite de 2
   select count(*)
     into v_referrer_count
     from referrals
-   where referrer_id = v_referrer_id;
+   where referrer_user_id = v_referrer_id;
 
   if v_referrer_count >= 2 then
-    return jsonb_build_object('ok', false, 'error', 'Este código ya alcanzó el límite de invitaciones.');
+    return jsonb_build_object('ok', false, 'error', 'Este codigo ya alcanzo el limite de invitaciones.');
   end if;
 
-  -- Registrar el referido
-  insert into referrals (referrer_id, referred_id)
-  values (v_referrer_id, p_user_id)
-  on conflict do nothing;
+  insert into referrals (referrer_user_id, referred_user_id, referral_code)
+  values (v_referrer_id, p_user_id, v_code_upper)
+  on conflict on constraint referrals_referrer_referred_unique do nothing;
 
-  -- Marcar el código como usado en el nuevo usuario
   update usuarios
-     set codigo_referido_usado = upper(p_code)
+     set codigo_referido_usado = v_code_upper
    where id = p_user_id;
 
-  -- Dar 15 créditos al nuevo usuario
   perform grant_user_credits(
     p_user_id    => p_user_id,
     p_amount     => 15,
@@ -118,7 +129,6 @@ begin
     p_expires_at => v_expiry::text
   );
 
-  -- Dar 20 créditos al referidor
   perform grant_user_credits(
     p_user_id    => v_referrer_id,
     p_amount     => 20,
@@ -134,9 +144,8 @@ end;
 $$;
 
 
--- ─────────────────────────────────────────────────────────────
--- 5. RPC ensure_referral_code (crea el código si no existe)
--- ─────────────────────────────────────────────────────────────
+-- 7. RPC ensure_referral_code
+
 create or replace function ensure_referral_code(p_user_id uuid)
 returns text
 language plpgsql
@@ -150,7 +159,6 @@ begin
    where id = p_user_id;
 
   if v_code is null or v_code = '' then
-    -- Generar código: 8 chars en mayúscula basados en uuid + random
     v_code := upper(substring(replace(p_user_id::text, '-', ''), 1, 6)
               || to_char(floor(random() * 9999)::int, 'FM0000'));
     update usuarios set codigo_referido = v_code where id = p_user_id;
@@ -161,26 +169,5 @@ end;
 $$;
 
 
--- ─────────────────────────────────────────────────────────────
--- 6. ASEGURARSE que columna codigo_referido existe en usuarios
--- ─────────────────────────────────────────────────────────────
-alter table usuarios
-  add column if not exists codigo_referido       text unique,
-  add column if not exists codigo_referido_usado text;
-
-
--- ─────────────────────────────────────────────────────────────
--- 7. VERIFICAR lat/lng en estudios (diagnóstico)
--- ─────────────────────────────────────────────────────────────
--- Ejecutá esta query para ver qué estudios les faltan coordenadas:
+-- 8. DIAGNOSTICO opcional - estudios sin coordenadas para el mapa
 -- select id, nombre, lat, lng from estudios where lat is null or lng is null;
---
--- Coordenadas aproximadas de los estudios conocidos:
--- UPDATE estudios SET lat = -34.4644, lng = -58.9134 WHERE nombre ILIKE '%Clic Fit%' AND direccion ILIKE '%Office Park%';
--- UPDATE estudios SET lat = -34.4632, lng = -58.9055 WHERE nombre ILIKE '%Clic Fit%' AND direccion ILIKE '%Austral%';
--- UPDATE estudios SET lat = -34.3831, lng = -58.9643 WHERE nombre ILIKE '%Clic Fit%' AND direccion ILIKE '%Tortugitas%';
--- UPDATE estudios SET lat = -34.4644, lng = -58.9134 WHERE nombre ILIKE '%Clic Pilates%';
--- UPDATE estudios SET lat = -34.4644, lng = -58.9134 WHERE nombre ILIKE '%Hot Clic%';
--- UPDATE estudios SET lat = -34.4712, lng = -58.8954 WHERE nombre ILIKE '%Kali Yoga%';
--- UPDATE estudios SET lat = -34.4580, lng = -58.9003 WHERE nombre ILIKE '%Sport Club%';
--- UPDATE estudios SET lat = -34.4630, lng = -58.8990 WHERE nombre ILIKE '%Grito%';

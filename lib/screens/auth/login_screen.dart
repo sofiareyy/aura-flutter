@@ -24,6 +24,26 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   bool _loadingGoogle = false;
   bool _obscure = true;
+  bool _emailConfirmedBanner = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _detectEmailConfirmation();
+  }
+
+  void _detectEmailConfirmation() {
+    final uri = Uri.base;
+    final query = uri.queryParameters['confirmed'];
+    final fragment = uri.fragment;
+    final cameFromConfirmation = query == '1' ||
+        query == 'true' ||
+        fragment.contains('type=signup') ||
+        fragment.contains('type=email_change');
+    if (cameFromConfirmation) {
+      setState(() => _emailConfirmedBanner = true);
+    }
+  }
 
   @override
   void dispose() {
@@ -191,6 +211,37 @@ class _LoginScreenState extends State<LoginScreen> {
                   fontSize: 14,
                 ),
               ),
+              if (_emailConfirmedBanner) ...[
+                const SizedBox(height: 18),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF153D2A),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: const Color(0xFF2EAA63), width: 1),
+                  ),
+                  child: Row(
+                    children: const [
+                      Icon(Icons.check_circle_rounded,
+                          color: Color(0xFF6BD498), size: 18),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Email confirmado. Ya podés ingresar.',
+                          style: TextStyle(
+                            color: Color(0xFFD2F3DE),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 28),
               Form(
                 key: _formKey,

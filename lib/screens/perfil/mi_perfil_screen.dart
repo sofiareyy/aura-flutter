@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,8 +26,10 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
   final _usuariosService = UsuariosService();
 
   bool _loadingFavoritos = true;
+  bool _uploadingAvatar = false;
   List<Estudio> _favoritos = const [];
   int? _estudioVinculadoId;
+  final _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -264,23 +267,59 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
       ),
       child: Column(
         children: [
-          CircleAvatar(
-            radius: 36,
-            backgroundColor: AppColors.primaryLight,
-            backgroundImage:
-                avatarUrl != null && avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
-            child: avatarUrl == null || avatarUrl.isEmpty
-                ? Text(
-                    usuario?.nombre.isNotEmpty == true
-                        ? usuario!.nombre[0].toUpperCase()
-                        : 'U',
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w700,
+          GestureDetector(
+            onTap: _uploadingAvatar ? null : _seleccionarFotoPerfil,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                CircleAvatar(
+                  radius: 36,
+                  backgroundColor: AppColors.primaryLight,
+                  backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                      ? NetworkImage(avatarUrl)
+                      : null,
+                  child: _uploadingAvatar
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        )
+                      : (avatarUrl == null || avatarUrl.isEmpty)
+                          ? Text(
+                              usuario?.nombre.isNotEmpty == true
+                                  ? usuario!.nombre[0].toUpperCase()
+                                  : 'U',
+                              style: const TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            )
+                          : null,
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
                       color: AppColors.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.white, width: 2),
                     ),
-                  )
-                : null,
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      color: Colors.white,
+                      size: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -313,6 +352,124 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _seleccionarFotoPerfil() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined,
+                  color: AppColors.primary),
+              title: const Text('Elegir de la galería'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined,
+                  color: AppColors.primary),
+              title: const Text('Sacar una foto'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    await _subirFotoPerfil(source);
+  }
+
+  Future<void> _subirFotoPerfil(ImageSource source) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final provider = context.read<AppProvider>();
+    final userId = provider.userId;
+    if (userId.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Iniciá sesión para cambiar tu foto.')),
+      );
+      return;
+    }
+
+    XFile? file;
+    try {
+      file = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 82,
+        maxWidth: 1024,
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+              'No se pudo abrir el selector: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+    if (file == null || !mounted) return;
+
+    setState(() => _uploadingAvatar = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final supabase = Supabase.instance.client;
+      const path = 'perfil.jpg';
+      final fullPath = '$userId/$path';
+
+      await supabase.storage.from('avatares').uploadBinary(
+            fullPath,
+            bytes,
+            fileOptions: const FileOptions(
+              cacheControl: '3600',
+              upsert: true,
+              contentType: 'image/jpeg',
+            ),
+          );
+
+      final baseUrl = supabase.storage.from('avatares').getPublicUrl(fullPath);
+      final publicUrl = '$baseUrl?v=${DateTime.now().millisecondsSinceEpoch}';
+
+      await supabase
+          .from('usuarios')
+          .update({'avatar_url': publicUrl}).eq('id', userId);
+
+      await provider.refrescarUsuario();
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Foto actualizada'),
+          backgroundColor: Color(0xFF2EAA63),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+              'Error subiendo la foto: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
   }
 
   Future<void> _cancelarSuscripcion() async {

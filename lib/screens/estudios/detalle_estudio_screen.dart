@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -340,12 +341,11 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
         children: [
           // Foto
           e.fotoUrl?.isNotEmpty == true
-              ? CachedNetworkImage(
-                  imageUrl: e.fotoUrl!,
+              ? _RemoteImage(
+                  url: e.fotoUrl!,
                   fit: BoxFit.cover,
-                  placeholder: (_, __) =>
-                      Container(color: const Color(0xFFEDE7E1)),
-                  errorWidget: (_, __, ___) => Container(
+                  placeholder: Container(color: const Color(0xFFEDE7E1)),
+                  errorWidget: Container(
                     color: AppColors.primaryLight,
                     child: const Icon(Icons.fitness_center_rounded,
                         color: AppColors.primary, size: 48),
@@ -488,10 +488,10 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                     minScale: 1,
                     maxScale: 4,
                     child: Center(
-                      child: CachedNetworkImage(
-                        imageUrl: imageUrls[index],
+                      child: _RemoteImage(
+                        url: imageUrls[index],
                         fit: BoxFit.contain,
-                        errorWidget: (_, __, ___) => const Icon(
+                        errorWidget: const Icon(
                           Icons.broken_image_outlined,
                           color: Colors.white70,
                           size: 42,
@@ -668,10 +668,10 @@ class _GallerySection extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 child: SizedBox(
                   width: 124,
-                  child: CachedNetworkImage(
-                    imageUrl: imageUrls[index],
+                  child: _RemoteImage(
+                    url: imageUrls[index],
                     fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => Container(
+                    errorWidget: Container(
                       color: const Color(0xFFF3EEE8),
                       child: const Icon(Icons.image_not_supported_outlined, color: AppColors.grey),
                     ),
@@ -834,6 +834,44 @@ class _ReviewCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Imagen remota que en web usa Image.network (evita issues con
+/// CachedNetworkImage en navegadores) y en mobile usa CachedNetworkImage
+/// para tener cache local.
+class _RemoteImage extends StatelessWidget {
+  final String url;
+  final BoxFit? fit;
+  final Widget? placeholder;
+  final Widget? errorWidget;
+
+  const _RemoteImage({
+    required this.url,
+    this.fit,
+    this.placeholder,
+    this.errorWidget,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (kIsWeb) {
+      return Image.network(
+        url,
+        fit: fit,
+        loadingBuilder: (ctx, child, progress) =>
+            progress == null ? child : (placeholder ?? const SizedBox.shrink()),
+        errorBuilder: (ctx, _, __) =>
+            errorWidget ?? const SizedBox.shrink(),
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: fit,
+      placeholder: placeholder == null ? null : (_, __) => placeholder!,
+      errorWidget:
+          errorWidget == null ? null : (_, __, ___) => errorWidget!,
     );
   }
 }

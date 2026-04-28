@@ -63,4 +63,19 @@ class ReferidosService {
       return 0;
     }
   }
+
+  /// Devuelve true si el usuario ya compró al menos un pack de créditos.
+  Future<bool> haCompradoPack(String usuarioId) async {
+    try {
+      final rows = await _client
+          .from('creditos_movimientos')
+          .select('id')
+          .eq('usuario_id', usuarioId)
+          .eq('tipo', 'compra')
+          .limit(1);
+      return (rows as List).isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
 }

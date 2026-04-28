@@ -14,7 +14,7 @@ class ClasesService {
 
   Future<List<Map<String, dynamic>>> getProximasClases({int limit = 20, int offset = 0}) async {
     final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
-    final semanasAdelante = ahora.add(const Duration(days: 21));
+    final semanasAdelante = ahora.add(const Duration(days: 30));
     final clases = await _supabase
         .from(AppConstants.tableClases)
         .select()
@@ -117,7 +117,7 @@ class ClasesService {
       // Query upcoming classes from those categories, excluding visited studios
       final ahora =
           DateTime.now().toUtc().subtract(const Duration(hours: 3));
-      final hasta = ahora.add(const Duration(days: 14));
+      final hasta = ahora.add(const Duration(days: 30));
       final resultado = await _supabase
           .from('clases')
           .select('*, estudios!inner(id, nombre, categoria, barrio, foto_url)')
