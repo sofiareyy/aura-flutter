@@ -13,38 +13,6 @@ class AppConstants {
   static const String tableReservas = 'reservas';
   static const String tableNotificacionesEstudio = 'notificaciones_estudio';
 
-  static const List<Map<String, dynamic>> packsCreditos = [
-    {
-      'nombre': 'Pack Prueba',
-      'creditos': 20,
-      'precio': 25000,
-      'descripcion': 'Ideal para probar Aura',
-      'vigencia_dias': 30,
-    },
-    {
-      'nombre': 'Pack Esencial',
-      'creditos': 50,
-      'precio': 55000,
-      'descripcion': 'El pack base para usar durante el trimestre',
-      'vigencia_dias': 60,
-    },
-    {
-      'nombre': 'Pack Popular',
-      'creditos': 100,
-      'precio': 100000,
-      'descripcion': 'El mas elegido para entrenar con frecuencia',
-      'popular': true,
-      'vigencia_dias': 60,
-    },
-    {
-      'nombre': 'Pack Full',
-      'creditos': 200,
-      'precio': 180000,
-      'descripcion': 'La opcion mas conveniente para cargar saldo',
-      'vigencia_dias': 60,
-    },
-  ];
-
   static const List<Map<String, dynamic>> planes = [
     {
       'nombre': 'Starter',

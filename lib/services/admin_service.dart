@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminService {
@@ -483,6 +485,52 @@ class AdminService {
     await _client.from('configuracion_global').upsert(
       {'clave': clave, 'valor': valor, 'updated_at': DateTime.now().toIso8601String()},
       onConflict: 'clave',
+    );
+  }
+
+  /// Lee `valor_credito_ars` de `configuracion_global`.
+  Future<int> getValorCreditoArs() async {
+    final raw = await getConfigGlobal('valor_credito_ars');
+    return int.tryParse((raw ?? '').trim()) ?? 1000;
+  }
+
+  /// Cambia el valor del credito y recalcula los precios de los 4 packs base.
+  /// Llama al RPC `admin_set_valor_credito_ars` que tambien actualiza
+  /// `pricing_credit_packs.precio` y `estudios.valor_credito` (compat).
+  Future<void> setValorCreditoArs(int value) async {
+    await _client.rpc(
+      'admin_set_valor_credito_ars',
+      params: {'p_value': value},
+    );
+  }
+
+  /// Lee creditos por categoria (JSON en configuracion_global).
+  Future<Map<String, int>> getCreditosPorCategoria() async {
+    final raw = await getConfigGlobal('creditos_por_categoria');
+    if (raw == null || raw.isEmpty) return _defaultCreditosPorCategoria();
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return _defaultCreditosPorCategoria();
+      return decoded.map(
+        (k, v) => MapEntry(k.toString(), (v is num) ? v.toInt() : 0),
+      );
+    } catch (_) {
+      return _defaultCreditosPorCategoria();
+    }
+  }
+
+  Map<String, int> _defaultCreditosPorCategoria() => {
+        'Gym/Funcional': 10,
+        'Pilates': 14,
+        'Yoga': 18,
+        'Ceramica + vino': 50,
+      };
+
+  Future<void> setCreditosPorCategoria(Map<String, int> map) async {
+    final json = jsonEncode(map);
+    await _client.rpc(
+      'admin_set_creditos_por_categoria',
+      params: {'p_json': json},
     );
   }
 }

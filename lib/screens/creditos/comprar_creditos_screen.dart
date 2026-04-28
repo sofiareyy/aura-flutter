@@ -518,9 +518,20 @@ class _PacksTab extends StatelessWidget {
                             fontSize: 13,
                           ),
                         ),
+                        if ((pack['equivalencia']?.toString() ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            pack['equivalencia'].toString(),
+                            style: TextStyle(
+                              color: selected ? Colors.white : AppColors.primary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         Text(
-                          'Vigencia: $vigencia días',
+                          'Vence a los $vigencia días',
                           style: TextStyle(
                             color: selected ? Colors.white70 : AppColors.grey,
                             fontSize: 12,
@@ -841,9 +852,22 @@ class _RegalarTab extends StatelessWidget {
                                 fontSize: 13,
                               ),
                             ),
+                            if ((pack['equivalencia']?.toString() ?? '').isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                pack['equivalencia'].toString(),
+                                style: TextStyle(
+                                  color: selected
+                                      ? Colors.white
+                                      : AppColors.primary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 8),
                             Text(
-                              'Vigencia: $vigencia días',
+                              'Vence a los $vigencia días',
                               style: TextStyle(
                                 color: selected ? Colors.white70 : Colors.white54,
                                 fontSize: 12,
