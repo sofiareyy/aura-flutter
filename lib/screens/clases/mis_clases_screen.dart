@@ -2728,7 +2728,7 @@ class _ClaseDetalleSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final dt = DateTime.tryParse(clase['fecha']?.toString() ?? '');
     final hora = dt != null ? DateFormat('HH:mm').format(dt) : '--:--';
-    final fechaStr = dt != null ? DateFormat("EEE d 'de' MMM yyyy", 'es').format(dt) : 'â€”';
+    final fechaStr = dt != null ? DateFormat("EEE d 'de' MMM yyyy", 'es').format(dt) : '—';
     final nombre = clase['nombre']?.toString() ?? 'Clase';
     final instructor = clase['instructor']?.toString();
     final total = (clase['lugares_total'] as num?)?.toInt() ?? 0;
