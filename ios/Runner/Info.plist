@@ -28,6 +28,10 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Necesitamos acceso a la cámara para escanear el código QR de tu reserva.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Usamos tu ubicación para mostrarte estudios y experiencias cerca tuyo.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Usamos tu ubicación para mostrarte estudios y experiencias cerca tuyo.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Usamos tu ubicación para mostrarte estudios y experiencias cerca tuyo.</string>
 	<key>NSUserNotificationsUsageDescription</key>
