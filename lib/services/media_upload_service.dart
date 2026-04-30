@@ -34,6 +34,32 @@ class MediaUploadService {
     }
   }
 
+  /// Sube la foto de perfil al bucket `avatares` con path `{userId}/perfil.{ext}`.
+  /// upsert reemplaza la foto anterior; siempre devuelve la URL pública con
+  /// cache-buster por timestamp para forzar refresh del avatar en la UI.
+  Future<String?> uploadAvatar({required String userId}) async {
+    final file = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 82,
+      maxWidth: 1600,
+    );
+    if (file == null) return null;
+
+    final bytes = await file.readAsBytes();
+    final ext = _ext(file.name);
+    final path = '$userId/perfil.$ext';
+
+    try {
+      await _uploadBytes(bucket: 'avatares', path: path, bytes: bytes);
+      final base = _client.storage.from('avatares').getPublicUrl(path);
+      return '$base?t=${DateTime.now().millisecondsSinceEpoch}';
+    } catch (e) {
+      throw Exception(
+        'No se pudo subir la imagen. Revisá Storage y volvé a intentarlo.',
+      );
+    }
+  }
+
   Future<void> _uploadBytes({
     required String bucket,
     required String path,

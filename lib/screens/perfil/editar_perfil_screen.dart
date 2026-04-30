@@ -44,9 +44,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
 
     setState(() => _uploading = true);
     try {
-      final url = await _mediaUploadService.pickAndUpload(
-        bucket: 'user-media',
-        folder: 'avatars',
+      final url = await _mediaUploadService.uploadAvatar(
         userId: provider.userId,
       );
       if (url == null || !mounted) return;
