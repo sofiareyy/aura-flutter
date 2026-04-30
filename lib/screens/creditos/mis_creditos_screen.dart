@@ -346,7 +346,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                 child: Divider(color: Color(0xFF333333), height: 1),
               ),
               const Text(
-                'vs pagar precio de mercado en Pilar',
+                'vs pagar precio de mercado en Buenos Aires',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Color(0xFF8F877F), fontSize: 12),
               ),

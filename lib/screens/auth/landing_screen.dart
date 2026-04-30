@@ -75,7 +75,7 @@ class LandingScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'El primer marketplace de fitness\ny experiencias de Pilar.',
+                    'El primer marketplace de fitness\ny experiencias de Buenos Aires.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Color(0xFFF5F0E8),

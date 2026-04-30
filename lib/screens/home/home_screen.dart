@@ -1140,7 +1140,7 @@ class _NuevoUsuarioCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Comprá tu primer pack y empezá a reservar pilates, yoga, cerámica y más en Pilar.',
+            'Comprá tu primer pack y empezá a reservar pilates, yoga, cerámica y más en Buenos Aires.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Color(0xFF8F877F),
