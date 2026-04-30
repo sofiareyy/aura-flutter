@@ -434,7 +434,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                         ),
                         GestureDetector(
-                          onTap: () => context.push('/explorar'),
+                          onTap: () => context.go('/explorar'),
                           child: const Text(
                             'Ver todo',
                             style: TextStyle(
@@ -519,7 +519,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                           ),
                           GestureDetector(
-                            onTap: () => context.push('/explorar'),
+                            onTap: () => context.go('/explorar'),
                             child: const Text(
                               'Ver más',
                               style: TextStyle(
@@ -573,7 +573,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                         ),
                         GestureDetector(
-                          onTap: () => context.push('/explorar'),
+                          onTap: () => context.go('/explorar'),
                           child: const Text(
                             'Explorar',
                             style: TextStyle(
@@ -638,7 +638,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                         ),
                         GestureDetector(
-                          onTap: () => context.push('/explorar'),
+                          onTap: () => context.go('/explorar'),
                           child: const Text(
                             'Ver todo',
                             style: TextStyle(
@@ -703,7 +703,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                         ),
                         GestureDetector(
-                          onTap: () => context.push('/explorar'),
+                          onTap: () => context.go('/explorar'),
                           child: const Text(
                             'Ver todo',
                             style: TextStyle(
