@@ -14,9 +14,16 @@ class AdminGate extends StatelessWidget {
       future: AdminService().isCurrentUserAdmin(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Scaffold(
+          return Scaffold(
             backgroundColor: AppColors.background,
-            body: Center(
+            appBar: AppBar(
+              toolbarHeight: 0,
+              backgroundColor: AppColors.background,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              automaticallyImplyLeading: false,
+            ),
+            body: const Center(
               child: CircularProgressIndicator(color: AppColors.primary),
             ),
           );
@@ -25,6 +32,13 @@ class AdminGate extends StatelessWidget {
         if (snapshot.data != true) {
           return Scaffold(
             backgroundColor: AppColors.background,
+            appBar: AppBar(
+              toolbarHeight: 0,
+              backgroundColor: AppColors.background,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              automaticallyImplyLeading: false,
+            ),
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
