@@ -27,7 +27,24 @@ class ReservasService {
         .neq('estado', 'cancelada_por_estudio')
         .order('created_at', ascending: false);
 
-    return _joinClasesEstudios(reservas as List);
+    final joined = await _joinClasesEstudios(reservas as List);
+
+    // BUG 13: filtrar reservas con fecha pasada que el cron de "completar"
+    // todavía no marcó. Comparación de strings YYYY-MM-DD HH:mm:ss en hora
+    // Argentina (UTC-3) — coincide con _toSupaDate del clases_service.
+    final now = DateTime.now().toUtc().subtract(const Duration(hours: 3));
+    final nowStr =
+        '${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')} '
+        '${now.hour.toString().padLeft(2, '0')}:'
+        '${now.minute.toString().padLeft(2, '0')}:00';
+    return joined.where((r) {
+      final fechaStr =
+          (r['clases'] as Map?)?['fecha']?.toString() ?? '';
+      if (fechaStr.isEmpty) return false;
+      return fechaStr.compareTo(nowStr) >= 0;
+    }).toList();
   }
 
   /// Paginated fetch of past reservations (cancelled or completed).
