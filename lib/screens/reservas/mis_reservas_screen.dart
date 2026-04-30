@@ -627,7 +627,7 @@ class _ProximaCard extends StatelessWidget {
                 Expanded(
                   child: SizedBox(
                     height: 42,
-                    child: ElevatedButton(
+                    child: ElevatedButton.icon(
                       onPressed: onVerTicket,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
@@ -637,8 +637,9 @@ class _ProximaCard extends StatelessWidget {
                         ),
                         elevation: 0,
                       ),
-                      child: const Text(
-                        'Ver ticket',
+                      icon: const Icon(Icons.qr_code_2_rounded, size: 18),
+                      label: const Text(
+                        'Ticket',
                         style: TextStyle(
                             fontSize: 13, fontWeight: FontWeight.w700),
                       ),
