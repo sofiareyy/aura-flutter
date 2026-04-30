@@ -157,14 +157,20 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
       if (filteredIds.isNotEmpty && !filteredIds.contains(estudio?['id'])) {
         return false;
       }
+      // BUG 15: parsear con 'Z' fuerza UTC en vez de local del device, y
+      // como las fechas en DB ya estan en hora Argentina (UTC-3) sin
+      // marker, weekday/hour del DateTime UTC reflejan la hora Argentina
+      // independiente del timezone del device.
       // Filtro por día de la semana
       if (_diasFiltro.isNotEmpty) {
-        final fecha = DateTime.tryParse(clase['fecha']?.toString() ?? '');
+        final raw = clase['fecha']?.toString() ?? '';
+        final fecha = DateTime.tryParse('${raw.replaceFirst(' ', 'T')}Z');
         if (fecha == null || !_diasFiltro.contains(fecha.weekday)) return false;
       }
       // Filtro por horario
       if (_horarioFiltro.isNotEmpty) {
-        final fecha = DateTime.tryParse(clase['fecha']?.toString() ?? '');
+        final raw = clase['fecha']?.toString() ?? '';
+        final fecha = DateTime.tryParse('${raw.replaceFirst(' ', 'T')}Z');
         if (fecha == null) return false;
         final hora = fecha.hour;
         final matchesHorario = _horarioFiltro.any((h) {
