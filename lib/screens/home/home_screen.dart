@@ -364,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             dias: dias,
                             creditos: usuario.creditos,
                             onDismiss: _dismissBanner,
-                            onExplorar: () => context.push('/explorar'),
+                            onExplorar: () => context.go('/explorar'),
                           ),
                         );
                       },
