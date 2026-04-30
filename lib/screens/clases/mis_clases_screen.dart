@@ -1225,26 +1225,17 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
               ),
             ),
             const Spacer(),
-            OutlinedButton(
+            IconButton(
               onPressed: _openGridForm,
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text('Crear grilla'),
+              icon: const Icon(Icons.grid_view_rounded),
+              color: AppColors.primary,
+              tooltip: 'Crear grilla',
             ),
-            const SizedBox(width: 10),
-            ElevatedButton.icon(
+            IconButton(
               onPressed: () => _openForm(),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Nueva clase'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
+              icon: const Icon(Icons.add),
+              color: AppColors.primary,
+              tooltip: 'Nueva clase',
             ),
           ],
         ),
@@ -1674,22 +1665,26 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                     Row(children: [
                       const Expanded(child: Text('Mis clases', style: TextStyle(color: AppColors.black, fontSize: 22, fontWeight: FontWeight.w700))),
                       if (_studio) ...[
+                        IconButton(
+                          onPressed: _openGridForm,
+                          icon: const Icon(Icons.grid_view_rounded),
+                          color: AppColors.primary,
+                          tooltip: 'Crear grilla',
+                        ),
+                        IconButton(
+                          onPressed: () => _openForm(),
+                          icon: const Icon(Icons.add),
+                          color: AppColors.primary,
+                          tooltip: 'Nuevo horario',
+                        ),
+                      ] else
                         SizedBox(
                           height: 40,
-                          child: OutlinedButton(
-                            onPressed: _openGridForm,
-                            child: const Text('Crear grilla'),
+                          child: ElevatedButton(
+                            onPressed: () => context.go('/explorar'),
+                            child: const Text('Nueva clase'),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                      ],
-                      SizedBox(
-                        height: 40,
-                        child: ElevatedButton(
-                          onPressed: _studio ? () => _openForm() : () => context.go('/explorar'),
-                          child: Text(_studio ? 'Nuevo horario' : 'Nueva clase'),
-                        ),
-                      ),
                     ]),
                     if (_studio) ...[
                       const SizedBox(height: 16),
