@@ -108,8 +108,13 @@ class _StudyReviewSheetState extends State<StudyReviewSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).padding.bottom;
-    return Container(
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    final safeBottom = MediaQuery.of(context).padding.bottom;
+    final bottom = viewInsets > 0 ? viewInsets : safeBottom;
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
       decoration: const BoxDecoration(
         color: Color(0xFFF7F5F2),
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -212,6 +217,7 @@ class _StudyReviewSheetState extends State<StudyReviewSheet> {
                 ),
               ],
             ),
+      ),
     );
   }
 }
