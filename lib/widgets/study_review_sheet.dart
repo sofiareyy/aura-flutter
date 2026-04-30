@@ -108,9 +108,7 @@ class _StudyReviewSheetState extends State<StudyReviewSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     final safeBottom = MediaQuery.of(context).padding.bottom;
-    final bottom = viewInsets > 0 ? viewInsets : safeBottom;
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       behavior: HitTestBehavior.opaque,
@@ -119,7 +117,7 @@ class _StudyReviewSheetState extends State<StudyReviewSheet> {
         color: Color(0xFFF7F5F2),
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      padding: EdgeInsets.fromLTRB(20, 16, 20, bottom + 20),
+      padding: EdgeInsets.fromLTRB(20, 16, 20, safeBottom + 20),
       child: _loading
           ? const SizedBox(
               height: 240,
@@ -207,12 +205,18 @@ class _StudyReviewSheetState extends State<StudyReviewSheet> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: _saving ? null : _guardar,
-                    child: Text(_saving ? 'Guardando...' : 'Guardar reseña'),
+                AnimatedPadding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom,
+                  ),
+                  duration: const Duration(milliseconds: 100),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: _saving ? null : _guardar,
+                      child: Text(_saving ? 'Guardando...' : 'Guardar reseña'),
+                    ),
                   ),
                 ),
               ],
