@@ -121,6 +121,13 @@ Top categoría: ${m['top_categoria'] ?? 'Sin datos'}
     final m = _metrics;
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        toolbarHeight: 0,
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        automaticallyImplyLeading: false,
+      ),
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary),

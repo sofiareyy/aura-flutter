@@ -78,6 +78,13 @@ class _AdminReservasScreenState extends State<AdminReservasScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        toolbarHeight: 0,
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        automaticallyImplyLeading: false,
+      ),
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary),
