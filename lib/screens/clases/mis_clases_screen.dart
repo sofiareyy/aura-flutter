@@ -583,158 +583,316 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     int dur = (item?['duracion_min'] as num?)?.toInt() ?? 60;
     String? cat = item?['categoria']?.toString();
     if (!mounted) return;
-    final ok = await showDialog<bool>(
+    bool showExtraFields = false;
+    final ok = await showModalBottomSheet<bool>(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setD) {
-        return AlertDialog(
-          title: Text(edit ? 'Editar horario fijo' : 'Nuevo horario fijo'),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: n, decoration: const InputDecoration(hintText: 'Nombre de la clase')),
-              const SizedBox(height: 10),
-              if (categoriasDisponibles.isEmpty)
-                const InputDecorator(
-                  decoration: InputDecoration(
-                    hintText: 'Categoría',
-                  ),
-                  child: Text(
-                    'Primero crea categorias desde Admin Aura > Config.',
-                  ),
-                )
-              else
-                DropdownButtonFormField<String>(
-                  value: categoriasDisponibles.contains(cat) ? cat : null,
-                  items: categoriasDisponibles
-                      .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                      .toList(),
-                  onChanged: (v) => setD(() => cat = v),
-                  decoration: const InputDecoration(labelText: 'Categoría'),
-                ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<int>(
-                value: d,
-                items: List.generate(7, (x) => DropdownMenuItem(value: x + 1, child: Text(_dayName(x + 1)))),
-                onChanged: (v) => setD(() => d = v ?? d),
-                decoration: const InputDecoration(labelText: 'Día'),
+        final mq = MediaQuery.of(ctx);
+        return AnimatedPadding(
+          padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+          duration: const Duration(milliseconds: 100),
+          child: FractionallySizedBox(
+            heightFactor: 0.92,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: _kFieldFill,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
               ),
-              const SizedBox(height: 10),
-              InkWell(
-                onTap: () async {
-                  final p = await showTimePicker(context: ctx, initialTime: t);
-                  if (p != null) setD(() => t = p);
-                },
-                child: InputDecorator(
-                  decoration: const InputDecoration(labelText: 'Hora de inicio'),
-                  child: Row(children: [const Icon(Icons.schedule_rounded, size: 18), const SizedBox(width: 8), Text(_timeText(t))]),
-                ),
-              ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<int>(
-                value: dur,
-                items: const [
-                  DropdownMenuItem(value: 45, child: Text('45 min')),
-                  DropdownMenuItem(value: 60, child: Text('60 min')),
-                  DropdownMenuItem(value: 75, child: Text('75 min')),
-                  DropdownMenuItem(value: 90, child: Text('90 min')),
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD1CAC3),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 8, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            edit ? 'Editar horario fijo' : 'Nuevo horario fijo',
+                            style: const TextStyle(
+                              color: Color(0xFF1A1A1A),
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          icon: const Icon(Icons.close_rounded,
+                              color: Color(0xFF1A1A1A)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                      child: Column(
+                        children: [
+                          // Card 1: Información básica
+                          _SectionCard(
+                            title: 'Información básica',
+                            children: [
+                              _AuraTextField(
+                                controller: n,
+                                label: 'Nombre de la clase',
+                                hint: 'Yoga restaurativo',
+                              ),
+                              const SizedBox(height: 12),
+                              _AuraTextField(
+                                controller: i,
+                                label: 'Instructor/a',
+                                hint: 'Florencia Pérez',
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          // Card 2: Horario
+                          _SectionCard(
+                            title: 'Horario',
+                            children: [
+                              _AuraDropdown<int>(
+                                label: 'Día',
+                                value: d,
+                                items: List.generate(
+                                    7,
+                                    (x) => DropdownMenuItem(
+                                          value: x + 1,
+                                          child: Text(_dayName(x + 1)),
+                                        )),
+                                onChanged: (v) => setD(() => d = v ?? d),
+                              ),
+                              const SizedBox(height: 12),
+                              _AuraTapField(
+                                label: 'Hora de inicio',
+                                value: _timeText(t),
+                                icon: Icons.schedule_rounded,
+                                onTap: () async {
+                                  final p = await showTimePicker(
+                                      context: ctx, initialTime: t);
+                                  if (p != null) setD(() => t = p);
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              _AuraDropdown<int>(
+                                label: 'Duración',
+                                value: dur,
+                                items: const [
+                                  DropdownMenuItem(
+                                      value: 45, child: Text('45 min')),
+                                  DropdownMenuItem(
+                                      value: 60, child: Text('60 min')),
+                                  DropdownMenuItem(
+                                      value: 75, child: Text('75 min')),
+                                  DropdownMenuItem(
+                                      value: 90, child: Text('90 min')),
+                                ],
+                                onChanged: (v) => setD(() => dur = v ?? dur),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          // Card 3: Capacidad
+                          _SectionCard(
+                            title: 'Capacidad',
+                            children: [
+                              _AuraTextField(
+                                controller: c,
+                                label: 'Cupos disponibles',
+                                hint: '12',
+                                keyboardType: TextInputType.number,
+                              ),
+                              const SizedBox(height: 12),
+                              _AuraDropdown<int>(
+                                label: 'Cierre de reservas',
+                                value: cierreReserva,
+                                items: _bookingCutoffOptions
+                                    .map((v) => DropdownMenuItem(
+                                          value: v,
+                                          child: Text(_bookingCutoffLabel(v)),
+                                        ))
+                                    .toList(),
+                                onChanged: (v) =>
+                                    setD(() => cierreReserva = v ?? 0),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          // Card 4: Categoría y precio
+                          _SectionCard(
+                            title: 'Categoría y precio',
+                            children: [
+                              if (categoriasDisponibles.isEmpty)
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFF1E8),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Text(
+                                    'Primero creá categorías desde Admin Aura > Config.',
+                                    style: TextStyle(
+                                        color: AppColors.primary,
+                                        fontSize: 13),
+                                  ),
+                                )
+                              else
+                                _AuraDropdown<String>(
+                                  label: 'Categoría',
+                                  value: categoriasDisponibles.contains(cat)
+                                      ? cat
+                                      : null,
+                                  items: categoriasDisponibles
+                                      .map((v) => DropdownMenuItem(
+                                            value: v,
+                                            child: Text(v),
+                                          ))
+                                      .toList(),
+                                  onChanged: (v) => setD(() => cat = v),
+                                ),
+                              const SizedBox(height: 12),
+                              if (_estudiosDefinenCreditos)
+                                _AuraTextField(
+                                  controller: cr,
+                                  label: 'Créditos de la clase',
+                                  hint: '10',
+                                  keyboardType: TextInputType.number,
+                                )
+                              else
+                                _AuraReadOnlyField(
+                                  label: 'Créditos de la clase',
+                                  value: cr.text.isEmpty ? '10' : cr.text,
+                                  caption:
+                                      'Precio definido por Aura según categoría',
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          // Card 5: Detalles adicionales (colapsable)
+                          _CollapsibleSectionCard(
+                            title: 'Detalles adicionales',
+                            expanded: showExtraFields,
+                            onToggle: () => setD(
+                                () => showExtraFields = !showExtraFields),
+                            children: [
+                              _AuraTextField(
+                                controller: iDesc,
+                                label: 'Descripción del instructor/a',
+                                hint:
+                                    'Profesora certificada con 10 años de experiencia',
+                                maxLines: 2,
+                              ),
+                              const SizedBox(height: 12),
+                              _AuraTextField(
+                                controller: incluye,
+                                label: 'Qué incluye la clase',
+                                hint: 'Mat, agua, vestuario',
+                                maxLines: 2,
+                              ),
+                              const SizedBox(height: 12),
+                              _AuraTextField(
+                                controller: imagenUrl,
+                                label: 'Imagen principal (URL)',
+                                hint: 'https://...',
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    final uploaded =
+                                        await _subirImagenClase();
+                                    if (uploaded != null) {
+                                      imagenUrl.text = uploaded;
+                                      setD(() {});
+                                    }
+                                  },
+                                  icon: const Icon(Icons.image_outlined),
+                                  label:
+                                      const Text('Subir imagen principal'),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _AuraTextField(
+                                controller: galeria,
+                                label: 'Galería de fotos',
+                                hint: 'Una URL por línea',
+                                maxLines: 3,
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    final uploaded =
+                                        await _subirImagenClase();
+                                    if (uploaded != null) {
+                                      galeria.text =
+                                          galeria.text.trim().isEmpty
+                                              ? uploaded
+                                              : '${galeria.text.trim()}\n$uploaded';
+                                      setD(() {});
+                                    }
+                                  },
+                                  icon: const Icon(
+                                      Icons.photo_library_outlined),
+                                  label: const Text(
+                                      'Agregar imagen a galería'),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _AuraTextField(
+                                controller: s,
+                                label: 'Sala',
+                                hint: 'Sala 1',
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                        16, 12, 16, mq.padding.bottom + 32),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          elevation: 0,
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        child: Text(
+                            edit ? 'Guardar cambios' : 'Guardar clase'),
+                      ),
+                    ),
+                  ),
                 ],
-                onChanged: (v) => setD(() => dur = v ?? dur),
-                decoration: const InputDecoration(labelText: 'Duración'),
               ),
-              const SizedBox(height: 10),
-              TextField(controller: c, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Cupos')),
-              const SizedBox(height: 10),
-              if (_estudiosDefinenCreditos)
-                TextField(controller: cr, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Créditos de la clase'))
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    InputDecorator(
-                      decoration: const InputDecoration(labelText: 'Créditos de la clase'),
-                      child: Text(cr.text.isEmpty ? '10' : cr.text),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Precio definido por Aura según categoría',
-                      style: TextStyle(color: AppColors.grey, fontSize: 12),
-                    ),
-                  ],
-                ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<int>(
-                value: cierreReserva,
-                items: _bookingCutoffOptions.map((v) => DropdownMenuItem(value: v, child: Text(_bookingCutoffLabel(v)))).toList(),
-                onChanged: (v) => setD(() => cierreReserva = v ?? 0),
-                decoration: const InputDecoration(labelText: 'Reserva disponible hasta'),
-              ),
-              const SizedBox(height: 10),
-              TextField(controller: i, decoration: const InputDecoration(hintText: 'Instructor/a (opcional)')),
-              const SizedBox(height: 10),
-              TextField(
-                controller: iDesc,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  hintText: 'Descripción del instructor/a (opcional)',
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: incluye,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  hintText: 'Qué incluye la clase (opcional)',
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(controller: imagenUrl, decoration: const InputDecoration(hintText: 'Imagen principal (URL opcional)')),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final uploaded = await _subirImagenClase();
-                    if (uploaded != null) {
-                      imagenUrl.text = uploaded;
-                      setD(() {});
-                    }
-                  },
-                  icon: const Icon(Icons.image_outlined),
-                  label: const Text('Subir imagen principal'),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: galeria,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  hintText: 'Galería (una URL por línea)',
-                ),
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final uploaded = await _subirImagenClase();
-                    if (uploaded != null) {
-                      galeria.text = galeria.text.trim().isEmpty
-                          ? uploaded
-                          : '${galeria.text.trim()}\n$uploaded';
-                      setD(() {});
-                    }
-                  },
-                  icon: const Icon(Icons.photo_library_outlined),
-                  label: const Text('Agregar imagen a galería'),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(controller: s, decoration: const InputDecoration(hintText: 'Sala (opcional)')),
-            ]),
+            ),
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(edit ? 'Guardar cambios' : 'Guardar', style: const TextStyle(color: AppColors.primary))),
-          ],
         );
       }),
     );
@@ -2907,6 +3065,269 @@ class _InfoPanel extends StatelessWidget {
           Text(body, style: const TextStyle(color: Color(0xFF8F877F), fontSize: 14)),
         ]),
       );
+}
+
+// ─── Form helpers (sistema de diseno Aura para forms del panel estudio) ───
+// Reusables entre _editClaseDialog, _openForm, _openGridForm.
+
+const _kFieldFill = Color(0xFFF7F5F2);
+const _kCardShadow = [
+  BoxShadow(color: Color(0x08000000), blurRadius: 12, offset: Offset(0, 2)),
+];
+
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+  const _SectionCard({required this.title, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: _kCardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _CollapsibleSectionCard extends StatelessWidget {
+  final String title;
+  final bool expanded;
+  final VoidCallback onToggle;
+  final List<Widget> children;
+  const _CollapsibleSectionCard({
+    required this.title,
+    required this.expanded,
+    required this.onToggle,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: _kCardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title.toUpperCase(),
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    expanded ? 'Ocultar' : 'Mostrar más opciones',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    color: AppColors.primary,
+                    size: 22,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (expanded) ...[
+            const SizedBox(height: 14),
+            ...children,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+InputDecoration _formInputDecoration({
+  required String label,
+  String? hint,
+}) {
+  OutlineInputBorder border([Color? color]) => OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: color == null
+            ? BorderSide.none
+            : BorderSide(color: color, width: 1.5),
+      );
+  return InputDecoration(
+    labelText: label,
+    hintText: hint,
+    filled: true,
+    fillColor: _kFieldFill,
+    floatingLabelBehavior: FloatingLabelBehavior.always,
+    labelStyle: const TextStyle(color: Color(0xFF6E6761), fontSize: 13),
+    hintStyle: const TextStyle(color: Color(0xFFB0A89F), fontSize: 14),
+    border: border(),
+    enabledBorder: border(),
+    focusedBorder: border(AppColors.primary),
+    contentPadding:
+        const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+  );
+}
+
+class _AuraTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String? hint;
+  final TextInputType? keyboardType;
+  final int maxLines;
+  const _AuraTextField({
+    required this.controller,
+    required this.label,
+    this.hint,
+    this.keyboardType,
+    this.maxLines = 1,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 15),
+      decoration: _formInputDecoration(label: label, hint: hint),
+    );
+  }
+}
+
+class _AuraDropdown<T> extends StatelessWidget {
+  final String label;
+  final T? value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?> onChanged;
+  const _AuraDropdown({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<T>(
+      // ignore: deprecated_member_use
+      value: value,
+      items: items,
+      onChanged: onChanged,
+      style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 15),
+      decoration: _formInputDecoration(label: label),
+    );
+  }
+}
+
+class _AuraTapField extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final VoidCallback onTap;
+  const _AuraTapField({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: _formInputDecoration(label: label),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: AppColors.primary),
+            const SizedBox(width: 10),
+            Text(value,
+                style: const TextStyle(
+                  color: Color(0xFF1A1A1A),
+                  fontSize: 15,
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AuraReadOnlyField extends StatelessWidget {
+  final String label;
+  final String value;
+  final String? caption;
+  const _AuraReadOnlyField({
+    required this.label,
+    required this.value,
+    this.caption,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InputDecorator(
+          decoration: _formInputDecoration(label: label),
+          child: Text(value,
+              style: const TextStyle(
+                color: Color(0xFF1A1A1A),
+                fontSize: 15,
+              )),
+        ),
+        if (caption != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            caption!,
+            style: const TextStyle(color: AppColors.grey, fontSize: 12),
+          ),
+        ],
+      ],
+    );
+  }
 }
 
 
