@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/admin_service.dart';
+import '../../widgets/soporte_card.dart';
 
 class ConfiguracionScreen extends StatelessWidget {
   const ConfiguracionScreen({super.key});
@@ -65,8 +66,20 @@ class ConfiguracionScreen extends StatelessWidget {
               return const SizedBox.shrink();
             },
           ),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              'Ayuda y soporte',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(color: AppColors.grey),
+            ),
+          ),
+          const SoporteCard(),
+          const SizedBox(height: 16),
           _Section(
-            title: 'Soporte',
+            title: 'Información legal',
             items: [
               _Item(
                 icon: Icons.help_outline_rounded,

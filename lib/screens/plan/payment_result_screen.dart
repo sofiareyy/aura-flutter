@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/usuarios_service.dart';
+import '../../widgets/soporte_card.dart';
 
 class PaymentResultScreen extends StatefulWidget {
   final String? pagoId;
@@ -201,6 +202,8 @@ class _FailureView extends StatelessWidget {
           onPressed: onHome,
           child: const Text('Volver al inicio'),
         ),
+        const SizedBox(height: 16),
+        const SoporteInlineHint(),
       ],
     );
   }
@@ -321,6 +324,8 @@ class _ConfirmErrorView extends StatelessWidget {
           onPressed: onHome,
           child: const Text('Volver al inicio'),
         ),
+        const SizedBox(height: 16),
+        const SoporteInlineHint(),
       ],
     );
   }

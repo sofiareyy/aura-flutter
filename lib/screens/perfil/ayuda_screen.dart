@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../widgets/soporte_card.dart';
 
 class AyudaScreen extends StatelessWidget {
   const AyudaScreen({super.key});
@@ -13,6 +14,8 @@ class AyudaScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: const [
+          SoporteCard(),
+          SizedBox(height: 18),
           _InfoCard(
             title: 'Cómo reservar',
             body:
@@ -27,11 +30,6 @@ class AyudaScreen extends StatelessWidget {
             title: 'Planes y créditos',
             body:
                 'Tus créditos y tu plan activo aparecen tanto en Home como en Perfil. Las compras de prueba pueden seguir marcadas como simuladas hasta cerrar la integración final de pagos.',
-          ),
-          _InfoCard(
-            title: 'Contacto',
-            body:
-                'Para soporte general del MVP, podés centralizar consultas en el canal de ayuda de Aura o redirigir al WhatsApp/Instagram del estudio desde cada ficha.',
           ),
         ],
       ),
