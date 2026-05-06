@@ -468,6 +468,42 @@ class AdminService {
     return Map<String, dynamic>.from(result.data as Map);
   }
 
+  /// Crea un estudio nuevo + cuenta de auth con email pre-verificado +
+  /// fila en `usuarios` con rol 'estudio'. Solo para admins (la Edge Function
+  /// chequea el rol del caller).
+  /// Devuelve `{user_id, estudio_id, email, password}`.
+  Future<Map<String, dynamic>> crearEstudioConCuenta({
+    required String estudioNombre,
+    required String email,
+    required String password,
+    String? categoria,
+    String? direccion,
+    String? barrio,
+  }) async {
+    final jwt = _client.auth.currentSession?.accessToken ?? '';
+    if (jwt.isEmpty) {
+      throw Exception('Sin sesión activa.');
+    }
+    final result = await _client.functions.invoke(
+      'admin-crear-estudio',
+      headers: {'x-aura-auth': jwt},
+      body: {
+        'estudio_nombre': estudioNombre,
+        'email': email,
+        'password': password,
+        if (categoria != null && categoria.isNotEmpty) 'categoria': categoria,
+        if (direccion != null && direccion.isNotEmpty) 'direccion': direccion,
+        if (barrio != null && barrio.isNotEmpty) 'barrio': barrio,
+      },
+    );
+    if (result.status != 200) {
+      final msg = (result.data as Map?)?['error']?.toString() ??
+          'Error creando el estudio.';
+      throw Exception(msg);
+    }
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
   Future<String?> getConfigGlobal(String clave) async {
     try {
       final res = await _client

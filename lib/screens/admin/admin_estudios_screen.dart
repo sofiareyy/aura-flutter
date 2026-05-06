@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -250,6 +251,231 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     await _load();
   }
 
+  Future<void> _openCreateWithAccountDialog() async {
+    final nombreCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final passwordCtrl = TextEditingController();
+    final direccionCtrl = TextEditingController();
+    final barrioCtrl = TextEditingController();
+    String? categoria;
+
+    final formKey = GlobalKey<FormState>();
+    bool obscurePassword = true;
+    bool saving = false;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Crear estudio con cuenta'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'La cuenta se crea con email pre-verificado. '
+                      'Anotá las credenciales al final.',
+                      style: TextStyle(color: AppColors.grey, fontSize: 12),
+                    ),
+                  ),
+                  TextFormField(
+                    controller: nombreCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre del estudio',
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    validator: (v) => (v == null || v.trim().length < 2)
+                        ? 'Ingresá un nombre'
+                        : null,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: emailCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Email (puede ser inventado)',
+                      helperText: 'No se manda mail de verificación',
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    validator: (v) {
+                      final email = v?.trim() ?? '';
+                      final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                      if (!regex.hasMatch(email)) return 'Email inválido';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: passwordCtrl,
+                    obscureText: obscurePassword,
+                    decoration: InputDecoration(
+                      labelText: 'Contraseña inicial',
+                      helperText: 'Mínimo 6 caracteres',
+                      suffixIcon: IconButton(
+                        icon: Icon(obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined),
+                        onPressed: () => setLocal(
+                            () => obscurePassword = !obscurePassword),
+                      ),
+                    ),
+                    validator: (v) => (v == null || v.length < 6)
+                        ? 'Mínimo 6 caracteres'
+                        : null,
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    initialValue: categoria,
+                    decoration: const InputDecoration(labelText: 'Categoría'),
+                    items: _categories
+                        .map((c) =>
+                            DropdownMenuItem(value: c, child: Text(c)))
+                        .toList(),
+                    onChanged: (v) => setLocal(() => categoria = v),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: direccionCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Dirección (opcional)',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: barrioCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Barrio (opcional)',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      if (!(formKey.currentState?.validate() ?? false)) {
+                        return;
+                      }
+                      setLocal(() => saving = true);
+                      try {
+                        final res =
+                            await _service.crearEstudioConCuenta(
+                          estudioNombre: nombreCtrl.text,
+                          email: emailCtrl.text.trim(),
+                          password: passwordCtrl.text,
+                          categoria: categoria,
+                          direccion: direccionCtrl.text.trim(),
+                          barrio: barrioCtrl.text.trim(),
+                        );
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx, true);
+                        await _mostrarCredencialesCreadas(
+                          email: res['email']?.toString() ?? '',
+                          password: res['password']?.toString() ?? '',
+                          nombre: nombreCtrl.text,
+                        );
+                      } catch (e) {
+                        if (!ctx.mounted) return;
+                        setLocal(() => saving = false);
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(
+                            content: Text(e
+                                .toString()
+                                .replaceFirst('Exception: ', '')),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                      }
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text('Crear'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    nombreCtrl.dispose();
+    emailCtrl.dispose();
+    passwordCtrl.dispose();
+    direccionCtrl.dispose();
+    barrioCtrl.dispose();
+
+    if (ok == true) {
+      await _load();
+    }
+  }
+
+  Future<void> _mostrarCredencialesCreadas({
+    required String email,
+    required String password,
+    required String nombre,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: const [
+            Icon(Icons.check_circle_rounded,
+                color: AppColors.success, size: 22),
+            SizedBox(width: 8),
+            Text('Estudio creado'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              nombre,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Pasá estas credenciales al estudio:',
+              style: TextStyle(color: AppColors.grey, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            _CredencialRow(label: 'Email', value: email),
+            const SizedBox(height: 8),
+            _CredencialRow(label: 'Contraseña', value: password),
+            const SizedBox(height: 12),
+            const Text(
+              'Una vez cerrado este diálogo no vamos a volver a mostrarte la contraseña en claro.',
+              style: TextStyle(color: AppColors.grey, fontSize: 11, height: 1.4),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Listo'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openLinkAccessDialog(Map<String, dynamic> estudio) async {
     final emailCtrl = TextEditingController();
     final estudioId = (estudio['id'] as num).toInt();
@@ -277,10 +503,28 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
         scrolledUnderElevation: 0,
         automaticallyImplyLeading: false,
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openForm(),
-        backgroundColor: AppColors.primary,
-        label: const Text('Nuevo estudio'),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'estudio_con_cuenta',
+            onPressed: _openCreateWithAccountDialog,
+            backgroundColor: AppColors.black,
+            foregroundColor: Colors.white,
+            icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+            label: const Text('Crear con cuenta'),
+          ),
+          const SizedBox(height: 10),
+          FloatingActionButton.extended(
+            heroTag: 'estudio_solo',
+            onPressed: () => _openForm(),
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            icon: const Icon(Icons.add_business_rounded, size: 18),
+            label: const Text('Solo estudio'),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(
@@ -752,6 +996,67 @@ class _StudioAccessDialogState extends State<_StudioAccessDialog> {
               : const Text('Agregar acceso'),
         ),
       ],
+    );
+  }
+}
+
+class _CredencialRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _CredencialRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F5F2),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.lightGrey),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.grey,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: SelectableText(
+              value,
+              style: const TextStyle(
+                color: AppColors.black,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            tooltip: 'Copiar',
+            color: AppColors.primary,
+            visualDensity: VisualDensity.compact,
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: value));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('$label copiado al portapapeles'),
+                  duration: const Duration(seconds: 2),
+                  backgroundColor: AppColors.blackSoft,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
