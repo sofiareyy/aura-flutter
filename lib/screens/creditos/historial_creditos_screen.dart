@@ -47,18 +47,37 @@ class _HistorialCreditosScreenState extends State<HistorialCreditosScreen> {
             .order('created_at', ascending: false),
         _supabase
             .from('reservas')
-            .select('id, creditos_usados, codigo_qr, created_at, clase_id')
+            .select(
+              'id, creditos_usados, codigo_qr, created_at, clase_id, estado',
+            )
             .eq('usuario_id', userId)
-            .neq('estado', 'cancelada')
             .gt('creditos_usados', 0)
             .order('created_at', ascending: false),
       ]);
 
       final pagos = (results[0] as List).cast<Map<String, dynamic>>();
-      final reservas = (results[1] as List).cast<Map<String, dynamic>>();
+      final reservasAll = (results[1] as List).cast<Map<String, dynamic>>();
 
-      // Enriquecer reservas con nombre de clase
-      final clasesIds = reservas.map((r) => r['clase_id']).whereType<int>().toSet().toList();
+      // Separar reservas activas (egresos) de canceladas con devolución (ingresos).
+      final reservasActivas = reservasAll
+          .where((r) {
+            final estado = r['estado']?.toString() ?? '';
+            return estado != 'cancelada' && estado != 'cancelada_por_estudio';
+          })
+          .toList();
+      final reservasCanceladas = reservasAll
+          .where((r) {
+            final estado = r['estado']?.toString() ?? '';
+            return estado == 'cancelada' || estado == 'cancelada_por_estudio';
+          })
+          .toList();
+
+      // Enriquecer ambos grupos con nombre de clase
+      final clasesIds = reservasAll
+          .map((r) => r['clase_id'])
+          .whereType<int>()
+          .toSet()
+          .toList();
       final Map<int, String> claseNombres = {};
       if (clasesIds.isNotEmpty) {
         final clasesRows = await _supabase
@@ -90,7 +109,7 @@ class _HistorialCreditosScreenState extends State<HistorialCreditosScreen> {
         ));
       }
 
-      for (final r in reservas) {
+      for (final r in reservasActivas) {
         final fecha = DateTime.tryParse(r['created_at']?.toString() ?? '');
         if (fecha == null) continue;
         final creditos = (r['creditos_usados'] as num?)?.toInt() ?? 0;
@@ -100,6 +119,24 @@ class _HistorialCreditosScreenState extends State<HistorialCreditosScreen> {
           fecha: fecha,
           tipo: _TipoMovimiento.egreso,
           descripcion: nombreClase,
+          creditos: creditos,
+        ));
+      }
+
+      // Devoluciones por reservas canceladas (con o sin créditos en plazo).
+      // Usamos created_at de la reserva como aproximación de la fecha del movimiento;
+      // cuando tengamos cancelled_at podemos cambiar a ese campo.
+      for (final r in reservasCanceladas) {
+        final fecha = DateTime.tryParse(r['created_at']?.toString() ?? '');
+        if (fecha == null) continue;
+        final creditos = (r['creditos_usados'] as num?)?.toInt() ?? 0;
+        final claseId = (r['clase_id'] as num?)?.toInt();
+        final nombreClase =
+            (claseId != null ? claseNombres[claseId] : null) ?? 'clase cancelada';
+        movs.add(_Movimiento(
+          fecha: fecha,
+          tipo: _TipoMovimiento.ingreso,
+          descripcion: 'Devolución — $nombreClase',
           creditos: creditos,
         ));
       }

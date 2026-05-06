@@ -29,21 +29,23 @@ class ReservasService {
 
     final joined = await _joinClasesEstudios(reservas as List);
 
-    // BUG 13: filtrar reservas con fecha pasada que el cron de "completar"
-    // todavía no marcó. Comparación de strings YYYY-MM-DD HH:mm:ss en hora
-    // Argentina (UTC-3) — coincide con _toSupaDate del clases_service.
-    final now = DateTime.now().toUtc().subtract(const Duration(hours: 3));
-    final nowStr =
-        '${now.year.toString().padLeft(4, '0')}-'
-        '${now.month.toString().padLeft(2, '0')}-'
-        '${now.day.toString().padLeft(2, '0')} '
-        '${now.hour.toString().padLeft(2, '0')}:'
-        '${now.minute.toString().padLeft(2, '0')}:00';
+    // BUG 17 (re-fix de BUG 13): filtrar reservas con fecha pasada que el cron de
+    // "completar" todavía no marcó. Antes usábamos comparación de strings, frágil
+    // con formatos mixtos (naive vs tz-aware). Ahora parseamos a DateTime y
+    // comparamos como instantes absolutos en hora Argentina (UTC-3 fijo).
+    const argOffset = Duration(hours: -3);
+    final nowArgentina = DateTime.now().toUtc().add(argOffset);
     return joined.where((r) {
-      final fechaStr =
-          (r['clases'] as Map?)?['fecha']?.toString() ?? '';
+      final fechaStr = (r['clases'] as Map?)?['fecha']?.toString() ?? '';
       if (fechaStr.isEmpty) return false;
-      return fechaStr.compareTo(nowStr) >= 0;
+      final parsed = DateTime.tryParse(fechaStr);
+      if (parsed == null) return false;
+      // Si el string traía TZ (ej. "2026-04-30T19:00:00+00:00") parsed.isUtc=true.
+      // En ese caso lo convertimos a Argentina. Si era naive lo asumimos
+      // ya en hora Argentina (cómo lo escribe _toSupaDate del clases_service).
+      final fechaArgentina =
+          parsed.isUtc ? parsed.add(argOffset) : parsed;
+      return !fechaArgentina.isBefore(nowArgentina);
     }).toList();
   }
 
@@ -272,30 +274,67 @@ class ReservasService {
     } catch (_) {}
   }
 
-  Future<void> cancelarReserva(String codigoQr) async {
-    // Obtener datos antes de cancelar para devolver créditos
+  /// Cancela la reserva y devuelve los créditos. Lanza excepción si la reserva
+  /// no se encuentra. Devuelve la cantidad de créditos restituidos para que la UI
+  /// pueda mostrar feedback ("Te devolvimos N créditos").
+  Future<int> cancelarReserva(String codigoQr) async {
+    // Obtener datos antes de cancelar para devolver créditos + nombre de clase
     final reserva = await _supabase
         .from(AppConstants.tableReservas)
         .select()
         .eq('codigo_qr', codigoQr)
         .maybeSingle();
 
-    if (reserva == null) return;
+    if (reserva == null) return 0;
 
     await _supabase
         .from(AppConstants.tableReservas)
         .update({'estado': 'cancelada'}).eq('codigo_qr', codigoQr);
 
-    // Devolver créditos al usuario
     final usuarioId = reserva['usuario_id']?.toString() ?? '';
     final creditosUsados = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
+    final claseId = (reserva['clase_id'] as num?)?.toInt();
+
+    // Buscar nombre de clase para la descripción del movimiento
+    String claseNombre = 'clase cancelada';
+    if (claseId != null) {
+      try {
+        final clase = await _supabase
+            .from(AppConstants.tableClases)
+            .select('nombre')
+            .eq('id', claseId)
+            .maybeSingle();
+        final nombre = clase?['nombre']?.toString().trim();
+        if (nombre != null && nombre.isNotEmpty) {
+          claseNombre = nombre;
+        }
+      } catch (_) {
+        // Non-critical: dejamos el fallback
+      }
+    }
+
+    // Devolver créditos vía RPC para que quede asentado en creditos_movimientos
+    // como entrada de historial. Si falla, fallback a UPDATE directo.
     if (usuarioId.isNotEmpty && creditosUsados > 0) {
-      await _usuariosService.agregarCreditos(usuarioId, creditosUsados);
+      final vencimiento = DateTime.now().add(const Duration(days: 60));
+      try {
+        await _supabase.rpc('grant_user_credits', params: {
+          'p_user_id': usuarioId,
+          'p_amount': creditosUsados,
+          'p_source': 'devolucion_cancelacion',
+          'p_description': 'Devolución — $claseNombre',
+          'p_expires_at': vencimiento.toIso8601String(),
+        });
+      } catch (_) {
+        await _usuariosService.agregarCreditos(usuarioId, creditosUsados);
+      }
     }
 
     // Cancelar notificación local (usa hash del código como ID entero)
     final notifId = codigoQr.hashCode.abs() % 2147483647;
     await NotificacionesService.instance.cancelReservaReminder(notifId);
+
+    return creditosUsados;
   }
 
   /// Called by the studio to cancel a class.

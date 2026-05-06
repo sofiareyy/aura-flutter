@@ -117,18 +117,28 @@ class _MisReservasScreenState extends State<MisReservasScreen>
     if (!_puedeCancelar(reserva)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Solo podés cancelar hasta 12 horas antes del inicio.'),
+          content: Text(
+            'Solo podés cancelar hasta 12 horas antes del inicio. '
+            'Pasado ese plazo no devolvemos los créditos.',
+          ),
           backgroundColor: AppColors.error,
+          duration: Duration(seconds: 4),
         ),
       );
       return;
     }
 
+    final creditos =
+        (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Cancelar reserva'),
-        content: const Text('¿Querés cancelar esta reserva?'),
+        content: Text(
+          creditos > 0
+              ? '¿Querés cancelar esta reserva? Te vamos a devolver $creditos crédito${creditos == 1 ? '' : 's'} a tu cuenta.'
+              : '¿Querés cancelar esta reserva?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -143,12 +153,38 @@ class _MisReservasScreenState extends State<MisReservasScreen>
       ),
     );
 
-    if (confirm == true) {
-      await _reservasService.cancelarReserva(
+    if (confirm != true || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final provider = context.read<AppProvider>();
+    try {
+      final devueltos = await _reservasService.cancelarReserva(
         reserva['codigo_qr']?.toString() ?? '',
       );
       _notificarListaEspera(reserva).ignore();
+      // Refrescar el usuario en memoria para que HomeScreen y MiPerfilScreen
+      // muestren el saldo actualizado al volver atrás.
+      await provider.refrescarUsuario();
       await _cargar();
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            devueltos > 0
+                ? 'Reserva cancelada. Te devolvimos $devueltos crédito${devueltos == 1 ? '' : 's'}.'
+                : 'Reserva cancelada.',
+          ),
+          backgroundColor: AppColors.blackSoft,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('No se pudo cancelar: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -203,8 +239,18 @@ class _MisReservasScreenState extends State<MisReservasScreen>
             backgroundColor: AppColors.background,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
-            automaticallyImplyLeading: false,
-            titleSpacing: 20,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded,
+                  color: AppColors.black),
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/home');
+                }
+              },
+            ),
+            titleSpacing: 0,
             title: const Text(
               'Mis reservas',
               style: TextStyle(
