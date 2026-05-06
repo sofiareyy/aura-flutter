@@ -102,14 +102,20 @@ class _LoginScreenState extends State<LoginScreen> {
       String destino = '/home';
       if (uid != null) {
         await context.read<AppProvider>().refrescarUsuario();
-        final data = await Supabase.instance.client
-            .from('usuarios')
-            .select('rol')
-            .eq('id', uid)
-            .maybeSingle();
-        final rol = data?['rol']?.toString();
-        if (rol == 'estudio' || rol == 'admin_estudio') {
-          destino = '/estudio/dashboard';
+        try {
+          final data = await Supabase.instance.client
+              .from('usuarios')
+              .select('rol')
+              .eq('id', uid)
+              .maybeSingle();
+          final rol = data?['rol']?.toString();
+          if (rol == 'estudio' || rol == 'admin_estudio') {
+            destino = '/estudio/dashboard';
+          }
+        } catch (_) {
+          // Si RLS o un fallo transitorio bloquean leer el rol, no rompemos el
+          // login: caemos a /home y dejamos que las pantallas internas
+          // resuelvan el routing si hace falta.
         }
       }
       if (mounted) context.go(destino);

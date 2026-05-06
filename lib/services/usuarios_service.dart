@@ -37,6 +37,7 @@ class UsuariosService {
           'id': uid,
           'nombre': nombre.isNotEmpty ? nombre : email.split('@').first,
           'email': email,
+          'rol': 'usuario',
           'creditos': 0,
         },
         onConflict: 'id',
