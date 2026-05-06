@@ -519,6 +519,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     if (ok != true || !mounted) { n.dispose(); ins.dispose(); insDesc.dispose(); incluye.dispose(); imagenUrl.dispose(); galeria.dispose(); cupos.dispose(); cred.dispose(); return; }
     try {
       final lugaresTotal = int.tryParse(cupos.text.trim()) ?? 12;
+      final categoriaTrim = cat?.trim() ?? '';
       final payload = {
         'nombre': n.text.trim().isEmpty ? clase['nombre'] : n.text.trim(),
         'instructor': ins.text.trim().isEmpty ? null : ins.text.trim(),
@@ -531,7 +532,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         'fecha': _toSupaDate(fechaSel),
         'lugares_total': lugaresTotal,
         'creditos': int.tryParse(cred.text.trim()) ?? 10,
-        'categoria': cat,
+        // Solo incluir categoria si tiene valor — evita pisar con null si la
+        // columna tiene constraint NOT NULL o si el dropdown quedo vacio.
+        if (categoriaTrim.isNotEmpty) 'categoria': categoriaTrim,
         'reserva_cierre_minutos': cierreReserva,
       };
       await _service.editarClase(claseId, payload);
@@ -545,7 +548,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       ).ignore();
       messenger.showSnackBar(const SnackBar(content: Text('Clase actualizada')));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('No se pudo guardar: ${e.toString()}')));
+      final msg = e is PostgrestException
+          ? (e.message.toLowerCase().contains('row-level security')
+              ? 'No tenés permisos para editar esta clase. Contactá soporte.'
+              : 'No se pudo guardar: ${e.message}')
+          : 'No se pudo guardar: ${e.toString()}';
+      messenger.showSnackBar(SnackBar(content: Text(msg)));
     } finally {
       n.dispose(); ins.dispose(); insDesc.dispose(); incluye.dispose(); imagenUrl.dispose(); galeria.dispose(); cupos.dispose(); cred.dispose();
     }
