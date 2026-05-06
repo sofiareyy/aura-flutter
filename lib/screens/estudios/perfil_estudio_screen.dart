@@ -64,10 +64,18 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
           .limit(1);
       final estudio = estudioRows.isNotEmpty ? estudioRows.first : null;
 
+      // Trae todos los usuarios con rol de estudio o admin_estudio asociados
+      // a este estudio. Antes solo filtrabamos por estudio_id, lo que dependia
+      // de que ningun usuario regular tuviera el campo seteado por error.
+      // BUG 20: ademas de este filtro, RLS sobre `usuarios` necesita una policy
+      // que permita a un admin del estudio ver a sus pares (sino solo se ve a si
+      // mismo). El SQL esta en supabase/FIX_RLS_USUARIOS_ADMINS.sql.
       final admins = await Supabase.instance.client
           .from('usuarios')
-          .select('id, nombre, email')
-          .eq('estudio_id', estudioId);
+          .select('id, nombre, email, rol')
+          .eq('estudio_id', estudioId)
+          .inFilter('rol', ['estudio', 'admin_estudio'])
+          .order('nombre');
 
       if (!mounted) return;
       setState(() {

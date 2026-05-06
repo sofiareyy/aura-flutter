@@ -185,7 +185,7 @@ function renderHtml(args: {
     </tr>
     <tr>
       <td style="background:#F7F5F2; padding:16px 24px; text-align:center; color:#888888; font-size:11px;">
-        Aura - el primer marketplace de fitness de Pilar
+        Aura - el primer marketplace de fitness de Buenos Aires
       </td>
     </tr>
   </table>
