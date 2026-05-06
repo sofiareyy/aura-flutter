@@ -204,32 +204,47 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
 
     if (email == null || email!.isEmpty || _estudio == null) return;
 
-    final candidatos =
-        await Supabase.instance.client.from('usuarios').select('id, email');
-    Map<String, dynamic>? usuario;
-    for (final row in List<Map<String, dynamic>>.from(candidatos as List)) {
-      if ((row['email']?.toString().trim().toLowerCase() ?? '') ==
-          email!.trim().toLowerCase()) {
-        usuario = row;
-        break;
+    final estudioId = (_estudio?['id'] as num?)?.toInt();
+    if (estudioId == null) return;
+
+    String? errorMsg;
+    try {
+      final res = await Supabase.instance.client.rpc(
+        'studio_promote_user_to_admin',
+        params: {
+          'p_estudio_id': estudioId,
+          'p_email': email,
+        },
+      );
+      final map = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+      if (map['ok'] != true) {
+        switch (map['error']?.toString()) {
+          case 'user_not_found':
+            errorMsg = 'No existe una cuenta Aura con ese email.';
+            break;
+          case 'forbidden':
+          case 'not_owner_of_estudio':
+            errorMsg = 'No tenés permisos para agregar admins a este estudio.';
+            break;
+          case 'email_required':
+            errorMsg = 'Ingresá un email válido.';
+            break;
+          default:
+            errorMsg = 'No se pudo agregar el administrador.';
+        }
       }
+    } catch (e) {
+      errorMsg = 'Error: ${e.toString()}';
     }
 
     if (!mounted) return;
 
-    if (usuario == null) {
+    if (errorMsg != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se encontró un usuario con ese email.'),
-        ),
+        SnackBar(content: Text(errorMsg)),
       );
       return;
     }
-
-    await Supabase.instance.client.from('usuarios').update({
-      'rol': 'admin_estudio',
-      'estudio_id': _estudio?['id'],
-    }).eq('id', usuario['id']);
 
     await _cargar();
   }
