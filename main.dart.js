@@ -63548,14 +63548,14 @@ break
 case 6:case 1:return A.l(q,r)
 case 2:return A.k(o.at(-1),r)}})
 return A.m($async$Kn,r)},
-xP(){var s=0,r=A.n(t.H),q,p=2,o=[],n=[],m=this,l,k,j,i,h,g,f,e,d,c,b
-var $async$xP=A.i(function(a,a0){if(a===1){o.push(a0)
+xP(){var s=0,r=A.n(t.H),q,p=2,o=[],n=[],m=this,l,k,j,i,h,g,f,e,d,c,b,a
+var $async$xP=A.i(function(a0,a1){if(a0===1){o.push(a1)
 s=p}for(;;)switch(s){case 0:if(!m.d.gW().kI()){s=1
 break}m.A(new A.b6W(m))
 p=4
 s=7
 return A.c(m.r.I8(B.b.R(m.e.a.a),m.f.a.a),$async$xP)
-case 7:l=a0
+case 7:l=a1
 f=m.c
 if(f==null){n=[1]
 s=5
@@ -63566,24 +63566,34 @@ s=k!=null?8:9
 break
 case 8:s=10
 return A.c(A.dq(f,!1,t.C).iS(),$async$xP)
-case 10:f=$.bt().b
+case 10:p=12
+f=$.bt().b
 f===$&&A.a()
-s=11
+s=15
 return A.c(f.a7("usuarios").bj(0,"rol").am("id",k).dh(),$async$xP)
-case 11:i=a0
+case 15:i=a1
 f=i
 if(f==null)d=null
 else{f=J.o(f,"rol")
 d=f==null?null:J.x(f)}h=d
 if(J.f(h,"estudio")||J.f(h,"admin_estudio"))j="/estudio/dashboard"
-case 9:f=m.c
+p=4
+s=14
+break
+case 12:p=11
+b=o.pop()
+s=14
+break
+case 11:s=4
+break
+case 14:case 9:f=m.c
 if(f!=null){e=j
 A.aI(f).by(0,e,null)}n.push(6)
 s=5
 break
 case 4:p=3
-b=o.pop()
-g=A.a6(b)
+a=o.pop()
+g=A.a6(a)
 f=m.c
 if(f==null){n=[1]
 s=5
@@ -76810,7 +76820,7 @@ k=h==null?"":h
 j=n.a.a7("usuarios")
 g=J.aS(l)!==0?l:B.c.gU(J.boV(k,"@"))
 s=7
-return A.c(j.alG(A.a8(["id",a,"nombre",g,"email",k,"creditos",0],t.N,t.K),!0,"id"),$async$MZ)
+return A.c(j.alG(A.a8(["id",a,"nombre",g,"email",k,"rol","usuario","creditos",0],t.N,t.K),!0,"id"),$async$MZ)
 case 7:p=2
 s=6
 break
