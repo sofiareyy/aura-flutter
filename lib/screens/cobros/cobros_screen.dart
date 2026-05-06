@@ -134,6 +134,9 @@ class _CobrosScreenState extends State<CobrosScreen> {
                       height: 40,
                       child: ElevatedButton(
                         onPressed: () => _verDetalle(context),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                        ),
                         child: const Text('Ver detalle'),
                       ),
                     ),
@@ -310,6 +313,9 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                   height: 42,
                                   child: ElevatedButton(
                                     onPressed: () => _verDetalle(context),
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                                    ),
                                     child: const Text('Ver detalle'),
                                   ),
                                 ),

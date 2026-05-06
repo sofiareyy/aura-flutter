@@ -2207,6 +2207,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                           height: 40,
                           child: ElevatedButton(
                             onPressed: () => context.go('/explorar'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 18),
+                            ),
                             child: const Text('Nueva clase'),
                           ),
                         ),
