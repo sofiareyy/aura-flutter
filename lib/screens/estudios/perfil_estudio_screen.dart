@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../services/estudio_admin_service.dart';
 import '../../services/media_upload_service.dart';
 
 class PerfilEstudioScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class PerfilEstudioScreen extends StatefulWidget {
 
 class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
   final _mediaUploadService = MediaUploadService();
+  final _adminService = EstudioAdminService();
   Map<String, dynamic>? _estudio;
   List<Map<String, dynamic>> _admins = [];
   bool _loading = true;
@@ -76,23 +78,16 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
           .limit(1);
       final estudio = estudioRows.isNotEmpty ? estudioRows.first : null;
 
-      // Trae todos los usuarios con rol de estudio o admin_estudio asociados
-      // a este estudio. Antes solo filtrabamos por estudio_id, lo que dependia
-      // de que ningun usuario regular tuviera el campo seteado por error.
-      // BUG 20: ademas de este filtro, RLS sobre `usuarios` necesita una policy
-      // que permita a un admin del estudio ver a sus pares (sino solo se ve a si
-      // mismo). El SQL esta en supabase/FIX_RLS_USUARIOS_ADMINS.sql.
-      final admins = await Supabase.instance.client
-          .from('usuarios')
-          .select('id, nombre, email, rol')
-          .eq('estudio_id', estudioId)
-          .inFilter('rol', ['estudio', 'admin_estudio'])
-          .order('nombre');
+      // Lista de admins del estudio: usa la tabla estudio_admins (M:N), via
+      // service. Necesita el SQL supabase/MULTI_ESTUDIO_ADMINS.sql aplicado.
+      final admins = (estudioId is num)
+          ? await _adminService.listEstudioAdmins(estudioId.toInt())
+          : <Map<String, dynamic>>[];
 
       if (!mounted) return;
       setState(() {
         _estudio = estudio;
-        _admins = List<Map<String, dynamic>>.from(admins as List);
+        _admins = admins;
         _loading = false;
         _error = estudio == null ? 'No encontramos datos del estudio.' : null;
       });
@@ -251,10 +246,20 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
     );
     if (confirm != true) return;
 
-    await Supabase.instance.client.from('usuarios').update({
-      'rol': 'usuario',
-      'estudio_id': null,
-    }).eq('id', adminId);
+    final estudioId = (_estudio?['id'] as num?)?.toInt();
+    if (estudioId == null) return;
+
+    final ok = await _adminService.removeEstudioAdminAccess(
+      estudioId: estudioId,
+      usuarioId: adminId,
+    );
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo eliminar el administrador.')),
+      );
+      return;
+    }
 
     await _cargar();
   }

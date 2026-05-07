@@ -209,38 +209,45 @@ class AdminService {
     required int estudioId,
     required String email,
   }) async {
-    final normalized = email.trim().toLowerCase();
+    // Usa la RPC studio_promote_user_to_admin (multi-estudio: acumula en
+    // estudio_admins en vez de pisar usuarios.estudio_id). Si la RPC no
+    // existe en esta DB, intenta admin_link_estudio_access como fallback.
     try {
-      await _client.rpc(
-        'admin_link_estudio_access',
+      final res = await _client.rpc(
+        'studio_promote_user_to_admin',
         params: {
           'p_estudio_id': estudioId,
           'p_email': email.trim(),
         },
       );
-      return;
+      final map = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+      if (map['ok'] == true) return;
+      switch (map['error']?.toString()) {
+        case 'user_not_found':
+          throw Exception(
+            'No existe una cuenta Aura con ese email. Revisá mayúsculas o pedile que se registre primero.',
+          );
+        case 'forbidden':
+          throw Exception(
+            'No tenés permisos para agregar admins a este estudio.',
+          );
+        case 'email_required':
+          throw Exception('Ingresá un email válido.');
+        default:
+          throw Exception('No se pudo agregar el acceso.');
+      }
+    } on Exception {
+      rethrow;
     } catch (_) {}
 
-    final users = await _client.from('usuarios').select('id, email');
-    Map<String, dynamic>? match;
-    for (final row in List<Map<String, dynamic>>.from(users as List)) {
-      if ((row['email']?.toString().trim().toLowerCase() ?? '') ==
-          normalized) {
-        match = row;
-        break;
-      }
-    }
-
-    if (match == null) {
-      throw Exception(
-        'No existe una cuenta Aura con ese email. Revisá mayúsculas o pedile que se registre primero.',
-      );
-    }
-
-    await _client.from('usuarios').update({
-      'rol': 'admin_estudio',
-      'estudio_id': estudioId,
-    }).eq('id', match['id']);
+    // Fallback legacy
+    await _client.rpc(
+      'admin_link_estudio_access',
+      params: {
+        'p_estudio_id': estudioId,
+        'p_email': email.trim(),
+      },
+    );
   }
 
   Future<List<Map<String, dynamic>>> listEstudioAccesses({

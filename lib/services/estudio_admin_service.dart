@@ -66,6 +66,82 @@ class EstudioAdminService {
     return null;
   }
 
+  /// Lista los estudios que el usuario logueado puede administrar (M:N via
+  /// estudio_admins). El campo `is_active` marca cual es el workspace
+  /// actualmente seleccionado.
+  Future<List<Map<String, dynamic>>> listMyStudios() async {
+    try {
+      final res = await _client.rpc('list_my_studios');
+      return List<Map<String, dynamic>>.from(res as List);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Cambia el estudio activo (workspace) del usuario logueado. El backend
+  /// valida que el usuario sea admin del estudio en cuestion.
+  Future<bool> setActiveEstudio(int estudioId) async {
+    try {
+      final res = await _client.rpc(
+        'set_active_estudio',
+        params: {'p_estudio_id': estudioId},
+      );
+      final map = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+      return map['ok'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Lista los administradores de un estudio. Para uso desde el perfil del
+  /// estudio. Reusa `admin_list_studio_accesses` si existe; sino consulta
+  /// estudio_admins join usuarios directamente.
+  Future<List<Map<String, dynamic>>> listEstudioAdmins(int estudioId) async {
+    try {
+      final res = await _client.rpc(
+        'admin_list_studio_accesses',
+        params: {'p_estudio_id': estudioId},
+      );
+      return List<Map<String, dynamic>>.from(res as List);
+    } catch (_) {}
+    try {
+      final res = await _client
+          .from('estudio_admins')
+          .select('usuario_id, rol, usuarios(id, nombre, email)')
+          .eq('estudio_id', estudioId);
+      return List<Map<String, dynamic>>.from(res as List).map((row) {
+        final user = row['usuarios'] as Map?;
+        return {
+          'id': user?['id'] ?? row['usuario_id'],
+          'nombre': user?['nombre'],
+          'email': user?['email'],
+          'rol': row['rol'],
+        };
+      }).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<bool> removeEstudioAdminAccess({
+    required int estudioId,
+    required String usuarioId,
+  }) async {
+    try {
+      final res = await _client.rpc(
+        'remove_estudio_admin_access',
+        params: {
+          'p_estudio_id': estudioId,
+          'p_usuario_id': usuarioId,
+        },
+      );
+      final map = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+      return map['ok'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getClasesDeEstudio({
     DateTime? from,
     DateTime? to,

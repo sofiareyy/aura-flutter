@@ -21,6 +21,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
   List<Map<String, dynamic>> _clases = [];
   List<Map<String, dynamic>> _reservas = [];
   List<Map<String, dynamic>> _actividad = [];
+  List<Map<String, dynamic>> _misEstudios = const [];
   bool _loading = true;
   String? _error;
   int _unreadNotifs = 0;
@@ -29,6 +30,99 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
   void initState() {
     super.initState();
     _cargar();
+  }
+
+  Future<void> _abrirSelectorEstudios() async {
+    if (_misEstudios.length < 2) return;
+    final seleccionado = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD4CEC9),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Mis estudios',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.black,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ..._misEstudios.map((e) {
+                final id = (e['estudio_id'] as num?)?.toInt();
+                final nombre = e['nombre']?.toString() ?? 'Sin nombre';
+                final isActive = e['is_active'] == true;
+                return ListTile(
+                  leading: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.storefront_rounded,
+                      color: AppColors.primary,
+                      size: 18,
+                    ),
+                  ),
+                  title: Text(
+                    nombre,
+                    style: TextStyle(
+                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                      color: AppColors.black,
+                    ),
+                  ),
+                  trailing: isActive
+                      ? const Icon(Icons.check_rounded, color: AppColors.primary)
+                      : null,
+                  onTap: () => Navigator.pop(ctx, id),
+                );
+              }),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (seleccionado == null) return;
+    final activoActual = (_estudio?['id'] as num?)?.toInt();
+    if (seleccionado == activoActual) return;
+
+    setState(() => _loading = true);
+    final ok = await _service.setActiveEstudio(seleccionado);
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo cambiar de estudio.')),
+      );
+      return;
+    }
+    await _cargar();
   }
 
   void _mostrarTutorial() {
@@ -55,11 +149,13 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
         ),
         _service.getReservasDeEstudio(limit: 120),
         _service.getTutorialCompletado(),
+        _service.listMyStudios(),
       ]);
       final estudio = results[0] as Map<String, dynamic>?;
       final clases = results[1] as List<Map<String, dynamic>>;
       final reservas = results[2] as List<Map<String, dynamic>>;
       final tutorialOk = results[3] as bool;
+      final misEstudios = results[4] as List<Map<String, dynamic>>;
 
       int unread = 0;
       if (estudio != null) {
@@ -78,6 +174,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
         _clases = clases;
         _reservas = reservas;
         _actividad = _buildActividad(reservas, clases);
+        _misEstudios = misEstudios;
         _loading = false;
         _error = estudio == null ? 'No encontramos un estudio asociado.' : null;
         _unreadNotifs = unread;
@@ -397,26 +494,52 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _estudio?['nombre']?.toString() ?? 'Estudio',
-                                style: const TextStyle(
-                                  color: AppColors.black,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                          child: InkWell(
+                            onTap: _misEstudios.length >= 2
+                                ? _abrirSelectorEstudios
+                                : null,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          _estudio?['nombre']?.toString() ?? 'Estudio',
+                                          style: const TextStyle(
+                                            color: AppColors.black,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (_misEstudios.length >= 2) ...[
+                                        const SizedBox(width: 4),
+                                        const Icon(
+                                          Icons.unfold_more_rounded,
+                                          size: 18,
+                                          color: Color(0xFF8F877F),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _misEstudios.length >= 2
+                                        ? 'Tocá para cambiar de estudio'
+                                        : 'Panel de socio Aura',
+                                    style: const TextStyle(
+                                      color: Color(0xFF9A928B),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 2),
-                              const Text(
-                                'Panel de socio Aura',
-                                style: TextStyle(
-                                  color: Color(0xFF9A928B),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                         Stack(
