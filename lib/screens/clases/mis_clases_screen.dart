@@ -687,9 +687,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
   Future<void> _loadStudio() async {
     try {
-      // Generar clases de las próximas 2 semanas explícitamente
-      // (no silenciado, para que los errores sean visibles)
-      await _service.generarProximasSemanasDesdeHorarios();
+      // Auto-mantener 3 meses (13 semanas) de clases concretas a partir de
+      // los horarios fijos activos. La funcion es idempotente: salta las que
+      // ya existen. Asi el "horario fijo activo" siempre coincide con clases
+      // visibles para los usuarios, sin que el estudio tenga que apretar
+      // "Generar 3 meses" manualmente.
+      await _service.generarProximasSemanasDesdeHorarios(weeks: 13);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -1724,17 +1727,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   Future<void> _generateWeek() async {
     setState(() => _publishingWeek = true);
     try {
-      final start = _weekStart(_weekAnchor);
-      final firstWeek = await _service.generarClasesDesdeHorarios(
-        weekStart: start,
-      );
-      final secondWeek = await _service.generarClasesDesdeHorarios(
-        weekStart: start.add(const Duration(days: 7)),
-      );
-      final result = {
-        'creadas': (firstWeek['creadas'] ?? 0) + (secondWeek['creadas'] ?? 0),
-        'omitidas': (firstWeek['omitidas'] ?? 0) + (secondWeek['omitidas'] ?? 0),
-      };
+      final result = await _service.generarProximasSemanasDesdeHorarios(weeks: 13);
       await _loadStudio();
       if (!mounted) return;
       final creadas = result['creadas'] ?? 0;
@@ -1742,7 +1735,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Semana publicada: $creadas clases creadas${omitidas > 0 ? ', $omitidas ya existían o se omitieron' : ''}.',
+            '3 meses publicados: $creadas clases creadas${omitidas > 0 ? ', $omitidas ya existían o se omitieron' : ''}.',
           ),
         ),
       );
@@ -2004,11 +1997,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                   icon: _publishingWeek
                       ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white))
                       : const Icon(Icons.auto_awesome_rounded, size: 16),
-                  label: Text(_publishingWeek ? 'Generando...' : 'Generar semana'),
+                  label: Text(_publishingWeek ? 'Generando…' : 'Generar 3 meses'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
                     textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -2042,7 +2036,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                 : weekClases.isEmpty
                     ? Center(
                         child: Text(
-                          'Sin clases para esta semana.\nUsá "Generar semana" para crear desde los horarios fijos.',
+                          'Sin clases para esta semana.\nUsá "Generar 3 meses" para crear desde los horarios fijos.',
                           style: const TextStyle(color: AppColors.grey, fontSize: 14),
                           textAlign: TextAlign.center,
                         ),
@@ -2703,7 +2697,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                     ),
                   )
                 : const Icon(Icons.auto_awesome_rounded, size: 18),
-            label: Text(_publishingWeek ? 'Generando...' : 'Generar semana'),
+            label: Text(_publishingWeek ? 'Generando…' : 'Generar 3 meses'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+            ),
           ),
         ),
       ),
