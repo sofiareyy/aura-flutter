@@ -838,6 +838,25 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                       child: Column(
                         children: [
+                          if (!edit) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF1E8),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'Las clases se van a programar automáticamente para los próximos 3 meses. Pasado ese tiempo vas a tener que renovarlas para que sigan apareciendo a los usuarios.',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 13,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
                           // Card 1: Información básica
                           _SectionCard(
                             title: 'Información básica',
@@ -1137,7 +1156,23 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           _tablaOk = true;
           _error = null;
         });
-        messenger.showSnackBar(const SnackBar(content: Text('Horario fijo guardado')));
+        messenger.showSnackBar(const SnackBar(content: Text('Horario fijo guardado. Generando próximos 3 meses…')));
+        try {
+          final result = await _service.generarProximasSemanasDesdeHorarios(weeks: 13);
+          await _loadStudio();
+          if (mounted) {
+            final creadas = result['creadas'] ?? 0;
+            messenger.showSnackBar(
+              SnackBar(content: Text('Clases programadas para 3 meses ($creadas nuevas).')),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            messenger.showSnackBar(
+              SnackBar(content: Text('Horario guardado, pero falló la generación automática: ${e.toString()}')),
+            );
+          }
+        }
       }
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('No se pudo guardar: ${e.toString()}')));
@@ -1236,7 +1271,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Text(
-                              'Esto crea muchos horarios fijos de una sola vez. Después vas a poder editar cada día y horario por separado sin tocar el resto de la grilla.',
+                              'Esto crea muchos horarios fijos de una sola vez. Las clases se van a programar automáticamente para los próximos 3 meses; pasado ese tiempo vas a tener que renovarlas para que sigan apareciendo a los usuarios. Después podés editar cada día y horario por separado sin tocar el resto de la grilla.',
                               style: TextStyle(
                                 color: AppColors.primary,
                                 fontSize: 13,
@@ -1633,8 +1668,22 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       await _loadStudio();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Grilla creada: $creados horarios fijos')),
+        SnackBar(content: Text('Grilla creada: $creados horarios fijos. Generando próximos 3 meses…')),
       );
+      try {
+        final result = await _service.generarProximasSemanasDesdeHorarios(weeks: 13);
+        await _loadStudio();
+        if (!mounted) return;
+        final creadas = result['creadas'] ?? 0;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Clases programadas para 3 meses ($creadas nuevas).')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Grilla creada pero falló la generación automática: ${e.toString()}')),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
