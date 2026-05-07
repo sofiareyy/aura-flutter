@@ -18,7 +18,19 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
   List<Map<String, dynamic>> _admins = [];
   bool _loading = true;
   bool _uploadingPhoto = false;
+  bool _uploadingGaleria = false;
   String? _error;
+
+  List<String> get _galeriaUrls {
+    final raw = _estudio?['galeria_urls'];
+    if (raw is List) {
+      return raw
+          .map((entry) => entry.toString().trim())
+          .where((entry) => entry.isNotEmpty)
+          .toList();
+    }
+    return const [];
+  }
 
   @override
   void initState() {
@@ -130,6 +142,89 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
       );
     } finally {
       if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
+  Future<void> _subirFotoGaleria() async {
+    if (_estudio == null || _uploadingGaleria) return;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) return;
+
+    setState(() => _uploadingGaleria = true);
+    try {
+      final url = await _mediaUploadService.pickAndUpload(
+        bucket: 'study-media',
+        folder: 'study-gallery',
+        userId: userId,
+      );
+      if (url == null) return;
+
+      final nueva = [..._galeriaUrls, url];
+      await Supabase.instance.client
+          .from('estudios')
+          .update({'galeria_urls': nueva})
+          .eq('id', _estudio!['id']);
+
+      await _cargar();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto agregada a la galería.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo subir la foto: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _uploadingGaleria = false);
+    }
+  }
+
+  Future<void> _eliminarFotoGaleria(String url) async {
+    if (_estudio == null) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Borrar foto'),
+        content: const Text('Se va a sacar de la galería del estudio.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Borrar',
+              style: TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    final nueva = _galeriaUrls.where((entry) => entry != url).toList();
+    try {
+      await Supabase.instance.client
+          .from('estudios')
+          .update({'galeria_urls': nueva})
+          .eq('id', _estudio!['id']);
+      await _cargar();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo borrar la foto: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -465,7 +560,7 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                                     ),
                                   )
                                 : const Icon(Icons.photo_camera_outlined),
-                            label: const Text('Cambiar foto'),
+                            label: const Text('Cambiar foto principal'),
                           ),
                           const SizedBox(height: 12),
                           Text(
@@ -520,6 +615,129 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                               ],
                             ),
                           ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 4, bottom: 10),
+                      child: Text(
+                        'GALERÍA DEL LUGAR',
+                        style: TextStyle(
+                          color: AppColors.grey,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Mostrale al usuario cómo es tu estudio. Estas fotos NO son las de las clases.',
+                            style: TextStyle(
+                              color: AppColors.grey,
+                              fontSize: 13,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          if (_galeriaUrls.isEmpty)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 22),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF7F3EE),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              alignment: Alignment.center,
+                              child: const Text(
+                                'Todavía no hay fotos.',
+                                style: TextStyle(
+                                  color: AppColors.grey,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            )
+                          else
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _galeriaUrls.map((url) {
+                                return Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.network(
+                                        url,
+                                        width: 96,
+                                        height: 96,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          width: 96,
+                                          height: 96,
+                                          color: const Color(0xFFEDE7E1),
+                                          child: const Icon(
+                                            Icons.image_not_supported_outlined,
+                                            color: AppColors.grey,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 2,
+                                      right: 2,
+                                      child: GestureDetector(
+                                        onTap: () => _eliminarFotoGaleria(url),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.black54,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.close_rounded,
+                                            color: Colors.white,
+                                            size: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _uploadingGaleria
+                                  ? null
+                                  : _subirFotoGaleria,
+                              icon: _uploadingGaleria
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.primary,
+                                      ),
+                                    )
+                                  : const Icon(Icons.add_photo_alternate_outlined),
+                              label: Text(
+                                _uploadingGaleria
+                                    ? 'Subiendo…'
+                                    : 'Agregar foto a la galería',
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),

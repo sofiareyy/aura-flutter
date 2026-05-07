@@ -10,6 +10,7 @@ class Estudio {
   final String? whatsapp;
   final String? web;
   final String? fotoUrl;
+  final List<String> galeriaUrls;
   final double? lat;
   final double? lng;
 
@@ -25,6 +26,7 @@ class Estudio {
     this.whatsapp,
     this.web,
     this.fotoUrl,
+    this.galeriaUrls = const [],
     this.lat,
     this.lng,
   });
@@ -42,6 +44,11 @@ class Estudio {
       whatsapp: map['whatsapp'],
       web: map['web'],
       fotoUrl: map['foto_url'],
+      galeriaUrls: (map['galeria_urls'] as List?)
+              ?.map((entry) => entry.toString())
+              .where((entry) => entry.trim().isNotEmpty)
+              .toList() ??
+          const [],
       lat: (map['lat'] as num?)?.toDouble(),
       lng: (map['lng'] as num?)?.toDouble(),
     );
@@ -59,6 +66,7 @@ class Estudio {
       'whatsapp': whatsapp,
       'web': web,
       'foto_url': fotoUrl,
+      'galeria_urls': galeriaUrls,
       'lat': lat,
       'lng': lng,
     };

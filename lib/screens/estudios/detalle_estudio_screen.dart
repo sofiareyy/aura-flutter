@@ -159,15 +159,14 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                 .map((item) => (item['rating'] as num?)?.toDouble() ?? 0)
                 .reduce((a, b) => a + b) /
             _reviews.length;
+    // Galería del estudio: solo las fotos del lugar (foto principal + fotos
+    // que el estudio cargó para mostrar el espacio). Las galerías de cada
+    // clase se ven en la pantalla de detalle de esa clase.
     final galleryUrls = <String>{
       if ((e.fotoUrl ?? '').trim().isNotEmpty) e.fotoUrl!.trim(),
-      ..._clases
-          .map((item) => item['imagen_url']?.toString().trim() ?? '')
-          .where((item) => item.isNotEmpty),
-      ..._clases
-          .expand((item) => ((item['galeria_urls'] as List?) ?? const [])
-              .map((entry) => entry.toString().trim()))
-          .where((item) => item.isNotEmpty),
+      ...e.galeriaUrls
+          .map((entry) => entry.trim())
+          .where((entry) => entry.isNotEmpty),
     }.toList();
 
     return CustomScrollView(
