@@ -472,6 +472,74 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
     }
   }
 
+  Future<void> _dejarDeAdministrar() async {
+    final estudioId = (_estudio?['id'] as num?)?.toInt();
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (estudioId == null || userId == null) return;
+
+    final esUnicoAdmin = _admins.length == 1 &&
+        (_admins.first['id']?.toString() ?? '') == userId;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          esUnicoAdmin
+              ? 'Sos el único administrador'
+              : '¿Dejar de administrar este estudio?',
+        ),
+        content: Text(
+          esUnicoAdmin
+              ? 'Sos el único administrador de este estudio. Si te vas, nadie puede gestionarlo. ¿Estás segura?'
+              : 'Vas a dejar de tener acceso a este estudio. Los otros administradores siguen pudiendo gestionarlo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              esUnicoAdmin ? 'Sí, irme igual' : 'Dejar de administrar',
+              style: const TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    final ok = await _adminService.removeEstudioAdminAccess(
+      estudioId: estudioId,
+      usuarioId: userId,
+    );
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo dejar el estudio.')),
+      );
+      return;
+    }
+
+    // Decidir el destino segun si el usuario sigue siendo admin de otro estudio
+    String destino = '/home';
+    try {
+      final row = await Supabase.instance.client
+          .from('usuarios')
+          .select('rol')
+          .eq('id', userId)
+          .maybeSingle();
+      final rol = row?['rol']?.toString();
+      if (rol == 'estudio' || rol == 'admin_estudio') {
+        destino = '/estudio/dashboard';
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+    context.go(destino);
+  }
+
   Future<void> _cerrarSesion() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -874,6 +942,27 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                         onPressed: () => context.go('/home'),
                         icon: const Icon(Icons.home_outlined),
                         label: const Text('Cambiar al lado usuario'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _dejarDeAdministrar,
+                        icon: const Icon(
+                          Icons.exit_to_app_rounded,
+                          color: AppColors.error,
+                        ),
+                        label: const Text(
+                          'Dejar de administrar este estudio',
+                          style: TextStyle(color: AppColors.error),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.error),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                       ),
                     ),
                   ],
