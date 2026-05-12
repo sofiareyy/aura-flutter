@@ -340,7 +340,28 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
   }
 
   Future<Map<String, int>> generarProximasSemanasDesdeHorarios({int weeks = 2}) async {
-    // Usar la fecha actual en UTC-3 (Argentina)
+    // Path rapido: si existe la RPC server-side (supabase/GENERAR_CLASES_DESDE_SQL.sql),
+    // delega todo el loop a la base. Es ~10x mas rapido y no depende de
+    // que el cliente pase RLS de INSERT/UPDATE/SELECT por cada semana.
+    try {
+      final studioId = await getCurrentStudioId();
+      if (studioId == null) {
+        throw Exception('No hay estudio asociado.');
+      }
+      final res = await _client.rpc(
+        'generar_clases_estudio',
+        params: {'p_estudio_id': studioId, 'p_weeks': weeks},
+      );
+      final map = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+      return {
+        'creadas': (map['creadas'] as num?)?.toInt() ?? 0,
+        'omitidas': (map['omitidas'] as num?)?.toInt() ?? 0,
+      };
+    } catch (_) {
+      // Fallback al loop cliente (compatibilidad con DBs que todavia no
+      // tienen la RPC generar_clases_estudio).
+    }
+
     final today = DateTime.now().toUtc().subtract(const Duration(hours: 3));
     final currentWeekStart = DateTime(
       today.year,
