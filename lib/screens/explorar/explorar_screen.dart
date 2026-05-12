@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/estudio.dart';
@@ -981,7 +982,7 @@ class _ResultCard extends StatelessWidget {
                             child: Text(
                               clase['fecha'] != null
                                   ? _formatFecha(clase['fecha'].toString())
-                                  : 'Hoy · 20:30 hs',
+                                  : '',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -1006,9 +1007,29 @@ class _ResultCard extends StatelessWidget {
 
   static String _formatFecha(String raw) {
     final date = DateTime.tryParse(raw);
-    if (date == null) return 'Hoy · 20:30 hs';
-    final hour = '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')} hs';
-    return 'Hoy · $hour';
+    if (date == null) return '';
+    final hora = DateFormat('HH:mm', 'es').format(date);
+    final ahora = DateTime.now();
+    final hoy = DateTime(ahora.year, ahora.month, ahora.day);
+    final fechaDia = DateTime(date.year, date.month, date.day);
+    final diff = fechaDia.difference(hoy).inDays;
+
+    String dia;
+    if (diff == 0) {
+      dia = 'Hoy';
+    } else if (diff == 1) {
+      dia = 'Mañana';
+    } else if (diff > 1 && diff < 7) {
+      // dia de la semana (lunes, martes, etc.)
+      dia = toBeginningOfSentenceCase(
+            DateFormat('EEEE', 'es').format(date),
+          ) ??
+          DateFormat('EEEE', 'es').format(date);
+    } else {
+      // 8 jun, 23 sep, etc.
+      dia = DateFormat("d MMM", 'es').format(date);
+    }
+    return '$dia · $hora hs';
   }
 }
 
