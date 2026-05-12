@@ -26,11 +26,16 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
   final _favoritosService = FavoritosService();
   final _reviewsService = ReviewsService();
   Estudio? _estudio;
+  static const int _clasesPreview = 5;
+  static const int _reviewsPreview = 2;
+
   List<Map<String, dynamic>> _clases = [];
   List<Map<String, dynamic>> _reviews = [];
   bool _loading = true;
   bool _esFavorito = false;
   bool _canReview = false;
+  bool _verTodasLasClases = false;
+  bool _verTodasLasReviews = false;
 
   @override
   void initState() {
@@ -262,24 +267,50 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                   ),
                 ],
 
-                // Reseñas
-                const SizedBox(height: 28),
-                _ReviewsSection(
-                  reviews: _reviews,
-                  canReview: _canReview,
-                  onReviewTap: () => _abrirResena(),
-                ),
-
-                // Encabezado clases
-                const SizedBox(height: 28),
-                const Text(
-                  'CLASES DISPONIBLES',
-                  style: TextStyle(
-                    color: Color(0xFF8F877F),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1,
+                // Galería arriba (si hay fotos)
+                if (galleryUrls.isNotEmpty) ...[
+                  const SizedBox(height: 28),
+                  _GallerySection(
+                    imageUrls: galleryUrls,
+                    onTapImage: (index) =>
+                        _abrirGaleria(galleryUrls, initialIndex: index),
                   ),
+                ],
+
+                // Encabezado clases + Ver más
+                const SizedBox(height: 28),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'CLASES DISPONIBLES',
+                        style: TextStyle(
+                          color: Color(0xFF8F877F),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                    if (_clases.length > _clasesPreview)
+                      GestureDetector(
+                        onTap: () => setState(
+                          () => _verTodasLasClases = !_verTodasLasClases,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          child: Text(
+                            _verTodasLasClases ? 'Ver menos' : 'Ver más',
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 12),
               ],
@@ -287,7 +318,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
           ),
         ),
 
-        // Cards de clases
+        // Cards de clases (preview o todas)
         if (_clases.isEmpty)
           const SliverToBoxAdapter(
             child: Padding(
@@ -309,22 +340,34 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                   onTap: () => context.push('/clase/${_clases[i]['id']}'),
                 ),
               ),
-              childCount: _clases.length,
+              childCount: _verTodasLasClases
+                  ? _clases.length
+                  : (_clases.length > _clasesPreview
+                      ? _clasesPreview
+                      : _clases.length),
             ),
           ),
 
-        // Galería al final (si hay fotos)
-        if (galleryUrls.isNotEmpty)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
-              child: _GallerySection(
-                imageUrls: galleryUrls,
-                onTapImage: (index) =>
-                    _abrirGaleria(galleryUrls, initialIndex: index),
-              ),
+        // Reseñas al final
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+            child: _ReviewsSection(
+              reviews: _verTodasLasReviews
+                  ? _reviews
+                  : _reviews.take(_reviewsPreview).toList(),
+              totalCount: _reviews.length,
+              expandido: _verTodasLasReviews,
+              canReview: _canReview,
+              onReviewTap: () => _abrirResena(),
+              onToggleExpand: _reviews.length > _reviewsPreview
+                  ? () => setState(
+                        () => _verTodasLasReviews = !_verTodasLasReviews,
+                      )
+                  : null,
             ),
           ),
+        ),
 
         const SliverToBoxAdapter(child: SizedBox(height: 32)),
       ],
@@ -687,13 +730,19 @@ class _GallerySection extends StatelessWidget {
 
 class _ReviewsSection extends StatelessWidget {
   final List<Map<String, dynamic>> reviews;
+  final int totalCount;
+  final bool expandido;
   final bool canReview;
   final VoidCallback onReviewTap;
+  final VoidCallback? onToggleExpand;
 
   const _ReviewsSection({
     required this.reviews,
+    required this.totalCount,
+    required this.expandido,
     required this.canReview,
     required this.onReviewTap,
+    this.onToggleExpand,
   });
 
   @override
@@ -713,7 +762,7 @@ class _ReviewsSection extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Reseñas del estudio',
+                  totalCount > 0 ? 'Reseñas ($totalCount)' : 'Reseñas del estudio',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
@@ -736,13 +785,36 @@ class _ReviewsSection extends StatelessWidget {
                 height: 1.5,
               ),
             )
-          else
-            ...reviews.take(4).map(
-                  (review) => Padding(
-                    padding: const EdgeInsets.only(top: 14),
-                    child: _ReviewCard(review: review),
+          else ...[
+            ...reviews.map(
+              (review) => Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: _ReviewCard(review: review),
+              ),
+            ),
+            if (onToggleExpand != null) ...[
+              const SizedBox(height: 12),
+              Center(
+                child: GestureDetector(
+                  onTap: onToggleExpand,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    child: Text(
+                      expandido
+                          ? 'Ver menos'
+                          : 'Ver las ${totalCount - reviews.length} restantes',
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
+              ),
+            ],
+          ],
         ],
       ),
     );
