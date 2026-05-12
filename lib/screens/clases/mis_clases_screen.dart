@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/aviso_alumnos_service.dart';
 import '../../services/clases_service.dart';
+import '../../utils/pricing.dart';
 import '../../services/estudio_admin_service.dart';
 import '../../services/media_upload_service.dart';
 import '../../services/notificaciones_service.dart';
@@ -37,6 +38,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   List<Map<String, dynamic>> _reservas = [];
   bool _loading = true, _tablaOk = true, _studio = false, _showFixed = true, _publishingWeek = false, _togglingFixed = false;
   bool _estudiosDefinenCreditos = true;
+  Map<String, dynamic>? _estudio;
   String? _error;
   String? _estudioNombre;
   DateTime _selectedDay = DateTime.now(), _weekAnchor = DateTime.now(), _monthAnchor = DateTime.now();
@@ -391,21 +393,17 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   onChanged: (v) => setD(() => cat = v),
                                 ),
                               const SizedBox(height: 12),
-                              if (_estudiosDefinenCreditos)
-                                _AuraTextField(
-                                  controller: cred,
-                                  label: 'Créditos de la clase',
-                                  hint: '10',
-                                  keyboardType: TextInputType.number,
-                                )
-                              else
-                                _AuraReadOnlyField(
-                                  label: 'Créditos de la clase',
-                                  value:
-                                      cred.text.isEmpty ? '10' : cred.text,
-                                  caption:
-                                      'Precio definido por Aura según categoría',
-                                ),
+                              _PricingPreview(
+                                estudio: _estudio,
+                                dia: fechaSel.weekday,
+                                hora: '${horaSel.hour.toString().padLeft(2, '0')}:${horaSel.minute.toString().padLeft(2, '0')}',
+                                categoria: cat,
+                                onComputed: (creditos) {
+                                  if (cred.text != creditos.toString()) {
+                                    cred.text = creditos.toString();
+                                  }
+                                },
+                              ),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -744,6 +742,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         _horarios = horarios;
         _categorias = categorias;
         _estudiosDefinenCreditos = configCreditos == 'true';
+        _estudio = estudio;
         _estudioNombre = estudio?['nombre']?.toString();
         _loading = false;
         _tablaOk = true;
@@ -991,20 +990,17 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   onChanged: (v) => setD(() => cat = v),
                                 ),
                               const SizedBox(height: 12),
-                              if (_estudiosDefinenCreditos)
-                                _AuraTextField(
-                                  controller: cr,
-                                  label: 'Créditos de la clase',
-                                  hint: '10',
-                                  keyboardType: TextInputType.number,
-                                )
-                              else
-                                _AuraReadOnlyField(
-                                  label: 'Créditos de la clase',
-                                  value: cr.text.isEmpty ? '10' : cr.text,
-                                  caption:
-                                      'Precio definido por Aura según categoría',
-                                ),
+                              _PricingPreview(
+                                estudio: _estudio,
+                                dia: d,
+                                hora: '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
+                                categoria: cat,
+                                onComputed: (creditos) {
+                                  if (cr.text != creditos.toString()) {
+                                    cr.text = creditos.toString();
+                                  }
+                                },
+                              ),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -1489,21 +1485,21 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   onChanged: (v) => setD(() => cat = v),
                                 ),
                               const SizedBox(height: 12),
-                              if (_estudiosDefinenCreditos)
-                                _AuraTextField(
-                                  controller: cr,
-                                  label: 'Créditos de la clase',
-                                  hint: '10',
-                                  keyboardType: TextInputType.number,
-                                )
-                              else
-                                _AuraReadOnlyField(
-                                  label: 'Créditos de la clase',
-                                  value:
-                                      cr.text.isEmpty ? '10' : cr.text,
-                                  caption:
-                                      'Precio definido por Aura según categoría',
+                              Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF1E8),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
+                                child: const Text(
+                                  'Los créditos de cada clase se calculan automáticamente según el día y horario, usando la configuración de precios pico/valle del estudio.',
+                                  style: TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 13,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -3826,7 +3822,134 @@ class _AuraReadOnlyField extends StatelessWidget {
   }
 }
 
+/// Muestra los creditos calculados automaticamente segun pricing dinamico
+/// del estudio (pico/valle/normal). Tambien muestra cuanto paga el usuario
+/// y cuanto recibe el estudio (en pesos).
+class _PricingPreview extends StatelessWidget {
+  final Map<String, dynamic>? estudio;
+  final int dia;
+  final String hora;
+  final String? categoria;
+  final void Function(int creditos) onComputed;
 
+  const _PricingPreview({
+    required this.estudio,
+    required this.dia,
+    required this.hora,
+    required this.categoria,
+    required this.onComputed,
+  });
 
+  @override
+  Widget build(BuildContext context) {
+    if (estudio == null) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF1E8),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Text(
+          'Cargando configuración de precios…',
+          style: TextStyle(color: AppColors.primary, fontSize: 13),
+        ),
+      );
+    }
+    final pricing = PricingCalculator.calcular(
+      estudio: estudio!,
+      categoria: categoria,
+      dia: dia,
+      hora: hora,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => onComputed(pricing.creditos));
 
+    final valorCredito = (estudio!['valor_credito'] as num?)?.toInt() ?? 6000;
+    final comisionAura = (estudio!['comision_aura'] as num?)?.toDouble() ?? 30;
+    final precioBruto = pricing.creditos * valorCredito;
+    final estudioRecibe = (precioBruto * (100 - comisionAura) / 100).round();
+
+    Color badgeColor;
+    String badgeText;
+    switch (pricing.tipo) {
+      case TipoPrecio.pico:
+        badgeColor = const Color(0xFFE8763A);
+        badgeText = '⚡ Horario pico';
+        break;
+      case TipoPrecio.valle:
+        badgeColor = const Color(0xFF4CAF50);
+        badgeText = '🏷️ Precio reducido';
+        break;
+      case TipoPrecio.normal:
+        badgeColor = const Color(0xFF8F877F);
+        badgeText = '📅 Precio estándar';
+        break;
+    }
+
+    String fmtPesos(int v) {
+      final s = v.toString();
+      final buf = StringBuffer();
+      for (int i = 0; i < s.length; i++) {
+        if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
+        buf.write(s[i]);
+      }
+      return '\$$buf';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEDE7E1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: badgeColor,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  badgeText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${pricing.creditos} créditos',
+                style: const TextStyle(
+                  color: AppColors.black,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'El usuario paga: ${fmtPesos(precioBruto)}',
+            style: const TextStyle(color: AppColors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Vos recibís: ${fmtPesos(estudioRecibe)} (${(100 - comisionAura).toStringAsFixed(0)}%)',
+            style: const TextStyle(
+              color: AppColors.black,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 

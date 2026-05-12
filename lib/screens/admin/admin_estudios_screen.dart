@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/admin_service.dart';
 import '../../services/media_upload_service.dart';
+import 'admin_pricing_screen.dart';
 
 class AdminEstudiosScreen extends StatefulWidget {
   const AdminEstudiosScreen({super.key});
@@ -476,6 +477,19 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     );
   }
 
+  void _abrirPricing(Map<String, dynamic> estudio) {
+    final estudioId = (estudio['id'] as num?)?.toInt();
+    if (estudioId == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AdminPricingScreen(
+          estudioId: estudioId,
+          estudioNombre: estudio['nombre']?.toString(),
+        ),
+      ),
+    );
+  }
+
   Future<void> _openLinkAccessDialog(Map<String, dynamic> estudio) async {
     final emailCtrl = TextEditingController();
     final estudioId = (estudio['id'] as num).toInt();
@@ -679,10 +693,17 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                               Expanded(
                                 child: OutlinedButton(
                                   onPressed: () => _openForm(studio),
-                                  child: const Text('Editar estudio'),
+                                  child: const Text('Editar'),
                                 ),
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () => _abrirPricing(studio),
+                                  child: const Text('Precios'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: ElevatedButton(
                                   onPressed: () => _openLinkAccessDialog(studio),
@@ -690,7 +711,7 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                                     backgroundColor: AppColors.primary,
                                     foregroundColor: AppColors.black,
                                   ),
-                                  child: const Text('Agregar acceso'),
+                                  child: const Text('Acceso'),
                                 ),
                               ),
                             ],

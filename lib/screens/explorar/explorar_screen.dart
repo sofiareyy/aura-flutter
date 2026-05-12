@@ -909,6 +909,7 @@ class _ResultCard extends StatelessWidget {
     final categoria = (estudio?['categoria'] ?? '').toString().toUpperCase();
     final barrio = (estudio?['barrio'] ?? '').toString().toUpperCase();
     final imageUrl = (clase['imagen_url'] ?? estudio?['foto_url'])?.toString();
+    final tipoPrecio = clase['tipo_precio']?.toString();
 
     return Material(
       color: Colors.transparent,
@@ -943,15 +944,33 @@ class _ResultCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        [categoria, barrio]
-                            .where((e) => e.isNotEmpty)
-                            .join(' · '),
-                        style: const TextStyle(
-                          color: Color(0xFFD0C6BD),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              [categoria, barrio]
+                                  .where((e) => e.isNotEmpty)
+                                  .join(' · '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFFD0C6BD),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          if (tipoPrecio == 'pico')
+                            _PriceBadge(
+                              text: '⚡ POPULAR',
+                              color: Color(0xFFE8763A),
+                            )
+                          else if (tipoPrecio == 'valle')
+                            _PriceBadge(
+                              text: '🏷️ PRECIO REDUCIDO',
+                              color: Color(0xFF4CAF50),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 3),
                       Text(
@@ -1067,6 +1086,32 @@ class _ExploreClassImage extends StatelessWidget {
             accentColor.withValues(alpha: 0.75),
             accentColor.withValues(alpha: 0.45),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PriceBadge extends StatelessWidget {
+  final String text;
+  final Color color;
+
+  const _PriceBadge({required this.text, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
