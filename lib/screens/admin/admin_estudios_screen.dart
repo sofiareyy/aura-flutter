@@ -263,6 +263,7 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     final formKey = GlobalKey<FormState>();
     bool obscurePassword = true;
     bool saving = false;
+    Map<String, dynamic>? creado;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -380,6 +381,7 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                           direccion: direccionCtrl.text.trim(),
                           barrio: barrioCtrl.text.trim(),
                         );
+                        creado = res;
                         if (!ctx.mounted) return;
                         Navigator.pop(ctx, true);
                         await _mostrarCredencialesCreadas(
@@ -416,6 +418,8 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
       ),
     );
 
+    final nombreFinal = nombreCtrl.text;
+
     nombreCtrl.dispose();
     emailCtrl.dispose();
     passwordCtrl.dispose();
@@ -423,8 +427,93 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     barrioCtrl.dispose();
 
     if (ok == true) {
+      if (mounted && creado != null) {
+        final estudioId = (creado!['estudio_id'] as num?)?.toInt();
+        if (estudioId != null) {
+          await _mostrarPasoPricing(
+            estudioId: estudioId,
+            nombre: nombreFinal,
+          );
+        }
+      }
       await _load();
     }
+  }
+
+  Future<void> _mostrarPasoPricing({
+    required int estudioId,
+    required String nombre,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Configuración de precios'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              nombre,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Podés configurarlo ahora o más tarde desde la ficha del estudio.',
+              style: TextStyle(
+                color: AppColors.grey,
+                fontSize: 13,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Lo que vas a configurar:',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              '• Rango de precios por categoría (mín/máx en créditos)\n• Grilla de horarios pico y valle',
+              style: TextStyle(
+                color: AppColors.grey,
+                fontSize: 13,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Configurar después'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => AdminPricingScreen(
+                    estudioId: estudioId,
+                    estudioNombre: nombre,
+                  ),
+                ),
+              );
+            },
+            child: const Text('Configurar ahora'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _mostrarCredencialesCreadas({
