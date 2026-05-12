@@ -23,7 +23,6 @@ declare
   v_now          timestamp := timezone('America/Argentina/Buenos_Aires', now())::timestamp;
   v_week_start   date;
   v_fecha        timestamp;
-  v_hora_split   text[];
   v_hora         int;
   v_minuto       int;
   v_existente_id int;
@@ -45,9 +44,9 @@ begin
       continue;
     end if;
 
-    v_hora_split := string_to_array(coalesce(v_h.hora_inicio, '08:00'), ':');
-    v_hora   := coalesce(v_hora_split[1]::int, 8);
-    v_minuto := coalesce(v_hora_split[2]::int, 0);
+    -- horarios_fijos.hora_inicio es de tipo `time`; extraemos hora y minuto.
+    v_hora   := coalesce(extract(hour   from v_h.hora_inicio)::int, 8);
+    v_minuto := coalesce(extract(minute from v_h.hora_inicio)::int, 0);
 
     for v_week_offset in 0..(p_weeks - 1) loop
       v_fecha := (v_week_start + (v_week_offset * 7 + (v_h.dia_semana - 1)))::timestamp
