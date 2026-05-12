@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/aviso_alumnos_service.dart';
+import '../../services/clases_service.dart';
 import '../../services/estudio_admin_service.dart';
 import '../../services/media_upload_service.dart';
 import '../../services/notificaciones_service.dart';
@@ -27,6 +28,7 @@ class MisClasesScreen extends StatefulWidget {
 class _MisClasesScreenState extends State<MisClasesScreen> {
   final _service = EstudioAdminService();
   final _reservasService = ReservasService();
+  final _clasesService = ClasesService();
   final _mediaUploadService = MediaUploadService();
   final _adminService = AdminService();
   final _avisoService = AvisoAlumnosService();
@@ -675,11 +677,17 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
   Future<void> _loadUser() async {
-    final reservas = await _reservasService.getReservasUsuario();
-    final reservasList = List<Map<String, dynamic>>.from(reservas as List);
+    final results = await Future.wait([
+      _reservasService.getReservasUsuario(),
+      // Trae las clases del proximo mes para que el calendario muestre
+      // todas las opciones por dia (no solo lo que el user ya reservo).
+      _clasesService.getProximasClases(limit: 200),
+    ]);
+    final reservasList = List<Map<String, dynamic>>.from(results[0] as List);
+    final clasesList = List<Map<String, dynamic>>.from(results[1] as List);
     if (!mounted) return;
     setState(() {
-      _clases = const [];
+      _clases = clasesList;
       _reservas = reservasList;
       _loading = false;
     });
@@ -2204,7 +2212,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width >= 768;
-    final dayClasses = _reservedClassesOn(_selectedDay);
+    // Studio: solo lo que reservo el user (dueño viendo sus alumnos).
+    // User: TODAS las clases disponibles ese dia (para que pueda reservar
+    // tocando una). Marcamos cuales ya reservo el user.
+    final dayClasses = _studio
+        ? _reservedClassesOn(_selectedDay)
+        : _userClassesOn(_selectedDay);
     final upcomingReservas = _proximasReservas;
 
     if (isDesktop && _studio) {
@@ -2277,19 +2290,42 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                       Center(child: Text(DateFormat("EEEE d 'de' MMMM", 'es').format(_selectedDay).toUpperCase(), style: const TextStyle(color: Color(0xFF9A928B), fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 1))),
                       const SizedBox(height: 16),
                       if (dayClasses.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 40),
-                          child: Center(child: Text('No hay clases cargadas para este día', style: TextStyle(color: Color(0xFF8F877F)))),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 40),
+                          child: Center(
+                            child: Text(
+                              _studio
+                                  ? 'No hay clases cargadas para este día'
+                                  : 'No hay clases disponibles este día',
+                              style: const TextStyle(color: Color(0xFF8F877F)),
+                            ),
+                          ),
                         )
                       else
-                        ...dayClasses.map((c) => Padding(
+                        ...dayClasses.map((c) {
+                          final card = _StudioClassCard(
+                            clase: c,
+                            studioMode: _studio,
+                            onAvisar: _studio ? () => _mostrarAvisoSheet(c) : null,
+                          );
+                          if (_studio) {
+                            return Padding(
                               padding: const EdgeInsets.only(bottom: 16),
-                              child: _StudioClassCard(
-                                clase: c,
-                                studioMode: _studio,
-                                onAvisar: _studio ? () => _mostrarAvisoSheet(c) : null,
-                              ),
-                            )),
+                              child: card,
+                            );
+                          }
+                          final claseId = (c['id'] as num?)?.toInt();
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(22),
+                              onTap: claseId == null
+                                  ? null
+                                  : () => context.push('/clase/$claseId'),
+                              child: card,
+                            ),
+                          );
+                        }),
                       const SizedBox(height: 28),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2381,6 +2417,50 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       if (fechaA == null) return 1;
       if (fechaB == null) return -1;
       return fechaA.compareTo(fechaB);
+    });
+    return result;
+  }
+
+  /// Para el calendario user-side: lista las clases disponibles para
+  /// reservar ese dia, marcando cuales el user ya reservo (tienen
+  /// `_user_reserva_qr` seteado). Combina `_clases` (proximas
+  /// disponibles) + `_reservas` (las que ya tomo).
+  List<Map<String, dynamic>> _userClassesOn(DateTime day) {
+    // QRs por clase_id para enriquecer las clases con reserva del user.
+    final qrPorClase = <int, String>{};
+    for (final r in _reservasActivas) {
+      final claseId = (r['clase_id'] as num?)?.toInt();
+      final qr = r['codigo_qr']?.toString();
+      if (claseId != null && qr != null && qr.isNotEmpty) {
+        qrPorClase[claseId] = qr;
+      }
+    }
+
+    final result = _clases.where((c) {
+      final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
+      return dt != null &&
+          dt.year == day.year &&
+          dt.month == day.month &&
+          dt.day == day.day;
+    }).map((c) {
+      final id = (c['id'] as num?)?.toInt();
+      final total = (c['lugares_total'] as num?)?.toInt() ?? 0;
+      final disponibles = (c['lugares_disponibles'] as num?)?.toInt() ?? 0;
+      final ocupacion = (c['_ocupacion'] as num?)?.toInt();
+      return {
+        ...c,
+        if (id != null && qrPorClase.containsKey(id))
+          '_user_reserva_qr': qrPorClase[id],
+        '_ocupados_real': ocupacion ?? (total > 0 ? (total - disponibles).clamp(0, total) : 0),
+        '_disponibles_real': disponibles,
+      };
+    }).toList();
+
+    result.sort((a, b) {
+      final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
+      final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
+      if (fa == null || fb == null) return 0;
+      return fa.compareTo(fb);
     });
     return result;
   }

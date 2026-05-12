@@ -11,6 +11,7 @@ import '../../models/estudio.dart';
 import '../../models/usuario.dart';
 import '../../providers/app_provider.dart';
 import '../../services/auth_service.dart';
+import '../../services/estudio_admin_service.dart';
 import '../../services/favoritos_service.dart';
 import '../../services/usuarios_service.dart';
 
@@ -25,11 +26,12 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
   final _authService = AuthService();
   final _favoritosService = FavoritosService();
   final _usuariosService = UsuariosService();
+  final _estudioAdminService = EstudioAdminService();
 
   bool _loadingFavoritos = true;
   bool _uploadingAvatar = false;
   List<Estudio> _favoritos = const [];
-  int? _estudioVinculadoId;
+  List<Map<String, dynamic>> _misEstudios = const [];
   final _imagePicker = ImagePicker();
 
   @override
@@ -43,15 +45,30 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
     await provider.cargarUsuario();
     final uid = provider.userId;
     if (uid.isNotEmpty) {
-      final row = await Supabase.instance.client
-          .from('usuarios')
-          .select('estudio_id')
-          .eq('id', uid)
-          .maybeSingle();
-      _estudioVinculadoId = (row?['estudio_id'] as num?)?.toInt();
+      _misEstudios = await _estudioAdminService.listMyStudios();
+    } else {
+      _misEstudios = const [];
     }
     await _cargarFavoritos();
     if (mounted) setState(() {});
+  }
+
+  Future<void> _entrarAEstudio(int estudioId) async {
+    final activo = _misEstudios.any(
+      (e) => e['is_active'] == true && (e['estudio_id'] as num?)?.toInt() == estudioId,
+    );
+    if (!activo) {
+      final ok = await _estudioAdminService.setActiveEstudio(estudioId);
+      if (!mounted) return;
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo cambiar de estudio.')),
+        );
+        return;
+      }
+    }
+    if (!mounted) return;
+    context.go('/estudio/dashboard');
   }
 
   Future<void> _cargarFavoritos() async {
@@ -128,43 +145,95 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  if (_estudioVinculadoId != null) ...[
+                  if (_misEstudios.isNotEmpty) ...[
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: AppColors.white,
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 42,
-                            height: 42,
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryLight,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Icon(
-                              Icons.storefront_outlined,
-                              color: AppColors.primary,
+                          Text(
+                            _misEstudios.length == 1
+                                ? 'Esta cuenta también administra un estudio.'
+                                : 'Esta cuenta administra ${_misEstudios.length} estudios.',
+                            style: const TextStyle(
+                              color: AppColors.black,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              'Esta cuenta también administra un estudio.',
-                              style: TextStyle(
-                                color: AppColors.black,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                          const SizedBox(height: 12),
+                          ..._misEstudios.map((e) {
+                            final id = (e['estudio_id'] as num?)?.toInt();
+                            final nombre = e['nombre']?.toString() ?? 'Sin nombre';
+                            final esActivo = e['is_active'] == true;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: InkWell(
+                                onTap: id == null ? null : () => _entrarAEstudio(id),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: esActivo
+                                        ? AppColors.primaryLight
+                                        : const Color(0xFFF7F3EE),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.white,
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: const Icon(
+                                          Icons.storefront_outlined,
+                                          color: AppColors.primary,
+                                          size: 18,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              nombre,
+                                              style: const TextStyle(
+                                                color: AppColors.black,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            if (esActivo)
+                                              const Text(
+                                                'Activo',
+                                                style: TextStyle(
+                                                  color: AppColors.primary,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      const Icon(
+                                        Icons.chevron_right_rounded,
+                                        color: AppColors.primary,
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          OutlinedButton(
-                            onPressed: () => context.go('/estudio/dashboard'),
-                            child: const Text('Cambiar al lado estudio'),
-                          ),
+                            );
+                          }),
                         ],
                       ),
                     ),

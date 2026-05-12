@@ -134,7 +134,11 @@ class _HomeScreenState extends State<HomeScreen> {
       }).ignore();
 
       final results = await Future.wait([
-        _clasesService.getProximasClases(limit: 5),
+        // Subimos el limit (era 5) para que aparezcan las clases mas
+        // cercanas en el tiempo. Con limit bajo, si las primeras 5 caian
+        // todas el mismo dia lejano, "esta semana" quedaba vacia. Order
+        // por fecha asc se sigue manteniendo (soonest first).
+        _clasesService.getProximasClases(limit: 50),
         _estudiosService.getCategorias(),
         _estudiosService.getEstudios(),
       ]);
