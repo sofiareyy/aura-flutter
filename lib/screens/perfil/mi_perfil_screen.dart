@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -32,12 +33,22 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
   bool _uploadingAvatar = false;
   List<Estudio> _favoritos = const [];
   List<Map<String, dynamic>> _misEstudios = const [];
+  String? _appVersion;
   final _imagePicker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
     _cargarTodo();
+    _cargarVersion();
+  }
+
+  Future<void> _cargarVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _appVersion = 'v${info.version} (${info.buildNumber})');
+    } catch (_) {}
   }
 
   Future<void> _cargarTodo() async {
@@ -317,6 +328,17 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  if (_appVersion != null)
+                    Center(
+                      child: Text(
+                        'Aura ${_appVersion!}',
+                        style: const TextStyle(
+                          color: Color(0xFFB0A8A0),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 24),
                 ],
               ),
