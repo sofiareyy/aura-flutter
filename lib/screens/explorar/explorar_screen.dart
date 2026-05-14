@@ -153,7 +153,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
 
   List<Map<String, dynamic>> get _clasesConEstudio {
     final filteredIds = _estudiosFiltrados.map((e) => e.id).toSet();
-    return _clases.where((clase) {
+    final filtered = _clases.where((clase) {
       final estudio = clase['estudios'] as Map<String, dynamic>?;
       if (filteredIds.isNotEmpty && !filteredIds.contains(estudio?['id'])) {
         return false;
@@ -196,6 +196,16 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
 
       return true;
     }).toList();
+    // Sort por fecha asc para que la mas proxima quede primero.
+    filtered.sort((a, b) {
+      final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
+      final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
+      if (fa == null && fb == null) return 0;
+      if (fa == null) return 1;
+      if (fb == null) return -1;
+      return fa.compareTo(fb);
+    });
+    return filtered;
   }
 
   void _mostrarFiltros() {
