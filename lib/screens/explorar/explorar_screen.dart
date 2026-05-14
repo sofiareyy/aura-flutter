@@ -472,6 +472,24 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              if (_clases.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF1E8),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'DEBUG: ${_clases.length} clases | '
+                    'Primera: ${_clases.first['fecha']} | '
+                    'Hoy: ${DateTime.now().toIso8601String()}',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 16),
               Row(
                 children: [
