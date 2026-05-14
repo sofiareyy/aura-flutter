@@ -1013,11 +1013,13 @@ class _ResultCard extends StatelessWidget {
                               text: '⚡ POPULAR',
                               color: Color(0xFFE8763A),
                             )
-                          else if (tipoPrecio == 'valle')
+                          else if (tipoPrecio == 'normal' ||
+                              tipoPrecio == 'valle')
                             _PriceBadge(
                               text: '🏷️ PRECIO REDUCIDO',
                               color: Color(0xFF4CAF50),
                             ),
+                          // tipoPrecio == 'experiencia' -> sin badge
                         ],
                       ),
                       const SizedBox(height: 3),

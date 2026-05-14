@@ -1,10 +1,14 @@
-// Pricing dinamico por horario (mirror cliente del SQL
-// public.calcular_precio_clase).
+// Pricing v2: dos tipos de estudio.
 //
-// Dado el config del estudio + categoria + dia + hora, devuelve cuantos
-// creditos cuesta la clase y de que tipo ('pico'|'valle'|'normal').
+// fitness:    precio_config = {"pilates": {"normal": 12, "pico": 16}, ...}
+//             horarios_pico = ["18:00","19:00",...]
+//             clase en hora pico -> creditos pico
+//             clase fuera         -> creditos normal
+//
+// experiencia: precio_config = {"ceramica": 50, "spa": 80, ...}
+//              precio fijo por categoria.
 
-enum TipoPrecio { pico, valle, normal }
+enum TipoPrecio { pico, normal, experiencia }
 
 class PricingResult {
   final int creditos;
@@ -13,77 +17,56 @@ class PricingResult {
 }
 
 class PricingCalculator {
-  /// estudio: el row de `estudios` (debe traer horarios_config, precio_min,
-  /// precio_max, categoria).
-  /// categoria: prefiere la de la clase si la tiene; sino la del estudio.
-  /// dia: 1 (lunes) .. 7 (domingo).
-  /// hora: 'HH:mm' en 24h.
+  /// estudio: row de `estudios` con tipo_estudio, horarios_pico, precio_config.
+  /// categoria: si la clase tiene una, usar esa; sino la del estudio.
+  /// hora: 'HH:mm' en formato 24h.
   static PricingResult calcular({
     required Map<String, dynamic> estudio,
     required String? categoria,
-    required int dia,
     required String hora,
   }) {
+    final tipoStr =
+        (estudio['tipo_estudio']?.toString() ?? 'fitness').toLowerCase();
     final cat = (categoria ?? estudio['categoria']?.toString() ?? '')
         .trim()
         .toLowerCase();
-    final precioMin = _readIntMap(estudio['precio_min']);
-    final precioMax = _readIntMap(estudio['precio_max']);
-    int? min = precioMin[cat];
-    int? max = precioMax[cat];
+    final config = estudio['precio_config'];
 
-    if (min == null && max == null) {
-      return const PricingResult(creditos: 10, tipo: TipoPrecio.normal);
+    if (tipoStr == 'experiencia') {
+      final precio = _readInt(config, cat) ?? 40;
+      return PricingResult(creditos: precio, tipo: TipoPrecio.experiencia);
     }
-    min ??= max;
-    max ??= min;
 
-    final config = estudio['horarios_config'];
-    final picoList = _readRangos(config, 'pico');
-    final valleList = _readRangos(config, 'valle');
+    // fitness
+    final horasPico = (estudio['horarios_pico'] as List?) ?? const [];
+    final horaNorm = _normalizarHora(hora);
+    final esPico = horasPico.any((h) => h?.toString() == horaNorm);
 
-    bool esPico = picoList.any((r) => _cae(r, dia, hora));
-    bool esValle = !esPico && valleList.any((r) => _cae(r, dia, hora));
-
+    final catConfig = (config is Map) ? (config[cat] as Map?) : null;
     if (esPico) {
-      return PricingResult(creditos: max!, tipo: TipoPrecio.pico);
+      final precio = _readInt(catConfig, 'pico') ?? 18;
+      return PricingResult(creditos: precio, tipo: TipoPrecio.pico);
     }
-    if (esValle) {
-      return PricingResult(creditos: min!, tipo: TipoPrecio.valle);
+    final precio = _readInt(catConfig, 'normal') ?? 12;
+    return PricingResult(creditos: precio, tipo: TipoPrecio.normal);
+  }
+
+  static int? _readInt(dynamic m, String key) {
+    if (m is! Map) return null;
+    final v = m[key];
+    if (v is num) return v.toInt();
+    if (v is String) {
+      final s = v.trim();
+      if (s.isEmpty) return null;
+      return int.tryParse(s);
     }
-    return PricingResult(
-      creditos: ((min! + max!) / 2).round(),
-      tipo: TipoPrecio.normal,
-    );
+    return null;
   }
 
-  static Map<String, int> _readIntMap(dynamic raw) {
-    if (raw is! Map) return const {};
-    final result = <String, int>{};
-    raw.forEach((k, v) {
-      final intV = (v is num) ? v.toInt() : int.tryParse(v?.toString() ?? '');
-      if (intV != null) result[k.toString().toLowerCase()] = intV;
-    });
-    return result;
-  }
-
-  static List<Map<String, dynamic>> _readRangos(dynamic config, String key) {
-    if (config is! Map) return const [];
-    final lista = config[key];
-    if (lista is! List) return const [];
-    return lista
-        .whereType<Map>()
-        .map((m) => m.map((k, v) => MapEntry(k.toString(), v)))
-        .toList();
-  }
-
-  static bool _cae(Map<String, dynamic> rango, int dia, String hora) {
-    final rDia = (rango['dia'] is num)
-        ? (rango['dia'] as num).toInt()
-        : int.tryParse(rango['dia']?.toString() ?? '');
-    if (rDia != dia) return false;
-    final inicio = rango['hora_inicio']?.toString() ?? '';
-    final fin = rango['hora_fin']?.toString() ?? '';
-    return inicio.compareTo(hora) <= 0 && hora.compareTo(fin) < 0;
+  static String _normalizarHora(String hora) {
+    final parts = hora.split(':');
+    if (parts.isEmpty) return '00:00';
+    final h = parts[0].padLeft(2, '0');
+    return '$h:00';
   }
 }

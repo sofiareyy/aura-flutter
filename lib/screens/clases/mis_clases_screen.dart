@@ -395,7 +395,6 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               const SizedBox(height: 12),
                               _PricingPreview(
                                 estudio: _estudio,
-                                dia: fechaSel.weekday,
                                 hora: '${horaSel.hour.toString().padLeft(2, '0')}:${horaSel.minute.toString().padLeft(2, '0')}',
                                 categoria: cat,
                                 onComputed: (creditos) {
@@ -992,7 +991,6 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               const SizedBox(height: 12),
                               _PricingPreview(
                                 estudio: _estudio,
-                                dia: d,
                                 hora: '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
                                 categoria: cat,
                                 onComputed: (creditos) {
@@ -3827,14 +3825,12 @@ class _AuraReadOnlyField extends StatelessWidget {
 /// y cuanto recibe el estudio (en pesos).
 class _PricingPreview extends StatelessWidget {
   final Map<String, dynamic>? estudio;
-  final int dia;
   final String hora;
   final String? categoria;
   final void Function(int creditos) onComputed;
 
   const _PricingPreview({
     required this.estudio,
-    required this.dia,
     required this.hora,
     required this.categoria,
     required this.onComputed,
@@ -3858,7 +3854,6 @@ class _PricingPreview extends StatelessWidget {
     final pricing = PricingCalculator.calcular(
       estudio: estudio!,
       categoria: categoria,
-      dia: dia,
       hora: hora,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) => onComputed(pricing.creditos));
@@ -3870,18 +3865,20 @@ class _PricingPreview extends StatelessWidget {
 
     Color badgeColor;
     String badgeText;
+    bool mostrarBadge = true;
     switch (pricing.tipo) {
       case TipoPrecio.pico:
         badgeColor = const Color(0xFFE8763A);
         badgeText = '⚡ Horario pico';
         break;
-      case TipoPrecio.valle:
+      case TipoPrecio.normal:
         badgeColor = const Color(0xFF4CAF50);
         badgeText = '🏷️ Precio reducido';
         break;
-      case TipoPrecio.normal:
+      case TipoPrecio.experiencia:
         badgeColor = const Color(0xFF8F877F);
-        badgeText = '📅 Precio estándar';
+        badgeText = '📅 Precio fijo';
+        mostrarBadge = false; // las experiencias no usan badge "popular/reducido"
         break;
     }
 
@@ -3907,21 +3904,31 @@ class _PricingPreview extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: badgeColor,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-                child: Text(
+              if (mostrarBadge)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: badgeColor,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    badgeText,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                )
+              else
+                Text(
                   badgeText,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.grey,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
               const Spacer(),
               Text(
                 '${pricing.creditos} créditos',
