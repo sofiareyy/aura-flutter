@@ -72,7 +72,36 @@ class EstudioAdminService {
   Future<List<Map<String, dynamic>>> listMyStudios() async {
     try {
       final res = await _client.rpc('list_my_studios');
-      return List<Map<String, dynamic>>.from(res as List);
+      final list = List<Map<String, dynamic>>.from(res as List);
+      if (list.isNotEmpty) return list;
+    } catch (_) {}
+
+    // Fallback: la RPC fallo o devolvio vacio. Hacemos query directa
+    // contra estudio_admins (RLS self-read) + join a estudios.
+    try {
+      final uid = _client.auth.currentUser?.id;
+      if (uid == null) return const [];
+      final ea = await _client
+          .from('estudio_admins')
+          .select('estudio_id, estudios(id, nombre, foto_url)')
+          .eq('usuario_id', uid);
+      final userRow = await _client
+          .from('usuarios')
+          .select('estudio_id')
+          .eq('id', uid)
+          .maybeSingle();
+      final activoId = (userRow?['estudio_id'] as num?)?.toInt();
+      return List<Map<String, dynamic>>.from(ea as List).map((row) {
+        final est = row['estudios'] as Map?;
+        final eId = (est?['id'] as num?)?.toInt() ??
+            (row['estudio_id'] as num?)?.toInt();
+        return {
+          'estudio_id': eId,
+          'nombre': est?['nombre'],
+          'foto_url': est?['foto_url'],
+          'is_active': eId == activoId,
+        };
+      }).toList();
     } catch (_) {
       return const [];
     }

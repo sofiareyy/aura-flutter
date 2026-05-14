@@ -81,7 +81,18 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
     ]);
 
     if (!mounted) return;
-    final nuevasClases = results[1] as List<Map<String, dynamic>>;
+    final nuevasClases = List<Map<String, dynamic>>.from(
+      results[1] as List<Map<String, dynamic>>,
+    );
+    // Sort defensivo asc en el cliente, aunque el backend ya lo haga.
+    nuevasClases.sort((a, b) {
+      final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
+      final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
+      if (fa == null && fb == null) return 0;
+      if (fa == null) return 1;
+      if (fb == null) return -1;
+      return fa.compareTo(fb);
+    });
     setState(() {
       _estudios = results[0] as List<Estudio>;
       _clases = nuevasClases;
@@ -104,8 +115,17 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
         offset: _clasesOffset,
       );
       if (!mounted) return;
+      final merged = [..._clases, ...mas];
+      merged.sort((a, b) {
+        final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
+        final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
+        if (fa == null && fb == null) return 0;
+        if (fa == null) return 1;
+        if (fb == null) return -1;
+        return fa.compareTo(fb);
+      });
       setState(() {
-        _clases = [..._clases, ...mas];
+        _clases = merged;
         _clasesOffset += mas.length;
         _hasMoreClases = mas.length == _pageSize;
         _loadingMore = false;
