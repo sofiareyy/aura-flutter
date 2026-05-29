@@ -89,7 +89,7 @@ class EstudiosService {
         .eq('estudio_id', estudioId)
         .gte('fecha', _toSupaDate(ahora))
         .lte('fecha', _toSupaDate(semanasAdelante))
-        .order('fecha');
+        .order('fecha', ascending: true);
 
     final clases = List<Map<String, dynamic>>.from(data as List);
     if (clases.isEmpty) return clases;

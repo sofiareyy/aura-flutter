@@ -205,7 +205,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ahora = DateTime.now();
+    // Hora Argentina (UTC-3) en frame UTC, independiente del timezone del device.
+    final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
     final finSemana = ahora.add(const Duration(days: 7));
     final clasesFiltradas = _categoriaSeleccionada == 'Todos'
         ? _proximasClases
@@ -216,7 +217,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 _categoriaSeleccionada.toLowerCase();
           }).toList();
     final clasesEstaSemana = clasesFiltradas.where((clase) {
-      final fecha = DateTime.tryParse(clase['fecha']?.toString() ?? '');
+      // Las fechas en DB estan en hora Argentina sin marker; forzamos UTC con
+      // 'Z' para comparar en el mismo frame que 'ahora'.
+      final raw = clase['fecha']?.toString() ?? '';
+      final fecha = DateTime.tryParse('${raw.replaceFirst(' ', 'T')}Z');
       if (fecha == null) return false;
       return !fecha.isBefore(ahora) && !fecha.isAfter(finSemana);
     }).toList();

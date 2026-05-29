@@ -188,7 +188,9 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
       query.lte('fecha', _toSupaDate(to));
     }
 
-    final data = await (limit != null ? query.order('fecha').limit(limit) : query.order('fecha'));
+    final data = await (limit != null
+        ? query.order('fecha', ascending: true).limit(limit)
+        : query.order('fecha', ascending: true));
     return List<Map<String, dynamic>>.from(data as List);
   }
 

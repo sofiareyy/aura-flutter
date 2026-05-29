@@ -78,7 +78,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
         .from('clases')
         .select()
         .gte('fecha', DateTime(now.year, now.month, now.day).toIso8601String())
-        .order('fecha')
+        .order('fecha', ascending: true)
         .limit(10);
 
     final mapped = List<Map<String, dynamic>>.from(clases as List);

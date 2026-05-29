@@ -20,7 +20,7 @@ class ClasesService {
         .select()
         .gte('fecha', _toSupaDate(ahora))
         .lte('fecha', _toSupaDate(semanasAdelante))
-        .order('fecha')
+        .order('fecha', ascending: true)
         .range(offset, offset + limit - 1);
     final withEstudios =
         await _attachEstudios(List<Map<String, dynamic>>.from(clases as List));
@@ -124,7 +124,7 @@ class ClasesService {
           .gte('fecha', _toSupaDate(ahora))
           .lte('fecha', _toSupaDate(hasta))
           .inFilter('estudios.categoria', categorias)
-          .order('fecha')
+          .order('fecha', ascending: true)
           .limit(limit * 3);
       final all = List<Map<String, dynamic>>.from(resultado as List);
       final filtered = all
