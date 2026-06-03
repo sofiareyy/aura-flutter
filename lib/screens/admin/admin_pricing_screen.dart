@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../services/pricing_service.dart';
+import '../../utils/pricing.dart';
 
 class AdminPricingScreen extends StatefulWidget {
   final int estudioId;
@@ -23,49 +25,65 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
   static const _picoColor = Color(0xFFE8763A);
   static const _valleColor = Color(0xFF4CAF50);
 
+  static const _diasSemana = [
+    '',
+    'Lunes',
+    'Martes',
+    'Miércoles',
+    'Jueves',
+    'Viernes',
+    'Sábado',
+    'Domingo',
+  ];
+
   final _client = Supabase.instance.client;
+  final _pricingService = PricingService();
 
   bool _loading = true;
   bool _saving = false;
   String? _error;
 
   String _tipoEstudio = 'fitness'; // 'fitness' | 'experiencia'
-  final Set<String> _horasPico = {};
-  final Map<String, _FitnessCtrls> _fitnessCtrls = {};
-  final Map<String, TextEditingController> _experienciaCtrls = {};
-  final Set<String> _categorias = {};
+  int _valorCredito = 1000;
 
-  static const _horasDisponibles = [
-    '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
-    '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
-    '18:00', '19:00', '20:00', '21:00', '22:00', '23:00',
-  ];
+  // fitness: un solo rango por estudio
+  final _minCtrl = TextEditingController();
+  final _maxCtrl = TextEditingController();
+  // experiencia: precio fijo
+  final _fijoCtrl = TextEditingController();
+
+  // horarios: clave "dia|rango" -> 'pico' | 'valle'
+  final Map<String, String> _clasificacion = {};
 
   @override
   void initState() {
     super.initState();
+    _minCtrl.addListener(_onPreviewChanged);
+    _maxCtrl.addListener(_onPreviewChanged);
     _cargar();
   }
 
   @override
   void dispose() {
-    for (final c in _fitnessCtrls.values) {
-      c.dispose();
-    }
-    for (final c in _experienciaCtrls.values) {
-      c.dispose();
-    }
+    _minCtrl.dispose();
+    _maxCtrl.dispose();
+    _fijoCtrl.dispose();
     super.dispose();
+  }
+
+  void _onPreviewChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _cargar() async {
     try {
       final row = await _client
           .from('estudios')
-          .select(
-              'id, nombre, categoria, tipo_estudio, horarios_pico, precio_config')
+          .select('id, nombre, tipo_estudio, precio_config, horarios_config')
           .eq('id', widget.estudioId)
           .maybeSingle();
+      _valorCredito = await _pricingService.getValorCreditoArs();
+
       if (row == null) {
         setState(() {
           _loading = false;
@@ -74,55 +92,28 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
         return;
       }
 
-      _tipoEstudio = (row['tipo_estudio']?.toString() ?? 'fitness').toLowerCase();
+      _tipoEstudio =
+          (row['tipo_estudio']?.toString() ?? 'fitness').toLowerCase();
 
-      // horas pico
-      final hp = row['horarios_pico'];
-      _horasPico.clear();
-      if (hp is List) {
-        for (final h in hp) {
-          _horasPico.add(h.toString());
-        }
-      }
-
-      // categorias
-      _categorias.clear();
-      final estudioCat = row['categoria']?.toString().toLowerCase() ?? '';
-      if (estudioCat.isNotEmpty) _categorias.add(estudioCat);
-
+      // precio_config = {"min": 10, "max": 18, "pico_multiplier": 1.0}
       final config = row['precio_config'];
+      int? min;
+      int? max;
       if (config is Map) {
-        for (final k in config.keys) {
-          _categorias.add(k.toString().toLowerCase());
-        }
+        min = _asInt(config['min']);
+        max = _asInt(config['max']);
       }
-      if (_categorias.isEmpty) {
-        _categorias.addAll(['pilates', 'yoga']);
-      }
+      _minCtrl.text = min?.toString() ?? '';
+      _maxCtrl.text = max?.toString() ?? '';
+      // para experiencia el precio fijo se guarda en min
+      _fijoCtrl.text = min?.toString() ?? '';
 
-      _fitnessCtrls.clear();
-      _experienciaCtrls.clear();
-      for (final cat in _categorias) {
-        if (_tipoEstudio == 'experiencia') {
-          final val = (config is Map) ? config[cat] : null;
-          _experienciaCtrls[cat] = TextEditingController(
-            text: (val is num) ? val.toInt().toString() : (val?.toString() ?? ''),
-          );
-        } else {
-          final sub = (config is Map) ? config[cat] : null;
-          int? normal;
-          int? pico;
-          if (sub is Map) {
-            final n = sub['normal'];
-            final p = sub['pico'];
-            if (n is num) normal = n.toInt();
-            if (p is num) pico = p.toInt();
-          }
-          _fitnessCtrls[cat] = _FitnessCtrls(
-            normal: TextEditingController(text: normal?.toString() ?? ''),
-            pico: TextEditingController(text: pico?.toString() ?? ''),
-          );
-        }
+      // horarios_config = {"pico": [{"dia":1,"rango":"tarde_noche"}], "valle": [...]}
+      _clasificacion.clear();
+      final horarios = row['horarios_config'];
+      if (horarios is Map) {
+        _cargarClasificacion(horarios['pico'], 'pico');
+        _cargarClasificacion(horarios['valle'], 'valle');
       }
 
       setState(() {
@@ -137,34 +128,63 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
     }
   }
 
+  void _cargarClasificacion(dynamic arr, String tipo) {
+    if (arr is! List) return;
+    for (final e in arr) {
+      if (e is! Map) continue;
+      final dia = _asInt(e['dia']);
+      final rango = e['rango']?.toString();
+      if (dia != null && rango != null && rango.isNotEmpty) {
+        _clasificacion['$dia|$rango'] = tipo;
+      }
+    }
+  }
+
   Future<void> _guardar() async {
     if (widget.readOnly) return;
+
+    final Map<String, dynamic> precioConfig;
+    Map<String, dynamic> horariosConfig = {'pico': [], 'valle': []};
+
+    if (_tipoEstudio == 'experiencia') {
+      final fijo = int.tryParse(_fijoCtrl.text.trim());
+      if (fijo == null) {
+        _snack('Ingresá un precio fijo válido.');
+        return;
+      }
+      precioConfig = {'min': fijo, 'max': fijo, 'pico_multiplier': 1.0};
+    } else {
+      final min = int.tryParse(_minCtrl.text.trim());
+      final max = int.tryParse(_maxCtrl.text.trim());
+      if (min == null || max == null) {
+        _snack('Completá el precio mínimo y máximo.');
+        return;
+      }
+      if (max < min) {
+        _snack('El precio máximo no puede ser menor al mínimo.');
+        return;
+      }
+      precioConfig = {'min': min, 'max': max, 'pico_multiplier': 1.0};
+
+      final pico = <Map<String, dynamic>>[];
+      final valle = <Map<String, dynamic>>[];
+      _clasificacion.forEach((key, tipo) {
+        final parts = key.split('|');
+        if (parts.length != 2) return;
+        final dia = int.tryParse(parts[0]);
+        if (dia == null) return;
+        final entry = {'dia': dia, 'rango': parts[1]};
+        (tipo == 'pico' ? pico : valle).add(entry);
+      });
+      horariosConfig = {'pico': pico, 'valle': valle};
+    }
+
     setState(() => _saving = true);
     try {
-      final Map<String, dynamic> precioConfig = {};
-      if (_tipoEstudio == 'experiencia') {
-        for (final entry in _experienciaCtrls.entries) {
-          final v = int.tryParse(entry.value.text.trim());
-          if (v != null) precioConfig[entry.key] = v;
-        }
-      } else {
-        for (final entry in _fitnessCtrls.entries) {
-          final normal = int.tryParse(entry.value.normal.text.trim());
-          final pico = int.tryParse(entry.value.pico.text.trim());
-          if (normal != null || pico != null) {
-            precioConfig[entry.key] = {
-              if (normal != null) 'normal': normal,
-              if (pico != null) 'pico': pico,
-            };
-          }
-        }
-      }
-
       await _client.from('estudios').update({
         'tipo_estudio': _tipoEstudio,
-        'horarios_pico':
-            _tipoEstudio == 'fitness' ? _horasPico.toList() : <String>[],
         'precio_config': precioConfig,
+        'horarios_config': horariosConfig,
       }).eq('id', widget.estudioId);
 
       try {
@@ -177,57 +197,21 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Configuración guardada. Precios aplicados a clases futuras.'),
+          content: Text(
+              'Configuración guardada. Precios aplicados a clases futuras.'),
           backgroundColor: AppColors.success,
         ),
       );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo guardar: $e')),
-      );
+      _snack('No se pudo guardar: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
-  Future<void> _agregarCategoria() async {
-    final ctrl = TextEditingController();
-    final nombre = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Nueva categoría'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'ej. ceramica, taller'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text.trim().toLowerCase()),
-            child: const Text('Agregar'),
-          ),
-        ],
-      ),
-    );
-    ctrl.dispose();
-    if (nombre == null || nombre.isEmpty) return;
-    if (_categorias.contains(nombre)) return;
-    setState(() {
-      _categorias.add(nombre);
-      if (_tipoEstudio == 'experiencia') {
-        _experienciaCtrls[nombre] = TextEditingController();
-      } else {
-        _fitnessCtrls[nombre] = _FitnessCtrls(
-          normal: TextEditingController(),
-          pico: TextEditingController(),
-        );
-      }
-    });
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -240,7 +224,8 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
             : 'Precios del estudio'),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary))
           : _error != null
               ? Padding(
                   padding: const EdgeInsets.all(20),
@@ -254,12 +239,11 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
                       _buildToggleTipo(),
                       const SizedBox(height: 20),
                       if (_tipoEstudio == 'fitness') ...[
-                        _buildHorariosPico(),
-                        const SizedBox(height: 20),
-                        _buildPreciosFitness(),
-                      ] else ...[
-                        _buildPreciosExperiencia(),
-                      ],
+                        _buildRangoFitness(),
+                        const SizedBox(height: 24),
+                        _buildHorarios(),
+                      ] else
+                        _buildPrecioExperiencia(),
                       const SizedBox(height: 28),
                       SizedBox(
                         width: double.infinity,
@@ -273,7 +257,8 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          child: Text(_saving ? 'Guardando…' : 'Guardar configuración'),
+                          child: Text(
+                              _saving ? 'Guardando…' : 'Guardar configuración'),
                         ),
                       ),
                     ],
@@ -287,7 +272,9 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       final selected = _tipoEstudio == value;
       return Expanded(
         child: GestureDetector(
-          onTap: widget.readOnly ? null : () => setState(() => _tipoEstudio = value),
+          onTap: widget.readOnly
+              ? null
+              : () => setState(() => _tipoEstudio = value),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
@@ -333,20 +320,20 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
         const SizedBox(height: 6),
         Text(
           _tipoEstudio == 'fitness'
-              ? 'Precios cambian según día/hora (pico vs normal)'
-              : 'Precios fijos por categoría',
+              ? 'Precio variable según día/hora (pico, normal y valle)'
+              : 'Precio fijo, sin importar día/hora',
           style: const TextStyle(color: AppColors.grey, fontSize: 12),
         ),
       ],
     );
   }
 
-  Widget _buildHorariosPico() {
+  Widget _buildRangoFitness() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Horarios pico',
+          'Rango de precio del estudio',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
@@ -355,138 +342,245 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Tocá las horas que querés marcar como pico. Las no marcadas son horario normal.',
+          'Tu rango negociado en créditos. En horario pico la clase cuesta el '
+          'máximo; en normal, el mínimo; en valle, el mínimo con 10% de '
+          'descuento.',
           style: TextStyle(color: AppColors.grey, fontSize: 13, height: 1.4),
         ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _horasDisponibles.map((h) {
-            final selected = _horasPico.contains(h);
-            return GestureDetector(
-              onTap: widget.readOnly
-                  ? null
-                  : () => setState(() {
-                        if (selected) {
-                          _horasPico.remove(h);
-                        } else {
-                          _horasPico.add(h);
-                        }
-                      }),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: selected ? _picoColor : AppColors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: selected ? _picoColor : const Color(0xFFEDE7E1),
-                  ),
-                ),
-                child: Text(
-                  selected ? '⚡ $h' : h,
-                  style: TextStyle(
-                    color: selected ? AppColors.white : AppColors.black,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _minCtrl,
+                enabled: !widget.readOnly,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Precio mínimo',
+                  suffixText: 'cr',
+                  isDense: true,
+                  prefixIcon: Icon(Icons.south, color: _valleColor, size: 18),
                 ),
               ),
-            );
-          }).toList(),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _maxCtrl,
+                enabled: !widget.readOnly,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Precio máximo',
+                  suffixText: 'cr',
+                  isDense: true,
+                  prefixIcon: Icon(Icons.bolt, color: _picoColor, size: 18),
+                ),
+              ),
+            ),
+          ],
         ),
+        const SizedBox(height: 12),
+        _buildPreviewIngreso(),
       ],
     );
   }
 
-  Widget _buildPreciosFitness() {
+  Widget _buildPreviewIngreso() {
+    final min = int.tryParse(_minCtrl.text.trim());
+    final max = int.tryParse(_maxCtrl.text.trim());
+    final String texto;
+    if (min == null && max == null) {
+      texto = 'Completá el rango para ver cuánto recibe el estudio por clase.';
+    } else {
+      final lo = min ?? max!;
+      final hi = max ?? min!;
+      final recibeLo = _pricingService.montoEstudioPorClase(_valorCredito, lo);
+      final recibeHi = _pricingService.montoEstudioPorClase(_valorCredito, hi);
+      texto = recibeLo == recibeHi
+          ? 'Estudio recibe ${_fmtPesos(recibeLo)} por clase'
+          : 'Estudio recibe entre ${_fmtPesos(recibeLo)} y '
+              '${_fmtPesos(recibeHi)} por clase';
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1E8),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.payments_outlined, color: AppColors.primary, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              texto,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHorarios() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Precios por categoría',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.black,
-                ),
-              ),
-            ),
-            if (!widget.readOnly)
-              TextButton.icon(
-                onPressed: _agregarCategoria,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Categoría'),
-              ),
-          ],
+        const Text(
+          'Horarios pico y valle',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: AppColors.black,
+          ),
         ),
-        const SizedBox(height: 12),
-        ..._categorias.toList().map((cat) {
-          final c = _fitnessCtrls[cat];
-          if (c == null) return const SizedBox.shrink();
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _capitalize(cat),
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.black,
+        const SizedBox(height: 6),
+        const Text(
+          'Tocá un bloque para clasificarlo. 1 toque = ⚡ pico, 2 toques = '
+          '🌙 valle, 3 toques = normal. Los bloques sin marcar son normales.',
+          style: TextStyle(color: AppColors.grey, fontSize: 13, height: 1.4),
+        ),
+        const SizedBox(height: 14),
+        for (int dia = 1; dia <= 7; dia++) _buildDiaRow(dia),
+      ],
+    );
+  }
+
+  Widget _buildDiaRow(int dia) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _diasSemana[dia],
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.black,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: kRangosHorarios.map((r) {
+              final key = '$dia|${r.key}';
+              final estado = _clasificacion[key]; // null | 'pico' | 'valle'
+              final Color bg;
+              final Color fg;
+              final String prefix;
+              if (estado == 'pico') {
+                bg = _picoColor;
+                fg = AppColors.white;
+                prefix = '⚡ ';
+              } else if (estado == 'valle') {
+                bg = _valleColor;
+                fg = AppColors.white;
+                prefix = '🌙 ';
+              } else {
+                bg = AppColors.white;
+                fg = AppColors.black;
+                prefix = '';
+              }
+              return GestureDetector(
+                onTap: widget.readOnly ? null : () => _ciclarEstado(key),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: estado == null ? const Color(0xFFEDE7E1) : bg,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: c.normal,
-                          enabled: !widget.readOnly,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            labelText: 'Normal',
-                            suffixText: 'cr',
-                            isDense: true,
-                            prefixIcon: Icon(
-                              Icons.label_outline,
-                              color: _valleColor,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextField(
-                          controller: c.pico,
-                          enabled: !widget.readOnly,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            labelText: 'Pico',
-                            suffixText: 'cr',
-                            isDense: true,
-                            prefixIcon: Icon(
-                              Icons.bolt,
-                              color: _picoColor,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    '$prefix${r.label}',
+                    style: TextStyle(
+                      color: fg,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
                   ),
-                ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _ciclarEstado(String key) {
+    setState(() {
+      final actual = _clasificacion[key];
+      if (actual == null) {
+        _clasificacion[key] = 'pico';
+      } else if (actual == 'pico') {
+        _clasificacion[key] = 'valle';
+      } else {
+        _clasificacion.remove(key);
+      }
+    });
+  }
+
+  Widget _buildPrecioExperiencia() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Precio fijo',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: AppColors.black,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Las experiencias cobran siempre lo mismo, sin importar día u hora.',
+          style: TextStyle(color: AppColors.grey, fontSize: 13, height: 1.4),
+        ),
+        const SizedBox(height: 14),
+        TextField(
+          controller: _fijoCtrl,
+          enabled: !widget.readOnly,
+          keyboardType: TextInputType.number,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(
+            labelText: 'Precio (créditos)',
+            suffixText: 'cr',
+            isDense: true,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Builder(builder: (_) {
+          final fijo = int.tryParse(_fijoCtrl.text.trim());
+          final texto = fijo == null
+              ? 'Ingresá el precio para ver cuánto recibe el estudio.'
+              : 'Estudio recibe '
+                  '${_fmtPesos(_pricingService.montoEstudioPorClase(_valorCredito, fijo))} '
+                  'por clase';
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF1E8),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              texto,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
             ),
           );
@@ -495,87 +589,19 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
     );
   }
 
-  Widget _buildPreciosExperiencia() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Precio por categoría',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.black,
-                ),
-              ),
-            ),
-            if (!widget.readOnly)
-              TextButton.icon(
-                onPressed: _agregarCategoria,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Categoría'),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ..._categorias.toList().map((cat) {
-          final c = _experienciaCtrls[cat];
-          if (c == null) return const SizedBox.shrink();
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      _capitalize(cat),
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.black,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: TextField(
-                      controller: c,
-                      enabled: !widget.readOnly,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Precio fijo',
-                        suffixText: 'cr',
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ],
-    );
+  static int? _asInt(dynamic v) {
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v.trim());
+    return null;
   }
 
-  static String _capitalize(String s) =>
-      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
-}
-
-class _FitnessCtrls {
-  final TextEditingController normal;
-  final TextEditingController pico;
-  _FitnessCtrls({required this.normal, required this.pico});
-  void dispose() {
-    normal.dispose();
-    pico.dispose();
+  static String _fmtPesos(int v) {
+    final s = v.toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
+      buf.write(s[i]);
+    }
+    return '\$$buf';
   }
 }

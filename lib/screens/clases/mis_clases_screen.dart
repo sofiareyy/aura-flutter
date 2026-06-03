@@ -396,6 +396,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               _PricingPreview(
                                 estudio: _estudio,
                                 hora: '${horaSel.hour.toString().padLeft(2, '0')}:${horaSel.minute.toString().padLeft(2, '0')}',
+                                dia: fechaSel.weekday,
                                 categoria: cat,
                                 onComputed: (creditos) {
                                   if (cred.text != creditos.toString()) {
@@ -992,6 +993,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               _PricingPreview(
                                 estudio: _estudio,
                                 hora: '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
+                                dia: d,
                                 categoria: cat,
                                 onComputed: (creditos) {
                                   if (cr.text != creditos.toString()) {
@@ -3826,12 +3828,14 @@ class _AuraReadOnlyField extends StatelessWidget {
 class _PricingPreview extends StatelessWidget {
   final Map<String, dynamic>? estudio;
   final String hora;
+  final int dia; // isodow 1=lunes..7=domingo
   final String? categoria;
   final void Function(int creditos) onComputed;
 
   const _PricingPreview({
     required this.estudio,
     required this.hora,
+    required this.dia,
     required this.categoria,
     required this.onComputed,
   });
@@ -3855,6 +3859,7 @@ class _PricingPreview extends StatelessWidget {
       estudio: estudio!,
       categoria: categoria,
       hora: hora,
+      dia: dia,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) => onComputed(pricing.creditos));
 
@@ -3874,6 +3879,10 @@ class _PricingPreview extends StatelessWidget {
       case TipoPrecio.normal:
         badgeColor = const Color(0xFF4CAF50);
         badgeText = '🏷️ Precio reducido';
+        break;
+      case TipoPrecio.valle:
+        badgeColor = const Color(0xFF4CAF50);
+        badgeText = '🌙 Precio valle';
         break;
       case TipoPrecio.experiencia:
         badgeColor = const Color(0xFF8F877F);
