@@ -3,11 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
+import '../../services/clases_service.dart';
 import '../../services/reservas_service.dart';
+
+const _darkAppBar = Color(0xFF1A1A1A);
+const _cream = Color(0xFFF5F0E8);
+const _chipDark = Color(0xFF252525);
+const _chipBorder = Color(0xFF333333);
+const _categoryBadgeBg = Color(0xFFFDF0E8);
+const _successBg = Color(0xFFE8F5E9);
+const _successFg = Color(0xFF2E7D32);
 
 class MisReservasScreen extends StatefulWidget {
   const MisReservasScreen({super.key});
@@ -16,101 +25,204 @@ class MisReservasScreen extends StatefulWidget {
   State<MisReservasScreen> createState() => _MisReservasScreenState();
 }
 
-class _MisReservasScreenState extends State<MisReservasScreen>
-    with SingleTickerProviderStateMixin {
+class _MisReservasScreenState extends State<MisReservasScreen> {
   final _reservasService = ReservasService();
-  late TabController _tabCtrl;
+  final _clasesService = ClasesService();
+
   List<Map<String, dynamic>> _proximas = [];
   List<Map<String, dynamic>> _historial = [];
-  List<Map<String, dynamic>> _enEspera = [];
+  List<Map<String, dynamic>> _clases = [];
+  List<String> _categorias = const ['Todos'];
+  String _categoriaSeleccionada = 'Todos';
+  String? _diaSeleccionadoKey;
   bool _loading = true;
-  bool _loadingMore = false;
+  bool _loadingMoreHistorial = false;
   bool _hasMoreHistorial = true;
   int _historialOffset = 0;
-  static const _pageSize = 20;
+  bool _historialExpanded = false;
+  static const _historialPageSize = 20;
 
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
     _cargar();
   }
 
-  @override
-  void dispose() {
-    _tabCtrl.dispose();
-    super.dispose();
-  }
-
   Future<void> _cargar() async {
-    final authUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
-    if (authUserId.isEmpty) {
-      if (mounted) setState(() { _proximas = []; _historial = []; _loading = false; });
+    final uid = Supabase.instance.client.auth.currentUser?.id ?? '';
+    if (uid.isEmpty) {
+      if (mounted) setState(() => _loading = false);
       return;
     }
-    setState(() { _loading = true; _historialOffset = 0; _hasMoreHistorial = true; });
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _historialOffset = 0;
+        _hasMoreHistorial = true;
+      });
+    }
+
     await context.read<AppProvider>().refrescarUsuario();
 
     final results = await Future.wait([
-      _reservasService.getReservasUsuario(authUserId),
-      _reservasService.getHistorialReservas(authUserId, limit: _pageSize, offset: 0),
+      _reservasService.getReservasUsuario(uid),
+      _reservasService.getHistorialReservas(uid,
+          limit: _historialPageSize, offset: 0),
+      _clasesService.getProximasClases(limit: 200, offset: 0),
     ]);
-
-    // Load waitlist entries
-    List<Map<String, dynamic>> enEspera = [];
-    try {
-      final espera = await Supabase.instance.client
-          .from('lista_espera')
-          .select('id, clase_id, posicion, created_at, clases(nombre, fecha, estudios(nombre))')
-          .eq('usuario_id', authUserId)
-          .order('posicion');
-      enEspera = List<Map<String, dynamic>>.from(espera as List);
-    } catch (_) {
-      // Non-critical
-    }
-
     if (!mounted) return;
+
+    final proximas = results[0].toList()..sort(_compareByReservaFecha);
     final historial = results[1];
+    final clases = results[2].toList()..sort(_compareByFecha);
+
+    // Filtrar de "disponibles" las clases que el usuario ya tiene reservadas,
+    // para que no aparezcan en ambas secciones.
+    final claseIdsReservadas = proximas
+        .map((r) => (r['clase_id'] as num?)?.toInt())
+        .whereType<int>()
+        .toSet();
+    final clasesFiltered = clases
+        .where((c) => !claseIdsReservadas.contains((c['id'] as num?)?.toInt()))
+        .toList();
+
+    // Categorias derivadas de los estudios presentes en las clases.
+    final cats = <String>{};
+    for (final c in clasesFiltered) {
+      final cat = (c['estudios'] as Map?)?['categoria']?.toString().trim();
+      if (cat != null && cat.isNotEmpty) cats.add(cat);
+    }
+    final categorias = ['Todos', ...cats.toList()..sort()];
+
     setState(() {
-      _proximas = results[0];
+      _proximas = proximas;
       _historial = historial;
-      _enEspera = enEspera;
+      _clases = clasesFiltered;
+      _categorias = categorias;
+      if (!_categorias.contains(_categoriaSeleccionada)) {
+        _categoriaSeleccionada = 'Todos';
+      }
       _historialOffset = historial.length;
-      _hasMoreHistorial = historial.length == _pageSize;
+      _hasMoreHistorial = historial.length == _historialPageSize;
+      _diaSeleccionadoKey = _primerDiaConClases();
       _loading = false;
     });
   }
 
   Future<void> _cargarMasHistorial() async {
-    if (_loadingMore || !_hasMoreHistorial) return;
-    final authUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
-    if (authUserId.isEmpty) return;
-    setState(() => _loadingMore = true);
+    if (_loadingMoreHistorial || !_hasMoreHistorial) return;
+    final uid = Supabase.instance.client.auth.currentUser?.id ?? '';
+    if (uid.isEmpty) return;
+    setState(() => _loadingMoreHistorial = true);
     try {
       final mas = await _reservasService.getHistorialReservas(
-        authUserId,
-        limit: _pageSize,
+        uid,
+        limit: _historialPageSize,
         offset: _historialOffset,
       );
       if (!mounted) return;
       setState(() {
         _historial = [..._historial, ...mas];
         _historialOffset += mas.length;
-        _hasMoreHistorial = mas.length == _pageSize;
-        _loadingMore = false;
+        _hasMoreHistorial = mas.length == _historialPageSize;
+        _loadingMoreHistorial = false;
       });
     } catch (_) {
-      if (mounted) setState(() => _loadingMore = false);
+      if (mounted) setState(() => _loadingMoreHistorial = false);
     }
   }
 
+  // ── Fecha helpers (DB strings naive AR; comparamos contra "ahora AR") ─────
+
+  DateTime _ahoraAr() {
+    final u = DateTime.now().toUtc().subtract(const Duration(hours: 3));
+    return DateTime(u.year, u.month, u.day, u.hour, u.minute, u.second);
+  }
+
+  DateTime? _parseFecha(dynamic raw) {
+    if (raw == null) return null;
+    return DateTime.tryParse(raw.toString());
+  }
+
+  String _dayKey(DateTime dt) =>
+      '${dt.year.toString().padLeft(4, '0')}-'
+      '${dt.month.toString().padLeft(2, '0')}-'
+      '${dt.day.toString().padLeft(2, '0')}';
+
+  int _compareByFecha(Map<String, dynamic> a, Map<String, dynamic> b) {
+    final fa = _parseFecha(a['fecha']);
+    final fb = _parseFecha(b['fecha']);
+    if (fa == null && fb == null) return 0;
+    if (fa == null) return 1;
+    if (fb == null) return -1;
+    return fa.compareTo(fb);
+  }
+
+  int _compareByReservaFecha(Map<String, dynamic> a, Map<String, dynamic> b) {
+    final fa = _parseFecha((a['clases'] as Map?)?['fecha']);
+    final fb = _parseFecha((b['clases'] as Map?)?['fecha']);
+    if (fa == null && fb == null) return 0;
+    if (fa == null) return 1;
+    if (fb == null) return -1;
+    return fa.compareTo(fb);
+  }
+
+  bool _matchesCategoria(Map<String, dynamic> clase) {
+    if (_categoriaSeleccionada == 'Todos') return true;
+    final cat =
+        (clase['estudios'] as Map?)?['categoria']?.toString().toLowerCase();
+    return cat == _categoriaSeleccionada.toLowerCase();
+  }
+
+  List<DateTime> get _diasDisponibles {
+    final seen = <String, DateTime>{};
+    for (final c in _clases) {
+      if (!_matchesCategoria(c)) continue;
+      final fecha = _parseFecha(c['fecha']);
+      if (fecha == null) continue;
+      final dia = DateTime(fecha.year, fecha.month, fecha.day);
+      seen.putIfAbsent(_dayKey(dia), () => dia);
+    }
+    final dias = seen.values.toList()..sort();
+    return dias;
+  }
+
+  String? _primerDiaConClases() {
+    final dias = _diasDisponibles;
+    if (dias.isEmpty) return null;
+    return _dayKey(dias.first);
+  }
+
+  List<Map<String, dynamic>> get _clasesDelDia {
+    final key = _diaSeleccionadoKey;
+    if (key == null) return const [];
+    return _clases.where((c) {
+      if (!_matchesCategoria(c)) return false;
+      final fecha = _parseFecha(c['fecha']);
+      if (fecha == null) return false;
+      return _dayKey(DateTime(fecha.year, fecha.month, fecha.day)) == key;
+    }).toList()
+      ..sort(_compareByFecha);
+  }
+
+  void _seleccionarCategoria(String categoria) {
+    setState(() {
+      _categoriaSeleccionada = categoria;
+      final dias = _diasDisponibles;
+      if (dias.isEmpty) {
+        _diaSeleccionadoKey = null;
+      } else if (!dias.any((d) => _dayKey(d) == _diaSeleccionadoKey)) {
+        _diaSeleccionadoKey = _dayKey(dias.first);
+      }
+    });
+  }
+
+  // ── Cancelar reserva (logica preservada del original) ─────────────────────
+
   bool _puedeCancelar(Map<String, dynamic> reserva) {
-    final clase = reserva['clases'] as Map<String, dynamic>?;
-    final fecha = clase?['fecha'] != null
-        ? DateTime.tryParse(clase!['fecha'].toString())
-        : null;
+    final fecha = _parseFecha((reserva['clases'] as Map?)?['fecha']);
     if (fecha == null) return false;
-    return DateTime.now().isBefore(fecha.subtract(const Duration(hours: 12)));
+    return _ahoraAr().isBefore(fecha.subtract(const Duration(hours: 12)));
   }
 
   Future<void> _cancelar(Map<String, dynamic> reserva) async {
@@ -128,8 +240,7 @@ class _MisReservasScreenState extends State<MisReservasScreen>
       return;
     }
 
-    final creditos =
-        (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
+    final creditos = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -152,7 +263,6 @@ class _MisReservasScreenState extends State<MisReservasScreen>
         ],
       ),
     );
-
     if (confirm != true || !mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);
@@ -162,8 +272,6 @@ class _MisReservasScreenState extends State<MisReservasScreen>
         reserva['codigo_qr']?.toString() ?? '',
       );
       _notificarListaEspera(reserva).ignore();
-      // Refrescar el usuario en memoria para que HomeScreen y MiPerfilScreen
-      // muestren el saldo actualizado al volver atrás.
       await provider.refrescarUsuario();
       await _cargar();
       if (!mounted) return;
@@ -181,7 +289,8 @@ class _MisReservasScreenState extends State<MisReservasScreen>
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('No se pudo cancelar: ${e.toString().replaceFirst('Exception: ', '')}'),
+          content: Text(
+              'No se pudo cancelar: ${e.toString().replaceFirst('Exception: ', '')}'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -228,304 +337,265 @@ class _MisReservasScreenState extends State<MisReservasScreen>
     }
   }
 
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
+    final usuario = context.watch<AppProvider>().usuario;
+    final creditos = usuario?.creditos ?? 0;
+    final hoy = _ahoraAr();
+    final dias = _diasDisponibles;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverAppBar(
-            pinned: true,
-            backgroundColor: AppColors.background,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded,
-                  color: AppColors.black),
-              onPressed: () {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/home');
-                }
-              },
-            ),
-            titleSpacing: 0,
-            title: const Text(
-              'Mis reservas',
-              style: TextStyle(
-                color: AppColors.black,
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(48),
-              child: Container(
-                color: AppColors.background,
-                child: TabBar(
-                  controller: _tabCtrl,
-                  labelColor: AppColors.primary,
-                  unselectedLabelColor: AppColors.grey,
-                  indicatorColor: AppColors.primary,
-                  indicatorWeight: 2,
-                  labelStyle: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  unselectedLabelStyle: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  tabs: const [
-                    Tab(text: 'Próximas'),
-                    Tab(text: 'Historial'),
-                    Tab(text: 'En espera'),
-                  ],
-                ),
-              ),
+      appBar: AppBar(
+        backgroundColor: _darkAppBar,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: const Text(
+          'Mis Reservas',
+          style: TextStyle(
+            color: _cream,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: _cream),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: _cream),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: _CreditosChip(
+              creditos: creditos,
+              onTap: () => context.push('/mis-creditos'),
             ),
           ),
         ],
-        body: _loading
-            ? _buildShimmer()
-            : TabBarView(
-                controller: _tabCtrl,
+      ),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: _cargar,
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(top: 16, bottom: 32),
                 children: [
-                  _buildProximas(),
-                  _buildHistorial(),
-                  _buildEnEspera(),
+                  // SECCIÓN PRÓXIMAS
+                  const _SectionLabel('PRÓXIMAS'),
+                  const SizedBox(height: 10),
+                  if (_proximas.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      child: _ProximasVacioCard(
+                        onExplorar: () => context.go('/explorar'),
+                      ),
+                    )
+                  else ...[
+                    ..._proximas.map((reserva) => Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          child: _ProximaCard(
+                            reserva: reserva,
+                            hoy: hoy,
+                            canCancel: _puedeCancelar(reserva),
+                            onQr: () => _verQr(reserva),
+                            onCancelar: () => _cancelar(reserva),
+                          ),
+                        )),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // SECCIÓN DISPONIBLES
+                  const _SectionLabel('DISPONIBLES'),
+                  const SizedBox(height: 10),
+                  if (dias.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      child: _SinDisponiblesCard(
+                        onExplorar: () => context.go('/explorar'),
+                      ),
+                    )
+                  else ...[
+                    _DaySelector(
+                      dias: dias,
+                      seleccionadoKey: _diaSeleccionadoKey,
+                      hoy: hoy,
+                      dayKeyOf: _dayKey,
+                      onTap: (key) =>
+                          setState(() => _diaSeleccionadoKey = key),
+                    ),
+                    const SizedBox(height: 10),
+                    if (_categorias.length > 1) ...[
+                      _CategorySelector(
+                        categorias: _categorias,
+                        seleccionada: _categoriaSeleccionada,
+                        onTap: _seleccionarCategoria,
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                    if (_clasesDelDia.isEmpty)
+                      const _EmptyDayState()
+                    else
+                      ..._clasesDelDia.map((clase) => Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                            child: _ClaseDisponibleCard(
+                              clase: clase,
+                              hoy: hoy,
+                              onTap: () =>
+                                  context.push('/clase/${clase['id']}'),
+                            ),
+                          )),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // SECCIÓN HISTORIAL
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _HistorialToggle(
+                      expanded: _historialExpanded,
+                      onTap: () => setState(
+                          () => _historialExpanded = !_historialExpanded),
+                    ),
+                  ),
+                  if (_historialExpanded) ...[
+                    const SizedBox(height: 12),
+                    if (_historial.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        child: Text(
+                          'Tu historial está vacío.',
+                          style: TextStyle(
+                            color: AppColors.grey,
+                            fontSize: 13,
+                          ),
+                        ),
+                      )
+                    else
+                      ..._historial.map((reserva) => Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                            child: _HistorialCompactCard(reserva: reserva),
+                          )),
+                    if (_hasMoreHistorial || _loadingMoreHistorial)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4, bottom: 8),
+                        child: Center(
+                          child: _loadingMoreHistorial
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primary,
+                                  ),
+                                )
+                              : TextButton(
+                                  onPressed: _cargarMasHistorial,
+                                  child: const Text('Cargar más'),
+                                ),
+                        ),
+                      ),
+                  ],
                 ],
               ),
       ),
     );
   }
+}
 
-  Widget _buildShimmer() {
-    return Shimmer.fromColors(
-      baseColor: const Color(0xFFECE9E4),
-      highlightColor: AppColors.background,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        itemCount: 3,
-        itemBuilder: (_, __) => Container(
-          margin: const EdgeInsets.only(bottom: 14),
-          height: 160,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-          ),
+// ── Widgets compartidos ──────────────────────────────────────────────────────
+
+class _CreditosChip extends StatelessWidget {
+  final int creditos;
+  final VoidCallback onTap;
+
+  const _CreditosChip({required this.creditos, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(999),
         ),
-      ),
-    );
-  }
-
-  Widget _buildProximas() {
-    if (_proximas.isEmpty) {
-      return _EmptyState(
-        title: 'Nada por aquí todavía',
-        subtitle: 'Reservá tu primera clase y aparecerá acá.',
-        onExplorar: () => context.go('/explorar'),
-      );
-    }
-    return RefreshIndicator(
-      onRefresh: _cargar,
-      color: AppColors.primary,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        itemCount: _proximas.length,
-        itemBuilder: (context, i) => _ProximaCard(
-          reserva: _proximas[i],
-          canCancel: _puedeCancelar(_proximas[i]),
-          onVerTicket: () => _verQr(_proximas[i]),
-          onCancelar: () => _cancelar(_proximas[i]),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHistorial() {
-    if (_historial.isEmpty) {
-      return _EmptyState(
-        title: 'Tu historial está vacío',
-        subtitle: 'Tus clases completadas o canceladas aparecerán acá.',
-        onExplorar: () => context.go('/explorar'),
-      );
-    }
-    return RefreshIndicator(
-      onRefresh: _cargar,
-      color: AppColors.primary,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        itemCount: _historial.length + (_hasMoreHistorial || _loadingMore ? 1 : 0),
-        itemBuilder: (context, i) {
-          if (i == _historial.length) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Center(
-                child: _loadingMore
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.primary,
-                        ),
-                      )
-                    : TextButton.icon(
-                        onPressed: _cargarMasHistorial,
-                        icon: const Icon(Icons.expand_more_rounded, size: 18),
-                        label: const Text('Cargar más'),
-                      ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
               ),
-            );
-          }
-          return _HistorialCard(reserva: _historial[i]);
-        },
-      ),
-    );
-  }
-
-  Widget _buildEnEspera() {
-    if (_enEspera.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 40),
-          child: Text(
-            'No estás en lista de espera de ninguna clase',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.grey, fontSize: 15),
-          ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '$creditos cr',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
-      );
-    }
-    return RefreshIndicator(
-      onRefresh: _cargar,
-      color: AppColors.primary,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        itemCount: _enEspera.length,
-        itemBuilder: (context, i) {
-          final item = _enEspera[i];
-          final clase = item['clases'] as Map<String, dynamic>?;
-          final estudio = clase?['estudios'] as Map<String, dynamic>?;
-          final fecha = clase?['fecha'] != null
-              ? DateTime.tryParse(clase!['fecha'].toString())
-              : null;
-          final posicion = (item['posicion'] as num?)?.toInt() ?? (i + 1);
-
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x0A000000),
-                  blurRadius: 12,
-                  offset: Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primaryLight,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      '#$posicion',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        clase?['nombre']?.toString() ?? 'Clase',
-                        style: const TextStyle(
-                          color: AppColors.black,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        estudio?['nombre']?.toString() ?? '',
-                        style: const TextStyle(
-                            color: AppColors.grey, fontSize: 13),
-                      ),
-                      if (fecha != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          DateFormat('EEE d MMM · HH:mm', 'es').format(fecha),
-                          style: const TextStyle(
-                              color: AppColors.mutedText, fontSize: 12),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: () => _salirDeEspera(item),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: const Text(
-                    'Salir',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
       ),
     );
-  }
-
-  Future<void> _salirDeEspera(Map<String, dynamic> item) async {
-    final claseId = (item['clase_id'] as num?)?.toInt();
-    if (claseId == null) return;
-    final uid =
-        Supabase.instance.client.auth.currentUser?.id ?? '';
-    await Supabase.instance.client
-        .from('lista_espera')
-        .delete()
-        .eq('clase_id', claseId)
-        .eq('usuario_id', uid);
-    await _cargar();
   }
 }
 
-// ─── Próxima Card ────────────────────────────────────────────────────────────
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: AppColors.primary,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Próxima Card ────────────────────────────────────────────────────────────
 
 class _ProximaCard extends StatelessWidget {
   final Map<String, dynamic> reserva;
+  final DateTime hoy;
   final bool canCancel;
-  final VoidCallback onVerTicket;
+  final VoidCallback onQr;
   final VoidCallback onCancelar;
 
   const _ProximaCard({
     required this.reserva,
+    required this.hoy,
     required this.canCancel,
-    required this.onVerTicket,
+    required this.onQr,
     required this.onCancelar,
   });
 
@@ -533,341 +603,792 @@ class _ProximaCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final clase = reserva['clases'] as Map<String, dynamic>?;
     final estudio = clase?['estudios'] as Map<String, dynamic>?;
-    final fecha = clase?['fecha'] != null
-        ? DateTime.tryParse(clase!['fecha'].toString())
-        : null;
-    final creditos = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
-    final esGratis = creditos == 0;
-    final fotoUrl = (clase?['imagen_url'] ?? estudio?['foto_url'])?.toString();
-    final categoria =
-        (estudio?['categoria']?.toString() ?? 'CLASE').toUpperCase();
+    final fecha = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
+    final hora = fecha != null
+        ? '${fecha.hour.toString().padLeft(2, '0')}:'
+            '${fecha.minute.toString().padLeft(2, '0')}'
+        : '--:--';
+    final fotoUrl =
+        (clase?['imagen_url'] ?? estudio?['foto_url'])?.toString();
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 16,
-            offset: Offset(0, 4),
+    return _WhiteCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _StudioImage(url: fotoUrl),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (clase?['nombre'] ?? 'Clase').toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.black,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      (estudio?['nombre'] ?? '').toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                hora,
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              if (fecha != null) _FechaBadge(fecha: fecha, hoy: hoy),
+              const SizedBox(width: 6),
+              const _Badge(
+                text: 'Confirmada',
+                bg: _successBg,
+                fg: _successFg,
+              ),
+              const Spacer(),
+              _SmallButton(
+                label: 'QR',
+                onTap: onQr,
+                primary: true,
+              ),
+              const SizedBox(width: 6),
+              _SmallButton(
+                label: 'Cancelar',
+                onTap: canCancel ? onCancelar : null,
+                primary: false,
+              ),
+            ],
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+}
+
+// ── Clase Disponible Card ───────────────────────────────────────────────────
+
+class _ClaseDisponibleCard extends StatelessWidget {
+  final Map<String, dynamic> clase;
+  final DateTime hoy;
+  final VoidCallback onTap;
+
+  const _ClaseDisponibleCard({
+    required this.clase,
+    required this.hoy,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final estudio = clase['estudios'] as Map<String, dynamic>?;
+    final fecha = DateTime.tryParse(clase['fecha']?.toString() ?? '');
+    final hora = fecha != null
+        ? '${fecha.hour.toString().padLeft(2, '0')}:'
+            '${fecha.minute.toString().padLeft(2, '0')}'
+        : '--:--';
+    final categoria = (estudio?['categoria'] ?? '').toString();
+    final lugares = (clase['lugares_disponibles'] as num?)?.toInt() ?? 0;
+    final creditos = (clase['creditos'] as num?)?.toInt() ?? 0;
+    final fotoUrl =
+        (clase['imagen_url'] ?? estudio?['foto_url'])?.toString();
+
+    return _WhiteCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _StudioImage(url: fotoUrl),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (clase['nombre'] ?? 'Clase').toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.black,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      (estudio?['nombre'] ?? '').toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                hora,
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              if (categoria.isNotEmpty) ...[
+                _Badge(
+                  text: categoria,
+                  bg: _categoryBadgeBg,
+                  fg: AppColors.primary,
+                ),
+                const SizedBox(width: 6),
+              ],
+              if (fecha != null) ...[
+                _TiempoBadge(claseFecha: fecha, hoy: hoy),
+                const SizedBox(width: 6),
+              ],
+              _LugaresBadge(lugares: lugares),
+              const Spacer(),
+              Text(
+                '$creditos cr',
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Historial Compact ───────────────────────────────────────────────────────
+
+class _HistorialToggle extends StatelessWidget {
+  final bool expanded;
+  final VoidCallback onTap;
+
+  const _HistorialToggle({required this.expanded, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.lightGrey),
+        ),
+        child: Row(
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Foto 80×80
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: SizedBox(
-                    width: 80,
-                    height: 80,
-                    child: fotoUrl != null && fotoUrl.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: fotoUrl,
-                            fit: BoxFit.cover,
-                            errorWidget: (_, __, ___) => _photoPlaceholder(),
-                          )
-                        : _photoPlaceholder(),
-                  ),
+            const Icon(Icons.history_rounded,
+                color: AppColors.grey, size: 18),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Ver historial',
+                style: TextStyle(
+                  color: AppColors.grey,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryLight,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        child: Text(
-                          categoria,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        clase?['nombre']?.toString() ?? 'Clase',
-                        style: const TextStyle(
-                          color: AppColors.black,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          height: 1.2,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        estudio?['nombre']?.toString() ?? '',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.grey,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                if (fecha != null) ...[
-                  const Icon(Icons.calendar_today_outlined,
-                      size: 13, color: AppColors.grey),
-                  const SizedBox(width: 5),
-                  Text(
-                    DateFormat('EEE d MMM · HH:mm', 'es').format(fecha),
-                    style:
-                        const TextStyle(color: AppColors.grey, fontSize: 13),
-                  ),
-                  const Spacer(),
-                ],
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: esGratis
-                        ? const Color(0xFFE8F5E9)
-                        : AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: Text(
-                    esGratis
-                        ? 'Gratis'
-                        : '$creditos crédito${creditos != 1 ? 's' : ''}',
-                    style: TextStyle(
-                      color: esGratis
-                          ? const Color(0xFF2E7D32)
-                          : AppColors.primary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 42,
-                    child: ElevatedButton.icon(
-                      onPressed: onVerTicket,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      icon: const Icon(Icons.qr_code_2_rounded, size: 18),
-                      label: const Text(
-                        'Ticket',
-                        style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: SizedBox(
-                    height: 42,
-                    child: OutlinedButton(
-                      onPressed: onCancelar,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor:
-                            canCancel ? AppColors.error : AppColors.grey,
-                        side: BorderSide(
-                          color: canCancel
-                              ? AppColors.error.withOpacity(0.4)
-                              : AppColors.lightGrey,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Cancelar',
-                        style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            Icon(
+              expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+              color: AppColors.grey,
+              size: 20,
             ),
           ],
         ),
       ),
     );
   }
-
-  Widget _photoPlaceholder() {
-    return Container(
-      color: const Color(0xFFECE9E4),
-      child: const Center(
-        child: Icon(Icons.self_improvement_rounded,
-            size: 32, color: AppColors.grey),
-      ),
-    );
-  }
 }
 
-// ─── Historial Card ───────────────────────────────────────────────────────────
-
-class _HistorialCard extends StatelessWidget {
+class _HistorialCompactCard extends StatelessWidget {
   final Map<String, dynamic> reserva;
-
-  const _HistorialCard({required this.reserva});
+  const _HistorialCompactCard({required this.reserva});
 
   @override
   Widget build(BuildContext context) {
     final clase = reserva['clases'] as Map<String, dynamic>?;
     final estudio = clase?['estudios'] as Map<String, dynamic>?;
-    final fecha = clase?['fecha'] != null
-        ? DateTime.tryParse(clase!['fecha'].toString())
-        : null;
-    final estado = reserva['estado'] as String? ?? '';
-    final fotoUrl = (clase?['imagen_url'] ?? estudio?['foto_url'])?.toString();
+    final fecha = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
+    final estado = (reserva['estado'] as String?) ?? '';
+    final fotoUrl =
+        (clase?['imagen_url'] ?? estudio?['foto_url'])?.toString();
 
-    Color estadoColor;
-    String estadoLabel;
+    Color estadoFg;
     Color estadoBg;
+    String estadoLabel;
     switch (estado) {
       case 'completada':
-        estadoColor = const Color(0xFF2E7D32);
-        estadoBg = const Color(0xFFE8F5E9);
-        estadoLabel = 'Completada';
+        estadoFg = _successFg;
+        estadoBg = _successBg;
+        estadoLabel = 'Presente';
         break;
       case 'cancelada':
-        estadoColor = AppColors.error;
+      case 'cancelada_por_estudio':
+        estadoFg = AppColors.error;
         estadoBg = const Color(0xFFFFEBEE);
         estadoLabel = 'Cancelada';
         break;
-      case 'cancelada_por_estudio':
-        estadoColor = const Color(0xFFE65100);
+      case 'ausente':
+        estadoFg = const Color(0xFFE65100);
         estadoBg = const Color(0xFFFFF3E0);
-        estadoLabel = 'Cancelada por el estudio';
+        estadoLabel = 'Ausente';
         break;
       default:
-        estadoColor = AppColors.grey;
+        estadoFg = AppColors.grey;
         estadoBg = AppColors.lightGrey;
-        estadoLabel = estado.isNotEmpty
-            ? '${estado[0].toUpperCase()}${estado.substring(1)}'
-            : 'Desconocido';
+        estadoLabel = estado.isEmpty
+            ? '—'
+            : '${estado[0].toUpperCase()}${estado.substring(1)}';
     }
-    final creditos = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.lightGrey),
       ),
       child: Row(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(6),
             child: SizedBox(
-              width: 56,
-              height: 56,
+              width: 40,
+              height: 40,
               child: fotoUrl != null && fotoUrl.isNotEmpty
                   ? CachedNetworkImage(
                       imageUrl: fotoUrl,
                       fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => _placeholder(),
+                      placeholder: (context, url) => _smallFallback(),
+                      errorWidget: (context, url, error) => _smallFallback(),
                     )
-                  : _placeholder(),
+                  : _smallFallback(),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  clase?['nombre']?.toString() ?? 'Clase',
-                  style: const TextStyle(
-                    color: AppColors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  (clase?['nombre'] ?? 'Clase').toString(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  estudio?['nombre']?.toString() ?? '',
-                  style:
-                      const TextStyle(color: AppColors.grey, fontSize: 12),
-                ),
-                if (fecha != null) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    DateFormat('d MMM yyyy · HH:mm', 'es').format(fecha),
-                    style: const TextStyle(
-                        color: AppColors.mutedText, fontSize: 11),
+                  style: const TextStyle(
+                    color: AppColors.black,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                   ),
-                ],
-                if (estado == 'cancelada_por_estudio' && creditos > 0) ...[
-                  const SizedBox(height: 3),
+                ),
+                Text(
+                  (estudio?['nombre'] ?? '').toString(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.grey,
+                    fontSize: 11,
+                  ),
+                ),
+                if (fecha != null)
                   Text(
-                    'Se te devolvieron $creditos crédito${creditos != 1 ? 's' : ''}',
+                    DateFormat('d MMM · HH:mm', 'es').format(fecha),
                     style: const TextStyle(
-                      color: Color(0xFF2E7D32),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      color: AppColors.mutedText,
+                      fontSize: 10,
                     ),
                   ),
-                ],
               ],
             ),
           ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-            decoration: BoxDecoration(
-              color: estadoBg,
-              borderRadius: BorderRadius.circular(99),
+          const SizedBox(width: 8),
+          _Badge(text: estadoLabel, bg: estadoBg, fg: estadoFg),
+        ],
+      ),
+    );
+  }
+
+  Widget _smallFallback() {
+    return Container(
+      color: AppColors.lightGrey,
+      child: const Icon(Icons.fitness_center_rounded,
+          color: AppColors.grey, size: 18),
+    );
+  }
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+class _WhiteCard extends StatelessWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  const _WhiteCard({required this.child, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final container = Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
+    );
+    if (onTap == null) return container;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: container,
+      ),
+    );
+  }
+}
+
+class _StudioImage extends StatelessWidget {
+  final String? url;
+  const _StudioImage({required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        color: AppColors.lightGrey,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(Icons.fitness_center_rounded,
+          color: AppColors.grey, size: 26),
+    );
+    if (url == null || url!.isEmpty) return fallback;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: CachedNetworkImage(
+        imageUrl: url!,
+        width: 60,
+        height: 60,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => fallback,
+        errorWidget: (context, url, error) => fallback,
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final String text;
+  final Color bg;
+  final Color fg;
+  const _Badge({required this.text, required this.bg, required this.fg});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: fg,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _FechaBadge extends StatelessWidget {
+  final DateTime fecha;
+  final DateTime hoy;
+  const _FechaBadge({required this.fecha, required this.hoy});
+
+  static const _weekdayAbbr = [
+    'LUN',
+    'MAR',
+    'MIÉ',
+    'JUE',
+    'VIE',
+    'SÁB',
+    'DOM'
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final hoyDia = DateTime(hoy.year, hoy.month, hoy.day);
+    final fechaDia = DateTime(fecha.year, fecha.month, fecha.day);
+    final diff = fechaDia.difference(hoyDia).inDays;
+
+    String text;
+    bool urgent = false;
+    if (diff == 0) {
+      text = 'HOY';
+      urgent = true;
+    } else if (diff == 1) {
+      text = 'MAÑANA';
+    } else {
+      text = '${_weekdayAbbr[fecha.weekday - 1]} ${fecha.day}';
+    }
+
+    return _Badge(
+      text: text,
+      bg: urgent ? _categoryBadgeBg : const Color(0xFFF1F1F1),
+      fg: urgent ? AppColors.primary : AppColors.grey,
+    );
+  }
+}
+
+class _TiempoBadge extends StatelessWidget {
+  final DateTime claseFecha;
+  final DateTime hoy;
+  const _TiempoBadge({required this.claseFecha, required this.hoy});
+
+  @override
+  Widget build(BuildContext context) {
+    final diffMin = claseFecha.difference(hoy).inMinutes;
+    final hoyDia = DateTime(hoy.year, hoy.month, hoy.day);
+    final claseDia =
+        DateTime(claseFecha.year, claseFecha.month, claseFecha.day);
+    final diffDias = claseDia.difference(hoyDia).inDays;
+
+    String text;
+    bool urgent = false;
+
+    if (diffMin > 0 && diffMin < 180) {
+      urgent = true;
+      if (diffMin < 60) {
+        text = 'En $diffMin min';
+      } else {
+        final h = (diffMin / 60).round();
+        text = h == 1 ? 'En 1 hora' : 'En $h horas';
+      }
+    } else if (diffDias == 0) {
+      text = 'Hoy';
+    } else if (diffDias == 1) {
+      text = 'Mañana';
+    } else {
+      const abbr = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+      text = '${abbr[claseFecha.weekday - 1]} ${claseFecha.day}';
+    }
+
+    return _Badge(
+      text: text,
+      bg: urgent ? _categoryBadgeBg : const Color(0xFFF1F1F1),
+      fg: urgent ? AppColors.primary : AppColors.grey,
+    );
+  }
+}
+
+class _LugaresBadge extends StatelessWidget {
+  final int lugares;
+  const _LugaresBadge({required this.lugares});
+
+  @override
+  Widget build(BuildContext context) {
+    if (lugares <= 0) {
+      return const _Badge(
+        text: 'Sin lugares',
+        bg: Color(0xFFF1F1F1),
+        fg: AppColors.grey,
+      );
+    }
+    if (lugares == 1) {
+      return const _Badge(
+        text: 'Último lugar',
+        bg: _categoryBadgeBg,
+        fg: AppColors.primary,
+      );
+    }
+    return _Badge(
+      text: '$lugares lugares',
+      bg: const Color(0xFFF1F1F1),
+      fg: AppColors.grey,
+    );
+  }
+}
+
+class _SmallButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+  final bool primary;
+
+  const _SmallButton({
+    required this.label,
+    required this.onTap,
+    required this.primary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onTap == null;
+    final bg = primary
+        ? (disabled ? AppColors.lightGrey : AppColors.primary)
+        : Colors.transparent;
+    final fg = primary
+        ? Colors.white
+        : (disabled ? AppColors.lightGrey : AppColors.grey);
+    final border = primary
+        ? Colors.transparent
+        : (disabled ? AppColors.lightGrey : AppColors.grey);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: border),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: fg,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DaySelector extends StatelessWidget {
+  final List<DateTime> dias;
+  final String? seleccionadoKey;
+  final DateTime hoy;
+  final String Function(DateTime) dayKeyOf;
+  final ValueChanged<String> onTap;
+
+  const _DaySelector({
+    required this.dias,
+    required this.seleccionadoKey,
+    required this.hoy,
+    required this.dayKeyOf,
+    required this.onTap,
+  });
+
+  static const _weekdayAbbr = [
+    'LUN',
+    'MAR',
+    'MIÉ',
+    'JUE',
+    'VIE',
+    'SÁB',
+    'DOM'
+  ];
+
+  String _label(DateTime dia) {
+    final hoyDia = DateTime(hoy.year, hoy.month, hoy.day);
+    final diff = dia.difference(hoyDia).inDays;
+    if (diff == 0) return 'HOY';
+    if (diff == 1) return 'MAÑ';
+    return '${_weekdayAbbr[dia.weekday - 1]} ${dia.day}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: dias.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final dia = dias[index];
+          final key = dayKeyOf(dia);
+          final active = key == seleccionadoKey;
+          return GestureDetector(
+            onTap: () => onTap(key),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: active ? AppColors.primary : _chipDark,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                _label(dia),
+                style: TextStyle(
+                  color: active ? Colors.black : _cream,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
+                ),
+              ),
             ),
-            child: Text(
-              estadoLabel,
-              style: TextStyle(
-                color: estadoColor,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CategorySelector extends StatelessWidget {
+  final List<String> categorias;
+  final String seleccionada;
+  final ValueChanged<String> onTap;
+
+  const _CategorySelector({
+    required this.categorias,
+    required this.seleccionada,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 34,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: categorias.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final categoria = categorias[index];
+          final active = categoria == seleccionada;
+          return GestureDetector(
+            onTap: () => onTap(categoria),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(
+                color: active ? _darkAppBar : Colors.transparent,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: active ? AppColors.primary : _chipBorder,
+                  width: active ? 1.4 : 1,
+                ),
+              ),
+              child: Text(
+                categoria,
+                style: TextStyle(
+                  color:
+                      active ? AppColors.primary : const Color(0xFF5A534D),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ProximasVacioCard extends StatelessWidget {
+  final VoidCallback onExplorar;
+  const _ProximasVacioCard({required this.onExplorar});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.lightGrey),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.calendar_today_outlined,
+            color: AppColors.primary,
+            size: 32,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'No tenés clases próximas',
+            style: TextStyle(
+              color: AppColors.black,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Explorá lo que hay disponible',
+            style: TextStyle(
+              color: AppColors.grey,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: onExplorar,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: const Text(
+                'Explorar clases',
+                style:
+                    TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -875,83 +1396,73 @@ class _HistorialCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _placeholder() {
+class _SinDisponiblesCard extends StatelessWidget {
+  final VoidCallback onExplorar;
+  const _SinDisponiblesCard({required this.onExplorar});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFECE9E4),
-      child: const Center(
-        child: Icon(Icons.self_improvement_rounded,
-            size: 24, color: AppColors.grey),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.lightGrey),
+      ),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Por ahora no hay clases disponibles para reservar.',
+              style: TextStyle(color: AppColors.grey, fontSize: 13),
+            ),
+          ),
+          TextButton(
+            onPressed: onExplorar,
+            child: const Text('Explorar'),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ─── Empty State ──────────────────────────────────────────────────────────────
-
-class _EmptyState extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final VoidCallback onExplorar;
-
-  const _EmptyState({
-    required this.title,
-    required this.subtitle,
-    required this.onExplorar,
-  });
+class _EmptyDayState extends StatelessWidget {
+  const _EmptyDayState();
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: const BoxDecoration(
-                color: AppColors.primaryLight,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.calendar_today_outlined,
-                color: AppColors.primary,
-                size: 32,
-              ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.calendar_today_outlined,
+            size: 40,
+            color: Color(0xFFB2A89F),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'No hay clases disponibles este día',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.black,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(height: 20),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.black,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Probá con otro día o categoría',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.grey,
+              fontSize: 12,
             ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.grey,
-                fontSize: 14,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 28),
-            SizedBox(
-              height: 48,
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: onExplorar,
-                child: const Text('Explorar ahora'),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

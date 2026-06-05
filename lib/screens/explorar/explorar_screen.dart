@@ -830,50 +830,50 @@ class _FeaturedExploreCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  height: 92,
-                  decoration: BoxDecoration(
-                    color: accentColor,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(18),
-                    ),
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        accentColor.withOpacity(0.95),
-                        accentColor.withOpacity(0.7),
-                        accentColor.withOpacity(0.35),
-                      ],
-                    ),
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(18),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  child: SizedBox(
+                    height: 92,
+                    width: double.infinity,
+                    child: Stack(
+                      fit: StackFit.expand,
                       children: [
-                        _Pill(
-                          text: estudio.categoria.toUpperCase(),
-                          dark: true,
+                        _FeaturedPhoto(
+                          url: estudio.fotoUrl,
+                          accentColor: accentColor,
                         ),
-                        const Spacer(),
-                        if (showBadge)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: const Text(
-                              'Tu estudio',
-                              style: TextStyle(
-                                color: AppColors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
+                        Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _Pill(
+                                text: estudio.categoria.toUpperCase(),
+                                dark: true,
                               ),
-                            ),
+                              const Spacer(),
+                              if (showBadge)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: const Text(
+                                    'Tu estudio',
+                                    style: TextStyle(
+                                      color: AppColors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
+                        ),
                       ],
                     ),
                   ),
@@ -1120,6 +1120,39 @@ class _ExploreClassImage extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _FeaturedPhoto extends StatelessWidget {
+  final String? url;
+  final Color accentColor;
+
+  const _FeaturedPhoto({required this.url, required this.accentColor});
+
+  static const _placeholderBg = Color(0xFF252525);
+
+  Widget _placeholder() {
+    return Container(
+      color: _placeholderBg,
+      child: const Center(
+        child: Icon(
+          Icons.image,
+          color: AppColors.grey,
+          size: 28,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (url == null || url!.isEmpty) return _placeholder();
+    return CachedNetworkImage(
+      imageUrl: url!,
+      fit: BoxFit.cover,
+      placeholder: (context, url) => _placeholder(),
+      errorWidget: (context, url, error) => _placeholder(),
     );
   }
 }
