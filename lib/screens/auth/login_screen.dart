@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -94,17 +92,16 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _loginWithApple() async {
     setState(() => _loadingApple = true);
     try {
-      final ok = await _authService.signInWithApple();
-      if (!mounted) return;
-
-      // iOS nativo: ya hay sesión. Resolver rol y redirigir.
-      if (!kIsWeb && Platform.isIOS && ok) {
-        await _redirectAfterOAuth();
-        return;
-      }
-
-      // Android/web: el flujo es por redirect; main.dart maneja el callback.
-      if (!ok && mounted) {
+      final launched = await Supabase.instance.client.auth.signInWithOAuth(
+        OAuthProvider.apple,
+        redirectTo: kIsWeb
+            ? 'https://somosauraar.netlify.app'
+            : 'aura://login-callback',
+        authScreenLaunchMode: kIsWeb
+            ? LaunchMode.platformDefault
+            : LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('No se pudo abrir Apple. Revisá tu conexión.'),
@@ -113,17 +110,8 @@ class _LoginScreenState extends State<LoginScreen> {
         );
         setState(() => _loadingApple = false);
       }
-    } on SignInWithAppleAuthorizationException catch (e) {
-      if (!mounted) return;
-      if (e.code != AuthorizationErrorCode.canceled) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error con Apple: ${e.message}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-      setState(() => _loadingApple = false);
+      // launched == true: el navegador abrió Apple; main.dart maneja el
+      // callback aura://login-callback y resuelve rol + redirect.
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -134,21 +122,6 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       setState(() => _loadingApple = false);
     }
-  }
-
-  Future<void> _redirectAfterOAuth() async {
-    String destino = '/home';
-    try {
-      final rol = await _authService.ensureUsuarioCreado();
-      if (rol == 'estudio' || rol == 'admin_estudio') {
-        destino = '/estudio/dashboard';
-      } else if (rol == 'admin') {
-        destino = '/admin/dashboard';
-      }
-    } catch (_) {}
-    if (!mounted) return;
-    await context.read<AppProvider>().refrescarUsuario();
-    if (mounted) context.go(destino);
   }
 
   Future<void> _login() async {

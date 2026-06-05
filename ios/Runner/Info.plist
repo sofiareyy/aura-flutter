@@ -61,7 +61,9 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-	<!-- Custom URL scheme: aura://payment-result?... -->
+	<!-- Custom URL schemes:
+	     - aura://payment-result?... y aura://login-callback (deep links)
+	     - app.somosaura.aura  (Sign in with Apple OAuth callback) -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -72,6 +74,12 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>aura</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app.somosaura.aura</string>
 			</array>
 		</dict>
 	</array>
