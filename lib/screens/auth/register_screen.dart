@@ -1,7 +1,10 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -26,6 +29,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _loading = false;
   bool _loadingGoogle = false;
+  bool _loadingApple = false;
   bool _obscure = true;
   bool _showCodigoRegalo = false;
 
@@ -69,6 +73,64 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       setState(() => _loadingGoogle = false);
     }
+  }
+
+  Future<void> _loginWithApple() async {
+    setState(() => _loadingApple = true);
+    try {
+      final ok = await _authService.signInWithApple();
+      if (!mounted) return;
+
+      if (!kIsWeb && Platform.isIOS && ok) {
+        await _redirectAfterOAuth();
+        return;
+      }
+
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo abrir Apple. Revisá tu conexión.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        setState(() => _loadingApple = false);
+      }
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (!mounted) return;
+      if (e.code != AuthorizationErrorCode.canceled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error con Apple: ${e.message}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      setState(() => _loadingApple = false);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      setState(() => _loadingApple = false);
+    }
+  }
+
+  Future<void> _redirectAfterOAuth() async {
+    String destino = '/home';
+    try {
+      final rol = await _authService.ensureUsuarioCreado();
+      if (rol == 'estudio' || rol == 'admin_estudio') {
+        destino = '/estudio/dashboard';
+      } else if (rol == 'admin') {
+        destino = '/admin/dashboard';
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    await context.read<AppProvider>().refrescarUsuario();
+    if (mounted) context.go(destino);
   }
 
   Future<void> _register() async {
@@ -306,6 +368,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onTap: _loadingGoogle ? null : _loginWithGoogle,
                       loading: _loadingGoogle,
                     ),
+                    const SizedBox(height: 10),
+                    _AppleSignInButton(
+                      onPressed: _loadingApple ? null : _loginWithApple,
+                      loading: _loadingApple,
+                      text: 'Registrarse con Apple',
+                    ),
                     const SizedBox(height: 14),
                     SizedBox(
                       width: double.infinity,
@@ -462,6 +530,49 @@ class _DarkField extends StatelessWidget {
           borderSide: const BorderSide(color: AppColors.error),
         ),
       ),
+    );
+  }
+}
+
+class _AppleSignInButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+  final bool loading;
+  final String text;
+
+  const _AppleSignInButton({
+    required this.onPressed,
+    required this.text,
+    this.loading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return Container(
+        height: 42,
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF2A2A2A)),
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
+    }
+    return SignInWithAppleButton(
+      onPressed: onPressed ?? () {},
+      text: text,
+      style: SignInWithAppleButtonStyle.black,
+      borderRadius: BorderRadius.circular(12),
+      height: 42,
     );
   }
 }

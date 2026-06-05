@@ -32,6 +32,8 @@ dependencies:
   connectivity_plus: ^7.1.1
   shared_preferences: ^2.3.3
   sentry_flutter: ^8.9.0
+  sign_in_with_apple: ^6.0.0
+  crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:

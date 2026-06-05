@@ -1,7 +1,10 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -23,6 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _authService = AuthService();
   bool _loading = false;
   bool _loadingGoogle = false;
+  bool _loadingApple = false;
   bool _obscure = true;
   bool _emailConfirmedBanner = false;
 
@@ -85,6 +89,66 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       setState(() => _loadingGoogle = false);
     }
+  }
+
+  Future<void> _loginWithApple() async {
+    setState(() => _loadingApple = true);
+    try {
+      final ok = await _authService.signInWithApple();
+      if (!mounted) return;
+
+      // iOS nativo: ya hay sesión. Resolver rol y redirigir.
+      if (!kIsWeb && Platform.isIOS && ok) {
+        await _redirectAfterOAuth();
+        return;
+      }
+
+      // Android/web: el flujo es por redirect; main.dart maneja el callback.
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo abrir Apple. Revisá tu conexión.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        setState(() => _loadingApple = false);
+      }
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (!mounted) return;
+      if (e.code != AuthorizationErrorCode.canceled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error con Apple: ${e.message}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      setState(() => _loadingApple = false);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      setState(() => _loadingApple = false);
+    }
+  }
+
+  Future<void> _redirectAfterOAuth() async {
+    String destino = '/home';
+    try {
+      final rol = await _authService.ensureUsuarioCreado();
+      if (rol == 'estudio' || rol == 'admin_estudio') {
+        destino = '/estudio/dashboard';
+      } else if (rol == 'admin') {
+        destino = '/admin/dashboard';
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    await context.read<AppProvider>().refrescarUsuario();
+    if (mounted) context.go(destino);
   }
 
   Future<void> _login() async {
@@ -359,6 +423,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 onTap: _loadingGoogle ? null : _loginWithGoogle,
                 loading: _loadingGoogle,
               ),
+              const SizedBox(height: 10),
+              _AppleSignInButton(
+                onPressed: _loadingApple ? null : _loginWithApple,
+                loading: _loadingApple,
+                text: 'Continuar con Apple',
+              ),
               const SizedBox(height: 22),
               Center(
                 child: GestureDetector(
@@ -479,6 +549,49 @@ class _DarkField extends StatelessWidget {
           borderSide: const BorderSide(color: AppColors.error),
         ),
       ),
+    );
+  }
+}
+
+class _AppleSignInButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+  final bool loading;
+  final String text;
+
+  const _AppleSignInButton({
+    required this.onPressed,
+    required this.text,
+    this.loading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return Container(
+        height: 42,
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF2A2A2A)),
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
+    }
+    return SignInWithAppleButton(
+      onPressed: onPressed ?? () {},
+      text: text,
+      style: SignInWithAppleButtonStyle.black,
+      borderRadius: BorderRadius.circular(12),
+      height: 42,
     );
   }
 }

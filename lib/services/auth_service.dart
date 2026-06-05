@@ -1,4 +1,9 @@
+import 'dart:convert';
+import 'dart:io' show Platform;
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -46,6 +51,63 @@ class AuthService {
   Future<bool> signInWithGoogle() async {
     return _supabase.auth.signInWithOAuth(
       OAuthProvider.google,
+      redirectTo: kIsWeb
+          ? 'https://somosauraar.netlify.app'
+          : 'aura://login-callback',
+      authScreenLaunchMode: kIsWeb
+          ? LaunchMode.platformDefault
+          : LaunchMode.externalApplication,
+    );
+  }
+
+  /// Sign in with Apple.
+  /// - iOS: flujo nativo (AuthenticationServices) + signInWithIdToken.
+  ///   Devuelve true cuando hay sesión activa.
+  /// - Web/Android: OAuth via redirect (mismo callback que Google).
+  ///   Devuelve true si se abrió la pantalla externa.
+  Future<bool> signInWithApple() async {
+    if (!kIsWeb && Platform.isIOS) {
+      final rawNonce = _supabase.auth.generateRawNonce();
+      final hashedNonce =
+          sha256.convert(utf8.encode(rawNonce)).toString();
+
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: hashedNonce,
+      );
+
+      final idToken = credential.identityToken;
+      if (idToken == null) {
+        throw const AuthException(
+            'No se pudo obtener el ID token de Apple');
+      }
+
+      await _supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.apple,
+        idToken: idToken,
+        nonce: rawNonce,
+      );
+
+      // Apple sólo entrega el nombre la primera vez. Si vino, lo guardamos
+      // en userMetadata para que ensureUsuarioCreado lo use.
+      final fullName = [credential.givenName, credential.familyName]
+          .whereType<String>()
+          .where((p) => p.trim().isNotEmpty)
+          .join(' ')
+          .trim();
+      if (fullName.isNotEmpty) {
+        await _supabase.auth.updateUser(
+          UserAttributes(data: {'full_name': fullName}),
+        );
+      }
+      return true;
+    }
+
+    return _supabase.auth.signInWithOAuth(
+      OAuthProvider.apple,
       redirectTo: kIsWeb
           ? 'https://somosauraar.netlify.app'
           : 'aura://login-callback',
