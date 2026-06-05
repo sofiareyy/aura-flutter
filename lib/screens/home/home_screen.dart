@@ -44,19 +44,6 @@ class _HomeScreenState extends State<HomeScreen> {
   AuraLocationState _locationState =
       const AuraLocationState(status: AuraLocationStatus.unknown);
 
-  void _abrirMapa([String? categoria]) {
-    final categoriaActiva = categoria ?? _categoriaSeleccionada;
-    final query = <String, String>{};
-    if (categoriaActiva.isNotEmpty && categoriaActiva != 'Todos') {
-      query['categoria'] = categoriaActiva;
-    }
-    final uri = Uri(
-      path: '/mapa',
-      queryParameters: query.isEmpty ? null : query,
-    );
-    context.push(uri.toString());
-  }
-
   Future<void> _pedirUbicacion() async {
     if (_requestingLocation) return;
     setState(() => _requestingLocation = true);
@@ -64,8 +51,23 @@ class _HomeScreenState extends State<HomeScreen> {
       final state = await _locationService.getCurrentLocation();
       if (!mounted) return;
       setState(() => _locationState = state);
+      if (state.granted) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('ubicacion_permitida', true);
+      }
     } finally {
       if (mounted) setState(() => _requestingLocation = false);
+    }
+  }
+
+  /// Si el usuario ya concedió el permiso en una sesión previa, pedimos la
+  /// ubicación sin mostrar el prompt — el OS la entrega directo porque ya
+  /// tiene permiso. Si el flag está en false (o ausente) dejamos que la UI
+  /// muestre el _LocationPromptCard hasta que el usuario lo tape.
+  Future<void> _restaurarUbicacionSiPermitida() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('ubicacion_permitida') == true) {
+      await _pedirUbicacion();
     }
   }
 
@@ -74,6 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _cargar();
     _checkBannerDismissed();
+    _restaurarUbicacionSiPermitida();
   }
 
   Future<void> _checkBannerDismissed() async {
@@ -234,8 +237,6 @@ class _HomeScreenState extends State<HomeScreen> {
         .sortByDistance(estudiosFiltrados, _locationState.position)
         .take(6)
         .toList();
-    final hayDistanciaReal =
-        estudiosCerca.any((result) => result.distanceKm != null);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -404,15 +405,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                    child: _MapEntryCard(
-                      categoria: _categoriaSeleccionada,
-                      onTap: () => _abrirMapa(),
-                    ),
-                  ),
-                ),
                 // ── Card estudio asociado (alumno directo) ──────────
                 if (provider.estudioAsociado != null)
                   SliverToBoxAdapter(
@@ -460,52 +452,38 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
                     child: _locationState.granted
-                        ? Column(
-                            children: [
-                              _NearbyStatusCard(
-                                locationState: _locationState,
-                                hasRealDistance: hayDistanciaReal,
-                                requesting: _requestingLocation,
-                                onPrimaryTap: _pedirUbicacion,
-                                onSecondaryTap: () => _abrirMapa(),
-                              ),
-                              const SizedBox(height: 14),
-                              if (estudiosCerca.isEmpty)
-                                const _EmptyNearbyCard()
-                              else
-                                SizedBox(
-                                  height: 204,
-                                  child: ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: estudiosCerca.length,
-                                    itemBuilder: (context, index) {
-                                      final nearby = estudiosCerca[index];
-                                      return SizedBox(
-                                        width: 220,
-                                        child: Padding(
-                                          padding:
-                                              const EdgeInsets.only(right: 14),
-                                          child: _NearbyStudyCard(
-                                            estudio: nearby.estudio,
-                                            distanceLabel: _studioGeoService
-                                                .formatDistance(
-                                                    nearby.distanceKm),
-                                            onTap: () => context.push(
-                                              '/estudio/${nearby.estudio.id}',
-                                            ),
+                        ? (estudiosCerca.isEmpty
+                            ? const _EmptyNearbyCard()
+                            : SizedBox(
+                                height: 204,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: estudiosCerca.length,
+                                  itemBuilder: (context, index) {
+                                    final nearby = estudiosCerca[index];
+                                    return SizedBox(
+                                      width: 220,
+                                      child: Padding(
+                                        padding:
+                                            const EdgeInsets.only(right: 14),
+                                        child: _NearbyStudyCard(
+                                          estudio: nearby.estudio,
+                                          distanceLabel: _studioGeoService
+                                              .formatDistance(
+                                                  nearby.distanceKm),
+                                          onTap: () => context.push(
+                                            '/estudio/${nearby.estudio.id}',
                                           ),
                                         ),
-                                      );
-                                    },
-                                  ),
+                                      ),
+                                    );
+                                  },
                                 ),
-                            ],
-                          )
+                              ))
                         : _LocationPromptCard(
                             locationState: _locationState,
                             requesting: _requestingLocation,
                             onPrimaryTap: _pedirUbicacion,
-                            onSecondaryTap: () => _abrirMapa(),
                           ),
                   ),
                 ),
@@ -1612,167 +1590,6 @@ class _HomeStudyCard extends StatelessWidget {
   }
 }
 
-class _MapEntryCard extends StatelessWidget {
-  final String categoria;
-  final VoidCallback onTap;
-
-  const _MapEntryCard({
-    required this.categoria,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final subtitle = categoria == 'Todos'
-        ? 'Buscá estudios por zona y filtrá mejor desde el mapa.'
-        : 'Abrí el mapa para ver estudios de $categoria cerca tuyo.';
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Ink(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF4EC),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFF0D9C9)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.map_outlined,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Buscar estudios en mapa',
-                      style: TextStyle(
-                        color: AppColors.black,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: AppColors.grey,
-                        fontSize: 13,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.primary,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NearbyStatusCard extends StatelessWidget {
-  final AuraLocationState locationState;
-  final bool hasRealDistance;
-  final bool requesting;
-  final VoidCallback onPrimaryTap;
-  final VoidCallback onSecondaryTap;
-
-  const _NearbyStatusCard({
-    required this.locationState,
-    required this.hasRealDistance,
-    required this.requesting,
-    required this.onPrimaryTap,
-    required this.onSecondaryTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF4EC),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF0D9C9)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.near_me_rounded,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Te mostramos opciones cerca tuyo',
-                  style: TextStyle(
-                    color: AppColors.black,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Usamos tu ubicación actual para priorizar estudios cercanos y también podés explorar todo desde el mapa.',
-                  style: TextStyle(
-                    color: AppColors.grey,
-                    fontSize: 13,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            children: [
-              TextButton(
-                onPressed: requesting ? null : onPrimaryTap,
-                child: Text(requesting ? 'Actualizando...' : 'Actualizar'),
-              ),
-              TextButton(
-                onPressed: onSecondaryTap,
-                child: const Text('Mapa'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _EmptyNearbyCard extends StatelessWidget {
   const _EmptyNearbyCard();
 
@@ -1911,13 +1728,11 @@ class _LocationPromptCard extends StatelessWidget {
   final AuraLocationState locationState;
   final bool requesting;
   final VoidCallback onPrimaryTap;
-  final VoidCallback onSecondaryTap;
 
   const _LocationPromptCard({
     required this.locationState,
     required this.requesting,
     required this.onPrimaryTap,
-    required this.onSecondaryTap,
   });
 
   String get _title {
@@ -1997,24 +1812,15 @@ class _LocationPromptCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    OutlinedButton(
-                      onPressed: requesting ? null : onPrimaryTap,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary),
-                      ),
-                      child: Text(
-                        requesting ? 'Pidiendo permiso...' : 'Permitir ubicación',
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    TextButton(
-                      onPressed: onSecondaryTap,
-                      child: const Text('Ver mapa'),
-                    ),
-                  ],
+                OutlinedButton(
+                  onPressed: requesting ? null : onPrimaryTap,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                  ),
+                  child: Text(
+                    requesting ? 'Pidiendo permiso...' : 'Permitir ubicación',
+                  ),
                 ),
               ],
             ),
