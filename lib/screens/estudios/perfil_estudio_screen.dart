@@ -23,12 +23,29 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
   bool _uploadingGaleria = false;
   String? _error;
 
-  List<String> get _galeriaUrls {
-    final raw = _estudio?['galeria_urls'];
+  List<String> get _galeriaUrls => _parseUrlList(_estudio?['galeria_urls']);
+
+  /// Parsea `galeria_urls` (text[] en Postgres). En el camino feliz vuelve
+  /// como `List<dynamic>`. Pero PostgREST puede devolverlo como string con
+  /// literal de array (`"{url1,url2}"`) en algunas combinaciones de Accept
+  /// y de select; cubrimos ese caso para no perder fotos en el panel.
+  static List<String> _parseUrlList(dynamic raw) {
     if (raw is List) {
       return raw
-          .map((entry) => entry.toString().trim())
+          .map((entry) => entry?.toString().trim() ?? '')
           .where((entry) => entry.isNotEmpty)
+          .toList();
+    }
+    if (raw is String) {
+      var s = raw.trim();
+      if (s.isEmpty || s == '{}') return const [];
+      if (s.startsWith('{') && s.endsWith('}')) {
+        s = s.substring(1, s.length - 1);
+      }
+      return s
+          .split(',')
+          .map((e) => e.trim().replaceAll(RegExp(r'^"|"$'), ''))
+          .where((e) => e.isNotEmpty)
           .toList();
     }
     return const [];
@@ -52,13 +69,12 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
         return;
       }
 
-      final userRows = await Supabase.instance.client
+      final userData = await Supabase.instance.client
           .from('usuarios')
           .select('estudio_id')
           .eq('id', uid)
-          .limit(1);
+          .maybeSingle();
 
-      final userData = userRows.isNotEmpty ? userRows.first : null;
       final estudioId = userData?['estudio_id'];
       if (estudioId == null) {
         if (!mounted) return;
@@ -71,12 +87,11 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
         return;
       }
 
-      final estudioRows = await Supabase.instance.client
+      final estudio = await Supabase.instance.client
           .from('estudios')
           .select()
           .eq('id', estudioId)
-          .limit(1);
-      final estudio = estudioRows.isNotEmpty ? estudioRows.first : null;
+          .maybeSingle();
 
       // Lista de admins del estudio: usa la tabla estudio_admins (M:N), via
       // service. Necesita el SQL supabase/MULTI_ESTUDIO_ADMINS.sql aplicado.
