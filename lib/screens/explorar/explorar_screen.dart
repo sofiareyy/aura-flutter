@@ -1,13 +1,19 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/theme/app_theme.dart';
-import '../../models/estudio.dart';
 import '../../providers/app_provider.dart';
 import '../../services/clases_service.dart';
-import '../../services/estudios_service.dart';
+import '../../services/reservas_service.dart';
+
+const _darkAppBar = Color(0xFF1A1A1A);
+const _darkChip = Color(0xFF252525);
+const _chipBorder = Color(0xFF333333);
+const _cream = Color(0xFFF5F0E8);
+const _creamSubtle = Color(0xFFC7BFB6);
+const _categoryBadgeBg = Color(0xFFFDF0E8);
 
 class ExplorarScreen extends StatefulWidget {
   const ExplorarScreen({super.key});
@@ -17,1106 +23,308 @@ class ExplorarScreen extends StatefulWidget {
 }
 
 class _ExplorarScreenState extends State<ExplorarScreen> {
-  final _estudiosService = EstudiosService();
   final _clasesService = ClasesService();
-  final _searchCtrl = TextEditingController();
+  final _reservasService = ReservasService();
 
-  List<Estudio> _estudios = [];
   List<Map<String, dynamic>> _clases = [];
+  List<Map<String, dynamic>> _misReservas = [];
   List<String> _categorias = const ['Todos'];
   String _categoriaSeleccionada = 'Todos';
+  String? _diaSeleccionadoKey;
   bool _loading = true;
-  bool _loadingMore = false;
-  bool _hasMoreClases = true;
-  int _clasesOffset = 0;
-  static const _pageSize = 20;
-  bool _categoriaInicialAplicada = false;
-  bool _showAllDestacados = false;
-  int? _estudioAsociadoId;
-
-  // Filtros avanzados
-  Set<int> _diasFiltro = {};
-  Set<String> _horarioFiltro = {};
-  int _maxCreditos = 50;
-
-  int get _cantFiltrosActivos =>
-      _diasFiltro.length + _horarioFiltro.length + (_maxCreditos < 50 ? 1 : 0);
 
   @override
   void initState() {
     super.initState();
     _cargar();
-    _searchCtrl.addListener(() => setState(() {}));
-  }
-
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Leer estudio asociado del provider (no rebuilds innecesarios)
-    _estudioAsociadoId =
-        context.read<AppProvider>().estudioAsociado?.id;
-
-    if (_categoriaInicialAplicada) return;
     final categoria =
         GoRouterState.of(context).uri.queryParameters['categoria'];
-    if (categoria != null && categoria.isNotEmpty) {
-      _categoriaSeleccionada = categoria;
+    if (categoria != null &&
+        categoria.isNotEmpty &&
+        _categoriaSeleccionada == 'Todos') {
+      setState(() => _categoriaSeleccionada = categoria);
     }
-    _categoriaInicialAplicada = true;
   }
 
   Future<void> _cargar() async {
     if (mounted) setState(() => _loading = true);
-
-    final results = await Future.wait([
-      _estudiosService.getEstudios(),
-      _clasesService.getProximasClases(limit: _pageSize, offset: 0),
-      _estudiosService.getCategorias(),
-    ]);
-
-    if (!mounted) return;
-    final nuevasClases = List<Map<String, dynamic>>.from(
-      results[1] as List<Map<String, dynamic>>,
-    );
-    // Sort defensivo asc en el cliente, aunque el backend ya lo haga.
-    nuevasClases.sort((a, b) {
-      final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
-      final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
-      if (fa == null && fb == null) return 0;
-      if (fa == null) return 1;
-      if (fb == null) return -1;
-      return fa.compareTo(fb);
-    });
-    setState(() {
-      _estudios = results[0] as List<Estudio>;
-      _clases = nuevasClases;
-      _clasesOffset = nuevasClases.length;
-      _hasMoreClases = nuevasClases.length == _pageSize;
-      _categorias = results[2] as List<String>;
-      if (!_categorias.contains(_categoriaSeleccionada)) {
-        _categoriaSeleccionada = 'Todos';
-      }
-      _loading = false;
-    });
-  }
-
-  Future<void> _cargarMasClases() async {
-    if (_loadingMore || !_hasMoreClases) return;
-    setState(() => _loadingMore = true);
     try {
-      final mas = await _clasesService.getProximasClases(
-        limit: _pageSize,
-        offset: _clasesOffset,
-      );
+      final results = await Future.wait([
+        _clasesService.getProximasClases(limit: 200, offset: 0),
+        Future(() async {
+          try {
+            // listCategorias no existe; usamos las categorias derivadas de las
+            // clases cargadas. Keep para futura expansion.
+            return <String>[];
+          } catch (_) {
+            return <String>[];
+          }
+        }),
+        _reservasService.getReservasUsuario(),
+      ]);
       if (!mounted) return;
-      final merged = [..._clases, ...mas];
-      merged.sort((a, b) {
-        final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
-        final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
-        if (fa == null && fb == null) return 0;
-        if (fa == null) return 1;
-        if (fb == null) return -1;
-        return fa.compareTo(fb);
-      });
+
+      final clases = (results[0] as List<Map<String, dynamic>>).toList()
+        ..sort(_compareByFecha);
+      final reservas = (results[2] as List<Map<String, dynamic>>).toList()
+        ..sort(_compareByReservaFecha);
+
+      // Categorias: derivadas de los estudios presentes en las clases.
+      final categoriasSet = <String>{};
+      for (final c in clases) {
+        final est = c['estudios'] as Map<String, dynamic>?;
+        final cat = est?['categoria']?.toString().trim();
+        if (cat != null && cat.isNotEmpty) categoriasSet.add(cat);
+      }
+      final categorias = ['Todos', ...categoriasSet.toList()..sort()];
+
       setState(() {
-        _clases = merged;
-        _clasesOffset += mas.length;
-        _hasMoreClases = mas.length == _pageSize;
-        _loadingMore = false;
+        _clases = clases;
+        _misReservas = reservas;
+        _categorias = categorias;
+        if (!_categorias.contains(_categoriaSeleccionada)) {
+          _categoriaSeleccionada = 'Todos';
+        }
+        _diaSeleccionadoKey = _primerDiaConClases();
+        _loading = false;
       });
     } catch (_) {
-      if (mounted) setState(() => _loadingMore = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  void _abrirMapa() {
-    final query = <String, String>{};
-    final texto = _searchCtrl.text.trim();
-    if (texto.isNotEmpty) query['q'] = texto;
-    if (_categoriaSeleccionada != 'Todos') {
-      query['categoria'] = _categoriaSeleccionada;
-    }
-    final uri = Uri(path: '/mapa', queryParameters: query.isEmpty ? null : query);
-    context.push(uri.toString());
+  // ── Helpers de fecha ──────────────────────────────────────────────────────
+  //
+  // Las fechas en DB son strings naive ('YYYY-MM-DD HH:MM:SS') que ya estan
+  // en hora Argentina (UTC-3). DateTime.tryParse las devuelve como locales,
+  // y para 'ahora' construimos un local-naive con componentes AR para
+  // comparar manzanas con manzanas, independiente del timezone del device.
+
+  DateTime _ahoraAr() {
+    final u = DateTime.now().toUtc().subtract(const Duration(hours: 3));
+    return DateTime(u.year, u.month, u.day, u.hour, u.minute, u.second);
   }
 
-  List<Estudio> get _estudiosFiltrados {
-    final query = _searchCtrl.text.trim().toLowerCase();
-    final filtrados = _estudios.where((estudio) {
-      final matchesCategory = _categoriaSeleccionada == 'Todos' ||
-          estudio.categoria.toLowerCase() ==
-              _categoriaSeleccionada.toLowerCase();
-      final matchesSearch = query.isEmpty ||
-          estudio.nombre.toLowerCase().contains(query) ||
-          (estudio.barrio?.toLowerCase().contains(query) ?? false) ||
-          estudio.categoria.toLowerCase().contains(query);
-      return matchesCategory && matchesSearch;
-    }).toList();
-
-    // Pinear estudio asociado al tope si está en los resultados
-    if (_estudioAsociadoId != null) {
-      final idx =
-          filtrados.indexWhere((e) => e.id == _estudioAsociadoId);
-      if (idx > 0) {
-        final asociado = filtrados.removeAt(idx);
-        filtrados.insert(0, asociado);
-      }
-    }
-    return filtrados;
+  DateTime? _parseFecha(dynamic raw) {
+    if (raw == null) return null;
+    return DateTime.tryParse(raw.toString());
   }
 
-  List<Map<String, dynamic>> get _clasesConEstudio {
-    final filteredIds = _estudiosFiltrados.map((e) => e.id).toSet();
-    final filtered = _clases.where((clase) {
-      final estudio = clase['estudios'] as Map<String, dynamic>?;
-      if (filteredIds.isNotEmpty && !filteredIds.contains(estudio?['id'])) {
-        return false;
-      }
-      // BUG 15: parsear con 'Z' fuerza UTC en vez de local del device, y
-      // como las fechas en DB ya estan en hora Argentina (UTC-3) sin
-      // marker, weekday/hour del DateTime UTC reflejan la hora Argentina
-      // independiente del timezone del device.
-      // Filtro por día de la semana
-      if (_diasFiltro.isNotEmpty) {
-        final raw = clase['fecha']?.toString() ?? '';
-        final fecha = DateTime.tryParse('${raw.replaceFirst(' ', 'T')}Z');
-        if (fecha == null || !_diasFiltro.contains(fecha.weekday)) return false;
-      }
-      // Filtro por horario
-      if (_horarioFiltro.isNotEmpty) {
-        final raw = clase['fecha']?.toString() ?? '';
-        final fecha = DateTime.tryParse('${raw.replaceFirst(' ', 'T')}Z');
-        if (fecha == null) return false;
-        final hora = fecha.hour;
-        final matchesHorario = _horarioFiltro.any((h) {
-          switch (h) {
-            case 'manana':
-              return hora >= 6 && hora <= 11;
-            case 'mediodia':
-              return hora >= 12 && hora <= 14;
-            case 'tarde':
-              return hora >= 15 && hora <= 18;
-            case 'noche':
-              return hora >= 19 && hora <= 22;
-            default:
-              return false;
-          }
-        });
-        if (!matchesHorario) return false;
-      }
-      // Filtro por créditos
-      final creditos = (clase['creditos'] as num?)?.toInt() ?? 99;
-      if (creditos > _maxCreditos) return false;
+  String _dayKey(DateTime dt) =>
+      '${dt.year.toString().padLeft(4, '0')}-'
+      '${dt.month.toString().padLeft(2, '0')}-'
+      '${dt.day.toString().padLeft(2, '0')}';
 
-      return true;
-    }).toList();
-    // Sort por fecha asc para que la mas proxima quede primero.
-    filtered.sort((a, b) {
-      final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
-      final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
-      if (fa == null && fb == null) return 0;
-      if (fa == null) return 1;
-      if (fb == null) return -1;
-      return fa.compareTo(fb);
+  int _compareByFecha(Map<String, dynamic> a, Map<String, dynamic> b) {
+    final fa = _parseFecha(a['fecha']);
+    final fb = _parseFecha(b['fecha']);
+    if (fa == null && fb == null) return 0;
+    if (fa == null) return 1;
+    if (fb == null) return -1;
+    return fa.compareTo(fb);
+  }
+
+  int _compareByReservaFecha(Map<String, dynamic> a, Map<String, dynamic> b) {
+    final fa = _parseFecha((a['clases'] as Map?)?['fecha']);
+    final fb = _parseFecha((b['clases'] as Map?)?['fecha']);
+    if (fa == null && fb == null) return 0;
+    if (fa == null) return 1;
+    if (fb == null) return -1;
+    return fa.compareTo(fb);
+  }
+
+  // ── Filtros derivados ─────────────────────────────────────────────────────
+
+  bool _matchesCategoria(Map<String, dynamic> clase) {
+    if (_categoriaSeleccionada == 'Todos') return true;
+    final cat =
+        (clase['estudios'] as Map?)?['categoria']?.toString().toLowerCase();
+    return cat == _categoriaSeleccionada.toLowerCase();
+  }
+
+  /// Lista de dias (ordenados ASC) que tienen al menos una clase disponible
+  /// con la categoria seleccionada.
+  List<DateTime> get _diasDisponibles {
+    final seen = <String, DateTime>{};
+    for (final c in _clases) {
+      if (!_matchesCategoria(c)) continue;
+      final fecha = _parseFecha(c['fecha']);
+      if (fecha == null) continue;
+      final dia = DateTime(fecha.year, fecha.month, fecha.day);
+      seen.putIfAbsent(_dayKey(dia), () => dia);
+    }
+    final dias = seen.values.toList()..sort();
+    return dias;
+  }
+
+  String? _primerDiaConClases() {
+    final dias = _diasDisponibles;
+    if (dias.isEmpty) return null;
+    return _dayKey(dias.first);
+  }
+
+  /// Clases del dia seleccionado, filtradas por categoria, ordenadas ASC.
+  List<Map<String, dynamic>> get _clasesDelDia {
+    final key = _diaSeleccionadoKey;
+    if (key == null) return const [];
+    return _clases.where((c) {
+      if (!_matchesCategoria(c)) return false;
+      final fecha = _parseFecha(c['fecha']);
+      if (fecha == null) return false;
+      return _dayKey(DateTime(fecha.year, fecha.month, fecha.day)) == key;
+    }).toList()
+      ..sort(_compareByFecha);
+  }
+
+  void _seleccionarCategoria(String categoria) {
+    setState(() {
+      _categoriaSeleccionada = categoria;
+      // Si la categoria nueva no incluye el dia seleccionado, saltar al
+      // primer dia que si la tenga.
+      final dias = _diasDisponibles;
+      if (dias.isEmpty) {
+        _diaSeleccionadoKey = null;
+      } else if (!dias.any((d) => _dayKey(d) == _diaSeleccionadoKey)) {
+        _diaSeleccionadoKey = _dayKey(dias.first);
+      }
     });
-    return filtered;
   }
 
-  void _mostrarFiltros() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.white,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        Set<int> diasTemp = Set.from(_diasFiltro);
-        Set<String> horarioTemp = Set.from(_horarioFiltro);
-        int creditosTemp = _maxCreditos;
-
-        const diasLabels = {1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb', 7: 'Dom'};
-        const horarioLabels = {
-          'manana': 'Mañana',
-          'mediodia': 'Mediodía',
-          'tarde': 'Tarde',
-          'noche': 'Noche',
-        };
-
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                  20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 42,
-                      height: 5,
-                      decoration: BoxDecoration(
-                          color: const Color(0xFFE0DBD6),
-                          borderRadius: BorderRadius.circular(999)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Filtros',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.black),
-                  ),
-                  const SizedBox(height: 18),
-                  const Text('Día',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF403A35))),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: diasLabels.entries.map((e) {
-                      final selected = diasTemp.contains(e.key);
-                      return GestureDetector(
-                        onTap: () => setSheetState(() {
-                          if (selected) {
-                            diasTemp.remove(e.key);
-                          } else {
-                            diasTemp.add(e.key);
-                          }
-                        }),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: selected ? AppColors.black : AppColors.white,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                                color: selected
-                                    ? AppColors.black
-                                    : AppColors.warmBorder),
-                          ),
-                          child: Text(
-                            e.value,
-                            style: TextStyle(
-                              color: selected
-                                  ? AppColors.white
-                                  : const Color(0xFFC7C0B9),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 18),
-                  const Text('Horario',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF403A35))),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: horarioLabels.entries.map((e) {
-                      final selected = horarioTemp.contains(e.key);
-                      return GestureDetector(
-                        onTap: () => setSheetState(() {
-                          if (selected) {
-                            horarioTemp.remove(e.key);
-                          } else {
-                            horarioTemp.add(e.key);
-                          }
-                        }),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: selected ? AppColors.black : AppColors.white,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                                color: selected
-                                    ? AppColors.black
-                                    : AppColors.warmBorder),
-                          ),
-                          child: Text(
-                            e.value,
-                            style: TextStyle(
-                              color: selected
-                                  ? AppColors.white
-                                  : const Color(0xFFC7C0B9),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Créditos máximos',
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF403A35))),
-                      Text(
-                        creditosTemp < 50 ? '$creditosTemp cr' : 'Todos',
-                        style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary),
-                      ),
-                    ],
-                  ),
-                  Slider(
-                    value: creditosTemp.toDouble(),
-                    min: 5,
-                    max: 50,
-                    divisions: 9,
-                    activeColor: AppColors.primary,
-                    inactiveColor: const Color(0xFFE0DBD6),
-                    onChanged: (v) =>
-                        setSheetState(() => creditosTemp = v.toInt()),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            setState(() {
-                              _diasFiltro = {};
-                              _horarioFiltro = {};
-                              _maxCreditos = 50;
-                            });
-                            Navigator.of(ctx).pop();
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.black,
-                            side: const BorderSide(color: AppColors.warmBorder),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: const Text('Limpiar',
-                              style: TextStyle(fontWeight: FontWeight.w600)),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _diasFiltro = diasTemp;
-                              _horarioFiltro = horarioTemp;
-                              _maxCreditos = creditosTemp;
-                            });
-                            Navigator.of(ctx).pop();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.black,
-                            foregroundColor: AppColors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: const Text('Aplicar',
-                              style: TextStyle(fontWeight: FontWeight.w700)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final destacados = _showAllDestacados ? _estudiosFiltrados : _estudiosFiltrados.take(2).toList();
-    final lista = _clasesConEstudio;
+    final usuario = context.watch<AppProvider>().usuario;
+    final creditos = usuario?.creditos ?? 0;
+    final dias = _diasDisponibles;
+    final hoy = _ahoraAr();
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: RefreshIndicator(
+      appBar: AppBar(
+        backgroundColor: _darkAppBar,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: const Text(
+          'Explorar',
+          style: TextStyle(
+            color: _cream,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: _cream),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: _CreditosChip(
+              creditos: creditos,
+              onTap: () => context.push('/mis-creditos'),
+            ),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: _cargar,
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(top: 16, bottom: 32),
+                children: [
+                  if (_misReservas.isNotEmpty) ...[
+                    const _SectionLabel('MIS PRÓXIMAS CLASES'),
+                    const SizedBox(height: 10),
+                    _MisReservasRow(reservas: _misReservas),
+                    const SizedBox(height: 24),
+                  ],
+                  if (dias.isNotEmpty) ...[
+                    _DaySelector(
+                      dias: dias,
+                      seleccionadoKey: _diaSeleccionadoKey,
+                      hoy: hoy,
+                      dayKeyOf: _dayKey,
+                      onTap: (key) =>
+                          setState(() => _diaSeleccionadoKey = key),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (_categorias.length > 1) ...[
+                    _CategorySelector(
+                      categorias: _categorias,
+                      seleccionada: _categoriaSeleccionada,
+                      onTap: _seleccionarCategoria,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  if (_clasesDelDia.isEmpty)
+                    const _EmptyDayState()
+                  else
+                    ..._clasesDelDia.map(
+                      (clase) => Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: _ClaseCard(
+                          clase: clase,
+                          hoy: hoy,
+                          onTap: () =>
+                              context.push('/clase/${clase['id']}'),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+// ── Widgets ─────────────────────────────────────────────────────────────────
+
+class _CreditosChip extends StatelessWidget {
+  final int creditos;
+  final VoidCallback onTap;
+
+  const _CreditosChip({required this.creditos, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
           color: AppColors.primary,
-          onRefresh: _cargar,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
-            children: [
-              const Text(
-                'Explorar',
-                style: TextStyle(
-                  color: AppColors.black,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 40,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.warmBorder),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.search_rounded,
-                            size: 18,
-                            color: Color(0xFFC7C0B9),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              controller: _searchCtrl,
-                              decoration: const InputDecoration(
-                                hintText: 'Buscá clases, estudios...',
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                isDense: true,
-                                contentPadding: EdgeInsets.zero,
-                                hintStyle: TextStyle(
-                                  color: Color(0xFFC7C0B9),
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (_searchCtrl.text.isNotEmpty)
-                            GestureDetector(
-                              onTap: () => _searchCtrl.clear(),
-                              child: const Icon(
-                                Icons.close_rounded,
-                                size: 18,
-                                color: Color(0xFFB4ACA5),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      SizedBox(
-                        height: 40,
-                        child: OutlinedButton.icon(
-                          onPressed: _mostrarFiltros,
-                          icon: const Icon(Icons.tune_rounded, size: 16),
-                          label: const Text('Filtrar',
-                              style: TextStyle(fontSize: 13)),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.black,
-                            side: const BorderSide(color: AppColors.warmBorder),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
-                      ),
-                      if (_cantFiltrosActivos > 0)
-                        Positioned(
-                          top: -4,
-                          right: -4,
-                          child: Container(
-                            width: 18,
-                            height: 18,
-                            decoration: const BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              '$_cantFiltrosActivos',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              InkWell(
-                onTap: _abrirMapa,
-                borderRadius: BorderRadius.circular(16),
-                child: Ink(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF4EC),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFF0D9C9)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.map_outlined,
-                        color: AppColors.primary,
-                        size: 18,
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Ver estudios en mapa',
-                          style: TextStyle(
-                            color: AppColors.black,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: AppColors.primary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                height: 34,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _categorias.length,
-                  itemBuilder: (context, index) {
-                    final categoria = _categorias[index];
-                    final active = categoria == _categoriaSeleccionada;
-                    return GestureDetector(
-                      onTap: () => setState(() => _categoriaSeleccionada = categoria),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: active ? AppColors.black : AppColors.white,
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: active
-                                ? AppColors.black
-                                : AppColors.warmBorder,
-                          ),
-                        ),
-                        child: Text(
-                          categoria,
-                          style: TextStyle(
-                            color: active
-                                ? AppColors.white
-                                : const Color(0xFFC7C0B9),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'DESTACADOS HOY',
-                    style: TextStyle(
-                      color: Color(0xFF403A35),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => setState(() => _showAllDestacados = !_showAllDestacados),
-                    child: Text(
-                      _showAllDestacados ? 'Ver menos' : 'Ver todo',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (_loading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  ),
-                )
-              else if (destacados.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 32),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.search_off_rounded, size: 44, color: Color(0xFFB2A89F)),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'No encontramos resultados',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Probá con otro término o categoría.',
-                        style: TextStyle(color: Color(0xFF8C847C), fontSize: 14),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      TextButton.icon(
-                        onPressed: () => setState(() {
-                          _searchCtrl.clear();
-                          _categoriaSeleccionada = 'Todos';
-                        }),
-                        icon: const Icon(Icons.refresh_rounded, size: 16),
-                        label: const Text('Limpiar filtros'),
-                      ),
-                    ],
-                  ),
-                )
-              else ...[
-                SizedBox(
-                  height: 180,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: destacados.length,
-                    itemBuilder: (context, index) {
-                      final estudio = destacados[index];
-                      final esAsociado =
-                          _estudioAsociadoId != null &&
-                          estudio.id == _estudioAsociadoId;
-                      return _FeaturedExploreCard(
-                        estudio: estudio,
-                        accentColor: index.isEven
-                            ? AppColors.beigeCard
-                            : AppColors.greenCard,
-                        showBadge: esAsociado,
-                        onTap: () {
-                          if (estudio.id != null) {
-                            context.push('/estudio/${estudio.id}');
-                          }
-                        },
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 22),
-                const Text(
-                  'TODOS LOS RESULTADOS',
-                  style: TextStyle(
-                    color: Color(0xFF403A35),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (lista.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      'No hay clases disponibles para esta búsqueda.',
-                      style: TextStyle(color: Color(0xFF8C847C)),
-                    ),
-                  )
-                else ...[
-                  ...lista.asMap().entries.map(
-                        (entry) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _ResultCard(
-                            clase: entry.value,
-                            accentColor: entry.key.isEven
-                                ? AppColors.beigeCard
-                                : AppColors.blueCard,
-                            onTap: () => context.push('/clase/${entry.value['id']}'),
-                          ),
-                        ),
-                      ),
-                  if (_hasMoreClases || _loadingMore)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4, bottom: 4),
-                      child: Center(
-                        child: _loadingMore
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primary,
-                                ),
-                              )
-                            : TextButton.icon(
-                                onPressed: _cargarMasClases,
-                                icon: const Icon(Icons.expand_more_rounded, size: 18),
-                                label: const Text('Cargar más clases'),
-                              ),
-                      ),
-                    ),
-                ],
-              ],
-            ],
-          ),
+          borderRadius: BorderRadius.circular(999),
         ),
-      ),
-    );
-  }
-}
-
-class _FeaturedExploreCard extends StatelessWidget {
-  final Estudio estudio;
-  final Color accentColor;
-  final VoidCallback onTap;
-  final bool showBadge;
-
-  const _FeaturedExploreCard({
-    required this.estudio,
-    required this.accentColor,
-    required this.onTap,
-    this.showBadge = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 166,
-      margin: const EdgeInsets.only(right: 12),
-      child: Material(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.warmBorder),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 92,
-                  decoration: BoxDecoration(
-                    color: accentColor,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(18),
-                    ),
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        accentColor.withOpacity(0.95),
-                        accentColor.withOpacity(0.7),
-                        accentColor.withOpacity(0.35),
-                      ],
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _Pill(
-                          text: estudio.categoria.toUpperCase(),
-                          dark: true,
-                        ),
-                        const Spacer(),
-                        if (showBadge)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: const Text(
-                              'Tu estudio',
-                              style: TextStyle(
-                                color: AppColors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                  child: Text(
-                    estudio.nombre,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.black,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-                  child: Text(
-                    estudio.barrio ?? 'Buenos Aires',
-                    style: const TextStyle(
-                      color: Color(0xFFAAA19A),
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 2, 12, 0),
-                  child: Text(
-                    estudio.direccion ?? 'Ver estudio y ubicación',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFFC1B7AF),
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-              ],
+            const SizedBox(width: 6),
+            Text(
+              '$creditos cr',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ResultCard extends StatelessWidget {
-  final Map<String, dynamic> clase;
-  final Color accentColor;
-  final VoidCallback onTap;
-
-  const _ResultCard({
-    required this.clase,
-    required this.accentColor,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final estudio = clase['estudios'] as Map<String, dynamic>?;
-    final categoria = (estudio?['categoria'] ?? '').toString().toUpperCase();
-    final barrio = (estudio?['barrio'] ?? '').toString().toUpperCase();
-    final imageUrl = (clase['imagen_url'] ?? estudio?['foto_url'])?.toString();
-    final tipoPrecio = clase['tipo_precio']?.toString();
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Ink(
-          height: 112,
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.warmBorder),
-          ),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.horizontal(
-                  left: Radius.circular(18),
-                ),
-                child: SizedBox(
-                  width: 96,
-                  height: double.infinity,
-                  child: _ExploreClassImage(
-                    imageUrl: imageUrl,
-                    accentColor: accentColor,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              [categoria, barrio]
-                                  .where((e) => e.isNotEmpty)
-                                  .join(' · '),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFFD0C6BD),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          if (tipoPrecio == 'pico')
-                            _PriceBadge(
-                              text: '⚡ POPULAR',
-                              color: Color(0xFFE8763A),
-                            )
-                          else if (tipoPrecio == 'normal' ||
-                              tipoPrecio == 'valle')
-                            _PriceBadge(
-                              text: '🏷️ PRECIO REDUCIDO',
-                              color: Color(0xFF4CAF50),
-                            ),
-                          // tipoPrecio == 'experiencia' -> sin badge
-                        ],
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        (clase['nombre'] ?? 'Clase').toString(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.black,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        estudio?['direccion']?.toString() ?? 'Malabia 1510',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFFA49B94),
-                          fontSize: 12,
-                        ),
-                      ),
-                      const Spacer(),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              clase['fecha'] != null
-                                  ? _formatFecha(clase['fecha'].toString())
-                                  : '',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFFB2A89F),
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                          _Pill(text: '${clase['creditos'] ?? 10} cr'),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  static String _formatFecha(String raw) {
-    final date = DateTime.tryParse(raw);
-    if (date == null) return '';
-    final hora = DateFormat('HH:mm', 'es').format(date);
-    final ahora = DateTime.now();
-    final hoy = DateTime(ahora.year, ahora.month, ahora.day);
-    final fechaDia = DateTime(date.year, date.month, date.day);
-    final diff = fechaDia.difference(hoy).inDays;
-
-    String dia;
-    if (diff == 0) {
-      dia = 'Hoy';
-    } else if (diff == 1) {
-      dia = 'Mañana';
-    } else if (diff > 1 && diff < 7) {
-      // dia de la semana (lunes, martes, etc.)
-      dia = toBeginningOfSentenceCase(
-            DateFormat('EEEE', 'es').format(date),
-          ) ??
-          DateFormat('EEEE', 'es').format(date);
-    } else {
-      // 8 jun, 23 sep, etc.
-      dia = DateFormat("d MMM", 'es').format(date);
-    }
-    return '$dia · $hora hs';
-  }
-}
-
-class _ExploreClassImage extends StatelessWidget {
-  final String? imageUrl;
-  final Color accentColor;
-
-  const _ExploreClassImage({
-    required this.imageUrl,
-    required this.accentColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (imageUrl != null && imageUrl!.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: imageUrl!,
-        fit: BoxFit.cover,
-        placeholder: (_, __) => _fallback(),
-        errorWidget: (_, __, ___) => _fallback(),
-      );
-    }
-    return _fallback();
-  }
-
-  Widget _fallback() {
-    return Container(
-      decoration: BoxDecoration(
-        color: accentColor,
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            accentColor.withValues(alpha: 0.95),
-            accentColor.withValues(alpha: 0.75),
-            accentColor.withValues(alpha: 0.45),
           ],
         ),
       ),
@@ -1124,53 +332,440 @@ class _ExploreClassImage extends StatelessWidget {
   }
 }
 
-class _PriceBadge extends StatelessWidget {
+class _SectionLabel extends StatelessWidget {
   final String text;
-  final Color color;
-
-  const _PriceBadge({required this.text, required this.color});
+  const _SectionLabel(this.text);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(6),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
       child: Text(
         text,
         style: const TextStyle(
-          color: Colors.white,
-          fontSize: 9,
+          color: AppColors.primary,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
+          letterSpacing: 1,
         ),
       ),
     );
   }
 }
 
-class _Pill extends StatelessWidget {
-  final String text;
-  final bool dark;
+class _MisReservasRow extends StatelessWidget {
+  final List<Map<String, dynamic>> reservas;
+  const _MisReservasRow({required this.reservas});
 
-  const _Pill({
-    required this.text,
-    this.dark = false,
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 90,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: reservas.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final r = reservas[index];
+          return _ReservaMiniCard(reserva: r);
+        },
+      ),
+    );
+  }
+}
+
+class _ReservaMiniCard extends StatelessWidget {
+  final Map<String, dynamic> reserva;
+  const _ReservaMiniCard({required this.reserva});
+
+  @override
+  Widget build(BuildContext context) {
+    final clase = reserva['clases'] as Map<String, dynamic>?;
+    final estudio = clase?['estudios'] as Map<String, dynamic>?;
+    final fecha = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
+    final hora = fecha != null
+        ? '${fecha.hour.toString().padLeft(2, '0')}:'
+            '${fecha.minute.toString().padLeft(2, '0')}'
+        : '--:--';
+    final codigoQr = reserva['codigo_qr']?.toString() ?? '';
+
+    return InkWell(
+      onTap: codigoQr.isEmpty
+          ? null
+          : () => context.push('/reserva-confirmada/$codigoQr'),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 160,
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        decoration: BoxDecoration(
+          color: _darkChip,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              (clase?['nombre'] ?? 'Clase').toString(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _cream,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              (estudio?['nombre'] ?? '').toString(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _creamSubtle,
+                fontSize: 11,
+              ),
+            ),
+            const Spacer(),
+            Row(
+              children: [
+                Text(
+                  hora,
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'QR',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DaySelector extends StatelessWidget {
+  final List<DateTime> dias;
+  final String? seleccionadoKey;
+  final DateTime hoy;
+  final String Function(DateTime) dayKeyOf;
+  final ValueChanged<String> onTap;
+
+  const _DaySelector({
+    required this.dias,
+    required this.seleccionadoKey,
+    required this.hoy,
+    required this.dayKeyOf,
+    required this.onTap,
   });
+
+  static const _weekdayAbbr = [
+    'LUN',
+    'MAR',
+    'MIÉ',
+    'JUE',
+    'VIE',
+    'SÁB',
+    'DOM'
+  ];
+
+  String _label(DateTime dia) {
+    final hoyDia = DateTime(hoy.year, hoy.month, hoy.day);
+    final diff = dia.difference(hoyDia).inDays;
+    if (diff == 0) return 'HOY';
+    if (diff == 1) return 'MAÑ';
+    return '${_weekdayAbbr[dia.weekday - 1]} ${dia.day}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: dias.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final dia = dias[index];
+          final key = dayKeyOf(dia);
+          final active = key == seleccionadoKey;
+          return GestureDetector(
+            onTap: () => onTap(key),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: active ? AppColors.primary : _darkChip,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                _label(dia),
+                style: TextStyle(
+                  color: active ? Colors.black : _cream,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CategorySelector extends StatelessWidget {
+  final List<String> categorias;
+  final String seleccionada;
+  final ValueChanged<String> onTap;
+
+  const _CategorySelector({
+    required this.categorias,
+    required this.seleccionada,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 34,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: categorias.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final categoria = categorias[index];
+          final active = categoria == seleccionada;
+          return GestureDetector(
+            onTap: () => onTap(categoria),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(
+                color: active ? _darkAppBar : Colors.transparent,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: active ? AppColors.primary : _chipBorder,
+                  width: active ? 1.4 : 1,
+                ),
+              ),
+              child: Text(
+                categoria,
+                style: TextStyle(
+                  color: active ? AppColors.primary : const Color(0xFF5A534D),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ClaseCard extends StatelessWidget {
+  final Map<String, dynamic> clase;
+  final DateTime hoy;
+  final VoidCallback onTap;
+
+  const _ClaseCard({
+    required this.clase,
+    required this.hoy,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final estudio = clase['estudios'] as Map<String, dynamic>?;
+    final fecha = DateTime.tryParse(clase['fecha']?.toString() ?? '');
+    final hora = fecha != null
+        ? '${fecha.hour.toString().padLeft(2, '0')}:'
+            '${fecha.minute.toString().padLeft(2, '0')}'
+        : '--:--';
+    final categoria = (estudio?['categoria'] ?? '').toString();
+    final lugares = (clase['lugares_disponibles'] as num?)?.toInt() ?? 0;
+    final creditos = (clase['creditos'] as num?)?.toInt() ?? 0;
+    final fotoUrl = (clase['imagen_url'] ?? estudio?['foto_url'])?.toString();
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      elevation: 0,
+      shadowColor: Colors.black.withValues(alpha: 0.05),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _StudioImage(url: fotoUrl),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          (clase['nombre'] ?? 'Clase').toString(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.black,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          (estudio?['nombre'] ?? '').toString(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    hora,
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  if (categoria.isNotEmpty) ...[
+                    _Badge(
+                      text: categoria,
+                      bg: _categoryBadgeBg,
+                      fg: AppColors.primary,
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  if (fecha != null) ...[
+                    _TiempoBadge(claseFecha: fecha, hoy: hoy),
+                    const SizedBox(width: 6),
+                  ],
+                  _LugaresBadge(lugares: lugares),
+                  const Spacer(),
+                  Text(
+                    '$creditos cr',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StudioImage extends StatelessWidget {
+  final String? url;
+  const _StudioImage({required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        color: AppColors.lightGrey,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(
+        Icons.fitness_center_rounded,
+        color: AppColors.grey,
+        size: 26,
+      ),
+    );
+
+    if (url == null || url!.isEmpty) return fallback;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: CachedNetworkImage(
+        imageUrl: url!,
+        width: 60,
+        height: 60,
+        fit: BoxFit.cover,
+        placeholder: (_, _) => fallback,
+        errorWidget: (_, _, _) => fallback,
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final String text;
+  final Color bg;
+  final Color fg;
+
+  const _Badge({required this.text, required this.bg, required this.fg});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: dark ? const Color(0xFF5A534D) : const Color(0xFFFFF1E8),
-        borderRadius: BorderRadius.circular(999),
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         text,
         style: TextStyle(
-          color: dark ? AppColors.white : AppColors.primary,
+          color: fg,
           fontSize: 10,
           fontWeight: FontWeight.w700,
         ),
@@ -1179,5 +774,111 @@ class _Pill extends StatelessWidget {
   }
 }
 
+class _TiempoBadge extends StatelessWidget {
+  final DateTime claseFecha;
+  final DateTime hoy;
 
+  const _TiempoBadge({required this.claseFecha, required this.hoy});
 
+  @override
+  Widget build(BuildContext context) {
+    final diffMin = claseFecha.difference(hoy).inMinutes;
+    final hoyDia = DateTime(hoy.year, hoy.month, hoy.day);
+    final claseDia =
+        DateTime(claseFecha.year, claseFecha.month, claseFecha.day);
+    final diffDias = claseDia.difference(hoyDia).inDays;
+
+    String text;
+    bool urgent = false;
+
+    if (diffMin > 0 && diffMin < 180) {
+      urgent = true;
+      if (diffMin < 60) {
+        text = 'En $diffMin min';
+      } else {
+        final h = (diffMin / 60).round();
+        text = h == 1 ? 'En 1 hora' : 'En $h horas';
+      }
+    } else if (diffDias == 0) {
+      text = 'Hoy';
+    } else if (diffDias == 1) {
+      text = 'Mañana';
+    } else {
+      const abbr = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+      text = '${abbr[claseFecha.weekday - 1]} ${claseFecha.day}';
+    }
+
+    return _Badge(
+      text: text,
+      bg: urgent ? _categoryBadgeBg : const Color(0xFFF1F1F1),
+      fg: urgent ? AppColors.primary : AppColors.grey,
+    );
+  }
+}
+
+class _LugaresBadge extends StatelessWidget {
+  final int lugares;
+  const _LugaresBadge({required this.lugares});
+
+  @override
+  Widget build(BuildContext context) {
+    if (lugares <= 0) {
+      return const _Badge(
+        text: 'Sin lugares',
+        bg: Color(0xFFF1F1F1),
+        fg: AppColors.grey,
+      );
+    }
+    if (lugares == 1) {
+      return const _Badge(
+        text: 'Último lugar',
+        bg: _categoryBadgeBg,
+        fg: AppColors.primary,
+      );
+    }
+    return _Badge(
+      text: '$lugares lugares',
+      bg: const Color(0xFFF1F1F1),
+      fg: AppColors.grey,
+    );
+  }
+}
+
+class _EmptyDayState extends StatelessWidget {
+  const _EmptyDayState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.calendar_today_outlined,
+            size: 44,
+            color: Color(0xFFB2A89F),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'No hay clases disponibles este día',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.black,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Probá con otro día o categoría',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.grey,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
