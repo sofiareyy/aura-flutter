@@ -786,6 +786,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final cr = TextEditingController(text: ((item?['creditos'] as num?)?.toInt() ?? 10).toString());
     int cierreReserva = (item?['reserva_cierre_minutos'] as num?)?.toInt() ?? 0;
     int d = (item?['dia_semana'] as num?)?.toInt() ?? 1;
+    // Clase individual (solo al crear): fecha concreta del evento único.
+    final nowLocal = DateTime.now();
+    DateTime fecha = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
     final hh = (item?['hora_inicio']?.toString() ?? '08:00').split(':');
     TimeOfDay t = TimeOfDay(hour: int.tryParse(hh.first) ?? 8, minute: int.tryParse(hh.length > 1 ? hh[1] : '0') ?? 0);
     int dur = (item?['duracion_min'] as num?)?.toInt() ?? 60;
@@ -857,7 +860,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Text(
-                                'Las clases se van a programar automáticamente para los próximos 3 meses. Pasado ese tiempo vas a tener que renovarlas para que sigan apareciendo a los usuarios.',
+                                'Esta es una clase individual: un evento único en la fecha que elijas. No se repite. Si querés clases que se repitan todas las semanas, usá "Crear grilla".',
                                 style: TextStyle(
                                   color: AppColors.primary,
                                   fontSize: 13,
@@ -889,17 +892,40 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                           _SectionCard(
                             title: 'Horario',
                             children: [
-                              _AuraDropdown<int>(
-                                label: 'Día',
-                                value: d,
-                                items: List.generate(
-                                    7,
-                                    (x) => DropdownMenuItem(
-                                          value: x + 1,
-                                          child: Text(_dayName(x + 1)),
-                                        )),
-                                onChanged: (v) => setD(() => d = v ?? d),
-                              ),
+                              if (edit)
+                                _AuraDropdown<int>(
+                                  label: 'Día',
+                                  value: d,
+                                  items: List.generate(
+                                      7,
+                                      (x) => DropdownMenuItem(
+                                            value: x + 1,
+                                            child: Text(_dayName(x + 1)),
+                                          )),
+                                  onChanged: (v) => setD(() => d = v ?? d),
+                                )
+                              else
+                                _AuraTapField(
+                                  label: 'Fecha',
+                                  value:
+                                      '${_dayName(fecha.weekday)} ${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}',
+                                  icon: Icons.calendar_today_rounded,
+                                  onTap: () async {
+                                    final hoy = DateTime.now();
+                                    final p = await showDatePicker(
+                                      context: ctx,
+                                      initialDate: fecha,
+                                      firstDate:
+                                          DateTime(hoy.year, hoy.month, hoy.day),
+                                      lastDate: DateTime(hoy.year + 1, hoy.month,
+                                          hoy.day),
+                                    );
+                                    if (p != null) {
+                                      setD(() => fecha =
+                                          DateTime(p.year, p.month, p.day));
+                                    }
+                                  },
+                                ),
                               const SizedBox(height: 12),
                               _AuraTapField(
                                 label: 'Hora de inicio',
@@ -993,7 +1019,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               _PricingPreview(
                                 estudio: _estudio,
                                 hora: '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
-                                dia: d,
+                                dia: edit ? d : fecha.weekday,
                                 categoria: cat,
                                 onComputed: (creditos) {
                                   if (cr.text != creditos.toString()) {
@@ -1155,30 +1181,29 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         });
         messenger.showSnackBar(const SnackBar(content: Text('Horario fijo actualizado')));
       } else {
-        final inserted = await _service.crearHorarioFijo(payload);
+        // Clase INDIVIDUAL: evento único en la fecha elegida. No crea horario
+        // fijo ni genera repeticiones semanales.
+        final fechaHora = DateTime(
+          fecha.year,
+          fecha.month,
+          fecha.day,
+          t.hour,
+          t.minute,
+        );
+        await _service.crearClaseIndividual(
+          fechaHora: fechaHora,
+          payload: payload,
+        );
         setState(() {
-          _horarios = [..._horarios, inserted];
-          _sortFixed();
-          _showFixed = true;
+          _showFixed = false; // mostrar la solapa "Clases cargadas"
           _tablaOk = true;
           _error = null;
         });
-        messenger.showSnackBar(const SnackBar(content: Text('Horario fijo guardado. Generando próximos 3 meses…')));
-        try {
-          final result = await _service.generarProximasSemanasDesdeHorarios(weeks: 13);
-          await _loadStudio();
-          if (mounted) {
-            final creadas = result['creadas'] ?? 0;
-            messenger.showSnackBar(
-              SnackBar(content: Text('Clases programadas para 3 meses ($creadas nuevas).')),
-            );
-          }
-        } catch (e) {
-          if (mounted) {
-            messenger.showSnackBar(
-              SnackBar(content: Text('Horario guardado, pero falló la generación automática: ${e.toString()}')),
-            );
-          }
+        await _loadStudio();
+        if (mounted) {
+          messenger.showSnackBar(
+            const SnackBar(content: Text('Clase individual creada (no se repite).')),
+          );
         }
       }
     } catch (e) {

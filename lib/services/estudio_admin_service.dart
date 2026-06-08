@@ -248,6 +248,56 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
     return Map<String, dynamic>.from(inserted);
   }
 
+  /// Crea una clase INDIVIDUAL (evento único) en una fecha y hora concretas.
+  /// A diferencia de los horarios fijos, NO crea un `horario_fijo` ni dispara
+  /// `generarProximasSemanasDesdeHorarios()`: la clase NO se repite jamás.
+  /// Aparece en la solapa "Clases cargadas".
+  Future<Map<String, dynamic>> crearClaseIndividual({
+    required DateTime fechaHora,
+    required Map<String, dynamic> payload,
+  }) async {
+    final studioId = await getCurrentStudioId();
+    if (studioId == null) {
+      throw Exception('No hay estudio asociado.');
+    }
+
+    final lugares = (payload['lugares_total'] as num?)?.toInt() ?? 12;
+
+    // Solo columnas válidas de `clases` (descarta campos de horario_fijo como
+    // dia_semana / hora_inicio / activo si vinieran en el payload).
+    final insertPayload = <String, dynamic>{
+      'estudio_id': studioId,
+      'nombre': payload['nombre'],
+      'instructor': payload['instructor'],
+      'instructor_descripcion': payload['instructor_descripcion'],
+      'incluye': payload['incluye'],
+      'imagen_url': payload['imagen_url'],
+      'galeria_urls': payload['galeria_urls'],
+      'fecha': _toSupaDate(fechaHora),
+      'duracion_min': (payload['duracion_min'] as num?)?.toInt() ?? 60,
+      'lugares_total': lugares,
+      'lugares_disponibles': lugares,
+      'creditos': (payload['creditos'] as num?)?.toInt() ?? 10,
+      'reserva_cierre_minutos':
+          (payload['reserva_cierre_minutos'] as num?)?.toInt() ?? 0,
+    };
+    final categoria = payload['categoria']?.toString();
+    if (categoria != null && categoria.trim().isNotEmpty) {
+      insertPayload['categoria'] = categoria;
+    }
+    final sala = payload['sala'];
+    if (sala != null && sala.toString().trim().isNotEmpty) {
+      insertPayload['sala'] = sala;
+    }
+
+    final inserted = await _client
+        .from('clases')
+        .insert(insertPayload)
+        .select()
+        .single();
+    return Map<String, dynamic>.from(inserted);
+  }
+
   Future<int> crearHorariosFijosEnGrilla({
     required List<int> diasSemana,
     required TimeOfDay horaInicio,

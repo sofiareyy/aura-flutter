@@ -24,8 +24,13 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
   bool _loading = true;
   bool _applying = false;
   bool _haCompradoPack = false;
+  bool _tienePlan = false;
 
   static const int _maxReferidos = 2;
+
+  /// El código se desbloquea si el usuario tiene un plan asignado o ya compró
+  /// su primer pack de créditos.
+  bool get _puedeVerCodigo => _tienePlan || _haCompradoPack;
 
   @override
   void initState() {
@@ -40,7 +45,8 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
   }
 
   Future<void> _cargar() async {
-    final userId = context.read<AppProvider>().userId;
+    final appProvider = context.read<AppProvider>();
+    final userId = appProvider.userId;
     final results = await Future.wait([
       _service.obtenerOCrearCodigo(userId),
       _service.codigoYaUsado(userId),
@@ -48,11 +54,13 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
       _service.haCompradoPack(userId),
     ]);
     if (!mounted) return;
+    final plan = (appProvider.usuario?.plan ?? '').trim();
     setState(() {
       _codigoPropio = results[0] as String;
       _codigoUsado = results[1] as String?;
       _referidosCount = results[2] as int;
       _haCompradoPack = results[3] as bool;
+      _tienePlan = plan.isNotEmpty && plan.toLowerCase() != 'sin plan';
       _loading = false;
     });
   }
@@ -161,7 +169,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
   }
 
   Widget _codigoPropioCard() {
-    if (!_haCompradoPack) {
+    if (!_puedeVerCodigo) {
       return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -194,7 +202,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Comprá tu primer pack de créditos para desbloquear tu código y empezar a invitar amigos.',
+              'Activá un plan o comprá tu primer pack de créditos para desbloquear tu código y empezar a invitar amigos.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.grey,

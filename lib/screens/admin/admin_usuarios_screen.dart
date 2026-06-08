@@ -87,38 +87,60 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
     await _load();
   }
 
+  static const List<String> _planOptions = [
+    'Sin plan',
+    'Explorer',
+    'Essential',
+    'Popular',
+    'Full',
+  ];
+
   Future<void> _editarUsuario(Map<String, dynamic> user) async {
     final nombreCtrl =
         TextEditingController(text: user['nombre']?.toString() ?? '');
-    final planCtrl = TextEditingController(text: user['plan']?.toString() ?? '');
+
+    // Normaliza el plan actual contra las opciones (case-insensitive).
+    final planActual = user['plan']?.toString().trim() ?? '';
+    String selectedPlan = _planOptions.firstWhere(
+      (p) => p.toLowerCase() == planActual.toLowerCase(),
+      orElse: () => 'Sin plan',
+    );
+
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Editar usuario'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nombreCtrl,
-              decoration: const InputDecoration(labelText: 'Nombre'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Editar usuario'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nombreCtrl,
+                decoration: const InputDecoration(labelText: 'Nombre'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: selectedPlan,
+                decoration: const InputDecoration(labelText: 'Plan'),
+                items: _planOptions
+                    .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                    .toList(),
+                onChanged: (v) =>
+                    setDialogState(() => selectedPlan = v ?? 'Sin plan'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: planCtrl,
-              decoration: const InputDecoration(labelText: 'Plan'),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Guardar'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Guardar'),
-          ),
-        ],
       ),
     );
     if (ok != true) return;
@@ -126,7 +148,8 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
     await _service.updateUsuario(
       userId: user['id'].toString(),
       nombre: nombreCtrl.text,
-      plan: planCtrl.text,
+      // 'Sin plan' se guarda como null en usuarios.plan.
+      plan: selectedPlan == 'Sin plan' ? null : selectedPlan,
     );
     await _load();
   }

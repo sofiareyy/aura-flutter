@@ -69,13 +69,15 @@ class ReferidosService {
   }
 
   /// Devuelve true si el usuario ya compró al menos un pack de créditos.
+  /// La tabla `creditos_movimientos` usa las columnas `user_id` y `source`
+  /// (las compras de packs quedan con source = 'pack').
   Future<bool> haCompradoPack(String usuarioId) async {
     try {
       final rows = await _client
           .from('creditos_movimientos')
           .select('id')
-          .eq('usuario_id', usuarioId)
-          .eq('tipo', 'compra')
+          .eq('user_id', usuarioId)
+          .eq('source', 'pack')
           .limit(1);
       return (rows as List).isNotEmpty;
     } catch (_) {
