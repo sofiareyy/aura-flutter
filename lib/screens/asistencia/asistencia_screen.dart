@@ -79,10 +79,10 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
         .select()
         .gte('fecha', DateTime(now.year, now.month, now.day).toIso8601String())
         .order('fecha', ascending: true)
-        .limit(10);
+        .limit(50);
 
     final mapped = List<Map<String, dynamic>>.from(clases as List);
-    final selected = mapped.isNotEmpty ? mapped.first : null;
+    final selected = _autoSeleccionarClase(mapped, now);
     final attendees = await _cargarAsistentes(selected);
 
     if (!mounted) return;
@@ -92,6 +92,40 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       _asistentes = attendees;
       _loading = false;
     });
+  }
+
+  // ── Buckets AHORA / HOY / PROXIMAS ────────────────────────────────────────
+
+  /// Devuelve 'ahora' si la clase empieza en las proximas 2h o empezo hace
+  /// menos de 1h, 'hoy' si es del mismo dia pero fuera de esa ventana,
+  /// 'proximas' si es a futuro otro dia, null si ya termino del todo.
+  String? _bucketDeClase(Map<String, dynamic> clase, DateTime now) {
+    final fecha = DateTime.tryParse(clase['fecha']?.toString() ?? '');
+    if (fecha == null) return null;
+    final diffMin = fecha.difference(now).inMinutes;
+    if (diffMin <= 120 && diffMin >= -60) return 'ahora';
+    final hoyDia = DateTime(now.year, now.month, now.day);
+    final fechaDia = DateTime(fecha.year, fecha.month, fecha.day);
+    if (fechaDia == hoyDia) return 'hoy';
+    if (fecha.isAfter(now)) return 'proximas';
+    return null;
+  }
+
+  /// Si hay exactamente una clase "AHORA" la abrimos directo. Sino preferimos
+  /// la primera AHORA, despues la primera HOY, despues la primera de PROXIMAS.
+  Map<String, dynamic>? _autoSeleccionarClase(
+    List<Map<String, dynamic>> clases,
+    DateTime now,
+  ) {
+    if (clases.isEmpty) return null;
+    final ahora = clases.where((c) => _bucketDeClase(c, now) == 'ahora').toList();
+    if (ahora.isNotEmpty) return ahora.first;
+    final hoy = clases.where((c) => _bucketDeClase(c, now) == 'hoy').toList();
+    if (hoy.isNotEmpty) return hoy.first;
+    final proximas =
+        clases.where((c) => _bucketDeClase(c, now) == 'proximas').toList();
+    if (proximas.isNotEmpty) return proximas.first;
+    return clases.first;
   }
 
   // ── Cache ─────────────────────────────────────────────────────────────────
@@ -816,7 +850,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                               ),
                             ),
                             TextButton(
-                              onPressed: _clases.length <= 1 ? null : _mostrarSelectorClases,
+                              onPressed: _clases.isEmpty ? null : _mostrarSelectorClases,
                               child: const Text(
                                 'Cambiar',
                                 style: TextStyle(
@@ -1289,35 +1323,142 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   Future<void> _mostrarSelectorClases() async {
+    final filterCtrl = TextEditingController();
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.white,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
+      builder: (sheetCtx) {
+        final maxH = MediaQuery.of(sheetCtx).size.height * 0.85;
         return SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.all(16),
-            children: _clases.map((clase) {
-              return ListTile(
-                title: Text(clase['nombre']?.toString() ?? 'Clase'),
-                subtitle: Text(
-                  DateFormat('EEE d MMM · HH:mm', 'es').format(
-                    DateTime.tryParse(clase['fecha']?.toString() ?? '') ?? DateTime.now(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxH),
+            child: StatefulBuilder(
+              builder: (ctx, setSheetState) {
+                final now = DateTime.now();
+                final q = filterCtrl.text.trim().toLowerCase();
+
+                bool matchesQuery(Map<String, dynamic> c) {
+                  if (q.isEmpty) return true;
+                  return (c['nombre']?.toString() ?? '')
+                      .toLowerCase()
+                      .contains(q);
+                }
+
+                final ahora = _clases
+                    .where((c) =>
+                        _bucketDeClase(c, now) == 'ahora' && matchesQuery(c))
+                    .toList();
+                final hoy = _clases
+                    .where((c) =>
+                        _bucketDeClase(c, now) == 'hoy' && matchesQuery(c))
+                    .toList();
+                final proximas = _clases
+                    .where((c) =>
+                        _bucketDeClase(c, now) == 'proximas' &&
+                        matchesQuery(c))
+                    .toList();
+
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 42,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE0DBD6),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Elegí la clase',
+                        style: TextStyle(
+                          color: AppColors.black,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _ClaseSearchField(
+                        controller: filterCtrl,
+                        onChanged: (_) => setSheetState(() {}),
+                      ),
+                      const SizedBox(height: 12),
+                      Flexible(
+                        child: ListView(
+                          shrinkWrap: true,
+                          children: [
+                            if (ahora.isEmpty &&
+                                hoy.isEmpty &&
+                                proximas.isEmpty)
+                              const Padding(
+                                padding:
+                                    EdgeInsets.symmetric(vertical: 28),
+                                child: Center(
+                                  child: Text(
+                                    'No hay clases que coincidan.',
+                                    style: TextStyle(
+                                      color: AppColors.grey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            if (ahora.isNotEmpty) ...[
+                              const _SeccionLabel('AHORA', accent: true),
+                              ...ahora.map((c) => _ClaseSelectorTile(
+                                    clase: c,
+                                    highlight: true,
+                                    onTap: () {
+                                      Navigator.pop(sheetCtx);
+                                      _seleccionarClase(c);
+                                    },
+                                  )),
+                              const SizedBox(height: 14),
+                            ],
+                            if (hoy.isNotEmpty) ...[
+                              const _SeccionLabel('HOY'),
+                              ...hoy.map((c) => _ClaseSelectorTile(
+                                    clase: c,
+                                    onTap: () {
+                                      Navigator.pop(sheetCtx);
+                                      _seleccionarClase(c);
+                                    },
+                                  )),
+                              const SizedBox(height: 14),
+                            ],
+                            if (proximas.isNotEmpty) ...[
+                              const _SeccionLabel('PRÓXIMAS'),
+                              ...proximas.map((c) => _ClaseSelectorTile(
+                                    clase: c,
+                                    onTap: () {
+                                      Navigator.pop(sheetCtx);
+                                      _seleccionarClase(c);
+                                    },
+                                  )),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _seleccionarClase(clase);
-                },
-              );
-            }).toList(),
+                );
+              },
+            ),
           ),
         );
       },
     );
+    filterCtrl.dispose();
   }
 
   int get _presentes =>
@@ -1798,6 +1939,171 @@ class _AsistentesSearchField extends StatelessWidget {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Widgets del selector de clase ───────────────────────────────────────────
+
+class _ClaseSearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  const _ClaseSearchField({
+    required this.controller,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        hintText: 'Buscar por nombre de clase…',
+        hintStyle: const TextStyle(color: Color(0xFF9A928B), fontSize: 14),
+        prefixIcon:
+            const Icon(Icons.search_rounded, color: Color(0xFF9A928B), size: 20),
+        suffixIcon: controller.text.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.close_rounded,
+                    color: Color(0xFF9A928B), size: 18),
+                onPressed: () {
+                  controller.clear();
+                  onChanged('');
+                },
+              ),
+        filled: true,
+        fillColor: const Color(0xFFF7F5F2),
+        isDense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE9DED4)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
+        ),
+      ),
+    );
+  }
+}
+
+class _SeccionLabel extends StatelessWidget {
+  final String text;
+  final bool accent;
+  const _SeccionLabel(this.text, {this.accent = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 6, 0, 8),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: accent ? AppColors.primary : const Color(0xFF8F877F),
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+}
+
+class _ClaseSelectorTile extends StatelessWidget {
+  final Map<String, dynamic> clase;
+  final bool highlight;
+  final VoidCallback onTap;
+
+  const _ClaseSelectorTile({
+    required this.clase,
+    required this.onTap,
+    this.highlight = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fecha = DateTime.tryParse(clase['fecha']?.toString() ?? '');
+    final fechaLabel = fecha != null
+        ? DateFormat('EEE d MMM · HH:mm', 'es').format(fecha)
+        : '—';
+    final nombre = clase['nombre']?.toString() ?? 'Clase';
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: highlight ? const Color(0xFFFDF0E8) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: highlight
+                  ? AppColors.primary.withValues(alpha: 0.4)
+                  : const Color(0xFFE9DED4),
+              width: highlight ? 1.2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              if (highlight) ...[
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      nombre,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.black,
+                        fontSize: 15,
+                        fontWeight:
+                            highlight ? FontWeight.w700 : FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      fechaLabel,
+                      style: TextStyle(
+                        color: highlight
+                            ? AppColors.primary
+                            : const Color(0xFF8F877F),
+                        fontSize: 12,
+                        fontWeight: highlight
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: highlight ? AppColors.primary : const Color(0xFFB0A8A0),
+                size: 22,
+              ),
+            ],
+          ),
         ),
       ),
     );
