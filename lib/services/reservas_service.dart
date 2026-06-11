@@ -130,7 +130,7 @@ class ReservasService {
   }) async {
     final clase = await _supabase
         .from(AppConstants.tableClases)
-        .select('fecha, reserva_cierre_minutos')
+        .select('fecha, reserva_cierre_minutos, lugares_total, lugares_disponibles')
         .eq('id', claseId)
         .maybeSingle();
 
@@ -143,6 +143,16 @@ class ReservasService {
         (clase['reserva_cierre_minutos'] as num?)?.toInt() ?? 0;
     if (fechaClase != null && reservaCerrada(fechaClase, cierreMinutos)) {
       throw Exception(_mensajeCierreReserva(cierreMinutos));
+    }
+
+    // 0 cupos = clase visible pero no reservable (configurado a proposito
+    // por el estudio). Cortamos antes de tocar creditos para no cobrar
+    // sin entregar lugar.
+    final total = (clase['lugares_total'] as num?)?.toInt() ?? 0;
+    final disponibles =
+        (clase['lugares_disponibles'] as num?)?.toInt() ?? total;
+    if (total <= 0 || disponibles <= 0) {
+      throw Exception('Esta clase no acepta reservas en este momento.');
     }
 
     // Verificar si es alumno directo en un estudio modo gestión → reserva gratis

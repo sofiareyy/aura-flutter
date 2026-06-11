@@ -518,7 +518,13 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     );
     if (ok != true || !mounted) { n.dispose(); ins.dispose(); insDesc.dispose(); incluye.dispose(); imagenUrl.dispose(); galeria.dispose(); cupos.dispose(); cred.dispose(); return; }
     try {
-      final lugaresTotal = int.tryParse(cupos.text.trim()) ?? 12;
+      // 0 es valido: "clase visible pero no reservable". Si el usuario
+      // explicitamente puso 0, lo aceptamos. Solo caemos al default (12)
+      // cuando el campo quedo vacio o con texto invalido.
+      final cuposText = cupos.text.trim();
+      final lugaresTotal = cuposText.isEmpty
+          ? 12
+          : (int.tryParse(cuposText) ?? 12);
       final categoriaTrim = cat?.trim() ?? '';
       final payload = {
         'nombre': n.text.trim().isEmpty ? clase['nombre'] : n.text.trim(),
@@ -531,6 +537,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         'galeria_urls': _parseGaleria(galeria.text),
         'fecha': _toSupaDate(fechaSel),
         'lugares_total': lugaresTotal,
+        // Si la clase pasa a 0 cupos, sincronizamos lugares_disponibles para
+        // que el flujo de reservar la rechace (sino quedaba el viejo valor
+        // de disponibles y la clase aparecia reservable).
+        if (lugaresTotal == 0) 'lugares_disponibles': 0,
         'creditos': int.tryParse(cred.text.trim()) ?? 10,
         // Solo incluir categoria si tiene valor — evita pisar con null si la
         // columna tiene constraint NOT NULL o si el dropdown quedo vacio.

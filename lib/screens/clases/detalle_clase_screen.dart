@@ -298,6 +298,89 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     }
   }
 
+  /// Despacha una invitacion a cada email:
+  ///   1) inserta la fila en `invitaciones_grupo` (estado pendiente)
+  ///   2) si el email pertenece a un usuario de Aura, inserta una
+  ///      notificacion en `notificaciones_usuario` para que le aparezca
+  ///      en la campanita
+  ///   3) dispara la Edge Function `email-invitacion-clase` para mandar
+  ///      el mail via Resend (se hace en background — el envio del mail
+  ///      no debe bloquear ni romper la operacion si Resend esta caido)
+  Future<void> _despacharInvitaciones({
+    required List<String> emails,
+    required int claseId,
+    required String claseNombre,
+    required Map<String, dynamic> clase,
+  }) async {
+    final supabase = Supabase.instance.client;
+    final provider = context.read<AppProvider>();
+    final uid = provider.userId;
+    final invitadorNombre =
+        provider.usuario?.nombre.trim() ?? 'Una amiga';
+
+    final estudio = clase['estudios'] as Map<String, dynamic>?;
+    final estudioNombre = estudio?['nombre']?.toString();
+    final direccion = estudio?['direccion']?.toString();
+    final fechaIso = clase['fecha']?.toString();
+
+    for (final raw in emails) {
+      final email = raw.toLowerCase().trim();
+      if (email.isEmpty) continue;
+
+      // 1) persistir la invitacion
+      await supabase.from('invitaciones_grupo').insert({
+        'invitador_id': uid,
+        'clase_id': claseId,
+        'invitado_email': email,
+        'estado': 'pendiente',
+      });
+
+      // 2) si el invitado ya tiene cuenta, dejarle una notificacion
+      try {
+        final invitado = await supabase
+            .from('usuarios')
+            .select('id')
+            .eq('email', email)
+            .maybeSingle();
+        final invitadoId = invitado?['id']?.toString();
+        if (invitadoId != null && invitadoId.isNotEmpty) {
+          await supabase.from('notificaciones_usuario').insert({
+            'usuario_id': invitadoId,
+            'titulo': '$invitadorNombre te invitó a una clase 👯',
+            'mensaje':
+                '$claseNombre${estudioNombre != null ? ' en $estudioNombre' : ''}. Tocá para ver y reservar.',
+            'tipo': 'invitacion_clase',
+            'leida': false,
+          });
+        }
+      } catch (_) {
+        // No es critico: si la consulta a usuarios falla, igual mandamos
+        // el email.
+      }
+
+      // 3) email via Resend (fire-and-forget — no rompemos el flujo si
+      // la Edge Function devuelve error; ya quedo persistida la invitacion
+      // y la notificacion in-app)
+      supabase.functions.invoke(
+        'email-invitacion-clase',
+        headers: {
+          'x-aura-auth':
+              supabase.auth.currentSession?.accessToken ?? '',
+        },
+        body: {
+          'invitado_email': email,
+          'invitador_nombre': invitadorNombre,
+          'clase_nombre': claseNombre,
+          'estudio_nombre': estudioNombre,
+          'fecha_iso': fechaIso,
+          'direccion': direccion,
+        },
+      ).then((_) {}, onError: (_) {
+        // Silencioso: el log queda en la Edge Function.
+      });
+    }
+  }
+
   Future<void> _mostrarInvitarAmigas() async {
     final clase = _clase;
     if (clase == null) return;
@@ -388,18 +471,12 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                       if (emails.isEmpty) return;
                       Navigator.pop(ctx);
                       try {
-                        final uid =
-                            context.read<AppProvider>().userId;
-                        for (final email in emails) {
-                          await Supabase.instance.client
-                              .from('invitaciones_grupo')
-                              .insert({
-                            'invitador_id': uid,
-                            'clase_id': claseId,
-                            'invitado_email': email.toLowerCase(),
-                            'estado': 'pendiente',
-                          });
-                        }
+                        await _despacharInvitaciones(
+                          emails: emails,
+                          claseId: claseId,
+                          claseNombre: claseNombre,
+                          clase: clase,
+                        );
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
