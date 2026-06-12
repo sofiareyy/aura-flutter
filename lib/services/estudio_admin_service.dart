@@ -353,6 +353,30 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
     await _client.from('horarios_fijos').delete().eq('id', id);
   }
 
+  /// Elimina UNA clase de la tabla `clases`. No toca reservas — eso es
+  /// responsabilidad del caller (usar
+  /// `ReservasService.cancelarClaseConDevolucion` primero para devolver
+  /// los creditos a los alumnos).
+  Future<void> eliminarClaseRow(int id) async {
+    await _client.from('clases').delete().eq('id', id);
+  }
+
+  /// Lista las clases futuras (fecha >= hoy AR) generadas a partir de un
+  /// horario fijo. Usado por "Eliminar toda la grilla" para iterar y
+  /// devolver creditos a cada clase antes de eliminarla.
+  Future<List<Map<String, dynamic>>> listarClasesFuturasDeHorario(
+    int horarioFijoId,
+  ) async {
+    final nowAr = DateTime.now().toUtc().subtract(const Duration(hours: 3));
+    final hoyAr = DateTime(nowAr.year, nowAr.month, nowAr.day);
+    final data = await _client
+        .from('clases')
+        .select('id, nombre, fecha')
+        .eq('horario_fijo_id', horarioFijoId)
+        .gte('fecha', _toSupaDate(hoyAr));
+    return List<Map<String, dynamic>>.from(data as List);
+  }
+
   Future<void> editarClase(int id, Map<String, dynamic> payload) async {
     await _client.from('clases').update(payload).eq('id', id);
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/aviso_alumnos_service.dart';
@@ -11,6 +12,9 @@ import '../../services/media_upload_service.dart';
 import '../../services/notificaciones_service.dart';
 import '../../services/reservas_service.dart';
 import '../../services/admin_service.dart';
+
+const String _kPrefsClasesGridView = 'mis_clases_grid_view';
+const String _kPrefsClasesShowPast = 'mis_clases_show_past';
 
 String _toSupaDate(DateTime dt) {
   return '${dt.year.toString().padLeft(4, '0')}-'
@@ -38,10 +42,55 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   List<Map<String, dynamic>> _reservas = [];
   bool _loading = true, _tablaOk = true, _studio = false, _showFixed = true, _publishingWeek = false, _togglingFixed = false;
   bool _estudiosDefinenCreditos = true;
+  // M1: Próximas (fecha >= hoy AR) vs Pasadas en la vista "Clases cargadas".
+  bool _showPast = false;
+  // M3: vista lista (default) vs grilla 2 col en "Clases cargadas".
+  bool _gridView = false;
   Map<String, dynamic>? _estudio;
   String? _error;
   String? _estudioNombre;
   DateTime _selectedDay = DateTime.now(), _weekAnchor = DateTime.now(), _monthAnchor = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarPreferenciasVista();
+  }
+
+  Future<void> _cargarPreferenciasVista() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final grid = prefs.getBool(_kPrefsClasesGridView) ?? false;
+      final past = prefs.getBool(_kPrefsClasesShowPast) ?? false;
+      if (mounted) {
+        setState(() {
+          _gridView = grid;
+          _showPast = past;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _guardarPreferenciaGrid(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kPrefsClasesGridView, value);
+    } catch (_) {}
+  }
+
+  Future<void> _guardarPreferenciaPasadas(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kPrefsClasesShowPast, value);
+    } catch (_) {}
+  }
+
+  /// "Ahora" en hora Argentina como local-naive. Las fechas en DB estan
+  /// guardadas como naive en hora AR, por eso comparamos contra esto.
+  DateTime _ahoraAr() {
+    final u = DateTime.now().toUtc().subtract(const Duration(hours: 3));
+    return DateTime(u.year, u.month, u.day, u.hour, u.minute, u.second);
+  }
 
   Future<String?> _subirImagenClase() async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
@@ -2314,7 +2363,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                     ],
                     const SizedBox(height: 16),
                     if (_studio && _showFixed) ..._buildFixed()
-                    else if (_studio) ..._buildWeekLoaded()
+                    else if (_studio) ..._buildClasesLoadedSection()
                     else ...[
                       _buildMonthCalendar(),
                       const SizedBox(height: 14),
@@ -2776,6 +2825,363 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     });
   }
 
+  // ── M1 + M3: vista nueva de "Clases cargadas" con filtro Próximas /
+  // Pasadas y toggle Lista / Grilla. Reemplaza la vista de calendario
+  // semanal cuando estamos en _showFixed = false.
+
+  List<Map<String, dynamic>> _clasesProximas() {
+    final ahora = _ahoraAr();
+    return _clases.where((c) {
+      final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
+      if (dt == null) return false;
+      return !dt.isBefore(ahora);
+    }).toList()
+      ..sort((a, b) => (a['fecha']?.toString() ?? '')
+          .compareTo(b['fecha']?.toString() ?? ''));
+  }
+
+  List<Map<String, dynamic>> _clasesPasadas() {
+    final ahora = _ahoraAr();
+    return _clases.where((c) {
+      final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
+      if (dt == null) return false;
+      return dt.isBefore(ahora);
+    }).toList()
+      // Mas reciente primero — al estudio le interesa lo recien pasado.
+      ..sort((a, b) => (b['fecha']?.toString() ?? '')
+          .compareTo(a['fecha']?.toString() ?? ''));
+  }
+
+  List<Widget> _buildClasesLoadedSection() {
+    final clases =
+        _showPast ? _clasesPasadas() : _clasesProximas();
+
+    return [
+      // Tabs Próximas / Pasadas + toggle Lista/Grilla a la derecha.
+      Row(
+        children: [
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(children: [
+                Expanded(
+                  child: _SegmentButton(
+                    label: 'Próximas',
+                    selected: !_showPast,
+                    onTap: () {
+                      setState(() => _showPast = false);
+                      _guardarPreferenciaPasadas(false);
+                    },
+                  ),
+                ),
+                Expanded(
+                  child: _SegmentButton(
+                    label: 'Pasadas',
+                    selected: _showPast,
+                    onTap: () {
+                      setState(() => _showPast = true);
+                      _guardarPreferenciaPasadas(true);
+                    },
+                  ),
+                ),
+              ]),
+            ),
+          ),
+          const SizedBox(width: 10),
+          _ViewToggle(
+            gridView: _gridView,
+            onChanged: (v) {
+              setState(() => _gridView = v);
+              _guardarPreferenciaGrid(v);
+            },
+          ),
+        ],
+      ),
+      const SizedBox(height: 14),
+      if (clases.isEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 40),
+          child: Center(
+            child: Text(
+              _showPast
+                  ? 'No hay clases pasadas para mostrar.'
+                  : 'No hay clases próximas cargadas. Generá la grilla desde los horarios fijos.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFF8F877F)),
+            ),
+          ),
+        )
+      else if (_gridView)
+        _buildClasesGrid(clases)
+      else
+        _buildClasesList(clases),
+    ];
+  }
+
+  Widget _buildClasesList(List<Map<String, dynamic>> clases) {
+    return Column(
+      children: [
+        for (final c in clases)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: GestureDetector(
+              onLongPress: () => _mostrarMenuClase(c),
+              child: _StudioClassCard(
+                clase: c,
+                studioMode: true,
+                onAvisar: () => _mostrarAvisoSheet(c),
+                onMore: () => _mostrarMenuClase(c),
+                onEdit: () => _editClaseDialog(c),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildClasesGrid(List<Map<String, dynamic>> clases) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1.05,
+      ),
+      itemCount: clases.length,
+      itemBuilder: (context, index) {
+        final c = clases[index];
+        return GestureDetector(
+          onTap: () => _mostrarMenuClase(c),
+          onLongPress: () => _mostrarMenuClase(c),
+          child: _ClaseGridCard(clase: c),
+        );
+      },
+    );
+  }
+
+  /// Bottom sheet de opciones cuando el estudio hace long-press o tap
+  /// en los 3 puntitos de una card de clase.
+  Future<void> _mostrarMenuClase(Map<String, dynamic> clase) async {
+    final horarioFijoId = (clase['horario_fijo_id'] as num?)?.toInt();
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 14, 8, 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8E5E0),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              _OpcionTile(
+                icon: Icons.edit_outlined,
+                label: 'Editar',
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await _editClaseDialog(clase);
+                },
+              ),
+              _OpcionTile(
+                icon: Icons.delete_outline,
+                label: 'Eliminar esta clase',
+                danger: true,
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await _eliminarClase(clase);
+                },
+              ),
+              if (horarioFijoId != null)
+                _OpcionTile(
+                  icon: Icons.delete_sweep_outlined,
+                  label: 'Eliminar todas las clases de esta grilla',
+                  danger: true,
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await _eliminarGrillaCompleta(clase);
+                  },
+                ),
+              const SizedBox(height: 4),
+              _OpcionTile(
+                icon: Icons.close_rounded,
+                label: 'Cancelar',
+                onTap: () => Navigator.pop(ctx),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _eliminarClase(Map<String, dynamic> clase) async {
+    final claseId = (clase['id'] as num?)?.toInt();
+    if (claseId == null) return;
+    final nombre = clase['nombre']?.toString() ?? 'esta clase';
+
+    final ok = await _confirmDialog(
+      titulo: '¿Eliminar esta clase?',
+      mensaje:
+          'Los alumnos que reservaron reciben sus créditos de vuelta.',
+      confirmar: 'Sí, eliminar',
+    );
+    if (ok != true || !mounted) return;
+
+    try {
+      // Devuelve créditos + marca reservas y clase como canceladas.
+      final devueltos =
+          await _reservasService.cancelarClaseConDevolucion(claseId, nombre);
+      // cancelarClaseConDevolucion solo marca la clase como cancelada en DB.
+      // La quitamos del todo asi no aparece ni en "pasadas".
+      await _service.eliminarClaseRow(claseId);
+      await _loadStudio();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            devueltos > 0
+                ? 'Clase eliminada. Devolvimos créditos a $devueltos alumno${devueltos != 1 ? 's' : ''}.'
+                : 'Clase eliminada.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo eliminar: $e')),
+      );
+    }
+  }
+
+  Future<void> _eliminarGrillaCompleta(Map<String, dynamic> clase) async {
+    final horarioFijoId = (clase['horario_fijo_id'] as num?)?.toInt();
+    if (horarioFijoId == null) return;
+
+    final ok = await _confirmDialog(
+      titulo: '¿Eliminar este horario fijo?',
+      mensaje:
+          'Se eliminan todas las clases futuras de este horario. '
+          'Los alumnos con reservas reciben sus créditos de vuelta.',
+      confirmar: 'Sí, eliminar',
+    );
+    if (ok != true || !mounted) return;
+
+    try {
+      // 1) Listar todas las clases futuras del horario.
+      final futuras = await _service.listarClasesFuturasDeHorario(horarioFijoId);
+
+      // 2) Para cada una: devolver creditos + eliminar la fila.
+      int totalDevueltos = 0;
+      for (final c in futuras) {
+        final cid = (c['id'] as num?)?.toInt();
+        final nom = c['nombre']?.toString() ?? 'la clase';
+        if (cid == null) continue;
+        try {
+          totalDevueltos +=
+              await _reservasService.cancelarClaseConDevolucion(cid, nom);
+        } catch (_) {}
+        try {
+          await _service.eliminarClaseRow(cid);
+        } catch (_) {}
+      }
+
+      // 3) Eliminar el horario fijo mismo.
+      await _service.eliminarHorarioFijo(horarioFijoId);
+
+      await _loadStudio();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Horario fijo eliminado. ${futuras.length} clase${futuras.length != 1 ? 's' : ''} '
+            'futura${futuras.length != 1 ? 's' : ''} borrada${futuras.length != 1 ? 's' : ''}'
+            '${totalDevueltos > 0 ? ', $totalDevueltos alumno${totalDevueltos != 1 ? 's' : ''} con créditos devueltos' : ''}.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo eliminar la grilla: $e')),
+      );
+    }
+  }
+
+  Future<bool?> _confirmDialog({
+    required String titulo,
+    required String mensaje,
+    required String confirmar,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          titulo,
+          style: const TextStyle(
+            color: AppColors.black,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          mensaje,
+          style: const TextStyle(
+            color: AppColors.black,
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            style: TextButton.styleFrom(foregroundColor: AppColors.grey),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 10),
+            ),
+            child: Text(
+              confirmar,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<Widget> _buildWeekLoaded() {
     final start = _weekStart(_weekAnchor);
     final days = List.generate(7, (i) => start.add(Duration(days: i)));
@@ -2941,7 +3347,15 @@ class _StudioClassCard extends StatelessWidget {
   final Map<String, dynamic> clase;
   final bool studioMode;
   final VoidCallback? onAvisar;
-  const _StudioClassCard({required this.clase, required this.studioMode, this.onAvisar});
+  final VoidCallback? onMore;
+  final VoidCallback? onEdit;
+  const _StudioClassCard({
+    required this.clase,
+    required this.studioMode,
+    this.onAvisar,
+    this.onMore,
+    this.onEdit,
+  });
   @override
   Widget build(BuildContext context) {
     final dt = DateTime.tryParse(clase['fecha']?.toString() ?? '');
@@ -2974,6 +3388,19 @@ class _StudioClassCard extends StatelessWidget {
             decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(999)),
             child: Text(status, style: const TextStyle(color: Color(0xFF5F5953), fontSize: 12, fontWeight: FontWeight.w600)),
           ),
+          if (studioMode && onMore != null) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              onPressed: onMore,
+              icon: const Icon(Icons.more_vert_rounded,
+                  color: Color(0xFF8F877F), size: 22),
+              padding: EdgeInsets.zero,
+              // 44x44 = tap target estandar Apple HIG (importante para iPad).
+              constraints: const BoxConstraints(
+                  minWidth: 44, minHeight: 44),
+              tooltip: 'Más opciones',
+            ),
+          ],
         ]),
         const SizedBox(height: 14),
         Text(clase['nombre']?.toString() ?? 'Clase', style: const TextStyle(color: AppColors.black, fontSize: 16, fontWeight: FontWeight.w700)),
@@ -3007,7 +3434,7 @@ class _StudioClassCard extends StatelessWidget {
           Row(children: [
             _ActionButton(label: 'Ver lista', background: AppColors.primary, foreground: AppColors.white, onTap: () => context.push('/estudio/asistencia')),
             const SizedBox(width: 8),
-            _ActionButton(label: 'Editar', background: const Color(0xFFF1F1F1), foreground: const Color(0xFF6A635D), onTap: () {}),
+            _ActionButton(label: 'Editar', background: const Color(0xFFF1F1F1), foreground: const Color(0xFF6A635D), onTap: onEdit ?? () {}),
             const SizedBox(width: 8),
             _ActionButton(label: 'Avisar', background: const Color(0xFFF1F1F1), foreground: const Color(0xFF6A635D), onTap: onAvisar ?? () {}),
           ]),
@@ -4004,3 +4431,228 @@ class _PricingPreview extends StatelessWidget {
   }
 }
 
+// ── Widgets nuevos para M1 / M2 / M3 ────────────────────────────────────────
+
+class _ViewToggle extends StatelessWidget {
+  final bool gridView;
+  final ValueChanged<bool> onChanged;
+  const _ViewToggle({required this.gridView, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ViewToggleButton(
+            icon: Icons.view_list_rounded,
+            selected: !gridView,
+            onTap: () => onChanged(false),
+            tooltip: 'Vista lista',
+          ),
+          _ViewToggleButton(
+            icon: Icons.grid_view_rounded,
+            selected: gridView,
+            onTap: () => onChanged(true),
+            tooltip: 'Vista grilla',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ViewToggleButton extends StatelessWidget {
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  final String tooltip;
+  const _ViewToggleButton({
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    required this.tooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 44,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            icon,
+            color: selected ? Colors.white : const Color(0xFF8F877F),
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ClaseGridCard extends StatelessWidget {
+  final Map<String, dynamic> clase;
+  const _ClaseGridCard({required this.clase});
+
+  static const _weekday = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+  @override
+  Widget build(BuildContext context) {
+    final dt = DateTime.tryParse(clase['fecha']?.toString() ?? '');
+    final hora = dt != null ? DateFormat('HH:mm').format(dt) : '--:--';
+    final diaStr = dt != null
+        ? '${_weekday[dt.weekday - 1]} ${dt.day}'
+        : '—';
+    final nombre = clase['nombre']?.toString() ?? 'Clase';
+    final total = (clase['lugares_total'] as num?)?.toInt() ?? 0;
+    final disp = ((clase['lugares_disponibles'] ??
+            clase['lugares_ disponibles']) as num?)
+            ?.toInt() ??
+        0;
+    final ocupados =
+        total > 0 ? (total - disp).clamp(0, total) : 0;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x10000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.blackSoft,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  hora,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  diaStr.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF8F877F),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            nombre,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.black,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+            ),
+          ),
+          const Spacer(),
+          Row(
+            children: [
+              const Icon(Icons.people_outline_rounded,
+                  color: Color(0xFF8F877F), size: 14),
+              const SizedBox(width: 4),
+              Text(
+                '$ocupados / $total cupos',
+                style: const TextStyle(
+                  color: Color(0xFF8F877F),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OpcionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool danger;
+  const _OpcionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.danger = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = danger ? AppColors.error : AppColors.black;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          // Tap target generoso para iPad / mobile (~56 px).
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          child: Row(
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
