@@ -278,6 +278,105 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     return stripped.toUpperCase();
   }
 
+  /// "Ahora" en hora Argentina como DateTime naive — para comparar con
+  /// las fechas de clases que en DB se guardan como naive en hora AR.
+  DateTime _ahoraAr() {
+    final u = DateTime.now().toUtc().subtract(const Duration(hours: 3));
+    return DateTime(u.year, u.month, u.day, u.hour, u.minute, u.second);
+  }
+
+  /// Devuelve 'tarde' / 'futura' si el escaneo cae fuera de la ventana de
+  /// gracia (la clase paso hace mas de 10 min o es de otro dia), o null si
+  /// el check-in es directo (mismo dia, antes o dentro de los 10 min de
+  /// gracia post-inicio).
+  String? _verificarVentanaGracia(DateTime fechaClase) {
+    final ahora = _ahoraAr();
+    final hoyDia = DateTime(ahora.year, ahora.month, ahora.day);
+    final claseDia = DateTime(fechaClase.year, fechaClase.month, fechaClase.day);
+
+    if (claseDia.isAfter(hoyDia)) return 'futura';
+    if (claseDia.isBefore(hoyDia)) return 'tarde';
+    // Mismo dia.
+    final diffMin = ahora.difference(fechaClase).inMinutes;
+    if (diffMin > 10) return 'tarde';
+    return null;
+  }
+
+  /// Dialogo de confirmacion cuando el QR cae fuera de la ventana de
+  /// gracia. Devuelve true si el estudio confirma igual.
+  Future<bool> _pedirConfirmacionFueraVentana({
+    required String kind,
+    required DateTime fechaClase,
+  }) async {
+    String titulo;
+    String mensaje;
+    if (kind == 'futura') {
+      final fmt = DateFormat("EEEE d 'de' MMMM 'a las' HH:mm 'hs'", 'es')
+          .format(fechaClase);
+      titulo = 'La clase es a futuro';
+      mensaje =
+          'Esta clase es el $fmt. ¿Estás seguro que querés confirmar ahora?';
+    } else {
+      titulo = 'La clase ya comenzó';
+      mensaje =
+          'Esta clase comenzó hace más de 10 minutos. ¿Confirmar igualmente?';
+    }
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          titulo,
+          style: const TextStyle(
+            color: AppColors.black,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          mensaje,
+          style: const TextStyle(
+            color: AppColors.black,
+            fontSize: 14,
+            height: 1.45,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            style: TextButton.styleFrom(foregroundColor: AppColors.grey),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 10),
+            ),
+            child: const Text(
+              'Confirmar igual',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   Future<void> _validarQR(String codigo) async {
     if (_procesando) return;
     final normalizado = _normalizarQr(codigo);
@@ -347,9 +446,30 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
 
       final clase = await Supabase.instance.client
           .from('clases')
-          .select('nombre')
+          .select('nombre, fecha')
           .eq('id', reserva['clase_id'])
           .maybeSingle();
+
+      // Ventana de gracia para escaneo fuera de hora. Si la clase es de
+      // otro dia o paso hace mas de 10 min, le pedimos confirmacion al
+      // estudio antes de marcar presente.
+      final fechaClase = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
+      if (fechaClase != null) {
+        final fueraDeVentana = _verificarVentanaGracia(fechaClase);
+        if (fueraDeVentana != null) {
+          if (!mounted) return;
+          final confirmar = await _pedirConfirmacionFueraVentana(
+            kind: fueraDeVentana,
+            fechaClase: fechaClase,
+          );
+          if (!mounted) return;
+          if (!confirmar) {
+            setState(() => _debugResult =
+                'cancelado por estudio (fuera de ventana: $fueraDeVentana)');
+            return;
+          }
+        }
+      }
 
       await Supabase.instance.client.from('reservas').update({
         'estado': 'presente',
