@@ -179,23 +179,28 @@ class ReservasService {
     final codigoQr = _generarCodigoQr(userId, claseId);
 
     try {
-      final data = await _supabase
-          .from(AppConstants.tableReservas)
-          .insert({
-            'usuario_id': userId,
-            'clase_id': claseId,
-            'estado': 'confirmada',
-            'creditos_usados': creditosReales,
-            'codigo_qr': codigoQr,
-          })
-          .select()
-          .single();
+      // Reserva atomica via RPC: lockea la fila de clases, valida lugares,
+      // inserta y decrementa todo en una transaccion. Elimina la race
+      // condition del flujo viejo de 3 pasos separados (SELECT lugares ->
+      // INSERT -> decrementar_lugares).
+      final res = await _supabase.rpc('apply_reservation', params: {
+        'p_user_id': userId,
+        'p_clase_id': claseId,
+        'p_codigo_qr': codigoQr,
+        'p_creditos_usados': creditosReales,
+      });
 
-      try {
-        await _supabase.rpc('decrementar_lugares', params: {'clase_id': claseId});
-      } catch (_) {
-        // RPC opcional: no bloquea la reserva.
+      final ok = res is Map && res['ok'] == true;
+      if (!ok) {
+        final errorCode = (res is Map ? res['error'] : null)?.toString();
+        throw Exception(_mensajeReservaError(errorCode));
       }
+
+      final reservaMap = res['reserva'];
+      if (reservaMap is! Map) {
+        throw Exception('Respuesta inesperada al crear la reserva.');
+      }
+      final data = Map<String, dynamic>.from(reservaMap);
 
       final claseDetalle = await _supabase
           .from(AppConstants.tableClases)
@@ -474,6 +479,30 @@ class ReservasService {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final random = Random().nextInt(9999).toString().padLeft(4, '0');
     return 'AURA-${userId.substring(0, 8).toUpperCase()}-$claseId-$timestamp-$random';
+  }
+
+  /// Mapea los codigos de error que devuelve la RPC apply_reservation a
+  /// mensajes user-friendly. Cualquier codigo desconocido (incluido un
+  /// sqlerrm crudo) se devuelve tal cual entre comillas como fallback.
+  String _mensajeReservaError(String? code) {
+    switch (code) {
+      case 'sin_lugares':
+        return 'Se acaba de llenar esta clase. No quedan lugares disponibles.';
+      case 'clase_no_encontrada':
+        return 'No encontramos la clase.';
+      case 'clase_cancelada':
+        return 'Esta clase fue cancelada por el estudio.';
+      case 'codigo_qr_invalido':
+        return 'No pudimos generar el código de tu reserva. Probá de nuevo.';
+      case 'codigo_qr_duplicado':
+        return 'Hubo una colisión generando tu código. Probá de nuevo.';
+      case 'parametros_invalidos':
+        return 'Faltan datos para crear la reserva. Probá de nuevo.';
+      default:
+        return code == null || code.isEmpty
+            ? 'No se pudo crear la reserva.'
+            : 'No se pudo crear la reserva: $code';
+    }
   }
 
   static bool reservaCerrada(DateTime fechaClase, int cierreMinutos) {
