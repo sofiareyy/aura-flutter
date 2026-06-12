@@ -34,6 +34,13 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
   final _qrFocusNode = FocusNode();
   MobileScannerController? _cameraController;
 
+  // Debug del ultimo escaneo — visible en pantalla mientras estamos
+  // depurando el bug critico de "QR invalido". Quitar cuando este resuelto.
+  String? _debugRaw;
+  String? _debugNormalized;
+  String? _debugResult;
+  DateTime? _debugAt;
+
   // Busqueda en lista de asistentes (filtra por nombre/email)
   final _searchCtrl = TextEditingController();
 
@@ -263,24 +270,74 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
 
   // ── QR validation ────────────────────────────────────────────────────────
 
+  /// Limpia caracteres invisibles que algunos escaneres meten (BOM, ZWSP,
+  /// \r, \n, espacios) y deja solo lo que puede aparecer en un codigo_qr
+  /// generado por la app: letras, digitos y guiones.
+  String _normalizarQr(String raw) {
+    final stripped = raw.replaceAll(RegExp(r'[^A-Za-z0-9\-]'), '');
+    return stripped.toUpperCase();
+  }
+
   Future<void> _validarQR(String codigo) async {
-    if (_procesando || codigo.trim().isEmpty) return;
-    setState(() => _procesando = true);
+    if (_procesando) return;
+    final normalizado = _normalizarQr(codigo);
+    if (normalizado.isEmpty) {
+      setState(() {
+        _debugRaw = codigo;
+        _debugNormalized = normalizado;
+        _debugResult = 'vacio tras normalizar';
+        _debugAt = DateTime.now();
+      });
+      return;
+    }
+    setState(() {
+      _procesando = true;
+      _debugRaw = codigo;
+      _debugNormalized = normalizado;
+      _debugResult = 'buscando…';
+      _debugAt = DateTime.now();
+    });
+    debugPrint('[QR scan] raw="$codigo" len=${codigo.length} '
+        'normalized="$normalizado" len=${normalizado.length}');
 
     try {
       final reserva = await Supabase.instance.client
           .from('reservas')
           .select()
-          .eq('codigo_qr', codigo.trim())
+          .eq('codigo_qr', normalizado)
           .neq('estado', 'cancelada')
           .maybeSingle();
 
       if (!mounted) return;
 
       if (reserva == null) {
-        _mostrarPopup(exito: false, titulo: 'QR inválido', subtitulo: 'No se encontró una reserva activa');
+        // Diagnostico extra: contar cuantas filas tienen ESE codigo_qr sin
+        // filtros para distinguir "RLS lo bloquea" vs "no esta en DB".
+        int countAll = -1;
+        try {
+          final allMatches = await Supabase.instance.client
+              .from('reservas')
+              .select('id')
+              .eq('codigo_qr', normalizado);
+          countAll = (allMatches as List).length;
+        } catch (_) {}
+        setState(() {
+          _debugResult =
+              'NOT FOUND (match sin filtro: $countAll). '
+              'Si countAll=0 -> el codigo no existe o RLS bloquea. '
+              'Si countAll>0 -> estado=cancelada o RLS filtra.';
+        });
+        _mostrarPopup(
+          exito: false,
+          titulo: 'QR inválido',
+          subtitulo: 'No se encontró una reserva activa\n'
+              '$normalizado',
+        );
         return;
       }
+
+      setState(() => _debugResult =
+          'OK (id=${reserva['id']}, clase_id=${reserva['clase_id']}, estado=${reserva['estado']})');
 
       final usuario = await Supabase.instance.client
           .from('usuarios')
@@ -297,7 +354,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       await Supabase.instance.client.from('reservas').update({
         'estado': 'presente',
         'checked_in_at': DateTime.now().toIso8601String(),
-      }).eq('codigo_qr', codigo.trim());
+      }).eq('codigo_qr', normalizado);
 
       if (!mounted) return;
 
@@ -310,11 +367,12 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       _cargarAsistentes(_claseSeleccionada).then((list) {
         if (mounted) setState(() => _asistentes = list);
       });
-    } catch (_) {
+    } catch (e) {
+      setState(() => _debugResult = 'EXCEPTION: $e');
       if (!mounted) return;
       // Offline fallback: search locally
       final match = _asistentes.where(
-        (a) => a['codigo_qr']?.toString().trim() == codigo.trim(),
+        (a) => _normalizarQr(a['codigo_qr']?.toString() ?? '') == normalizado,
       ).toList();
 
       if (match.isNotEmpty) {
@@ -326,13 +384,13 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
         setState(() {
           _isOffline = true;
           _asistentes = _asistentes.map((a) {
-            if (a['codigo_qr']?.toString().trim() == codigo.trim()) {
+            if (_normalizarQr(a['codigo_qr']?.toString() ?? '') == normalizado) {
               return {...a, ...update};
             }
             return a;
           }).toList();
         });
-        await _guardarPendienteSync(codigo.trim());
+        await _guardarPendienteSync(normalizado);
         final user = asistente['usuario'] as Map<String, dynamic>?;
         _mostrarPopup(
           exito: true,
@@ -458,6 +516,104 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     );
   }
 
+  // ── Debug panel (QR scan diagnostics) ─────────────────────────────────────
+
+  Widget _buildDebugQrPanel() {
+    if (_debugRaw == null && _debugNormalized == null && _debugResult == null) {
+      return const SizedBox.shrink();
+    }
+    final ts = _debugAt;
+    final tsStr = ts == null
+        ? ''
+        : '${ts.hour.toString().padLeft(2, '0')}:'
+            '${ts.minute.toString().padLeft(2, '0')}:'
+            '${ts.second.toString().padLeft(2, '0')}';
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF333333)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'DEBUG QR',
+                style: TextStyle(
+                  color: Color(0xFFE8763A),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              const Spacer(),
+              if (tsStr.isNotEmpty)
+                Text(
+                  tsStr,
+                  style: const TextStyle(
+                    color: Color(0xFF8F877F),
+                    fontSize: 10,
+                    fontFamily: 'Courier',
+                  ),
+                ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => setState(() {
+                  _debugRaw = null;
+                  _debugNormalized = null;
+                  _debugResult = null;
+                  _debugAt = null;
+                }),
+                child: const Icon(Icons.close_rounded,
+                    color: Color(0xFF8F877F), size: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          _debugLine('raw', _debugRaw),
+          _debugLine('norm', _debugNormalized),
+          _debugLine('result', _debugResult),
+        ],
+      ),
+    );
+  }
+
+  Widget _debugLine(String label, String? value) {
+    final text = value ?? '—';
+    final len = value?.length ?? 0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(
+            fontFamily: 'Courier',
+            fontSize: 11,
+            color: Color(0xFFE0DBD6),
+          ),
+          children: [
+            TextSpan(
+              text: '$label ',
+              style: const TextStyle(
+                color: Color(0xFF9A928B),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (label != 'result')
+              TextSpan(
+                text: '($len) ',
+                style: const TextStyle(color: Color(0xFF8F877F)),
+              ),
+            TextSpan(text: text),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ── Desktop ────────────────────────────────────────────────────────────────
 
   Widget _buildDesktopContent() {
@@ -573,6 +729,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                       _usarCamara ? 'Apuntá la cámara al QR del usuario' : 'Pasá el lector QR por el código del usuario',
                       style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
                     ),
+                    _buildDebugQrPanel(),
                   ],
                 ),
               ),
@@ -954,6 +1111,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                                 fontSize: 13,
                               ),
                             ),
+                            _buildDebugQrPanel(),
                           ],
                         ),
                       ),
