@@ -34,7 +34,24 @@ select routine_name
    and routine_name ilike '%credit%';
 
 
--- 2. Crear / reemplazar la funcion ------------------------------------
+-- 2. Drop firma legacy conflictiva ------------------------------------
+--
+-- En la DB de produccion habia ya una funcion grant_user_credits con
+-- firma (uuid, integer, text, date, jsonb) — p_expires_at date y
+-- p_meta jsonb. Esa vieja firma:
+--   * apply_referral_code la llamaba con v_expiry::text -> mismatch
+--     date vs text, PostgreSQL devolvia "function does not exist".
+--   * Si convivia con la nueva text-text-text, los callers con menos
+--     params (ej. agregarCreditos: 3 params) caian en
+--     "function call is ambiguous".
+--
+-- Verificado con grep en lib y supabase: nadie usa p_meta, asi que
+-- borrarla no rompe nada. Idempotente.
+
+drop function if exists public.grant_user_credits(uuid, integer, text, date, jsonb);
+
+
+-- 3. Crear / reemplazar la funcion ------------------------------------
 
 create or replace function public.grant_user_credits(
   p_user_id     uuid,
