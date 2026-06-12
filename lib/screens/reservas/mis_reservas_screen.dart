@@ -219,46 +219,99 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
 
   // ── Cancelar reserva (logica preservada del original) ─────────────────────
 
+  /// Minutos antes del inicio en que cierra la cancelacion. Configurable
+  /// por clase via reserva_cierre_minutos; default 720 (12 hs).
+  int _cierreMinutosDe(Map<String, dynamic> reserva) {
+    final raw = (reserva['clases'] as Map?)?['reserva_cierre_minutos'];
+    return (raw as num?)?.toInt() ?? 720;
+  }
+
   bool _puedeCancelar(Map<String, dynamic> reserva) {
     final fecha = _parseFecha((reserva['clases'] as Map?)?['fecha']);
     if (fecha == null) return false;
-    return _ahoraAr().isBefore(fecha.subtract(const Duration(hours: 12)));
+    final cierreMin = _cierreMinutosDe(reserva);
+    return _ahoraAr()
+        .isBefore(fecha.subtract(Duration(minutes: cierreMin)));
+  }
+
+  /// Formato amigable de duracion para los mensajes.
+  String _formatDuracion(int minutes) {
+    if (minutes <= 0) return 'que la clase arranque';
+    if (minutes % 1440 == 0) {
+      final d = minutes ~/ 1440;
+      return d == 1 ? '1 día' : '$d días';
+    }
+    if (minutes % 60 == 0) {
+      final h = minutes ~/ 60;
+      return h == 1 ? '1 hora' : '$h horas';
+    }
+    return '$minutes minutos';
   }
 
   Future<void> _cancelar(Map<String, dynamic> reserva) async {
     if (!_puedeCancelar(reserva)) {
+      final cierreMin = _cierreMinutosDe(reserva);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Solo podés cancelar hasta 12 horas antes del inicio. '
-            'Pasado ese plazo no devolvemos los créditos.',
+            'No podés cancelar — faltan menos de '
+            '${_formatDuracion(cierreMin)} para la clase.',
           ),
           backgroundColor: AppColors.error,
-          duration: Duration(seconds: 4),
+          duration: const Duration(seconds: 4),
         ),
       );
       return;
     }
 
-    final creditos = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cancelar reserva'),
-        content: Text(
-          creditos > 0
-              ? '¿Querés cancelar esta reserva? Te vamos a devolver $creditos crédito${creditos == 1 ? '' : 's'} a tu cuenta.'
-              : '¿Querés cancelar esta reserva?',
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
+        title: const Text(
+          '¿Cancelar esta reserva?',
+          style: TextStyle(
+            color: AppColors.black,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: const Text(
+          'Tus créditos se devuelven al instante.',
+          style: TextStyle(
+            color: AppColors.black,
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('No'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.grey),
+            child: const Text(
+              'No, mantener',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sí, cancelar',
-                style: TextStyle(color: AppColors.error)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 10),
+            ),
+            child: const Text(
+              'Sí, cancelar',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -677,8 +730,9 @@ class _ProximaCard extends StatelessWidget {
               const SizedBox(width: 6),
               _SmallButton(
                 label: 'Cancelar',
-                onTap: canCancel ? onCancelar : null,
+                onTap: onCancelar,
                 primary: false,
+                dimmed: !canCancel,
               ),
             ],
           ),
@@ -1166,25 +1220,31 @@ class _SmallButton extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
   final bool primary;
+  // dimmed: el boton se ve disabled visualmente PERO sigue siendo tappable.
+  // Lo usamos para "Cancelar" cuando esta fuera de la ventana: el tap
+  // dispara el snackbar con el mensaje del motivo.
+  final bool dimmed;
 
   const _SmallButton({
     required this.label,
     required this.onTap,
     required this.primary,
+    this.dimmed = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final disabled = onTap == null;
+    final atenuado = disabled || dimmed;
     final bg = primary
-        ? (disabled ? AppColors.lightGrey : AppColors.primary)
+        ? (atenuado ? AppColors.lightGrey : AppColors.primary)
         : Colors.transparent;
     final fg = primary
         ? Colors.white
-        : (disabled ? AppColors.lightGrey : AppColors.grey);
+        : (atenuado ? AppColors.lightGrey : AppColors.grey);
     final border = primary
         ? Colors.transparent
-        : (disabled ? AppColors.lightGrey : AppColors.grey);
+        : (atenuado ? AppColors.lightGrey : AppColors.grey);
 
     return InkWell(
       onTap: onTap,

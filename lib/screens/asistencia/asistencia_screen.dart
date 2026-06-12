@@ -377,6 +377,18 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     return result ?? false;
   }
 
+  /// Formato de codigo_qr generado por la app:
+  ///   `AURA-<8 hex mayus>-<clase_id>-<timestamp_ms>-<random 4>`.
+  /// Cualquier cosa fuera de este patron no es un QR de Aura y se ignora
+  /// para que el scanner no procese basura random capturada por la camara.
+  static final RegExp _kQrPattern =
+      RegExp(r'^AURA-[A-Z0-9]{8}-\d+-\d+-\d{4}$');
+
+  /// Throttle para no spamear el mismo "no es QR Aura" en cada frame
+  /// mientras la camara sigue viendo el mismo codigo invalido.
+  String? _ultimoInvalido;
+  DateTime? _ultimoInvalidoAt;
+
   Future<void> _validarQR(String codigo) async {
     if (_procesando) return;
     final normalizado = _normalizarQr(codigo);
@@ -389,6 +401,34 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       });
       return;
     }
+
+    // 1) Validar prefijo + formato AURA. No es un QR de Aura -> mostrar
+    //    feedback liviano y dejar la camara escaneando.
+    if (!_kQrPattern.hasMatch(normalizado)) {
+      final ahora = DateTime.now();
+      final repetido = _ultimoInvalido == normalizado &&
+          _ultimoInvalidoAt != null &&
+          ahora.difference(_ultimoInvalidoAt!).inSeconds < 3;
+      _ultimoInvalido = normalizado;
+      _ultimoInvalidoAt = ahora;
+      setState(() {
+        _debugRaw = codigo;
+        _debugNormalized = normalizado;
+        _debugResult = 'no es QR de Aura (formato invalido)';
+        _debugAt = ahora;
+      });
+      if (!repetido) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Este no es un QR de Aura'),
+            backgroundColor: AppColors.blackSoft,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _procesando = true;
       _debugRaw = codigo;
@@ -399,39 +439,70 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     debugPrint('[QR scan] raw="$codigo" len=${codigo.length} '
         'normalized="$normalizado" len=${normalizado.length}');
 
+    final claseId = (_claseSeleccionada?['id'] as num?)?.toInt();
+
     try {
-      final reserva = await Supabase.instance.client
+      // 2) Buscar la reserva. Filtramos por clase_id Y estado='confirmada'
+      //    para que el QR de OTRA clase no sirva, ni los QR de reservas
+      //    canceladas / ausentes / ya-presentes vuelvan a confirmar.
+      var query = Supabase.instance.client
           .from('reservas')
           .select()
           .eq('codigo_qr', normalizado)
-          .neq('estado', 'cancelada')
-          .maybeSingle();
+          .eq('estado', 'confirmada');
+      if (claseId != null) {
+        query = query.eq('clase_id', claseId);
+      }
+      final reserva = await query.maybeSingle();
 
       if (!mounted) return;
 
       if (reserva == null) {
-        // Diagnostico extra: contar cuantas filas tienen ESE codigo_qr sin
-        // filtros para distinguir "RLS lo bloquea" vs "no esta en DB".
+        // Diagnostico: contar matches sin filtros para distinguir entre
+        // "no existe / RLS bloquea" vs "existe pero es de otra clase / ya
+        // se uso / esta cancelada".
         int countAll = -1;
+        int countOtherClass = 0;
+        String? otherClassEstado;
         try {
           final allMatches = await Supabase.instance.client
               .from('reservas')
-              .select('id')
+              .select('id, clase_id, estado')
               .eq('codigo_qr', normalizado);
-          countAll = (allMatches as List).length;
+          final list = List<Map<String, dynamic>>.from(allMatches as List);
+          countAll = list.length;
+          if (claseId != null && list.isNotEmpty) {
+            final otra = list.firstWhere(
+              (r) => (r['clase_id'] as num?)?.toInt() != claseId,
+              orElse: () => const {},
+            );
+            if (otra.isNotEmpty) {
+              countOtherClass = 1;
+              otherClassEstado = otra['estado']?.toString();
+            }
+          }
         } catch (_) {}
+
+        String titulo;
+        String subtitulo;
+        if (countOtherClass > 0) {
+          titulo = 'QR de otra clase';
+          subtitulo =
+              'Este QR pertenece a una reserva de otra clase (estado: ${otherClassEstado ?? '?'}).';
+        } else if (countAll > 0) {
+          titulo = 'Reserva no disponible';
+          subtitulo =
+              'La reserva existe pero no está en estado confirmada.';
+        } else {
+          titulo = 'QR inválido';
+          subtitulo = 'No se encontró una reserva activa\n$normalizado';
+        }
         setState(() {
           _debugResult =
-              'NOT FOUND (match sin filtro: $countAll). '
-              'Si countAll=0 -> el codigo no existe o RLS bloquea. '
-              'Si countAll>0 -> estado=cancelada o RLS filtra.';
+              'NOT FOUND (countAll: $countAll, otherClass: $countOtherClass'
+              '${otherClassEstado != null ? ', otherEstado=$otherClassEstado' : ''})';
         });
-        _mostrarPopup(
-          exito: false,
-          titulo: 'QR inválido',
-          subtitulo: 'No se encontró una reserva activa\n'
-              '$normalizado',
-        );
+        _mostrarPopup(exito: false, titulo: titulo, subtitulo: subtitulo);
         return;
       }
 
