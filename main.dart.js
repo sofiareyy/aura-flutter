@@ -76901,42 +76901,47 @@ break
 case 1:return A.k(q,r)}})
 return A.l($async$uu,r)},
 KN(a,b){return this.aPa(a,b)},
-aPa(a3,a4){var s=0,r=A.m(t.H),q=1,p=[],o=this,n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2
-var $async$KN=A.i(function(a5,a6){if(a5===1){p.push(a6)
-s=q}for(;;)switch(s){case 0:h=new A.aw(Date.now(),0,!1).iL().bV(-108e8)
-g=A.b8(A.b9(h),A.bk(h),A.cN(h),0,0,0,0)
-f=a4.h(0,"nombre")
-e=a4.h(0,"instructor")
-d=a4.h(0,"instructor_descripcion")
-c=a4.h(0,"incluye")
-b=a4.h(0,"imagen_url")
-a=a4.h(0,"imagen_ajuste")
-a0=a4.h(0,"galeria_urls")
-a1=A.aa(a4.h(0,"duracion_min"))
-a1=a1==null?null:B.d.K(a1)
-if(a1==null)a1=60
-l=A.aa(a4.h(0,"lugares_total"))
+aPa(a,b){var s=0,r=A.m(t.H),q=1,p=[],o=this,n,m,l,k,j,i,h,g,f
+var $async$KN=A.i(function(c,d){if(c===1){p.push(d)
+s=q}for(;;)switch(s){case 0:j=new A.aw(Date.now(),0,!1).iL().bV(-108e8)
+i=A.b8(A.b9(j),A.bk(j),A.cN(j),0,0,0,0)
+h=A.aa(b.h(0,"lugares_total"))
+g=h==null?null:B.d.K(h)
+if(g==null)g=12
+h=A.C(t.N,t.z)
+h.l(0,"nombre",b.h(0,"nombre"))
+h.l(0,"instructor",b.h(0,"instructor"))
+h.l(0,"instructor_descripcion",b.h(0,"instructor_descripcion"))
+h.l(0,"incluye",b.h(0,"incluye"))
+h.l(0,"imagen_url",b.h(0,"imagen_url"))
+h.l(0,"imagen_ajuste",b.h(0,"imagen_ajuste"))
+h.l(0,"galeria_urls",b.h(0,"galeria_urls"))
+l=A.aa(b.h(0,"duracion_min"))
 l=l==null?null:B.d.K(l)
-if(l==null)l=12
-k=A.aa(a4.h(0,"creditos"))
-k=k==null?null:B.d.K(k)
-if(k==null)k=10
-j=A.aa(a4.h(0,"reserva_cierre_minutos"))
-j=j==null?null:B.d.K(j)
-if(j==null)j=0
-n=A.a5(["nombre",f,"instructor",e,"instructor_descripcion",d,"incluye",c,"imagen_url",b,"imagen_ajuste",a,"galeria_urls",a0,"duracion_min",a1,"lugares_total",l,"creditos",k,"reserva_cierre_minutos",j,"categoria",a4.h(0,"categoria"),"sala",a4.h(0,"sala")],t.N,t.z)
+h.l(0,"duracion_min",l==null?60:l)
+h.l(0,"lugares_total",g)
+if(g===0)h.l(0,"lugares_disponibles",0)
+l=A.aa(b.h(0,"creditos"))
+l=l==null?null:B.d.K(l)
+h.l(0,"creditos",l==null?10:l)
+l=A.aa(b.h(0,"reserva_cierre_minutos"))
+l=l==null?null:B.d.K(l)
+h.l(0,"reserva_cierre_minutos",l==null?0:l)
+h.l(0,"categoria",b.h(0,"categoria"))
+h.l(0,"sala",b.h(0,"sala"))
+n=h
 q=3
-f=o.a.a6("clases").by(0,n).aj("horario_fijo_id",a3)
+h=o.a.a6("clases").by(0,n).aj("horario_fijo_id",a)
 s=6
-return A.c(A.di(f.df(f.d4("fecha","gte."+A.AT(g))),f.$ti.c),$async$KN)
+return A.c(A.di(h.df(h.d4("fecha","gte."+A.AT(i))),h.$ti.c),$async$KN)
 case 6:q=1
 s=5
 break
 case 3:q=2
-a2=p.pop()
-f=A.a4(a2)
-if(f instanceof A.lz){m=f
-if(!B.b.p(m.a.toLowerCase(),"horario_fijo_id"))throw a2}else throw a2
+f=p.pop()
+h=A.a4(f)
+if(h instanceof A.lz){m=h
+if(!B.b.p(m.a.toLowerCase(),"horario_fijo_id"))throw f}else throw f
 s=5
 break
 case 2:s=1
@@ -78041,8 +78046,7 @@ a8=a5==null?null:B.d.K(a5)
 if(a8==null)a8=0
 a4=A.aa(a4.h(b8,"lugares_disponibles"))
 a9=a4==null?null:B.d.K(a4)
-if(a9==null)a9=a8
-if(a8<=0||a9<=0)throw A.h(A.bW("Esta clase no acepta reservas en este momento."))
+if((a9==null?a8:a9)<=0)throw A.h(A.bW("Esta clase no acepta reservas en este momento."))
 a4=b7.gcp().c
 a4=a4==null?null:a4.r
 b0=a4==null?null:a4.z
