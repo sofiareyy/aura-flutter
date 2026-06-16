@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/estudio_admin_service.dart';
 import '../../services/media_upload_service.dart';
+import '../../widgets/eliminar_cuenta_helper.dart';
 
 class PerfilEstudioScreen extends StatefulWidget {
   const PerfilEstudioScreen({super.key});
@@ -996,6 +997,38 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                         elevation: 0,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Eliminar cuenta — requisito Apple App Store 5.1.1.
+                  // Forzamos contextoEstudio=true porque desde el panel
+                  // sabemos que el usuario administra al menos un estudio.
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          EliminarCuentaFlow.ejecutar(context,
+                              contextoEstudio: true),
+                      icon: const Icon(
+                        Icons.delete_forever_rounded,
+                        color: AppColors.error,
+                      ),
+                      label: const Text(
+                        'Eliminar mi cuenta',
+                        style: TextStyle(
+                          color: AppColors.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: AppColors.error.withValues(alpha: 0.4),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                     ),
                   ),

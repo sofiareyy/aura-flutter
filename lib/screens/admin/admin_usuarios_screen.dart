@@ -53,6 +53,114 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
     }
   }
 
+  Future<void> _confirmarEliminarUsuario(Map<String, dynamic> user) async {
+    final nombre = user['nombre']?.toString().trim().isNotEmpty == true
+        ? user['nombre'].toString().trim()
+        : (user['email']?.toString() ?? 'este usuario');
+    final uid = user['id']?.toString() ?? '';
+    if (uid.isEmpty) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          '¿Eliminar la cuenta?',
+          style: TextStyle(
+            color: AppColors.black,
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          '¿Eliminar la cuenta de $nombre? Se eliminarán todos sus datos '
+          'y reservas. No se puede deshacer.',
+          style: const TextStyle(
+            color: AppColors.black,
+            fontSize: 14,
+            height: 1.45,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            style: TextButton.styleFrom(foregroundColor: AppColors.grey),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 10),
+            ),
+            child: const Text(
+              'Sí, eliminar',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Loader bloqueante mientras la edge function corre.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+    );
+
+    try {
+      await _service.eliminarUsuario(uid);
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      // Sacar de la lista en memoria + refrescar desde server para
+      // sumar el cleanup colateral.
+      setState(() {
+        _users = _users
+            .where((u) => u['id']?.toString() != uid)
+            .toList();
+      });
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Cuenta de $nombre eliminada.'),
+          backgroundColor: AppColors.blackSoft,
+        ),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'No se pudo eliminar: '
+            '${e.toString().replaceFirst('Exception: ', '')}',
+          ),
+          backgroundColor: AppColors.error,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+
   Future<void> _ajustarCreditos(Map<String, dynamic> user) async {
     final ctrl = TextEditingController();
     final ok = await showDialog<bool>(
@@ -267,6 +375,42 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w700,
                                 ),
+                              ),
+                              const SizedBox(width: 4),
+                              PopupMenuButton<String>(
+                                icon: const Icon(
+                                  Icons.more_vert_rounded,
+                                  color: AppColors.grey,
+                                  size: 20,
+                                ),
+                                tooltip: 'Más opciones',
+                                onSelected: (value) async {
+                                  if (value == 'eliminar') {
+                                    await _confirmarEliminarUsuario(user);
+                                  }
+                                },
+                                itemBuilder: (ctx) => [
+                                  const PopupMenuItem(
+                                    value: 'eliminar',
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.delete_forever_rounded,
+                                          color: AppColors.error,
+                                          size: 18,
+                                        ),
+                                        SizedBox(width: 10),
+                                        Text(
+                                          'Eliminar cuenta',
+                                          style: TextStyle(
+                                            color: AppColors.error,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),

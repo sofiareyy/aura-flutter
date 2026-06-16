@@ -133,6 +133,30 @@ class AdminService {
     );
   }
 
+  /// Backoffice: elimina un usuario completo invocando la Edge Function
+  /// delete-account con target_user_id. El caller tiene que estar en la
+  /// tabla admin_users (la edge function lo verifica). Cancela reservas
+  /// futuras, devuelve creditos a los alumnos afectados y borra el row
+  /// de public.usuarios + auth.users.
+  Future<void> eliminarUsuario(String userId) async {
+    final session = _client.auth.currentSession;
+    final token = session?.accessToken;
+    if (token == null || token.isEmpty) {
+      throw Exception('Sesión expirada.');
+    }
+    final res = await _client.functions.invoke(
+      'delete-account',
+      headers: {'x-aura-auth': token},
+      body: {'target_user_id': userId},
+    );
+    if (res.status != 200) {
+      final data = res.data;
+      String? msg;
+      if (data is Map) msg = data['error']?.toString();
+      throw Exception(msg ?? 'No se pudo eliminar el usuario');
+    }
+  }
+
   Future<void> updateUsuario({
     required String userId,
     required String nombre,

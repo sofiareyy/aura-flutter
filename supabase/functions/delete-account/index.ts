@@ -54,13 +54,36 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'No autorizado' }, 401)
     }
 
-    const uid = user.id
+    const callerId = user.id
 
     // Cliente con service role para todo el cleanup. Bypassa RLS y nos
     // permite tocar auth.users via admin API.
     const admin = createClient(supabaseUrl, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
+
+    // Body opcional: si trae target_user_id Y el caller es admin del
+    // backoffice (presente en admin_users), borramos ESE usuario en
+    // lugar del caller. Sino, borramos al caller.
+    const body = await req.json().catch(() => null)
+    const targetUserId =
+      typeof body?.target_user_id === 'string' && body.target_user_id.length > 0
+        ? body.target_user_id
+        : null
+
+    let uid = callerId
+    if (targetUserId && targetUserId !== callerId) {
+      // Verificar que el caller es admin del backoffice.
+      const { data: adminRow } = await admin
+        .from('admin_users')
+        .select('user_id')
+        .eq('user_id', callerId)
+        .maybeSingle()
+      if (!adminRow) {
+        return json({ error: 'No autorizado' }, 403)
+      }
+      uid = targetUserId
+    }
 
     let totalCreditosDevueltosAlUsuario = 0
     let totalReservasCanceladas = 0
