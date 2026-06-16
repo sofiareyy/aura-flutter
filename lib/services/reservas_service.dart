@@ -145,13 +145,18 @@ class ReservasService {
       throw Exception(_mensajeCierreReserva(cierreMinutos));
     }
 
-    // 0 cupos = clase visible pero no reservable (configurado a proposito
-    // por el estudio). Cortamos antes de tocar creditos para no cobrar
-    // sin entregar lugar.
+    // 0 cupos disponibles = clase visible pero no reservable. Cortamos
+    // antes de tocar creditos para no cobrar sin entregar lugar.
+    //
+    // Solo miramos lugares_disponibles (no lugares_total). Si en algun
+    // momento se quedaron desfasados (ej. total=0 pero disp=12 porque la
+    // propagacion del horario fijo no las sincronizo), confiamos en disp.
+    // La RPC apply_reservation valida con coalesce(disp, total, 0) que es
+    // la fuente de verdad final.
     final total = (clase['lugares_total'] as num?)?.toInt() ?? 0;
     final disponibles =
         (clase['lugares_disponibles'] as num?)?.toInt() ?? total;
-    if (total <= 0 || disponibles <= 0) {
+    if (disponibles <= 0) {
       throw Exception('Esta clase no acepta reservas en este momento.');
     }
 

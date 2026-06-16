@@ -416,6 +416,7 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
     final nowAr = DateTime.now().toUtc().subtract(const Duration(hours: 3));
     final hoyAr = DateTime(nowAr.year, nowAr.month, nowAr.day);
 
+    final lugaresTotal = (horario['lugares_total'] as num?)?.toInt() ?? 12;
     final payload = <String, dynamic>{
       'nombre': horario['nombre'],
       'instructor': horario['instructor'],
@@ -425,7 +426,13 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
       'imagen_ajuste': horario['imagen_ajuste'],
       'galeria_urls': horario['galeria_urls'],
       'duracion_min': (horario['duracion_min'] as num?)?.toInt() ?? 60,
-      'lugares_total': (horario['lugares_total'] as num?)?.toInt() ?? 12,
+      'lugares_total': lugaresTotal,
+      // Si el horario fijo paso a 0 cupos, sincronizamos lugares_disponibles
+      // tambien a 0 en las clases futuras. Sin esto quedaban total=0 pero
+      // disp con el valor viejo (ej 12) -> el guard de Dart tiraba "Esta
+      // clase no acepta reservas en este momento" porque comparaba total<=0,
+      // y para el user era un error generico.
+      if (lugaresTotal == 0) 'lugares_disponibles': 0,
       'creditos': (horario['creditos'] as num?)?.toInt() ?? 10,
       'reserva_cierre_minutos':
           (horario['reserva_cierre_minutos'] as num?)?.toInt() ?? 0,
