@@ -90,6 +90,36 @@ class NotificacionesService {
     }
   }
 
+  /// Notificacion local inmediata (no schedulada). Util para avisos del
+  /// momento como "se libero un lugar en tu lista de espera". Si la app
+  /// esta cerrada se muestra como banner. Si esta abierta tambien aparece.
+  Future<void> showImmediate({
+    required int id,
+    required String titulo,
+    required String body,
+    String? payload,
+    String channel = 'aura_reservas',
+  }) async {
+    await initialize();
+    if (kIsWeb) return;
+    await _plugin.show(
+      id,
+      titulo,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          channel,
+          'Avisos de Aura',
+          channelDescription: 'Notificaciones inmediatas (cupos, recordatorios)',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+        iOS: const DarwinNotificationDetails(),
+      ),
+      payload: payload,
+    );
+  }
+
   Future<void> scheduleReservaReminder({
     required int reservaId,
     required String titulo,

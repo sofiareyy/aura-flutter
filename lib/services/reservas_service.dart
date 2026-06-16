@@ -368,7 +368,158 @@ class ReservasService {
     final notifId = codigoQr.hashCode.abs() % 2147483647;
     await NotificacionesService.instance.cancelReservaReminder(notifId);
 
+    // Si la clase tiene lista de espera, promover al siguiente y avisarle.
+    // Fire-and-forget: cualquier error en este path no debe romper la
+    // cancelacion (los creditos ya fueron devueltos al usuario).
+    if (claseId != null) {
+      _promoverYAvisar(claseId).ignore();
+    }
+
     return creditosUsados;
+  }
+
+  /// Llama a la RPC waitlist_promote_next y para cada promovido manda
+  /// notificacion local + insert en notificaciones_usuario.
+  Future<void> _promoverYAvisar(int claseId, {int count = 1}) async {
+    try {
+      // Limpiar primero pre_confirmadas vencidas de esa clase, asi liberamos
+      // lugares fantasma antes de promover.
+      await _supabase.rpc('cleanup_pre_reservas_expiradas',
+          params: {'p_clase_id': claseId});
+
+      final res = await _supabase.rpc('waitlist_promote_next', params: {
+        'p_clase_id': claseId,
+        'p_count': count,
+      });
+      if (res is! Map || res['ok'] != true) return;
+      final promoted = res['promoted'];
+      if (promoted is! List) return;
+
+      for (final raw in promoted) {
+        if (raw is! Map) continue;
+        final usuarioId = raw['usuario_id']?.toString() ?? '';
+        final reservaId = (raw['reserva_id'] as num?)?.toInt();
+        final claseNombre = raw['clase_nombre']?.toString() ?? 'una clase';
+        final estudioNombre =
+            raw['estudio_nombre']?.toString() ?? 'el estudio';
+
+        // 1) Notif local inmediata (banner / push).
+        if (reservaId != null) {
+          await NotificacionesService.instance.showImmediate(
+            id: reservaId,
+            titulo: '¡Se liberó un lugar! ⚡',
+            body:
+                'Tenés 30 minutos para confirmar tu lugar en $claseNombre de $estudioNombre.',
+            payload: 'pre_confirmada:$reservaId',
+          );
+        }
+
+        // 2) Notificacion in-app (campanita) para que la vea cuando abra.
+        if (usuarioId.isNotEmpty) {
+          try {
+            await _supabase.from('notificaciones_usuario').insert({
+              'usuario_id': usuarioId,
+              'titulo': '¡Se liberó un lugar! ⚡',
+              'mensaje':
+                  'Tenés 30 minutos para confirmar tu lugar en $claseNombre de $estudioNombre.',
+              'tipo': 'pre_confirmada',
+              'leida': false,
+            });
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Lista las reservas pre_confirmadas (pendientes de confirmar) del
+  /// usuario logueado, no vencidas.
+  Future<List<Map<String, dynamic>>> getPreReservasUsuario(
+      [String? userId]) async {
+    final uid = userId ?? _supabase.auth.currentUser?.id ?? '';
+    if (uid.isEmpty) return [];
+    final rows = await _supabase
+        .from(AppConstants.tableReservas)
+        .select()
+        .eq('usuario_id', uid)
+        .eq('estado', 'pre_confirmada')
+        .gt('expires_at', DateTime.now().toUtc().toIso8601String())
+        .order('expires_at', ascending: true);
+    return _joinClasesEstudios(rows as List);
+  }
+
+  /// Entries de lista_espera del usuario logueado, con datos de la clase
+  /// para mostrar en MisReservasScreen.
+  Future<List<Map<String, dynamic>>> getListaEsperaUsuario(
+      [String? userId]) async {
+    final uid = userId ?? _supabase.auth.currentUser?.id ?? '';
+    if (uid.isEmpty) return [];
+    final rows = await _supabase
+        .from('lista_espera')
+        .select('clase_id, posicion, clases(id, nombre, fecha, estudio_id, estudios(nombre, foto_url, direccion))')
+        .eq('usuario_id', uid)
+        .order('posicion', ascending: true);
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
+  /// Confirma una pre_confirmada: descuenta creditos, cambia estado a
+  /// 'confirmada', limpia expires_at. Lanza si el saldo no alcanza o la
+  /// reserva ya vencio.
+  Future<Map<String, dynamic>> confirmarPreReserva({
+    required int reservaId,
+    required String userId,
+    required int creditos,
+  }) async {
+    final res = await _supabase.rpc('confirm_pre_reserva', params: {
+      'p_reserva_id': reservaId,
+      'p_user_id': userId,
+      'p_creditos': creditos,
+    });
+    if (res is! Map || res['ok'] != true) {
+      final code = (res is Map ? res['error'] : null)?.toString();
+      throw Exception(_mensajeConfirmarError(code));
+    }
+    final r = res['reserva'];
+    return r is Map ? Map<String, dynamic>.from(r) : <String, dynamic>{};
+  }
+
+  /// Libera una pre_confirmada sin cobrar, y dispara la promocion del
+  /// siguiente de la lista de espera (server-side).
+  Future<void> rechazarPreReserva(int reservaId) async {
+    final res = await _supabase
+        .rpc('release_pre_reserva', params: {'p_reserva_id': reservaId});
+    if (res is Map && res['ok'] != true) {
+      final code = res['error']?.toString();
+      throw Exception('No se pudo liberar la pre-reserva: $code');
+    }
+    // El RPC server-side ya orquesto la promocion del siguiente. Para que
+    // el siguiente reciba la notif local, igual disparamos el helper de
+    // notifs sobre cualquier nuevo promovido (idempotente: si no hay
+    // nadie devuelve array vacio).
+    // Para no requerir el clase_id desde el caller, lo sacamos del
+    // payload del RPC si lo devolvio.
+    if (res is Map) {
+      final claseId = (res['clase_id'] as num?)?.toInt();
+      if (claseId != null) {
+        _promoverYAvisar(claseId, count: 0).ignore();
+      }
+    }
+  }
+
+  String _mensajeConfirmarError(String? code) {
+    switch (code) {
+      case 'reserva_no_encontrada':
+        return 'No encontramos tu pre-reserva.';
+      case 'estado_invalido':
+        return 'Esta reserva ya no es confirmable.';
+      case 'expirada':
+        return 'Se venció el plazo de 30 minutos para confirmar.';
+      case 'sin_creditos':
+        return 'No tenés créditos suficientes para confirmar.';
+      default:
+        return code == null || code.isEmpty
+            ? 'No se pudo confirmar la reserva.'
+            : 'No se pudo confirmar la reserva: $code';
+    }
   }
 
   /// Called by the studio to cancel a class.

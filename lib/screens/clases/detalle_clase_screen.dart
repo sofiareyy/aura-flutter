@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -41,10 +42,133 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
   int _invitadasCount = 0;
   List<Map<String, dynamic>> _reviews = [];
 
+  // Lista de espera promovida -> pre_confirmada del usuario en esta clase.
+  // Si esta seteada, el bloque de "Reservar" se reemplaza por la card
+  // de confirmacion con countdown.
+  Map<String, dynamic>? _preReserva;
+  DateTime? _preReservaExpiresAt;
+  Duration _preReservaRemaining = Duration.zero;
+  Timer? _preReservaTimer;
+  bool _confirmandoPreReserva = false;
+
   @override
   void initState() {
     super.initState();
     _cargar();
+  }
+
+  @override
+  void dispose() {
+    _preReservaTimer?.cancel();
+    super.dispose();
+  }
+
+  void _iniciarCountdownPreReserva() {
+    _preReservaTimer?.cancel();
+    final expiresAt = _preReservaExpiresAt;
+    if (expiresAt == null) {
+      _preReservaRemaining = Duration.zero;
+      return;
+    }
+    void tick() {
+      final remaining = expiresAt.toLocal().difference(DateTime.now());
+      if (!mounted) return;
+      if (remaining.isNegative || remaining.inSeconds <= 0) {
+        setState(() {
+          _preReservaRemaining = Duration.zero;
+          _preReserva = null;
+          _preReservaExpiresAt = null;
+        });
+        _preReservaTimer?.cancel();
+        // Refrescar la pantalla (lugares + waitlist) por si quedo otra
+        // pre-reserva activa o cambio el estado.
+        _cargar();
+      } else {
+        setState(() => _preReservaRemaining = remaining);
+      }
+    }
+
+    tick();
+    _preReservaTimer =
+        Timer.periodic(const Duration(seconds: 1), (_) => tick());
+  }
+
+  String _formatPreReservaCountdown(Duration d) {
+    final mins = d.inMinutes.toString().padLeft(2, '0');
+    final secs = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$mins:$secs';
+  }
+
+  Future<void> _confirmarPreReserva() async {
+    final preReserva = _preReserva;
+    if (preReserva == null || _confirmandoPreReserva) return;
+    final reservaId = (preReserva['id'] as num?)?.toInt();
+    if (reservaId == null) return;
+    final provider = context.read<AppProvider>();
+    final userId = provider.userId;
+    if (userId.isEmpty) return;
+    final creditos =
+        _esGratuita ? 0 : ((_clase?['creditos'] as num?)?.toInt() ?? 0);
+
+    setState(() => _confirmandoPreReserva = true);
+    try {
+      final reserva = await _reservasService.confirmarPreReserva(
+        reservaId: reservaId,
+        userId: userId,
+        creditos: creditos,
+      );
+      await provider.refrescarUsuario();
+      if (!mounted) return;
+      _preReservaTimer?.cancel();
+      // Navegar al ticket QR
+      final codigoQr = reserva['codigo_qr']?.toString() ??
+          preReserva['codigo_qr']?.toString() ??
+          '';
+      if (codigoQr.isNotEmpty) {
+        context.push('/reserva-confirmada/${Uri.encodeComponent(codigoQr)}');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      await _cargar();
+    } finally {
+      if (mounted) setState(() => _confirmandoPreReserva = false);
+    }
+  }
+
+  Future<void> _rechazarPreReserva() async {
+    final preReserva = _preReserva;
+    if (preReserva == null || _confirmandoPreReserva) return;
+    final reservaId = (preReserva['id'] as num?)?.toInt();
+    if (reservaId == null) return;
+    setState(() => _confirmandoPreReserva = true);
+    try {
+      await _reservasService.rechazarPreReserva(reservaId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Liberaste tu lugar. Le va a llegar al siguiente.'),
+          backgroundColor: AppColors.blackSoft,
+        ),
+      );
+      _preReservaTimer?.cancel();
+      await _cargar();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _confirmandoPreReserva = false);
+    }
   }
 
   Future<void> _cargar() async {
@@ -105,6 +229,28 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
         // Non-critical
       }
 
+      // Buscar pre_confirmada activa del usuario para esta clase
+      Map<String, dynamic>? preReserva;
+      DateTime? expiresAt;
+      if (provider.userId.isNotEmpty) {
+        try {
+          final pre = await Supabase.instance.client
+              .from('reservas')
+              .select('id, codigo_qr, creditos_usados, expires_at')
+              .eq('usuario_id', provider.userId)
+              .eq('clase_id', widget.claseId)
+              .eq('estado', 'pre_confirmada')
+              .gt('expires_at',
+                  DateTime.now().toUtc().toIso8601String())
+              .maybeSingle();
+          if (pre != null) {
+            preReserva = Map<String, dynamic>.from(pre);
+            expiresAt =
+                DateTime.tryParse(pre['expires_at']?.toString() ?? '');
+          }
+        } catch (_) {}
+      }
+
       if (!mounted) return;
       setState(() {
         _clase = clase;
@@ -115,8 +261,11 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
         _enListaEspera = enListaEspera;
         _waitlistCount = waitlistCount;
         _invitadasCount = invitadasCount;
+        _preReserva = preReserva;
+        _preReservaExpiresAt = expiresAt;
         _loading = false;
       });
+      _iniciarCountdownPreReserva();
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -1103,30 +1252,92 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
           left: 20,
           right: 20,
           bottom: MediaQuery.of(context).padding.bottom + 16,
-          child: lugaresDisp <= 0 && !_yaReservado && !reservaCerrada
-              ? _WaitlistButton(
-                  enListaEspera: _enListaEspera,
-                  waitlistCount: _waitlistCount,
-                  loading: _togglingWaitlist,
-                  onTap: _toggleListaEspera,
-                )
-              : SizedBox(
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _yaReservado ? null : !disponible ? null : _irAConfirmar,
-                    child: Text(
-                      _yaReservado
-                          ? 'Ya reservada'
-                          : !disponible
-                              ? (reservaCerrada ? 'Reservas cerradas' : 'Sin lugares')
-                              : _esGratuita
-                                  ? 'Reservar gratis'
-                                  : 'Reservar · $creditos créditos',
-                    ),
-                  ),
-                ),
+          child: _buildBottomAction(
+            lugaresDisp: lugaresDisp.toInt(),
+            reservaCerrada: reservaCerrada,
+            disponible: disponible,
+            creditos: creditos,
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildBottomAction({
+    required int lugaresDisp,
+    required bool reservaCerrada,
+    required bool disponible,
+    required int creditos,
+  }) {
+    // 1) Pre-confirmada activa -> card de confirmacion con countdown.
+    if (_preReserva != null && _preReservaRemaining.inSeconds > 0) {
+      return _PreReservaConfirmCard(
+        remaining: _preReservaRemaining,
+        formatTime: _formatPreReservaCountdown,
+        creditos: _esGratuita ? 0 : creditos,
+        esGratuita: _esGratuita,
+        loading: _confirmandoPreReserva,
+        onConfirmar: _confirmarPreReserva,
+        onRechazar: _rechazarPreReserva,
+      );
+    }
+
+    // 2) Sin lugares y NO reservado y reserva abierta -> waitlist (con
+    //    mensaje de "no se cobran creditos hasta confirmar").
+    if (lugaresDisp <= 0 && !_yaReservado && !reservaCerrada) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFDF0E8),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+              ),
+            ),
+            child: const Text(
+              'No se te cobran créditos hasta que confirmes tu lugar.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          _WaitlistButton(
+            enListaEspera: _enListaEspera,
+            waitlistCount: _waitlistCount,
+            loading: _togglingWaitlist,
+            onTap: _toggleListaEspera,
+          ),
+        ],
+      );
+    }
+
+    // 3) Camino normal: boton "Reservar" / "Ya reservada" / "Sin lugares".
+    return SizedBox(
+      height: 56,
+      child: ElevatedButton(
+        onPressed: _yaReservado
+            ? null
+            : !disponible
+                ? null
+                : _irAConfirmar,
+        child: Text(
+          _yaReservado
+              ? 'Ya reservada'
+              : !disponible
+                  ? (reservaCerrada ? 'Reservas cerradas' : 'Sin lugares')
+                  : _esGratuita
+                      ? 'Reservar gratis'
+                      : 'Reservar · $creditos créditos',
+        ),
+      ),
     );
   }
 
@@ -1579,6 +1790,133 @@ class _HeaderActionPill extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PreReservaConfirmCard extends StatelessWidget {
+  final Duration remaining;
+  final String Function(Duration) formatTime;
+  final int creditos;
+  final bool esGratuita;
+  final bool loading;
+  final VoidCallback onConfirmar;
+  final VoidCallback onRechazar;
+
+  const _PreReservaConfirmCard({
+    required this.remaining,
+    required this.formatTime,
+    required this.creditos,
+    required this.esGratuita,
+    required this.loading,
+    required this.onConfirmar,
+    required this.onRechazar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDF0E8),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.primary, width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 16,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.timer_rounded,
+                  color: AppColors.primary, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      color: AppColors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    children: [
+                      const TextSpan(text: 'Tenés '),
+                      TextSpan(
+                        text: formatTime(remaining),
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          fontFamily: 'Courier',
+                        ),
+                      ),
+                      const TextSpan(text: ' para confirmar tu lugar'),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: loading ? null : onConfirmar,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      esGratuita
+                          ? 'Confirmar (gratis)'
+                          : 'Confirmar y pagar · $creditos cr',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: TextButton(
+              onPressed: loading ? null : onRechazar,
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF8F877F),
+              ),
+              child: const Text(
+                'No me interesa',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

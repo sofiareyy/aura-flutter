@@ -378,7 +378,69 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
   }
 
   Future<void> editarClase(int id, Map<String, dynamic> payload) async {
+    // Detectar si el update aumenta lugares_disponibles para auto-promover
+    // de lista de espera. Comparamos el valor previo vs el del payload.
+    int? lugaresPrevios;
+    if (payload.containsKey('lugares_disponibles')) {
+      try {
+        final previa = await _client
+            .from('clases')
+            .select('lugares_disponibles')
+            .eq('id', id)
+            .maybeSingle();
+        lugaresPrevios =
+            (previa?['lugares_disponibles'] as num?)?.toInt();
+      } catch (_) {}
+    }
+
     await _client.from('clases').update(payload).eq('id', id);
+
+    if (lugaresPrevios != null && payload['lugares_disponibles'] != null) {
+      final lugaresNuevos =
+          (payload['lugares_disponibles'] as num?)?.toInt() ?? lugaresPrevios;
+      final delta = lugaresNuevos - lugaresPrevios;
+      if (delta > 0) {
+        // Promover hasta `delta` entries de lista_espera. Fire-and-forget:
+        // un error aca no debe romper el editarClase. El RPC tambien
+        // decrementa lugares_disponibles internamente por cada promocion.
+        try {
+          await _client.rpc('cleanup_pre_reservas_expiradas',
+              params: {'p_clase_id': id});
+          final res =
+              await _client.rpc('waitlist_promote_next', params: {
+            'p_clase_id': id,
+            'p_count': delta,
+          });
+          // Insertar notificacion in-app (campanita) por cada promovido.
+          // La notif "push" local la dispara el dispositivo del alumno
+          // cuando entra a la app y detecta su pre_confirmada (vease
+          // DetalleClaseScreen + MisReservas).
+          if (res is Map &&
+              res['ok'] == true &&
+              res['promoted'] is List) {
+            for (final raw in (res['promoted'] as List)) {
+              if (raw is! Map) continue;
+              final uid = raw['usuario_id']?.toString() ?? '';
+              if (uid.isEmpty) continue;
+              final claseNombre =
+                  raw['clase_nombre']?.toString() ?? 'una clase';
+              final estudioNombre =
+                  raw['estudio_nombre']?.toString() ?? 'el estudio';
+              try {
+                await _client.from('notificaciones_usuario').insert({
+                  'usuario_id': uid,
+                  'titulo': '¡Buenas noticias! Se abrieron lugares ⚡',
+                  'mensaje':
+                      'Confirmá tu lugar en $claseNombre de $estudioNombre en los próximos 30 minutos.',
+                  'tipo': 'pre_confirmada',
+                  'leida': false,
+                });
+              } catch (_) {}
+            }
+          }
+        } catch (_) {}
+      }
+    }
   }
 
   /// Cancela todas las reservas activas de la clase y luego la elimina.

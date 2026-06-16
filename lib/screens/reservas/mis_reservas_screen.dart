@@ -32,6 +32,9 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
   List<Map<String, dynamic>> _proximas = [];
   List<Map<String, dynamic>> _historial = [];
   List<Map<String, dynamic>> _clases = [];
+  // Entries de lista_espera del usuario + pre_confirmadas.
+  List<Map<String, dynamic>> _enEspera = [];
+  List<Map<String, dynamic>> _preReservas = [];
   List<String> _categorias = const ['Todos'];
   String _categoriaSeleccionada = 'Todos';
   String? _diaSeleccionadoKey;
@@ -69,12 +72,16 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
       _reservasService.getHistorialReservas(uid,
           limit: _historialPageSize, offset: 0),
       _clasesService.getProximasClases(limit: 200, offset: 0),
+      _reservasService.getListaEsperaUsuario(uid),
+      _reservasService.getPreReservasUsuario(uid),
     ]);
     if (!mounted) return;
 
     final proximas = results[0].toList()..sort(_compareByReservaFecha);
     final historial = results[1];
     final clases = results[2].toList()..sort(_compareByFecha);
+    final enEspera = List<Map<String, dynamic>>.from(results[3]);
+    final preReservas = List<Map<String, dynamic>>.from(results[4]);
 
     // Filtrar de "disponibles" las clases que el usuario ya tiene reservadas,
     // para que no aparezcan en ambas secciones.
@@ -98,6 +105,8 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
       _proximas = proximas;
       _historial = historial;
       _clases = clasesFiltered;
+      _enEspera = enEspera;
+      _preReservas = preReservas;
       _categorias = categorias;
       if (!_categorias.contains(_categoriaSeleccionada)) {
         _categoriaSeleccionada = 'Todos';
@@ -107,6 +116,36 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
       _diaSeleccionadoKey = _primerDiaConClases();
       _loading = false;
     });
+  }
+
+  Future<void> _salirDeListaEspera(int claseId) async {
+    final uid = Supabase.instance.client.auth.currentUser?.id ?? '';
+    if (uid.isEmpty) return;
+    try {
+      await Supabase.instance.client
+          .from('lista_espera')
+          .delete()
+          .eq('clase_id', claseId)
+          .eq('usuario_id', uid);
+      // Reordenar posiciones de los que estaban despues.
+      // No es estricto a nivel datos, pero mantiene la lista limpia.
+      await _cargar();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Saliste de la lista de espera.'),
+          backgroundColor: AppColors.blackSoft,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo salir: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   Future<void> _cargarMasHistorial() async {
@@ -445,6 +484,47 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.only(top: 16, bottom: 32),
                 children: [
+                  // SECCIÓN EN ESPERA (pre_confirmadas + lista_espera).
+                  // Solo aparece si hay algo, sino la pantalla arranca en
+                  // PRÓXIMAS como antes.
+                  if (_preReservas.isNotEmpty || _enEspera.isNotEmpty) ...[
+                    const _SectionLabel('EN ESPERA'),
+                    const SizedBox(height: 10),
+                    ..._preReservas.map((pre) => Padding(
+                          padding:
+                              const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                          child: _PreReservaCard(
+                            reserva: pre,
+                            onConfirmar: () {
+                              final claseId =
+                                  (pre['clase_id'] as num?)?.toInt();
+                              if (claseId != null) {
+                                context.push('/clase/$claseId');
+                              }
+                            },
+                          ),
+                        )),
+                    ..._enEspera.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final item = entry.value;
+                      final claseId =
+                          (item['clase_id'] as num?)?.toInt();
+                      return Padding(
+                        padding:
+                            const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                        child: _EsperaCard(
+                          entry: item,
+                          posicion: (item['posicion'] as num?)?.toInt() ??
+                              idx + 1,
+                          onSalir: claseId == null
+                              ? null
+                              : () => _salirDeListaEspera(claseId),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 16),
+                  ],
+
                   // SECCIÓN PRÓXIMAS
                   const _SectionLabel('PRÓXIMAS'),
                   const SizedBox(height: 10),
@@ -1520,6 +1600,211 @@ class _EmptyDayState extends StatelessWidget {
             style: TextStyle(
               color: AppColors.grey,
               fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Cards de "EN ESPERA" ─────────────────────────────────────────────────────
+
+class _PreReservaCard extends StatelessWidget {
+  final Map<String, dynamic> reserva;
+  final VoidCallback onConfirmar;
+
+  const _PreReservaCard({
+    required this.reserva,
+    required this.onConfirmar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final clase = reserva['clases'] as Map<String, dynamic>?;
+    final estudio = clase?['estudios'] as Map<String, dynamic>?;
+    final fecha = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
+    final fechaStr = fecha != null
+        ? DateFormat("EEE d 'de' MMM · HH:mm", 'es').format(fecha)
+        : '—';
+    final expiresAt =
+        DateTime.tryParse(reserva['expires_at']?.toString() ?? '');
+    final remaining = expiresAt != null
+        ? expiresAt.toLocal().difference(DateTime.now())
+        : Duration.zero;
+    final mins = remaining.inMinutes.clamp(0, 99);
+    final secs = (remaining.inSeconds % 60).clamp(0, 59);
+    final remainingStr =
+        '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+
+    return _WhiteCard(
+      onTap: onConfirmar,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.timer_rounded,
+                  color: AppColors.primary, size: 18),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Tenés $remainingStr para confirmar',
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            (clase?['nombre'] ?? 'Clase').toString(),
+            style: const TextStyle(
+              color: AppColors.black,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            (estudio?['nombre'] ?? '').toString(),
+            style: const TextStyle(color: AppColors.grey, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            fechaStr,
+            style: const TextStyle(
+              color: AppColors.mutedText,
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            alignment: Alignment.center,
+            child: const Text(
+              'Confirmar mi lugar',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EsperaCard extends StatelessWidget {
+  final Map<String, dynamic> entry;
+  final int posicion;
+  final VoidCallback? onSalir;
+
+  const _EsperaCard({
+    required this.entry,
+    required this.posicion,
+    required this.onSalir,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final clase = entry['clases'] as Map<String, dynamic>?;
+    final estudio = clase?['estudios'] as Map<String, dynamic>?;
+    final fecha = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
+    final fechaStr = fecha != null
+        ? DateFormat("EEE d 'de' MMM · HH:mm", 'es').format(fecha)
+        : '—';
+
+    return _WhiteCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _categoryBadgeBg,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  'Posición #$posicion',
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            (clase?['nombre'] ?? 'Clase').toString(),
+            style: const TextStyle(
+              color: AppColors.black,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            (estudio?['nombre'] ?? '').toString(),
+            style: const TextStyle(color: AppColors.grey, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            fechaStr,
+            style: const TextStyle(
+              color: AppColors.mutedText,
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'No se cobran créditos hasta confirmar.',
+            style: TextStyle(
+              color: AppColors.primary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: onSalir,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.grey,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 6),
+              ),
+              child: const Text(
+                'Salir de la lista',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
         ],
