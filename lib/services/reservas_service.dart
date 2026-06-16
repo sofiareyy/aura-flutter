@@ -183,12 +183,26 @@ class ReservasService {
       // inserta y decrementa todo en una transaccion. Elimina la race
       // condition del flujo viejo de 3 pasos separados (SELECT lugares ->
       // INSERT -> decrementar_lugares).
-      final res = await _supabase.rpc('apply_reservation', params: {
-        'p_user_id': userId,
-        'p_clase_id': claseId,
-        'p_codigo_qr': codigoQr,
-        'p_creditos_usados': creditosReales,
-      });
+      dynamic res;
+      try {
+        res = await _supabase.rpc('apply_reservation', params: {
+          'p_user_id': userId,
+          'p_clase_id': claseId,
+          'p_codigo_qr': codigoQr,
+          'p_creditos_usados': creditosReales,
+        });
+      } on PostgrestException catch (e) {
+        // Casos comunes: la RPC no esta deployada (function not found),
+        // schema cache stale, o RLS bloquea. Sin esto el user veia el
+        // PostgrestException crudo como "error generico".
+        final msg = e.message.toLowerCase();
+        if (msg.contains('apply_reservation') &&
+            (msg.contains('does not exist') || msg.contains('not found'))) {
+          throw Exception(
+              'Sistema temporalmente no disponible. Probá de nuevo en unos minutos.');
+        }
+        throw Exception('No se pudo crear la reserva: ${e.message}');
+      }
 
       final ok = res is Map && res['ok'] == true;
       if (!ok) {
@@ -488,6 +502,8 @@ class ReservasService {
     switch (code) {
       case 'sin_lugares':
         return 'Se acaba de llenar esta clase. No quedan lugares disponibles.';
+      case 'ya_reservaste':
+        return 'Ya tenés una reserva activa para esta clase.';
       case 'clase_no_encontrada':
         return 'No encontramos la clase.';
       case 'clase_cancelada':
