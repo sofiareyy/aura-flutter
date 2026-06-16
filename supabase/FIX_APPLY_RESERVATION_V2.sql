@@ -1,4 +1,12 @@
--- AURA - apply_reservation V2 (2026-06-16)
+-- AURA - apply_reservation V2 (2026-06-16, hotfix mismo dia)
+--
+-- HOTFIX 2026-06-16: la primera version de la V2 referenciaba
+-- clases.estado pero esa columna NO existe en produccion. Causaba el
+-- "error generico" al reservar (la RPC tiraba 'column "estado" does
+-- not exist' y caia en el exception handler). Sacado el lookup y el
+-- check de estado. Si una clase fue cancelada en el panel del estudio
+-- el flujo actual la elimina via eliminarClaseRow o le pone
+-- lugares_disponibles=0; en ambos casos la RPC corta correctamente.
 --
 -- Fixes sobre la V1 (FIX_APPLY_RESERVATION.sql):
 --
@@ -45,11 +53,10 @@ security definer
 set search_path to 'public'
 as $$
 declare
-  v_lugares_disp  int;
-  v_lugares_total int;
-  v_clase_estado  text;
+  v_lugares_disp   int;
+  v_lugares_total  int;
   v_existe_reserva boolean;
-  v_reserva       record;
+  v_reserva        record;
 begin
   if p_user_id is null or p_clase_id is null then
     return jsonb_build_object('ok', false, 'error', 'parametros_invalidos');
@@ -60,18 +67,18 @@ begin
   end if;
 
   -- 1) Lock de la fila de clases (serializa concurrencia).
-  select lugares_disponibles, lugares_total, estado
-    into v_lugares_disp, v_lugares_total, v_clase_estado
+  -- NOTA: la tabla public.clases en produccion NO tiene columna `estado`.
+  -- El borrado de una clase cancelada se hace via DELETE desde el panel
+  -- del estudio (eliminarClaseRow), no por update de estado. Por eso aca
+  -- no chequeamos ningun campo "cancelada".
+  select lugares_disponibles, lugares_total
+    into v_lugares_disp, v_lugares_total
     from public.clases
    where id = p_clase_id
    for update;
 
   if not found then
     return jsonb_build_object('ok', false, 'error', 'clase_no_encontrada');
-  end if;
-
-  if v_clase_estado = 'cancelada' then
-    return jsonb_build_object('ok', false, 'error', 'clase_cancelada');
   end if;
 
   -- 2) Pre-check: el usuario ya tiene reserva activa en esta clase?
@@ -157,8 +164,8 @@ select parameter_name, data_type, parameter_default, ordinal_position
    and specific_name like 'apply_reservation%'
  order by ordinal_position;
 
--- 5b. Clases proximas de Hot Clic.
-select id, nombre, fecha, lugares_total, lugares_disponibles, estado,
+-- 5b. Clases proximas de Hot Clic. Sin clases.estado porque no existe.
+select id, nombre, fecha, lugares_total, lugares_disponibles,
        horario_fijo_id
   from public.clases
  where estudio_id = (select id from public.estudios where nombre = 'Hot Clic')

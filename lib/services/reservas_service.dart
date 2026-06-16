@@ -407,10 +407,16 @@ class ReservasService {
       }
     }
 
-    // Mark the class itself as cancelled
+    // Eliminar la clase ahora que las reservas estan canceladas. Antes
+    // hacia `update({'estado': 'cancelada'})` pero la columna `estado`
+    // no existe en la tabla clases en produccion (PostgREST dropeaba
+    // ese campo en silencio, no-op). Resultado: la clase seguia visible
+    // como disponible para reservar despues de "cancelarla". Ahora la
+    // borramos directo para que ambos paths (sheet de detalle y menu de
+    // eliminar) tengan el mismo comportamiento consistente.
     await _supabase
         .from(AppConstants.tableClases)
-        .update({'estado': 'cancelada'})
+        .delete()
         .eq('id', claseId);
 
     return devueltos;
