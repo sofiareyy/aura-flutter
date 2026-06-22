@@ -179,6 +179,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return regex.hasMatch(email);
   }
 
+  /// Abre una URL externa en Safari View Controller / in-app web view.
+  Future<void> _abrirUrl(String url) async {
+    try {
+      final ok = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.inAppWebView,
+      );
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo abrir el enlace.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo abrir el enlace.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
   String _friendlyRegisterError(Object error) {
     final text = error.toString().toLowerCase();
     if (text.contains('over_email_send_rate_limit') ||
@@ -400,14 +426,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Center(
-                child: Text(
-                  'Términos y privacidad',
-                  style: TextStyle(
-                    color: Color(0xFF938A82),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
+              Center(
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    GestureDetector(
+                      onTap: () => _abrirUrl(
+                          'https://sofiareyy.github.io/aura-flutter/terms.html'),
+                      child: const Text(
+                        'Términos y condiciones',
+                        style: TextStyle(
+                          color: Color(0xFFE8763A),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                    const Text(
+                      '   ·   ',
+                      style: TextStyle(
+                        color: Color(0xFF938A82),
+                        fontSize: 13,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => _abrirUrl(
+                          'https://sofiareyy.github.io/aura-flutter/privacy.html'),
+                      child: const Text(
+                        'Política de privacidad',
+                        style: TextStyle(
+                          color: Color(0xFFE8763A),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
