@@ -115,8 +115,7 @@ select policyname, cmd
    and tablename = 'usuarios'
  order by cmd;
 
--- Últimos 5 usuarios creados
+-- Muestra de usuarios (la tabla usuarios no tiene columna created_at)
 select id, email, nombre, rol
   from public.usuarios
- order by created_at desc
  limit 5;
