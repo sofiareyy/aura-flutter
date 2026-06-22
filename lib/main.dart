@@ -73,15 +73,38 @@ class AuraApp extends StatefulWidget {
 
 class _AuraAppState extends State<AuraApp> {
   StreamSubscription<Uri>? _linkSub;
+  StreamSubscription<AuthState>? _authSub;
   final _authService = AuthService();
 
   @override
   void initState() {
     super.initState();
+    _initAuthListener();
     if (!kIsWeb) {
       _initDeepLinks();
       _initNotificationHandlers();
     }
+  }
+
+  /// Garantiza que la fila en `usuarios` exista después de CUALQUIER inicio
+  /// de sesión (Google, Apple o email). Es la red de seguridad central: aun
+  /// si el flujo específico no la creó, este listener lo hace. Es idempotente
+  /// (ensureUsuarioCreado relee si ya existe y maneja la carrera).
+  void _initAuthListener() {
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen(
+      (data) async {
+        final event = data.event;
+        if (event == AuthChangeEvent.signedIn ||
+            event == AuthChangeEvent.userUpdated) {
+          try {
+            await _authService.ensureUsuarioCreado();
+          } catch (e) {
+            debugPrint('[authListener] ensureUsuarioCreado falló: $e');
+          }
+        }
+      },
+      onError: (Object e) => debugPrint('[authListener] error: $e'),
+    );
   }
 
   void _initNotificationHandlers() {
@@ -180,7 +203,13 @@ class _AuraAppState extends State<AuraApp> {
   Future<void> _handleOAuthCallback() async {
     // La sesión ya debería estar seteada por Supabase Flutter
     final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      debugPrint('[OAuthCallback] sin usuario en sesión tras el callback');
+      return;
+    }
+    debugPrint('[OAuthCallback] Apple user id: ${user.id}');
+    debugPrint('[OAuthCallback] Apple email: ${user.email}');
+    debugPrint('[OAuthCallback] Apple metadata: ${user.userMetadata}');
     try {
       // Crear usuario si es primera vez con OAuth (Google o Apple)
       final rol = await _authService.ensureUsuarioCreado();
@@ -197,6 +226,7 @@ class _AuraAppState extends State<AuraApp> {
     } catch (e) {
       // No pudimos crear/leer la fila en usuarios: cerramos la sesión a
       // medias y mostramos un mensaje descriptivo para que reintente.
+      debugPrint('[OAuthCallback] fallo al crear usuario: $e');
       final msg = e.toString().replaceFirst('Exception: ', '').trim();
       try {
         await Supabase.instance.client.auth.signOut();
@@ -218,6 +248,7 @@ class _AuraAppState extends State<AuraApp> {
 
   @override
   void dispose() {
+    _authSub?.cancel();
     _linkSub?.cancel();
     super.dispose();
   }

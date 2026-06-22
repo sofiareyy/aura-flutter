@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -127,6 +127,16 @@ class AuthService {
     final user = _supabase.auth.currentUser;
     if (user == null) throw Exception('Sin sesión activa');
 
+    // --- Logs de diagnóstico OAuth (Apple/Google) ---
+    // Apple solo devuelve el email la PRIMERA vez que el usuario autoriza la
+    // app; en reintentos user.email viene null. Estos logs permiten ver en
+    // consola (flutter logs / Xcode) qué llega exactamente.
+    debugPrint('[ensureUsuarioCreado] provider: '
+        '${user.appMetadata['provider'] ?? user.appMetadata['providers']}');
+    debugPrint('[ensureUsuarioCreado] user id: ${user.id}');
+    debugPrint('[ensureUsuarioCreado] user email: ${user.email}');
+    debugPrint('[ensureUsuarioCreado] user metadata: ${user.userMetadata}');
+
     final existing = await _supabase
         .from('usuarios')
         .select('rol')
@@ -134,6 +144,7 @@ class AuthService {
         .maybeSingle();
 
     if (existing != null) {
+      debugPrint('[ensureUsuarioCreado] fila ya existe, rol=${existing['rol']}');
       return existing['rol']?.toString() ?? 'usuario';
     }
 
@@ -155,6 +166,9 @@ class AuthService {
         .trim();
     if (nombre.isEmpty) nombre = 'Usuario';
 
+    debugPrint('[ensureUsuarioCreado] insertando usuario: '
+        'id=${user.id} email=$email nombre=$nombre');
+
     try {
       await _supabase.from('usuarios').insert({
         'id': user.id,
@@ -163,7 +177,14 @@ class AuthService {
         'rol': 'usuario',
         'creditos': 0,
       });
+      debugPrint('[ensureUsuarioCreado] insert OK');
     } on PostgrestException catch (e) {
+      // Log COMPLETO del error real de Postgres para diagnosticar
+      // (RLS, NOT NULL, FK, etc.). Sin esto el error queda oculto.
+      debugPrint('[ensureUsuarioCreado] PostgrestException '
+          'code=${e.code} message=${e.message} '
+          'details=${e.details} hint=${e.hint}');
+
       // 23505 = unique_violation: la fila ya fue creada por otra ruta
       // (carrera entre el splash y el deep link de OAuth). No es un error
       // real: releemos el rol y seguimos.
@@ -177,7 +198,8 @@ class AuthService {
       }
       throw Exception(
           'No pudimos completar tu registro. Intentá de nuevo o usá otro método de inicio de sesión.');
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('[ensureUsuarioCreado] error inesperado: $e\n$st');
       throw Exception(
           'No pudimos completar tu registro. Intentá de nuevo o usá otro método de inicio de sesión.');
     }

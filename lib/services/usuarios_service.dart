@@ -30,12 +30,28 @@ class UsuariosService {
     try {
       final authUser = Supabase.instance.client.auth.currentUser;
       if (authUser == null || authUser.id != uid) return;
-      final nombre = (authUser.userMetadata?['nombre'] as String?)?.trim() ?? '';
-      final email = authUser.email ?? '';
+      final meta = authUser.userMetadata ?? {};
+
+      // Email con fallbacks: Apple solo devuelve el email la PRIMERA vez que
+      // el usuario autoriza la app; en reintentos viene null. Sin fallback el
+      // insert quedaba con email '' (o fallaba) y la fila no se creaba.
+      final email = (authUser.email ??
+              meta['email']?.toString() ??
+              '${authUser.id}@privaterelay.appleid.com')
+          .trim();
+
+      var nombre = (meta['nombre'] ??
+              meta['full_name'] ??
+              meta['name'] ??
+              email.split('@').first)
+          .toString()
+          .trim();
+      if (nombre.isEmpty) nombre = 'Usuario';
+
       await _supabase.from(AppConstants.tableUsuarios).upsert(
         {
           'id': uid,
-          'nombre': nombre.isNotEmpty ? nombre : email.split('@').first,
+          'nombre': nombre,
           'email': email,
           'rol': 'usuario',
           'creditos': 0,
@@ -43,8 +59,14 @@ class UsuariosService {
         onConflict: 'id',
         ignoreDuplicates: true,
       );
-    } catch (_) {
-      // Silenciar — el trigger de Supabase es la fuente de verdad.
+    } on PostgrestException catch (e) {
+      // Antes se silenciaba todo. Ahora logueamos el error real de Postgres
+      // (RLS, NOT NULL, etc.) para poder diagnosticar fallos de alta.
+      debugPrint('[crearUsuarioSiNoExiste] PostgrestException '
+          'code=${e.code} message=${e.message} '
+          'details=${e.details} hint=${e.hint}');
+    } catch (e) {
+      debugPrint('[crearUsuarioSiNoExiste] error inesperado: $e');
     }
   }
 
