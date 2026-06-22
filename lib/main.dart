@@ -16,6 +16,10 @@ import 'services/auth_service.dart';
 import 'services/notificaciones_service.dart';
 import 'widgets/connectivity_banner.dart';
 
+/// Key global del ScaffoldMessenger para poder mostrar SnackBars desde fuera
+/// del árbol de un Scaffold (p. ej. al fallar el alta tras un callback OAuth).
+final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -178,7 +182,7 @@ class _AuraAppState extends State<AuraApp> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
     try {
-      // Crear usuario si es primera vez con OAuth
+      // Crear usuario si es primera vez con OAuth (Google o Apple)
       final rol = await _authService.ensureUsuarioCreado();
       Future.delayed(const Duration(milliseconds: 200), () {
         if (!mounted) return;
@@ -190,9 +194,24 @@ class _AuraAppState extends State<AuraApp> {
           appRouter.go('/home');
         }
       });
-    } catch (_) {
+    } catch (e) {
+      // No pudimos crear/leer la fila en usuarios: cerramos la sesión a
+      // medias y mostramos un mensaje descriptivo para que reintente.
+      final msg = e.toString().replaceFirst('Exception: ', '').trim();
+      try {
+        await Supabase.instance.client.auth.signOut();
+      } catch (_) {}
       Future.delayed(const Duration(milliseconds: 200), () {
-        if (mounted) appRouter.go('/home');
+        if (!mounted) return;
+        appRouter.go('/login');
+        scaffoldMessengerKey.currentState?.showSnackBar(
+          SnackBar(
+            content: Text(msg.isNotEmpty
+                ? msg
+                : 'No pudimos completar tu registro. Intentá de nuevo o usá otro método de inicio de sesión.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       });
     }
   }
@@ -209,6 +228,7 @@ class _AuraAppState extends State<AuraApp> {
       child: MaterialApp.router(
         title: 'Aura',
         debugShowCheckedModeBanner: false,
+        scaffoldMessengerKey: scaffoldMessengerKey,
         theme: AppTheme.lightTheme,
         routerConfig: appRouter,
       ),

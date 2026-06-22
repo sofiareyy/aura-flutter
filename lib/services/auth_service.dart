@@ -115,8 +115,14 @@ class AuthService {
   }
 
   /// Verifica si el usuario existe en la tabla `usuarios`.
-  /// Si no existe (OAuth por primera vez), lo crea con datos del perfil de Google.
-  /// Devuelve el rol del usuario.
+  /// Si no existe (OAuth por primera vez con Google o Apple), lo crea con
+  /// los datos disponibles del perfil. Devuelve el rol del usuario.
+  ///
+  /// Importante (Apple): Apple solo devuelve el email la PRIMERA vez que el
+  /// usuario autoriza la app. En reintentos / re-autorizaciones `user.email`
+  /// puede venir null, lo que antes hacía fallar el insert (columna email
+  /// NOT NULL) y dejaba el registro a medias. Por eso resolvemos el email
+  /// con varios fallbacks antes de insertar.
   Future<String> ensureUsuarioCreado() async {
     final user = _supabase.auth.currentUser;
     if (user == null) throw Exception('Sin sesión activa');
@@ -131,17 +137,50 @@ class AuthService {
       return existing['rol']?.toString() ?? 'usuario';
     }
 
-    // Primera vez con OAuth: crear fila en usuarios
+    // Primera vez con OAuth: crear fila en usuarios.
     final meta = user.userMetadata ?? {};
-    final nombre = (meta['full_name'] ?? meta['name'] ?? user.email?.split('@').first ?? 'Usuario').toString().trim();
 
-    await _supabase.from('usuarios').insert({
-      'id': user.id,
-      'email': user.email,
-      'nombre': nombre,
-      'rol': 'usuario',
-      'creditos': 0,
-    });
+    // Email con fallbacks: sesión -> metadata -> relay privado de Apple.
+    final email = (user.email ??
+            meta['email']?.toString() ??
+            '${user.id}@privaterelay.appleid.com')
+        .trim();
+
+    // Nombre con fallbacks (Apple a veces solo manda full_name la 1ra vez).
+    var nombre = (meta['full_name'] ??
+            meta['name'] ??
+            meta['nombre'] ??
+            email.split('@').first)
+        .toString()
+        .trim();
+    if (nombre.isEmpty) nombre = 'Usuario';
+
+    try {
+      await _supabase.from('usuarios').insert({
+        'id': user.id,
+        'email': email,
+        'nombre': nombre,
+        'rol': 'usuario',
+        'creditos': 0,
+      });
+    } on PostgrestException catch (e) {
+      // 23505 = unique_violation: la fila ya fue creada por otra ruta
+      // (carrera entre el splash y el deep link de OAuth). No es un error
+      // real: releemos el rol y seguimos.
+      if (e.code == '23505') {
+        final row = await _supabase
+            .from('usuarios')
+            .select('rol')
+            .eq('id', user.id)
+            .maybeSingle();
+        return row?['rol']?.toString() ?? 'usuario';
+      }
+      throw Exception(
+          'No pudimos completar tu registro. Intentá de nuevo o usá otro método de inicio de sesión.');
+    } catch (_) {
+      throw Exception(
+          'No pudimos completar tu registro. Intentá de nuevo o usá otro método de inicio de sesión.');
+    }
 
     return 'usuario';
   }
