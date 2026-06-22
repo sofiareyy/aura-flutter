@@ -196,12 +196,11 @@ class AuthService {
             .maybeSingle();
         return row?['rol']?.toString() ?? 'usuario';
       }
-      throw Exception(
-          'No pudimos completar tu registro. Intentá de nuevo o usá otro método de inicio de sesión.');
+      // Incluimos el detalle real (diagnóstico temporal) para verlo en pantalla.
+      throw Exception('[${e.code}] ${e.message}');
     } catch (e, st) {
       debugPrint('[ensureUsuarioCreado] error inesperado: $e\n$st');
-      throw Exception(
-          'No pudimos completar tu registro. Intentá de nuevo o usá otro método de inicio de sesión.');
+      throw Exception(e.toString());
     }
 
     return 'usuario';

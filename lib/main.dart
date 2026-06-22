@@ -201,10 +201,25 @@ class _AuraAppState extends State<AuraApp> {
   }
 
   Future<void> _handleOAuthCallback() async {
-    // La sesión ya debería estar seteada por Supabase Flutter
-    final user = Supabase.instance.client.auth.currentUser;
+    // El deep link aura://login-callback puede llegar ANTES de que Supabase
+    // termine de canjear el code por la sesión (PKCE es asíncrono). Si leemos
+    // currentUser de inmediato puede venir null y quedaríamos trabados en la
+    // pantalla de registro sin navegar. Por eso esperamos (poll) hasta ~3s a
+    // que la sesión quede establecida.
+    User? user = Supabase.instance.client.auth.currentUser;
+    for (var i = 0; i < 20 && user == null; i++) {
+      await Future.delayed(const Duration(milliseconds: 150));
+      user = Supabase.instance.client.auth.currentUser;
+    }
     if (user == null) {
-      debugPrint('[OAuthCallback] sin usuario en sesión tras el callback');
+      debugPrint('[OAuthCallback] sesión no establecida tras esperar ~3s');
+      scaffoldMessengerKey.currentState?.showSnackBar(
+        const SnackBar(
+          content: Text(
+              'No pudimos completar el inicio de sesión con Apple. Intentá de nuevo.'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
     debugPrint('[OAuthCallback] Apple user id: ${user.id}');
@@ -225,7 +240,8 @@ class _AuraAppState extends State<AuraApp> {
       });
     } catch (e) {
       // No pudimos crear/leer la fila en usuarios: cerramos la sesión a
-      // medias y mostramos un mensaje descriptivo para que reintente.
+      // medias y mostramos el error REAL en pantalla (diagnóstico) para
+      // poder ver exactamente qué falla sin necesidad de logs por cable.
       debugPrint('[OAuthCallback] fallo al crear usuario: $e');
       final msg = e.toString().replaceFirst('Exception: ', '').trim();
       try {
@@ -236,10 +252,9 @@ class _AuraAppState extends State<AuraApp> {
         appRouter.go('/login');
         scaffoldMessengerKey.currentState?.showSnackBar(
           SnackBar(
-            content: Text(msg.isNotEmpty
-                ? msg
-                : 'No pudimos completar tu registro. Intentá de nuevo o usá otro método de inicio de sesión.'),
+            content: Text('Registro: ${msg.isNotEmpty ? msg : 'error desconocido'}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 10),
           ),
         );
       });
