@@ -51,7 +51,7 @@ class AuthService {
           : 'aura://login-callback',
       authScreenLaunchMode: kIsWeb
           ? LaunchMode.platformDefault
-          : LaunchMode.externalApplication,
+          : LaunchMode.inAppWebView,
     );
   }
 
@@ -63,7 +63,7 @@ class AuthService {
           : 'aura://login-callback',
       authScreenLaunchMode: kIsWeb
           ? LaunchMode.platformDefault
-          : LaunchMode.externalApplication,
+          : LaunchMode.inAppWebView,
     );
   }
 
