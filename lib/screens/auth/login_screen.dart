@@ -64,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
             : 'aura://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
-            : LaunchMode.externalApplication,
+            : LaunchMode.inAppWebView,
       );
       if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -99,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
             : 'aura://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
-            : LaunchMode.externalApplication,
+            : LaunchMode.inAppWebView,
       );
       if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
