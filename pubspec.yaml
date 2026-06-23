@@ -1,7 +1,7 @@
 name: aura_app
 description: Aura - Marketplace de experiencias y fitness en Argentina
 publish_to: 'none'
-version: 1.0.0+7
+version: 1.0.0+8
 
 environment:
   sdk: ^3.11.4
@@ -33,6 +33,7 @@ dependencies:
   shared_preferences: ^2.3.3
   sentry_flutter: ^8.9.0
   sign_in_with_apple: ^6.0.0
+  crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:

@@ -252,9 +252,10 @@ class _AuraAppState extends State<AuraApp> {
         appRouter.go('/login');
         scaffoldMessengerKey.currentState?.showSnackBar(
           SnackBar(
-            content: Text('Registro: ${msg.isNotEmpty ? msg : 'error desconocido'}'),
+            content: Text(msg.isNotEmpty
+                ? msg
+                : 'No pudimos completar tu registro. Intentá de nuevo o usá otro método de inicio de sesión.'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 10),
           ),
         );
       });

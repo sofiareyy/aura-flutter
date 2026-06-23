@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -92,6 +93,23 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _loginWithApple() async {
     setState(() => _loadingApple = true);
     try {
+      // iOS: flujo NATIVO (hoja de Apple, sin navegador ni redirect).
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        await _authService.signInWithAppleNative();
+        if (!mounted) return;
+        final rol = await _authService.ensureUsuarioCreado();
+        if (!mounted) return;
+        if (rol == 'estudio' || rol == 'admin_estudio') {
+          context.go('/estudio/dashboard');
+        } else if (rol == 'admin') {
+          context.go('/admin/dashboard');
+        } else {
+          context.go('/home');
+        }
+        return;
+      }
+
+      // Web / Android: OAuth web (main.dart maneja el callback).
       final launched = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.apple,
         redirectTo: kIsWeb
@@ -112,6 +130,18 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       // launched == true: el navegador abrió Apple; main.dart maneja el
       // callback aura://login-callback y resuelve rol + redirect.
+    } on SignInWithAppleAuthorizationException catch (e) {
+      // El usuario canceló la hoja de Apple: no es un error.
+      if (!mounted) return;
+      if (e.code != AuthorizationErrorCode.canceled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo iniciar sesión con Apple.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      setState(() => _loadingApple = false);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

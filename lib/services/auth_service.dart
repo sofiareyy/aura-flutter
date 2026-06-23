@@ -1,4 +1,9 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -65,6 +70,66 @@ class AuthService {
           ? LaunchMode.platformDefault
           : LaunchMode.inAppWebView,
     );
+  }
+
+  /// Login NATIVO con Apple (iOS). Usa la hoja nativa de Sign in with Apple y
+  /// canjea el id_token directamente con Supabase (signInWithIdToken), sin
+  /// navegador ni redirect. Evita el problema del flujo OAuth web por
+  /// SFSafariViewController (que no podía volver a la app por aura://) y no
+  /// depende del client secret web de Apple.
+  ///
+  /// Requisito en Supabase: el proveedor Apple debe tener el bundle id
+  /// `app.somosaura.aura` en los Client IDs autorizados.
+  Future<AuthResponse> signInWithAppleNative() async {
+    // Nonce: el crudo se manda a Supabase; el hasheado (sha256) a Apple.
+    final rawNonce = _generateNonce();
+    final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+
+    final credential = await SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+      nonce: hashedNonce,
+    );
+
+    final idToken = credential.identityToken;
+    if (idToken == null) {
+      throw const AuthException('No se recibió el token de identidad de Apple.');
+    }
+
+    final response = await _supabase.auth.signInWithIdToken(
+      provider: OAuthProvider.apple,
+      idToken: idToken,
+      nonce: rawNonce,
+    );
+
+    // El nombre solo lo manda Apple la PRIMERA vez que el usuario autoriza.
+    // Lo guardamos en la metadata para que ensureUsuarioCreado lo use.
+    final fullName = [credential.givenName, credential.familyName]
+        .whereType<String>()
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .join(' ');
+    if (fullName.isNotEmpty) {
+      try {
+        await _supabase.auth.updateUser(
+          UserAttributes(data: {'full_name': fullName}),
+        );
+      } catch (_) {
+        // No crítico: si falla, ensureUsuarioCreado cae al fallback de nombre.
+      }
+    }
+
+    return response;
+  }
+
+  String _generateNonce([int length = 32]) {
+    const charset =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+    return List.generate(
+        length, (_) => charset[random.nextInt(charset.length)]).join();
   }
 
   /// Detecta si el usuario logueado es admin de al menos un estudio
@@ -196,11 +261,12 @@ class AuthService {
             .maybeSingle();
         return row?['rol']?.toString() ?? 'usuario';
       }
-      // Incluimos el detalle real (diagnóstico temporal) para verlo en pantalla.
-      throw Exception('[${e.code}] ${e.message}');
+      throw Exception(
+          'No pudimos completar tu registro. Intentá de nuevo o usá otro método de inicio de sesión.');
     } catch (e, st) {
       debugPrint('[ensureUsuarioCreado] error inesperado: $e\n$st');
-      throw Exception(e.toString());
+      throw Exception(
+          'No pudimos completar tu registro. Intentá de nuevo o usá otro método de inicio de sesión.');
     }
 
     return 'usuario';
