@@ -64511,7 +64511,7 @@ p=4
 k=$.bk().b
 k===$&&A.b()
 s=7
-return A.c(A.xy(k.gc_(),B.Q5,B.fe,"https://somosauraar.netlify.app"),$async$Kz)
+return A.c(A.xy(k.gc_(),B.Q5,B.fe,"https://sofiareyy.github.io/aura-flutter"),$async$Kz)
 case 7:m=b
 if(!m&&n.c!=null){n.c.M(t.q).f.aD(B.VE)
 n.u(new A.b8P(n))}p=2
@@ -64538,7 +64538,7 @@ p=4
 k=$.bk().b
 k===$&&A.b()
 s=7
-return A.c(A.xy(k.gc_(),B.Q4,B.fe,"https://somosauraar.netlify.app"),$async$Ky)
+return A.c(A.xy(k.gc_(),B.Q4,B.fe,"https://sofiareyy.github.io/aura-flutter"),$async$Ky)
 case 7:m=b
 if(!m&&n.c!=null){n.c.M(t.q).f.aD(B.VF)
 n.u(new A.b8M(n))}p=2
@@ -64789,7 +64789,7 @@ p=4
 k=$.bk().b
 k===$&&A.b()
 s=7
-return A.c(A.xy(k.gc_(),B.Q5,B.fe,"https://somosauraar.netlify.app"),$async$Kx)
+return A.c(A.xy(k.gc_(),B.Q5,B.fe,"https://sofiareyy.github.io/aura-flutter"),$async$Kx)
 case 7:m=b
 if(!m&&n.c!=null){n.c.M(t.q).f.aD(B.VE)
 n.u(new A.bgY(n))}p=2
@@ -64816,7 +64816,7 @@ p=4
 k=$.bk().b
 k===$&&A.b()
 s=7
-return A.c(A.xy(k.gc_(),B.Q4,B.fe,"https://somosauraar.netlify.app"),$async$Kw)
+return A.c(A.xy(k.gc_(),B.Q4,B.fe,"https://sofiareyy.github.io/aura-flutter"),$async$Kw)
 case 7:m=b
 if(!m&&n.c!=null){n.c.M(t.q).f.aD(B.VF)
 n.u(new A.bgV(n))}p=2
@@ -75761,7 +75761,7 @@ n=(b==null?null:b.length!==0)===!0?b:d
 m=p.c
 if(m==null){s=1
 break}s=3
-return A.c(A.fv(B.j,new A.bij(p,"\xa1Me anot\xe9 en "+a+" en "+d+"! \ud83e\udde1\n\ud83d\udcc5 "+o+"\n\ud83d\udccd "+A.r(n)+"\nReserv\xe1 en Aura: somosauraar.netlify.app"),m,!0,!0,!0,B.ip,t.H),$async$IJ)
+return A.c(A.fv(B.j,new A.bij(p,"\xa1Me anot\xe9 en "+a+" en "+d+"! \ud83e\udde1\n\ud83d\udcc5 "+o+"\n\ud83d\udccd "+A.r(n)+"\nReserv\xe1 en Aura: sofiareyy.github.io/aura-flutter"),m,!0,!0,!0,B.ip,t.H),$async$IJ)
 case 3:case 1:return A.l(q,r)}})
 return A.m($async$IJ,r)},
 xB(a){return this.aCA(a)},
