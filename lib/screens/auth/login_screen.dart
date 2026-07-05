@@ -66,6 +66,10 @@ class _LoginScreenState extends State<LoginScreen> {
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
             : LaunchMode.inAppWebView,
+        queryParams: const {
+          'prompt': 'select_account',
+          'access_type': 'offline',
+        },
       );
       if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -422,7 +426,6 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 14),
               _SocialButton(
                 label: _loadingGoogle ? 'Conectando...' : 'Continuar con Google',
-                icon: Icons.circle,
                 onTap: _loadingGoogle ? null : _loginWithGoogle,
                 loading: _loadingGoogle,
               ),
@@ -601,13 +604,11 @@ class _AppleSignInButton extends StatelessWidget {
 
 class _SocialButton extends StatelessWidget {
   final String label;
-  final IconData icon;
   final VoidCallback? onTap;
   final bool loading;
 
   const _SocialButton({
     required this.label,
-    required this.icon,
     this.onTap,
     this.loading = false,
   });
@@ -636,7 +637,11 @@ class _SocialButton extends StatelessWidget {
               : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(icon, size: 14, color: AppColors.primary),
+                    Image.asset(
+                      'assets/images/google_logo.png',
+                      width: 18,
+                      height: 18,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       label,

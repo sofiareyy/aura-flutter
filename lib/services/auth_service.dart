@@ -57,6 +57,10 @@ class AuthService {
       authScreenLaunchMode: kIsWeb
           ? LaunchMode.platformDefault
           : LaunchMode.inAppWebView,
+      queryParams: const {
+        'prompt': 'select_account',
+        'access_type': 'offline',
+      },
     );
   }
 
