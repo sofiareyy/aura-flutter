@@ -61,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final launched = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: kIsWeb
-            ? 'https://somosauraar.netlify.app'
+            ? 'https://sofiareyy.github.io/aura-flutter'
             : 'aura://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
@@ -113,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final launched = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.apple,
         redirectTo: kIsWeb
-            ? 'https://somosauraar.netlify.app'
+            ? 'https://sofiareyy.github.io/aura-flutter'
             : 'aura://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault

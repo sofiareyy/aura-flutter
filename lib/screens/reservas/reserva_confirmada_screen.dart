@@ -106,7 +106,7 @@ Future<void> _abrirShareSheet({
     final mensaje = '¡Me anoté en $className en $studioName! 🧡\n'
         '📅 $fechaStr\n'
         '📍 ${direccion?.isNotEmpty == true ? direccion : studioName}\n'
-        'Reservá en Aura: somosauraar.netlify.app';
+        'Reservá en Aura: sofiareyy.github.io/aura-flutter';
 
     if (!mounted) return;
     await showModalBottomSheet<void>(
