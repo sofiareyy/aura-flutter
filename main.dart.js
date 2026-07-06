@@ -62172,91 +62172,93 @@ UN(a){var s=a.split("-")
 return A.b6(A.eA(s[0],null),A.eA(s[1],null),1,0,0,0,0)},
 a9d(a){var s=this.UN(a)
 return A.cG("MMMM yyyy","es").by(s)},
-qs(){var s=0,r=A.n(t.H),q,p=2,o=[],n=this,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,c0,c1,c2,c3,c4,c5,c6,c7
-var $async$qs=A.j(function(c8,c9){if(c8===1){o.push(c9)
+qs(){var s=0,r=A.n(t.H),q,p=2,o=[],n=this,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,c0,c1,c2,c3,c4,c5,c6,c7,c8
+var $async$qs=A.j(function(c9,d0){if(c9===1){o.push(d0)
 s=p}for(;;)switch(s){case 0:n.u(new A.aTu(n))
 p=4
-b3=n.r
-b3===$&&A.b()
-m=n.UN(b3).e_()
-b4=n.UN(n.r)
-l=A.b6(A.b9(b4),A.bm(b4)+1,1,0,0,0,0).bX(-1e6).e_()
-b3=n.d
-b5=b3.a0("reservas").b6(0,"estudio_id, creditos_usados, clases(estudio_id)").hW("estado",["confirmada","presente"])
-b5=A.da(b5.d4(b5.cW("created_at","gte."+A.r(m))),b5.$ti.c)
+b4=n.r
+b4===$&&A.b()
+m=n.UN(b4).e_()
+b5=n.UN(n.r)
+l=A.b6(A.b9(b5),A.bm(b5)+1,1,0,0,0,0).bX(-1e6).e_()
+b4=n.d
+b6=b4.a0("reservas").b6(0,"creditos_usados, clases!reservas_clase_id_fkey(estudio_id)").hW("estado",["confirmada","presente"])
+b6=A.da(b6.d4(b6.cW("created_at","gte."+A.r(m))),b6.$ti.c)
 s=7
-return A.c(A.da(b5.d4(b5.cW("created_at","lte."+A.r(l))),b5.$ti.c),$async$qs)
-case 7:k=c9
+return A.c(A.da(b6.d4(b6.cW("created_at","lte."+A.r(l))),b6.$ti.c),$async$qs)
+case 7:k=d0
 s=8
-return A.c(b3.a0("estudios").b6(0,"id, nombre, comision_aura, fecha_inicio_cobro").ad("activo",!0).o4(0,"nombre"),$async$qs)
-case 8:j=c9
+return A.c(b4.a0("estudios").b6(0,"id, nombre, comision_aura, fecha_inicio_cobro").ad("activo",!0).o4(0,"nombre"),$async$qs)
+case 8:j=d0
 s=9
-return A.c(b3.a0("liquidaciones").dg(0).ad("mes",n.r),$async$qs)
-case 9:i=c9
-b3=t.S
-h=A.C(b3,b3)
-g=A.C(b3,b3)
-for(b5=J.aW(k);b5.A();){f=b5.gN(b5)
-b6=A.a6(J.i(f,"estudio_id"))
-e=b6==null?null:B.d.I(b6)
-if(e==null)continue
-b6=A.a6(J.i(f,"creditos_usados"))
-b7=b6==null?null:B.d.I(b6)
-d=b7==null?0:b7
-b6=J.i(h,e)
-if(b6==null)b6=0
-J.cq(h,e,b6+d)
-b6=J.i(g,e)
-if(b6==null)b6=0
-J.cq(g,e,b6+1)}c=A.C(b3,t.P)
-for(b3=J.aW(i),b5=t.N,b6=t.z;b3.A();){b=b3.gN(b3)
-b8=A.a6(J.i(b,"estudio_id"))
-a=b8==null?null:B.d.I(b8)
-if(a!=null)J.cq(c,a,A.cl(b,b5,b6))}a0=A.a([],t.Y)
-for(b3=J.aW(j);b3.A();){a1=b3.gN(b3)
-a2=B.d.I(A.db(J.i(a1,"id")))
-b9=J.i(g,a2)
-a3=b9==null?0:b9
-if(J.f(a3,0))continue
-c0=J.i(h,a2)
+return A.c(b4.a0("liquidaciones").dg(0).ad("mes",n.r),$async$qs)
+case 9:i=d0
+b4=t.S
+h=A.C(b4,b4)
+g=A.C(b4,b4)
+for(b6=J.aW(k),b7=t.h;b6.A();){f=b6.gN(b6)
+e=b7.a(J.i(f,"clases"))
+b8=e
+b8=A.a6(b8==null?null:J.i(b8,"estudio_id"))
+d=b8==null?null:B.d.I(b8)
+if(d==null)continue
+b8=A.a6(J.i(f,"creditos_usados"))
+b9=b8==null?null:B.d.I(b8)
+c=b9==null?0:b9
+b8=J.i(h,d)
+if(b8==null)b8=0
+J.cq(h,d,b8+c)
+b8=J.i(g,d)
+if(b8==null)b8=0
+J.cq(g,d,b8+1)}b=A.C(b4,t.P)
+for(b4=J.aW(i),b6=t.N,b7=t.z;b4.A();){a=b4.gN(b4)
+b8=A.a6(J.i(a,"estudio_id"))
+a0=b8==null?null:B.d.I(b8)
+if(a0!=null)J.cq(b,a0,A.cl(a,b6,b7))}a1=A.a([],t.Y)
+for(b4=J.aW(j);b4.A();){a2=b4.gN(b4)
+a3=B.d.I(A.db(J.i(a2,"id")))
+c0=J.i(g,a3)
 a4=c0==null?0:c0
-a5=a4*1000
-b8=A.a6(J.i(a1,"comision_aura"))
-c1=b8==null?null:b8
-a6=c1==null?30:c1
-b8=J.i(a1,"fecha_inicio_cobro")
-a7=b8==null?null:J.u(b8)
-a8=a7==null?null:A.bA(a7)
-if(a8!=null){b8=Date.now()
-c2=a8
-if(b8>=c2.gcE())b8=b8===c2.gcE()&&0<c2.gfE()
+if(J.f(a4,0))continue
+c1=J.i(h,a3)
+a5=c1==null?0:c1
+a6=a5*1000
+b8=A.a6(J.i(a2,"comision_aura"))
+c2=b8==null?null:b8
+a7=c2==null?30:c2
+b8=J.i(a2,"fecha_inicio_cobro")
+a8=b8==null?null:J.u(b8)
+a9=a8==null?null:A.bA(a8)
+if(a9!=null){b8=Date.now()
+c3=a9
+if(b8>=c3.gcE())b8=b8===c3.gcE()&&0<c3.gfE()
 else b8=!0}else b8=!1
-a9=b8?0:a6
-b0=B.d.aB(a5*(100-a9)/100)
-b1=J.i(c,a2)
-c2=J.i(a1,"nombre")
-b8=c2==null?null:J.u(c2)
+b0=b8?0:a7
+b1=B.d.aB(a6*(100-b0)/100)
+b2=J.i(b,a3)
+c3=J.i(a2,"nombre")
+b8=c3==null?null:J.u(c3)
 if(b8==null)b8="Estudio"
-c2=b1
-c2=c2==null?null:J.i(c2,"estado")
-if(c2==null)c2="pendiente"
-c3=b1
-c3=c3==null?null:J.i(c3,"fecha_pago")
-c4=b1
-c4=c4==null?null:J.i(c4,"comprobante_nota")
-c5=b1
-c5=c5==null?null:J.i(c5,"id")
-J.e7(a0,A.a4(["estudio_id",a2,"nombre",b8,"cantidad_reservas",a3,"monto_total",a5,"monto_pagar",b0,"comision_pct",a9,"estado",c2,"fecha_pago",c3,"comprobante_nota",c4,"liquidacion_id",c5],b5,b6))}J.o1(a0,new A.aTv())
+c3=b2
+c3=c3==null?null:J.i(c3,"estado")
+if(c3==null)c3="pendiente"
+c4=b2
+c4=c4==null?null:J.i(c4,"fecha_pago")
+c5=b2
+c5=c5==null?null:J.i(c5,"comprobante_nota")
+c6=b2
+c6=c6==null?null:J.i(c6,"id")
+J.e7(a1,A.a4(["estudio_id",a3,"nombre",b8,"cantidad_reservas",a4,"monto_total",a6,"monto_pagar",b1,"comision_pct",b0,"estado",c3,"fecha_pago",c4,"comprobante_nota",c5,"liquidacion_id",c6],b6,b7))}J.o1(a1,new A.aTv())
 if(n.c==null){s=1
-break}n.u(new A.aTw(n,a0))
+break}n.u(new A.aTw(n,a1))
 p=2
 s=6
 break
 case 4:p=3
-c7=o.pop()
-b2=A.a5(c7)
+c8=o.pop()
+b3=A.a5(c8)
 if(n.c==null){s=1
-break}n.u(new A.aTx(n,b2))
+break}n.u(new A.aTx(n,b3))
 s=6
 break
 case 3:s=2
