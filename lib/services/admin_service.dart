@@ -360,6 +360,8 @@ class AdminService {
     double? lat,
     double? lng,
     required bool activo,
+    int? comision,
+    String? fechaInicioCobro,
   }) async {
     await _client.rpc(
       'admin_upsert_estudio',
@@ -381,6 +383,8 @@ class AdminService {
         'p_lat': lat,
         'p_lng': lng,
         'p_activo': activo,
+        'p_comision': comision,
+        'p_fecha_inicio_cobro': fechaInicioCobro,
       },
     );
   }

@@ -80,9 +80,15 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
         TextEditingController(text: estudio?['lat']?.toString() ?? '');
     final lngCtrl =
         TextEditingController(text: estudio?['lng']?.toString() ?? '');
+    final comisionCtrl = TextEditingController(
+      text: (estudio?['comision_aura'] as num?)?.toInt().toString() ?? '30',
+    );
 
     String? categoria = estudio?['categoria']?.toString();
     bool activo = estudio?['activo'] as bool? ?? true;
+    DateTime? fechaInicioCobro = estudio?['fecha_inicio_cobro'] != null
+        ? DateTime.tryParse(estudio!['fecha_inicio_cobro'].toString())
+        : null;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -209,6 +215,74 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Cobros',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: comisionCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(3),
+                  ],
+                  decoration: const InputDecoration(
+                    labelText: 'Comisión (%)',
+                    helperText: 'Porcentaje que retiene Aura. Default 30.',
+                    suffixText: '%',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                InkWell(
+                  onTap: () async {
+                    final now = DateTime.now();
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: fechaInicioCobro ?? now,
+                      firstDate: DateTime(now.year - 2),
+                      lastDate: DateTime(now.year + 5),
+                      helpText: 'Fecha inicio de cobro',
+                    );
+                    if (picked != null) {
+                      setLocal(() => fechaInicioCobro = picked);
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Fecha inicio de cobro',
+                      helperText:
+                          'Antes de esta fecha Aura no cobra comisión (estudio recibe 100%).',
+                      helperMaxLines: 2,
+                      suffixIcon: fechaInicioCobro == null
+                          ? const Icon(Icons.calendar_today, size: 18)
+                          : IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () =>
+                                  setLocal(() => fechaInicioCobro = null),
+                            ),
+                    ),
+                    child: Text(
+                      fechaInicioCobro == null
+                          ? 'Sin fecha (cobra desde siempre)'
+                          : '${fechaInicioCobro!.day.toString().padLeft(2, '0')}/'
+                              '${fechaInicioCobro!.month.toString().padLeft(2, '0')}/'
+                              '${fechaInicioCobro!.year}',
+                      style: TextStyle(
+                        color: fechaInicioCobro == null
+                            ? AppColors.grey
+                            : AppColors.black,
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 10),
                 SwitchListTile(
                   value: activo,
@@ -248,6 +322,12 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
       lat: double.tryParse(latCtrl.text.replaceAll(',', '.')),
       lng: double.tryParse(lngCtrl.text.replaceAll(',', '.')),
       activo: activo,
+      comision: int.tryParse(comisionCtrl.text.trim()),
+      fechaInicioCobro: fechaInicioCobro == null
+          ? null
+          : '${fechaInicioCobro!.year}-'
+              '${fechaInicioCobro!.month.toString().padLeft(2, '0')}-'
+              '${fechaInicioCobro!.day.toString().padLeft(2, '0')}',
     );
     await _load();
   }

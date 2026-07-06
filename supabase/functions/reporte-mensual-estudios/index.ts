@@ -75,7 +75,7 @@ Deno.serve(async (req: Request) => {
   // ── Obtener estudios activos ──────────────────────────────────────────────
   const { data: estudios, error: estudiosErr } = await adminSupabase
     .from('estudios')
-    .select('id, nombre, comision_aura')
+    .select('id, nombre, comision_aura, fecha_inicio_cobro')
     .eq('activo', true)
     .order('nombre')
 
@@ -183,7 +183,12 @@ Deno.serve(async (req: Request) => {
     const reservasCobradas = reservasEstudio.filter((r) => r.estado === 'confirmada' || r.estado === 'presente')
     const creditosTotales = reservasCobradas.reduce((acc, r) => acc + ((r.creditos_usados as number) ?? 0), 0)
     const montoBruto = creditosTotales * 1000
-    const comisionPct = (estudio.comision_aura as number) ?? 30
+    // Antes de fecha_inicio_cobro Aura no cobra comisión (estudio recibe 100%).
+    // Desde esa fecha (o si no hay fecha) se aplica la comisión configurada.
+    const comisionConfig = (estudio.comision_aura as number) ?? 30
+    const fechaInicioCobro = estudio.fecha_inicio_cobro as string | null
+    const cobraComision = !fechaInicioCobro || new Date() >= new Date(fechaInicioCobro)
+    const comisionPct = cobraComision ? comisionConfig : 0
     const montoNeto = Math.round(montoBruto * (1 - comisionPct / 100))
 
     // Clase más popular

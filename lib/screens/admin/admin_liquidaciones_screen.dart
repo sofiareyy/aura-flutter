@@ -87,10 +87,10 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
           .gte('created_at', inicio)
           .lte('created_at', fin);
 
-      // 2. Traer todos los estudios activos
+      // 2. Traer todos los estudios activos (con comisión + fecha inicio cobro)
       final estudiosData = await _client
           .from('estudios')
-          .select('id, nombre')
+          .select('id, nombre, comision_aura, fecha_inicio_cobro')
           .eq('activo', true)
           .order('nombre');
 
@@ -128,7 +128,21 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
 
         final creditos = creditosPorEstudio[esId] ?? 0;
         final montoTotal = creditos * 1000;
-        final montoPagar = (montoTotal * 0.70).round();
+
+        // Comisión efectiva: antes de fecha_inicio_cobro Aura no cobra (0%),
+        // el estudio recibe el 100%. Desde esa fecha (o si no hay fecha) se
+        // aplica la comisión configurada del estudio.
+        final comisionConfig =
+            (e['comision_aura'] as num?)?.toDouble() ?? 30;
+        final fechaInicioStr = e['fecha_inicio_cobro']?.toString();
+        final fechaInicio =
+            fechaInicioStr == null ? null : DateTime.tryParse(fechaInicioStr);
+        final comisionPct =
+            (fechaInicio != null && DateTime.now().isBefore(fechaInicio))
+                ? 0.0
+                : comisionConfig;
+        final montoPagar =
+            (montoTotal * (100 - comisionPct) / 100).round();
 
         final liq = liqMap[esId];
         resultado.add({
@@ -137,6 +151,7 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
           'cantidad_reservas': cantReservas,
           'monto_total': montoTotal,
           'monto_pagar': montoPagar,
+          'comision_pct': comisionPct,
           'estado': liq?['estado'] ?? 'pendiente',
           'fecha_pago': liq?['fecha_pago'],
           'comprobante_nota': liq?['comprobante_nota'],
