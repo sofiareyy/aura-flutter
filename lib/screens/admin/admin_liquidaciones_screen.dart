@@ -79,10 +79,13 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       final inicio = _inicioMes(_mesSeleccionado).toIso8601String();
       final fin = _finMes(_mesSeleccionado).toIso8601String();
 
-      // 1. Traer reservas del mes con estudio info
+      // 1. Traer reservas del mes con el estudio (via clase). reservas no tiene
+      // columna estudio_id: se obtiene de clases.estudio_id. Join explícito con
+      // el hint de FK para que PostgREST resuelva la relación (evita PGRST200).
       final reservas = await _client
           .from('reservas')
-          .select('estudio_id, creditos_usados, clases(estudio_id)')
+          .select(
+              'creditos_usados, clases!reservas_clase_id_fkey(estudio_id)')
           .inFilter('estado', ['confirmada', 'presente'])
           .gte('created_at', inicio)
           .lte('created_at', fin);
@@ -105,7 +108,8 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       final Map<int, int> reservasPorEstudio = {};
 
       for (final r in (reservas as List)) {
-        final esId = (r['estudio_id'] as num?)?.toInt();
+        final clase = r['clases'] as Map<String, dynamic>?;
+        final esId = (clase?['estudio_id'] as num?)?.toInt();
         if (esId == null) continue;
         final cred = (r['creditos_usados'] as num?)?.toInt() ?? 0;
         creditosPorEstudio[esId] = (creditosPorEstudio[esId] ?? 0) + cred;
