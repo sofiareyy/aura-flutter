@@ -339,6 +339,8 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                             DropdownMenuItem(value: c, child: Text(c)))
                         .toList(),
                     onChanged: (v) => setLocal(() => categoria = v),
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Elegí una categoría' : null,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(

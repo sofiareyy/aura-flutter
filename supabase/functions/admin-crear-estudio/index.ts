@@ -120,15 +120,20 @@ Deno.serve(async (req: Request) => {
 
     const newUserId = created.user.id
 
-    // 5) Insertar fila en usuarios (rol 'estudio', estudio_id seteado)
-    const { error: usuarioErr } = await adminClient.from('usuarios').insert({
+    // 5) Setear la fila en usuarios como 'estudio' vinculada al estudio.
+    // OJO: el trigger `on_auth_user_created` (handle_new_user) YA insertó una
+    // fila en `usuarios` con rol 'usuario' y estudio_id NULL apenas se creo la
+    // cuenta de auth. Por eso usamos upsert onConflict 'id' (no insert): un
+    // insert chocaria con esa fila y tiraria duplicate key -> el estudio "con
+    // cuenta" fallaba siempre. El upsert actualiza esa fila a rol 'estudio'.
+    const { error: usuarioErr } = await adminClient.from('usuarios').upsert({
       id: newUserId,
       email: emailLower,
       nombre: nombreLimpio,
       rol: 'estudio',
       estudio_id: estudioId,
       creditos: 0,
-    })
+    }, { onConflict: 'id' })
 
     if (usuarioErr) {
       // rollback ambos
