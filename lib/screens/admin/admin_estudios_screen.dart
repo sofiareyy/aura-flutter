@@ -59,6 +59,60 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     }
   }
 
+  Future<void> _confirmarEliminarEstudio(Map<String, dynamic> studio) async {
+    final nombre = studio['nombre']?.toString() ?? 'este estudio';
+    final id = (studio['id'] as num?)?.toInt();
+    if (id == null) return;
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('¿Eliminar $nombre?'),
+        content: const Text(
+          'Esta acción es permanente y eliminará todas las clases asociadas.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            style: TextButton.styleFrom(foregroundColor: AppColors.grey),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.white,
+            ),
+            child: const Text('Sí, eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      await _service.eliminarEstudio(id);
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Estudio "$nombre" eliminado'),
+          backgroundColor: AppColors.black,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
   Future<void> _openForm([Map<String, dynamic>? estudio]) async {
     final nombreCtrl =
         TextEditingController(text: estudio?['nombre']?.toString() ?? '');
@@ -814,6 +868,37 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
+                              ),
+                              PopupMenuButton<String>(
+                                icon: const Icon(
+                                  Icons.more_vert,
+                                  color: AppColors.grey,
+                                ),
+                                onSelected: (value) {
+                                  if (value == 'eliminar') {
+                                    _confirmarEliminarEstudio(studio);
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem<String>(
+                                    value: 'eliminar',
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.delete_outline,
+                                          color: AppColors.error,
+                                          size: 20,
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Eliminar estudio',
+                                          style:
+                                              TextStyle(color: AppColors.error),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),

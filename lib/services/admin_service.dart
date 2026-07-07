@@ -389,6 +389,16 @@ class AdminService {
     );
   }
 
+  /// Elimina un estudio de forma permanente junto con todo lo asociado
+  /// (clases y sus reservas, liquidaciones, reseñas, etc.). El RPC verifica
+  /// que el caller sea admin.
+  Future<void> eliminarEstudio(int estudioId) async {
+    await _client.rpc(
+      'admin_delete_estudio',
+      params: {'p_estudio_id': estudioId},
+    );
+  }
+
   Future<List<Map<String, dynamic>>> listReservas({String? search}) async {
     final res = await _client.rpc(
       'admin_list_reservas',
