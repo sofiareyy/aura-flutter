@@ -16,6 +16,7 @@ import '../../services/estudios_service.dart';
 import '../../services/location_service.dart';
 import '../../services/notificaciones_service.dart';
 import '../../services/studio_geo_service.dart';
+import '../../widgets/organizadores_links.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _studioGeoService = StudioGeoService();
 
   List<Map<String, dynamic>> _proximasClases = [];
+  List<Map<String, dynamic>> _experiencias = [];
   List<Map<String, dynamic>> _sugerencias = [];
   List<Estudio> _estudios = [];
   List<String> _categorias = const ['Todos'];
@@ -144,10 +146,12 @@ class _HomeScreenState extends State<HomeScreen> {
         _clasesService.getProximasClases(limit: 50),
         _estudiosService.getCategorias(),
         _estudiosService.getEstudios(),
+        _clasesService.getProximasExperiencias(limit: 20),
       ]);
       final clases = results[0] as List<Map<String, dynamic>>;
       final categorias = results[1] as List<String>;
       final estudios = results[2] as List<Estudio>;
+      final experiencias = results[3] as List<Map<String, dynamic>>;
       clases.sort((a, b) {
         final fechaA = DateTime.tryParse(a['fecha']?.toString() ?? '');
         final fechaB = DateTime.tryParse(b['fecha']?.toString() ?? '');
@@ -159,6 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         setState(() {
           _proximasClases = clases;
+          _experiencias = experiencias;
           _estudios = estudios;
           _categorias = categorias;
           if (!_categorias.contains(_categoriaSeleccionada)) {
@@ -609,6 +614,64 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
+                // ── Experiencias (workshops / eventos próximos) ──────────────
+                if (_experiencias.isNotEmpty) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'EXPERIENCIAS',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  letterSpacing: 0.8,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          GestureDetector(
+                            onTap: () => context.go('/explorar'),
+                            child: const Text(
+                              'Ver todas',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 340,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: _experiencias.length,
+                        itemBuilder: (context, index) {
+                          final exp = _experiencias[index];
+                          return SizedBox(
+                            width: 300,
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 14),
+                              child: _HomeExperienceCard(
+                                clase: exp,
+                                onTap: () =>
+                                    context.push('/clase/${exp['id']}'),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
@@ -1426,6 +1489,168 @@ class _HomeNearbyClassCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Card grande para la sección "Experiencias" (workshops / eventos).
+/// Imagen más alta, badge "EVENTO" naranja y organizadores clickeables.
+class _HomeExperienceCard extends StatelessWidget {
+  final Map<String, dynamic> clase;
+  final VoidCallback onTap;
+
+  const _HomeExperienceCard({
+    required this.clase,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final estudio = clase['estudios'] as Map<String, dynamic>?;
+    final fecha = clase['fecha'] != null
+        ? DateTime.tryParse(clase['fecha'].toString())
+        : null;
+    final imageUrl = (clase['imagen_url'] ?? estudio?['foto_url'])?.toString();
+    final organizadores = (clase['organizadores'] as List?) ?? const [];
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.grey.withValues(alpha: 0.14)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                    child: SizedBox(
+                      height: 180,
+                      width: double.infinity,
+                      child: _HomeClassImage(imageUrl: imageUrl),
+                    ),
+                  ),
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'EVENTO',
+                        style: TextStyle(
+                          color: AppColors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            (clase['nombre'] ?? 'Evento').toString(),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.black,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(9999),
+                          ),
+                          child: Text(
+                            '${clase['creditos'] ?? 0} cr',
+                            style: const TextStyle(
+                              color: AppColors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      estudio?['nombre']?.toString() ?? 'Estudio',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.grey,
+                        fontSize: 13,
+                      ),
+                    ),
+                    if (organizadores.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      OrganizadoresLinks(organizadores: organizadores),
+                    ],
+                    if (fecha != null) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.access_time_rounded,
+                            size: 14,
+                            color: AppColors.grey,
+                          ),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              '${DateFormat('EEE d MMM', 'es').format(fecha)} · ${DateFormat('HH:mm').format(fecha)} hs',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.grey,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

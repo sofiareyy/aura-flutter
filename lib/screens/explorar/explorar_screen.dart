@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/organizadores_links.dart';
 import '../../models/estudio.dart';
 import '../../providers/app_provider.dart';
 import '../../services/clases_service.dart';
@@ -940,6 +941,8 @@ class _ResultCard extends StatelessWidget {
     final barrio = (estudio?['barrio'] ?? '').toString().toUpperCase();
     final imageUrl = (clase['imagen_url'] ?? estudio?['foto_url'])?.toString();
     final tipoPrecio = clase['tipo_precio']?.toString();
+    final esWorkshop = clase['tipo']?.toString() == 'workshop';
+    final organizadores = (clase['organizadores'] as List?) ?? const [];
 
     return Material(
       color: Colors.transparent,
@@ -990,7 +993,12 @@ class _ResultCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (tipoPrecio == 'pico')
+                          if (esWorkshop)
+                            const _PriceBadge(
+                              text: 'EVENTO',
+                              color: AppColors.primary,
+                            )
+                          else if (tipoPrecio == 'pico')
                             _PriceBadge(
                               text: '⚡ POPULAR',
                               color: Color(0xFFE8763A),
@@ -1016,15 +1024,18 @@ class _ResultCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        estudio?['direccion']?.toString() ?? 'Malabia 1510',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFFA49B94),
-                          fontSize: 12,
+                      if (esWorkshop && organizadores.isNotEmpty)
+                        OrganizadoresLinks(organizadores: organizadores)
+                      else
+                        Text(
+                          estudio?['direccion']?.toString() ?? 'Malabia 1510',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFA49B94),
+                            fontSize: 12,
+                          ),
                         ),
-                      ),
                       const Spacer(),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,

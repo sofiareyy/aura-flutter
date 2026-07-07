@@ -109,17 +109,18 @@ Deno.serve(async (req: Request) => {
   // ── Obtener clases del mes anterior (para hora pico) ──────────────────────
   const { data: clasesDelMes } = await adminSupabase
     .from('clases')
-    .select('id, nombre, estudio_id, fecha')
+    .select('id, nombre, estudio_id, fecha, tipo')
     .gte('fecha', inicioMesAnterior)
     .lte('fecha', finMesAnterior)
 
-  const claseMap: Record<number, { nombre: string; estudio_id: number; hora: number }> = {}
+  const claseMap: Record<number, { nombre: string; estudio_id: number; hora: number; tipo: string }> = {}
   for (const c of (clasesDelMes ?? [])) {
     const dt = new Date(c.fecha as string)
     claseMap[c.id as number] = {
       nombre: c.nombre as string,
       estudio_id: c.estudio_id as number,
       hora: dt.getHours(),
+      tipo: (c.tipo as string) ?? 'clase',
     }
   }
 
@@ -183,13 +184,30 @@ Deno.serve(async (req: Request) => {
     const reservasCobradas = reservasEstudio.filter((r) => r.estado === 'confirmada' || r.estado === 'presente')
     const creditosTotales = reservasCobradas.reduce((acc, r) => acc + ((r.creditos_usados as number) ?? 0), 0)
     const montoBruto = creditosTotales * 1000
+    // Separar créditos de workshops (comisión fija 15%) de clases normales
+    // (comisión configurada del estudio, ~30%).
+    let credWorkshop = 0
+    let credNormal = 0
+    for (const r of reservasCobradas) {
+      const cred = (r.creditos_usados as number) ?? 0
+      if (claseMap[r.clase_id as number]?.tipo === 'workshop') {
+        credWorkshop += cred
+      } else {
+        credNormal += cred
+      }
+    }
     // Antes de fecha_inicio_cobro Aura no cobra comisión (estudio recibe 100%).
     // Desde esa fecha (o si no hay fecha) se aplica la comisión configurada.
     const comisionConfig = (estudio.comision_aura as number) ?? 30
     const fechaInicioCobro = estudio.fecha_inicio_cobro as string | null
     const cobraComision = !fechaInicioCobro || new Date() >= new Date(fechaInicioCobro)
-    const comisionPct = cobraComision ? comisionConfig : 0
-    const montoNeto = Math.round(montoBruto * (1 - comisionPct / 100))
+    const comisionNormal = cobraComision ? comisionConfig : 0
+    const comisionWorkshop = cobraComision ? 15 : 0
+    const comisionPct = comisionNormal
+    const montoNeto = Math.round(
+      (credNormal * 1000) * (1 - comisionNormal / 100) +
+      (credWorkshop * 1000) * (1 - comisionWorkshop / 100),
+    )
 
     // Clase más popular
     const reservasPorClase: Record<number, number> = {}

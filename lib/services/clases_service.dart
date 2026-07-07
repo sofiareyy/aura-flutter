@@ -18,8 +18,29 @@ class ClasesService {
     final clases = await _supabase
         .from(AppConstants.tableClases)
         .select()
+        // Excluir workshops/eventos: van en su propia sección "Experiencias".
+        .neq('tipo', 'workshop')
         .gte('fecha', _toSupaDate(ahora))
         .lte('fecha', _toSupaDate(semanasAdelante))
+        .order('fecha', ascending: true)
+        .range(offset, offset + limit - 1);
+    final withEstudios =
+        await _attachEstudios(List<Map<String, dynamic>>.from(clases as List));
+    return _attachOcupacion(withEstudios);
+  }
+
+  /// Próximos workshops / eventos (tipo = 'workshop'), ordenados por fecha
+  /// ascendente. Ventana más amplia porque los eventos suelen ser más lejanos.
+  Future<List<Map<String, dynamic>>> getProximasExperiencias(
+      {int limit = 20, int offset = 0}) async {
+    final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
+    final hasta = ahora.add(const Duration(days: 90));
+    final clases = await _supabase
+        .from(AppConstants.tableClases)
+        .select()
+        .eq('tipo', 'workshop')
+        .gte('fecha', _toSupaDate(ahora))
+        .lte('fecha', _toSupaDate(hasta))
         .order('fecha', ascending: true)
         .range(offset, offset + limit - 1);
     final withEstudios =

@@ -85,7 +85,7 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       final reservas = await _client
           .from('reservas')
           .select(
-              'creditos_usados, clases!reservas_clase_id_fkey(estudio_id)')
+              'creditos_usados, clases!reservas_clase_id_fkey(estudio_id, tipo)')
           .inFilter('estado', ['confirmada', 'presente'])
           .gte('created_at', inicio)
           .lte('created_at', fin);
@@ -103,8 +103,10 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
           .select()
           .eq('mes', _mesSeleccionado);
 
-      // 4. Agrupar reservas por estudio
-      final Map<int, int> creditosPorEstudio = {};
+      // 4. Agrupar reservas por estudio, separando clases normales (comisión
+      // del estudio, ~30%) de workshops/eventos (comisión fija 15%).
+      final Map<int, int> creditosNormalPorEstudio = {};
+      final Map<int, int> creditosWorkshopPorEstudio = {};
       final Map<int, int> reservasPorEstudio = {};
 
       for (final r in (reservas as List)) {
@@ -112,7 +114,14 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
         final esId = (clase?['estudio_id'] as num?)?.toInt();
         if (esId == null) continue;
         final cred = (r['creditos_usados'] as num?)?.toInt() ?? 0;
-        creditosPorEstudio[esId] = (creditosPorEstudio[esId] ?? 0) + cred;
+        final esWorkshop = clase?['tipo']?.toString() == 'workshop';
+        if (esWorkshop) {
+          creditosWorkshopPorEstudio[esId] =
+              (creditosWorkshopPorEstudio[esId] ?? 0) + cred;
+        } else {
+          creditosNormalPorEstudio[esId] =
+              (creditosNormalPorEstudio[esId] ?? 0) + cred;
+        }
         reservasPorEstudio[esId] = (reservasPorEstudio[esId] ?? 0) + 1;
       }
 
@@ -130,23 +139,28 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
         final cantReservas = reservasPorEstudio[esId] ?? 0;
         if (cantReservas == 0) continue;
 
-        final creditos = creditosPorEstudio[esId] ?? 0;
+        final credNormal = creditosNormalPorEstudio[esId] ?? 0;
+        final credWorkshop = creditosWorkshopPorEstudio[esId] ?? 0;
+        final creditos = credNormal + credWorkshop;
         final montoTotal = creditos * 1000;
 
         // Comisión efectiva: antes de fecha_inicio_cobro Aura no cobra (0%),
-        // el estudio recibe el 100%. Desde esa fecha (o si no hay fecha) se
-        // aplica la comisión configurada del estudio.
+        // el estudio recibe el 100%. Desde esa fecha (o si no hay fecha):
+        //  - clases normales: comisión configurada del estudio (~30%)
+        //  - workshops/eventos: comisión fija 15%
         final comisionConfig =
             (e['comision_aura'] as num?)?.toDouble() ?? 30;
         final fechaInicioStr = e['fecha_inicio_cobro']?.toString();
         final fechaInicio =
             fechaInicioStr == null ? null : DateTime.tryParse(fechaInicioStr);
-        final comisionPct =
-            (fechaInicio != null && DateTime.now().isBefore(fechaInicio))
-                ? 0.0
-                : comisionConfig;
-        final montoPagar =
-            (montoTotal * (100 - comisionPct) / 100).round();
+        final cobraComision =
+            !(fechaInicio != null && DateTime.now().isBefore(fechaInicio));
+        final comisionNormal = cobraComision ? comisionConfig : 0.0;
+        final comisionWorkshop = cobraComision ? 15.0 : 0.0;
+        final montoPagar = ((credNormal * 1000) * (100 - comisionNormal) / 100 +
+                (credWorkshop * 1000) * (100 - comisionWorkshop) / 100)
+            .round();
+        final comisionPct = comisionNormal;
 
         final liq = liqMap[esId];
         resultado.add({

@@ -312,6 +312,13 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
       'reserva_cierre_minutos':
           (payload['reserva_cierre_minutos'] as num?)?.toInt() ?? 0,
     };
+    // Tipo: 'clase' (normal) o 'workshop' (evento). Si es workshop se guardan
+    // los organizadores [{nombre, instagram}].
+    final tipo = payload['tipo']?.toString();
+    if (tipo == 'workshop') {
+      insertPayload['tipo'] = 'workshop';
+      insertPayload['organizadores'] = payload['organizadores'] ?? const [];
+    }
     final categoria = payload['categoria']?.toString();
     if (categoria != null && categoria.trim().isNotEmpty) {
       insertPayload['categoria'] = categoria;

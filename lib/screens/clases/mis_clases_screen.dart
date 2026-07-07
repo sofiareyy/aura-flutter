@@ -856,6 +856,30 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     TimeOfDay t = TimeOfDay(hour: int.tryParse(hh.first) ?? 8, minute: int.tryParse(hh.length > 1 ? hh[1] : '0') ?? 0);
     int dur = (item?['duracion_min'] as num?)?.toInt() ?? 60;
     String? cat = item?['categoria']?.toString();
+    // Tipo de clase: 'clase' normal o 'workshop' (evento). Solo elegible al
+    // crear una clase individual (no en horarios fijos ni edición).
+    String tipo = item?['tipo']?.toString() ?? 'clase';
+    // Organizadores del workshop: filas de {nombre, instagram}.
+    final orgNombreCtrls = <TextEditingController>[];
+    final orgInstaCtrls = <TextEditingController>[];
+    for (final o in (item?['organizadores'] as List?) ?? const []) {
+      final m = o as Map?;
+      orgNombreCtrls
+          .add(TextEditingController(text: m?['nombre']?.toString() ?? ''));
+      orgInstaCtrls
+          .add(TextEditingController(text: m?['instagram']?.toString() ?? ''));
+    }
+    if (orgNombreCtrls.isEmpty) {
+      orgNombreCtrls.add(TextEditingController());
+      orgInstaCtrls.add(TextEditingController());
+    }
+    void disposeAll() {
+      n.dispose(); i.dispose(); iDesc.dispose(); incluye.dispose();
+      imagenUrl.dispose(); galeria.dispose(); s.dispose(); c.dispose();
+      cr.dispose();
+      for (final x in orgNombreCtrls) { x.dispose(); }
+      for (final x in orgInstaCtrls) { x.dispose(); }
+    }
     if (!mounted) return;
     bool showExtraFields = false;
     final ok = await showModalBottomSheet<bool>(
@@ -932,6 +956,54 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
+                            _SectionCard(
+                              title: 'Tipo',
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _TipoOption(
+                                        label: 'Clase',
+                                        icon: Icons.fitness_center_rounded,
+                                        selected: tipo == 'clase',
+                                        onTap: () =>
+                                            setD(() => tipo = 'clase'),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: _TipoOption(
+                                        label: 'Workshop/Evento',
+                                        icon: Icons.celebration_rounded,
+                                        selected: tipo == 'workshop',
+                                        onTap: () => setD(() {
+                                          tipo = 'workshop';
+                                          // duración por defecto para eventos
+                                          if (![60, 90, 120, 150, 180, 240]
+                                              .contains(dur)) {
+                                            dur = 120;
+                                          }
+                                        }),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (tipo == 'workshop') ...[
+                                  const SizedBox(height: 10),
+                                  const Text(
+                                    'Comisión de Aura para eventos: 15% '
+                                    '(en vez del 30% de clases). Precio libre '
+                                    'en créditos.',
+                                    style: TextStyle(
+                                      color: AppColors.grey,
+                                      fontSize: 12,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 12),
                           ],
                           // Card 1: Información básica
                           _SectionCard(
@@ -1004,16 +1076,14 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               _AuraDropdown<int>(
                                 label: 'Duración',
                                 value: dur,
-                                items: const [
-                                  DropdownMenuItem(
-                                      value: 45, child: Text('45 min')),
-                                  DropdownMenuItem(
-                                      value: 60, child: Text('60 min')),
-                                  DropdownMenuItem(
-                                      value: 75, child: Text('75 min')),
-                                  DropdownMenuItem(
-                                      value: 90, child: Text('90 min')),
-                                ],
+                                items: (tipo == 'workshop'
+                                        ? const [60, 90, 120, 150, 180, 240]
+                                        : const [45, 60, 75, 90])
+                                    .map((m) => DropdownMenuItem(
+                                          value: m,
+                                          child: Text(_durLabel(m)),
+                                        ))
+                                    .toList(),
                                 onChanged: (v) => setD(() => dur = v ?? dur),
                               ),
                             ],
@@ -1079,20 +1149,103 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   onChanged: (v) => setD(() => cat = v),
                                 ),
                               const SizedBox(height: 12),
-                              _PricingPreview(
-                                estudio: _estudio,
-                                hora: '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
-                                dia: edit ? d : fecha.weekday,
-                                categoria: cat,
-                                onComputed: (creditos) {
-                                  if (cr.text != creditos.toString()) {
-                                    cr.text = creditos.toString();
-                                  }
-                                },
-                              ),
+                              if (tipo == 'workshop')
+                                _AuraTextField(
+                                  controller: cr,
+                                  label: 'Precio en créditos',
+                                  hint: '30',
+                                  keyboardType: TextInputType.number,
+                                )
+                              else
+                                _PricingPreview(
+                                  estudio: _estudio,
+                                  hora: '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
+                                  dia: edit ? d : fecha.weekday,
+                                  categoria: cat,
+                                  onComputed: (creditos) {
+                                    if (cr.text != creditos.toString()) {
+                                      cr.text = creditos.toString();
+                                    }
+                                  },
+                                ),
                             ],
                           ),
                           const SizedBox(height: 12),
+                          if (tipo == 'workshop') ...[
+                            _SectionCard(
+                              title: 'Organizadores',
+                              children: [
+                                const Text(
+                                  'Nombre + Instagram de cada organizador/a. '
+                                  'Los @ se muestran clickeables en la app.',
+                                  style: TextStyle(
+                                    color: AppColors.grey,
+                                    fontSize: 12,
+                                    height: 1.35,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                for (int idx = 0;
+                                    idx < orgNombreCtrls.length;
+                                    idx++) ...[
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.end,
+                                    children: [
+                                      Expanded(
+                                        child: _AuraTextField(
+                                          controller: orgNombreCtrls[idx],
+                                          label: 'Nombre',
+                                          hint: 'Citra Barre',
+                                        ),
+                                      ),
+                                      if (orgNombreCtrls.length > 1)
+                                        IconButton(
+                                          onPressed: () => setD(() {
+                                            orgNombreCtrls
+                                                .removeAt(idx)
+                                                .dispose();
+                                            orgInstaCtrls
+                                                .removeAt(idx)
+                                                .dispose();
+                                          }),
+                                          icon: const Icon(
+                                            Icons.remove_circle_outline,
+                                            color: AppColors.error,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _AuraTextField(
+                                    controller: orgInstaCtrls[idx],
+                                    label: 'Instagram',
+                                    hint: '@citrabarre',
+                                  ),
+                                  const SizedBox(height: 14),
+                                ],
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: TextButton.icon(
+                                    onPressed: () => setD(() {
+                                      orgNombreCtrls
+                                          .add(TextEditingController());
+                                      orgInstaCtrls
+                                          .add(TextEditingController());
+                                    }),
+                                    icon: const Icon(Icons.add_rounded,
+                                        color: AppColors.primary),
+                                    label: const Text(
+                                      'Agregar organizador/a',
+                                      style:
+                                          TextStyle(color: AppColors.primary),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                          ],
                           // Card 5: Detalles adicionales (colapsable)
                           _CollapsibleSectionCard(
                             title: 'Detalles adicionales',
@@ -1210,11 +1363,21 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       }),
     );
     if (ok != true) {
-      n.dispose(); i.dispose(); iDesc.dispose(); incluye.dispose(); imagenUrl.dispose(); galeria.dispose(); s.dispose(); c.dispose(); cr.dispose(); return;
+      disposeAll(); return;
     }
     if (n.text.trim().isEmpty) {
       messenger.showSnackBar(const SnackBar(content: Text('Completá al menos el nombre de la clase')));
-      n.dispose(); i.dispose(); iDesc.dispose(); incluye.dispose(); imagenUrl.dispose(); galeria.dispose(); s.dispose(); c.dispose(); cr.dispose(); return;
+      disposeAll(); return;
+    }
+    // Organizadores (solo workshops): filas con nombre y/o instagram cargados.
+    final organizadores = <Map<String, String>>[];
+    if (tipo == 'workshop') {
+      for (var k = 0; k < orgNombreCtrls.length; k++) {
+        final nm = orgNombreCtrls[k].text.trim();
+        final ig = orgInstaCtrls[k].text.trim().replaceFirst('@', '');
+        if (nm.isEmpty && ig.isEmpty) continue;
+        organizadores.add({'nombre': nm, 'instagram': ig});
+      }
     }
     final payload = {
       'nombre': n.text.trim(),
@@ -1233,6 +1396,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       'galeria_urls': _parseGaleria(galeria.text),
       'sala': s.text.trim().isEmpty ? null : s.text.trim(),
       'activo': item?['activo'] ?? true,
+      'tipo': tipo,
+      if (tipo == 'workshop') 'organizadores': organizadores,
       if (cat != null) 'categoria': cat,
     };
     try {
@@ -1276,8 +1441,14 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         _error = e.toString();
       });
     } finally {
-      n.dispose(); i.dispose(); iDesc.dispose(); incluye.dispose(); imagenUrl.dispose(); galeria.dispose(); s.dispose(); c.dispose(); cr.dispose();
+      disposeAll();
     }
+  }
+
+  String _durLabel(int min) {
+    if (min % 60 == 0) return '${min ~/ 60} h';
+    if (min > 60) return '${min ~/ 60} h ${min % 60} min';
+    return '$min min';
   }
 
   Future<void> _openGridForm() async {
@@ -4236,6 +4407,55 @@ const _kFieldFill = Color(0xFFF7F5F2);
 const _kCardShadow = [
   BoxShadow(color: Color(0x08000000), blurRadius: 12, offset: Offset(0, 2)),
 ];
+
+/// Botón de selección de tipo de clase (Clase vs Workshop/Evento).
+class _TipoOption extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  const _TipoOption({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primaryLight : AppColors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? AppColors.primary : const Color(0xFFE0DAD3),
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon,
+                color: selected ? AppColors.primary : AppColors.grey,
+                size: 22),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: selected ? AppColors.primary : AppColors.grey,
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _SectionCard extends StatelessWidget {
   final String title;
