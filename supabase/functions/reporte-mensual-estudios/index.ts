@@ -85,26 +85,21 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── Obtener reservas del mes anterior ─────────────────────────────────────
+  // OJO: la tabla `reservas` NO tiene columna estudio_id. El estudio se obtiene
+  // vía clase: reservas.clase_id -> clases.estudio_id (ver claseEstudioMap).
   const { data: reservasMesAnterior } = await adminSupabase
     .from('reservas')
-    .select('estudio_id, creditos_usados, estado, clase_id, usuario_id, created_at')
+    .select('creditos_usados, estado, clase_id, usuario_id, created_at')
     .gte('created_at', inicioMesAnterior)
     .lte('created_at', finMesAnterior)
 
   // ── Obtener reservas del mes dos atrás (para comparación) ─────────────────
   const { data: reservasMesDosAtras } = await adminSupabase
     .from('reservas')
-    .select('estudio_id')
+    .select('clase_id')
     .in('estado', ['confirmada', 'presente'])
     .gte('created_at', inicioMesDosAtras)
     .lte('created_at', finMesDosAtras)
-
-  const reservasDosAtrasPorEstudio: Record<number, number> = {}
-  for (const r of (reservasMesDosAtras ?? [])) {
-    const esId = r.estudio_id as number
-    if (!esId) continue
-    reservasDosAtrasPorEstudio[esId] = (reservasDosAtrasPorEstudio[esId] ?? 0) + 1
-  }
 
   // ── Obtener clases del mes anterior (para hora pico) ──────────────────────
   const { data: clasesDelMes } = await adminSupabase
@@ -122,6 +117,74 @@ Deno.serve(async (req: Request) => {
       hora: dt.getHours(),
       tipo: (c.tipo as string) ?? 'clase',
     }
+  }
+
+  // ── Reservas históricas de los usuarios del mes (para "alumnos nuevos") ────
+  // reservas.estudio_id no existe: mapeamos cada reserva a su estudio vía clase.
+  const usuariosMesAnterior = Array.from(
+    new Set((reservasMesAnterior ?? []).map((r) => r.usuario_id as string)),
+  )
+  const { data: reservasAntiguas } = usuariosMesAnterior.length > 0
+    ? await adminSupabase
+        .from('reservas')
+        .select('usuario_id, clase_id')
+        .in('usuario_id', usuariosMesAnterior)
+        .lt('created_at', inicioMesAnterior)
+        .limit(10000)
+    : { data: [] as Array<{ usuario_id: string; clase_id: number }> }
+
+  // ── Mapa clase_id -> {estudio_id, tipo} para TODAS las clases referenciadas
+  // por reservas (mes anterior, dos atrás e históricas). Es la fuente de verdad
+  // para mapear reserva -> estudio, ya que reservas no tiene estudio_id.
+  const claseIdsReferenciadas = Array.from(
+    new Set(
+      [
+        ...(reservasMesAnterior ?? []).map((r) => r.clase_id as number),
+        ...(reservasMesDosAtras ?? []).map((r) => r.clase_id as number),
+        ...((reservasAntiguas ?? []) as Array<{ clase_id: number }>).map(
+          (r) => r.clase_id as number,
+        ),
+      ].filter((id) => id != null),
+    ),
+  )
+  const claseEstudioMap: Record<number, { estudio_id: number; tipo: string }> = {}
+  // Reusar lo que ya tenemos en claseMap (clases del mes)
+  for (const [idStr, info] of Object.entries(claseMap)) {
+    claseEstudioMap[parseInt(idStr)] = {
+      estudio_id: info.estudio_id,
+      tipo: info.tipo,
+    }
+  }
+  const idsFaltantes = claseIdsReferenciadas.filter(
+    (id) => claseEstudioMap[id] === undefined,
+  )
+  if (idsFaltantes.length > 0) {
+    const { data: clasesExtra } = await adminSupabase
+      .from('clases')
+      .select('id, estudio_id, tipo')
+      .in('id', idsFaltantes)
+    for (const c of (clasesExtra ?? [])) {
+      claseEstudioMap[c.id as number] = {
+        estudio_id: c.estudio_id as number,
+        tipo: (c.tipo as string) ?? 'clase',
+      }
+    }
+  }
+
+  // Reservas dos atrás por estudio (mapeadas vía clase)
+  const reservasDosAtrasPorEstudio: Record<number, number> = {}
+  for (const r of (reservasMesDosAtras ?? [])) {
+    const esId = claseEstudioMap[r.clase_id as number]?.estudio_id
+    if (!esId) continue
+    reservasDosAtrasPorEstudio[esId] = (reservasDosAtrasPorEstudio[esId] ?? 0) + 1
+  }
+
+  // Set de "usuario|estudio" que YA eran alumnos del estudio antes del mes.
+  const alumnosPreviosPorEstudio = new Set<string>()
+  for (const r of ((reservasAntiguas ?? []) as Array<{ usuario_id: string; clase_id: number }>)) {
+    const esId = claseEstudioMap[r.clase_id as number]?.estudio_id
+    if (!esId) continue
+    alumnosPreviosPorEstudio.add(`${r.usuario_id}|${esId}`)
   }
 
   // ── Obtener emails de admins de estudios ──────────────────────────────────
@@ -149,7 +212,9 @@ Deno.serve(async (req: Request) => {
 
   for (const estudio of estudios) {
     const esId = estudio.id as number
-    const reservasEstudio = (reservasMesAnterior ?? []).filter((r) => r.estudio_id === esId)
+    const reservasEstudio = (reservasMesAnterior ?? []).filter(
+      (r) => claseEstudioMap[r.clase_id as number]?.estudio_id === esId,
+    )
 
     // Reservas completadas (presente)
     const reservasPresente = reservasEstudio.filter((r) => r.estado === 'presente')
@@ -166,19 +231,13 @@ Deno.serve(async (req: Request) => {
       continue
     }
 
-    // Alumnos nuevos: usuarios cuya primera reserva en este estudio fue este mes
+    // Alumnos nuevos: usuarios cuya primera reserva en este estudio fue este
+    // mes (no tenían reservas en el estudio antes). Se resuelve con el set
+    // precalculado alumnosPreviosPorEstudio (mapeado vía clase).
     const usuariosEsteMes = new Set(reservasEstudio.map((r) => r.usuario_id as string))
-    // Get all reservas for these users at this estudio before this month
-    const { data: reservasAntiguas } = await adminSupabase
-      .from('reservas')
-      .select('usuario_id')
-      .eq('estudio_id', esId)
-      .in('usuario_id', Array.from(usuariosEsteMes))
-      .lt('created_at', inicioMesAnterior)
-      .limit(500)
-
-    const usuariosConReservasAntiguas = new Set((reservasAntiguas ?? []).map((r) => r.usuario_id as string))
-    const alumnosNuevos = Array.from(usuariosEsteMes).filter((uid) => !usuariosConReservasAntiguas.has(uid)).length
+    const alumnosNuevos = Array.from(usuariosEsteMes).filter(
+      (uid) => !alumnosPreviosPorEstudio.has(`${uid}|${esId}`),
+    ).length
 
     // Monto neto: reservas confirmadas o presentes
     const reservasCobradas = reservasEstudio.filter((r) => r.estado === 'confirmada' || r.estado === 'presente')
@@ -190,7 +249,7 @@ Deno.serve(async (req: Request) => {
     let credNormal = 0
     for (const r of reservasCobradas) {
       const cred = (r.creditos_usados as number) ?? 0
-      if (claseMap[r.clase_id as number]?.tipo === 'workshop') {
+      if (claseEstudioMap[r.clase_id as number]?.tipo === 'workshop') {
         credWorkshop += cred
       } else {
         credNormal += cred
