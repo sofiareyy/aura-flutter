@@ -105,6 +105,8 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
         if (rol == 'estudio' || rol == 'admin_estudio') {
           context.go('/estudio/dashboard');
+        } else if (rol == 'profe') {
+          context.go('/estudio/clases');
         } else if (rol == 'admin') {
           context.go('/admin/dashboard');
         } else {
@@ -182,6 +184,8 @@ class _LoginScreenState extends State<LoginScreen> {
           final rol = data?['rol']?.toString();
           if (rol == 'estudio' || rol == 'admin_estudio') {
             destino = '/estudio/dashboard';
+          } else if (rol == 'profe') {
+            destino = '/estudio/clases';
           }
         } catch (_) {
           // Si RLS o un fallo transitorio bloquean leer el rol, no rompemos el

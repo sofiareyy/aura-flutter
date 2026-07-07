@@ -232,6 +232,8 @@ class _AuraAppState extends State<AuraApp> {
         if (!mounted) return;
         if (rol == 'estudio' || rol == 'admin_estudio') {
           appRouter.go('/estudio/dashboard');
+        } else if (rol == 'profe') {
+          appRouter.go('/estudio/clases');
         } else if (rol == 'admin') {
           appRouter.go('/admin/dashboard');
         } else {

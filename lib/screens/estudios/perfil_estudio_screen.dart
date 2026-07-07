@@ -19,6 +19,7 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
   final _adminService = EstudioAdminService();
   Map<String, dynamic>? _estudio;
   List<Map<String, dynamic>> _admins = [];
+  List<Map<String, dynamic>> _profes = [];
   bool _loading = true;
   bool _uploadingPhoto = false;
   bool _uploadingGaleria = false;
@@ -84,6 +85,7 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
           _error = 'Tu usuario no tiene un estudio asociado todavía.';
           _estudio = null;
           _admins = [];
+          _profes = [];
         });
         return;
       }
@@ -100,10 +102,19 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
           ? await _adminService.listEstudioAdmins(estudioId.toInt())
           : <Map<String, dynamic>>[];
 
+      // Profes del estudio (rol limitado), via RPC dedicado.
+      final profes = (estudioId is num)
+          ? await _adminService.listProfes(estudioId.toInt())
+          : <Map<String, dynamic>>[];
+
       if (!mounted) return;
       setState(() {
         _estudio = estudio;
-        _admins = admins;
+        // La sección "Administradores" no debe listar profes (van en su
+        // propia sección "Mis Profes").
+        _admins =
+            admins.where((a) => a['rol']?.toString() != 'profe').toList();
+        _profes = profes;
         _loading = false;
         _error = estudio == null ? 'No encontramos datos del estudio.' : null;
       });
@@ -362,6 +373,144 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
       return;
     }
 
+    await _cargar();
+  }
+
+  // ── Profes ────────────────────────────────────────────────────────────────
+
+  Future<void> _agregarProfe() async {
+    final emailCtrl = TextEditingController();
+    String? email;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Agregar profe'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'La profe ya tiene que tener una cuenta en Aura. Verá solo Mis '
+              'Clases y Asistencia (sin cobros ni configuración).',
+              style: TextStyle(color: AppColors.grey, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: emailCtrl,
+              autofocus: true,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                hintText: 'Email de la profe',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              email = emailCtrl.text.trim();
+              Navigator.pop(ctx);
+            },
+            child: const Text(
+              'Agregar',
+              style: TextStyle(color: AppColors.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+    emailCtrl.dispose();
+
+    if (email == null || email!.isEmpty || _estudio == null) return;
+
+    final estudioId = (_estudio?['id'] as num?)?.toInt();
+    if (estudioId == null) return;
+
+    String? errorMsg;
+    try {
+      final res = await _adminService.addProfe(
+        estudioId: estudioId,
+        email: email!,
+      );
+      if (res['ok'] != true) {
+        switch (res['error']?.toString()) {
+          case 'user_not_found':
+            errorMsg = 'No existe una cuenta Aura con ese email. '
+                'Pedile que se registre primero.';
+            break;
+          case 'forbidden':
+            errorMsg = 'No tenés permisos para agregar profes a este estudio.';
+            break;
+          case 'email_required':
+            errorMsg = 'Ingresá un email válido.';
+            break;
+          default:
+            errorMsg = 'No se pudo agregar la profe.';
+        }
+      }
+    } catch (e) {
+      errorMsg = 'Error: ${e.toString()}';
+    }
+
+    if (!mounted) return;
+
+    if (errorMsg != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMsg)),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Profe agregada.')),
+    );
+    await _cargar();
+  }
+
+  Future<void> _eliminarProfe(String profeId, String nombre) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar profe'),
+        content: Text('$nombre dejará de tener acceso al panel del estudio.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    final estudioId = (_estudio?['id'] as num?)?.toInt();
+    if (estudioId == null) return;
+
+    final ok = await _adminService.removeEstudioAdminAccess(
+      estudioId: estudioId,
+      usuarioId: profeId,
+    );
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo eliminar la profe.')),
+      );
+      return;
+    }
     await _cargar();
   }
 
@@ -930,6 +1079,131 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                               ),
                             ),
                             onTap: _agregarAdmin,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 4, bottom: 10),
+                      child: Text(
+                        'MIS PROFES',
+                        style: TextStyle(
+                          color: AppColors.grey,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(16, 14, 16, 4),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Las profes ven solo Mis Clases y Asistencia. '
+                                'No acceden a Cobros, Configuración ni datos '
+                                'bancarios.',
+                                style: TextStyle(
+                                  color: AppColors.grey,
+                                  fontSize: 13,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (_profes.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Todavía no agregaste profes.',
+                                  style: TextStyle(
+                                    color: AppColors.grey,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ..._profes.asMap().entries.map((entry) {
+                            final profe = entry.value;
+                            final nombre =
+                                profe['nombre']?.toString() ?? 'Sin nombre';
+                            final isLast = entry.key == _profes.length - 1;
+                            return Column(
+                              children: [
+                                ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: AppColors.primaryLight,
+                                    child: Text(
+                                      nombre.isNotEmpty
+                                          ? nombre[0].toUpperCase()
+                                          : 'P',
+                                      style: const TextStyle(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    nombre,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    profe['email']?.toString() ?? '',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.grey,
+                                    ),
+                                  ),
+                                  trailing: IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline_rounded,
+                                      color: AppColors.error,
+                                    ),
+                                    onPressed: () => _eliminarProfe(
+                                      profe['id'].toString(),
+                                      nombre,
+                                    ),
+                                  ),
+                                ),
+                                if (!isLast)
+                                  const Divider(height: 1, indent: 56),
+                              ],
+                            );
+                          }),
+                          ListTile(
+                            leading: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryLight,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.add_rounded,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            title: const Text(
+                              'Agregar profe',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
+                            onTap: _agregarProfe,
                           ),
                         ],
                       ),

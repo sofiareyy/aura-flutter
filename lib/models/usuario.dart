@@ -10,6 +10,7 @@ class Usuario {
   final String? subscriptionStatus;
   final DateTime? renewalDate;
   final int? estudioAsociadoId;
+  final String? rol;
   final bool notifReservas;
   final bool notifRecordatorios;
   final bool notifPromos;
@@ -26,6 +27,7 @@ class Usuario {
     this.subscriptionStatus,
     this.renewalDate,
     this.estudioAsociadoId,
+    this.rol,
     this.notifReservas = true,
     this.notifRecordatorios = true,
     this.notifPromos = false,
@@ -48,6 +50,7 @@ class Usuario {
           ? DateTime.tryParse(map['renewal_date'].toString())
           : null,
       estudioAsociadoId: (map['estudio_asociado_id'] as num?)?.toInt(),
+      rol: map['rol'] as String?,
       notifReservas: map['notifs_reservas'] as bool? ?? true,
       notifRecordatorios: map['notifs_recordatorios'] as bool? ?? true,
       notifPromos: map['notifs_promos'] as bool? ?? false,
@@ -92,6 +95,7 @@ class Usuario {
       subscriptionStatus: subscriptionStatus ?? this.subscriptionStatus,
       renewalDate: renewalDate ?? this.renewalDate,
       estudioAsociadoId: estudioAsociadoId ?? this.estudioAsociadoId,
+      rol: rol,
       notifReservas: notifReservas,
       notifRecordatorios: notifRecordatorios,
       notifPromos: notifPromos,

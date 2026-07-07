@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_theme.dart';
+import '../../providers/app_provider.dart';
 import '../../screens/auth/splash_screen.dart';
 import '../../screens/auth/onboarding_screen.dart';
 import '../../screens/auth/landing_screen.dart';
@@ -165,6 +167,16 @@ final appRouter = GoRouter(
       navigatorKey: _estudioNavigatorKey,
       builder: (context, state, child) {
         final loc = state.matchedLocation;
+        // Una profe solo puede ver Mis Clases y Asistencia. Si intenta entrar
+        // a otra ruta del panel (dashboard, cobros, perfil, gestión) por URL,
+        // la mandamos a sus clases.
+        final esProfe = context.watch<AppProvider>().esProfe;
+        const rutasProfe = ['/estudio/clases', '/estudio/asistencia'];
+        if (esProfe && !rutasProfe.any((p) => loc.startsWith(p))) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (context.mounted) context.go('/estudio/clases');
+          });
+        }
         return LayoutBuilder(
           builder: (ctx, constraints) {
             final isDesktop = constraints.maxWidth >= 768;
@@ -189,11 +201,51 @@ final appRouter = GoRouter(
             }
 
             // ── Mobile: bottom nav bar ──────────────────────────────────────
-            int idx = 0;
-            if (loc.startsWith('/estudio/clases')) idx = 1;
-            if (loc.startsWith('/estudio/asistencia')) idx = 2;
-            if (loc.startsWith('/estudio/cobros')) idx = 3;
-            if (loc.startsWith('/estudio/perfil')) idx = 4;
+            // La profe ve solo Clases + Asistencia; el resto ve el menú completo.
+            final navPaths = esProfe
+                ? const ['/estudio/clases', '/estudio/asistencia']
+                : const [
+                    '/estudio/dashboard',
+                    '/estudio/clases',
+                    '/estudio/asistencia',
+                    '/estudio/cobros',
+                    '/estudio/perfil',
+                  ];
+            final navItems = esProfe
+                ? const [
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.calendar_today_rounded),
+                      label: 'Clases',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.qr_code_scanner_rounded),
+                      label: 'Asistencia',
+                    ),
+                  ]
+                : const [
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.grid_view_rounded),
+                      label: 'Dashboard',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.calendar_today_rounded),
+                      label: 'Clases',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.qr_code_scanner_rounded),
+                      label: 'Asistencia',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.payments_outlined),
+                      label: 'Cobros',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.person_outline_rounded),
+                      label: 'Perfil',
+                    ),
+                  ];
+            var idx = navPaths.indexWhere((p) => loc.startsWith(p));
+            if (idx < 0) idx = 0;
             return Scaffold(
               body: child,
               bottomNavigationBar: BottomNavigationBar(
@@ -203,38 +255,8 @@ final appRouter = GoRouter(
                 backgroundColor: AppColors.white,
                 elevation: 0,
                 type: BottomNavigationBarType.fixed,
-                onTap: (i) {
-                  const paths = [
-                    '/estudio/dashboard',
-                    '/estudio/clases',
-                    '/estudio/asistencia',
-                    '/estudio/cobros',
-                    '/estudio/perfil',
-                  ];
-                  context.go(paths[i]);
-                },
-                items: const [
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.grid_view_rounded),
-                    label: 'Dashboard',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.calendar_today_rounded),
-                    label: 'Clases',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.qr_code_scanner_rounded),
-                    label: 'Asistencia',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.payments_outlined),
-                    label: 'Cobros',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.person_outline_rounded),
-                    label: 'Perfil',
-                  ),
-                ],
+                onTap: (i) => context.go(navPaths[i]),
+                items: navItems,
               ),
             );
           },

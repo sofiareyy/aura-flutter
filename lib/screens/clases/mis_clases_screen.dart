@@ -46,6 +46,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   bool _showPast = false;
   // M3: vista lista (default) vs grilla 2 col en "Clases cargadas".
   bool _gridView = false;
+  // Modo selección múltiple para cancelar varias clases a la vez.
+  bool _seleccionMultiple = false;
+  final Set<int> _seleccionadas = {};
+  bool _cancelandoLote = false;
   Map<String, dynamic>? _estudio;
   String? _error;
   String? _estudioNombre;
@@ -2314,6 +2318,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      bottomNavigationBar:
+          (_seleccionMultiple && _seleccionadas.isNotEmpty && !_showFixed)
+              ? _buildBarraCancelacion()
+              : null,
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : SafeArea(
@@ -2326,18 +2334,37 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                     Row(children: [
                       const Expanded(child: Text('Mis clases', style: TextStyle(color: AppColors.black, fontSize: 22, fontWeight: FontWeight.w700))),
                       if (_studio) ...[
-                        IconButton(
-                          onPressed: _openGridForm,
-                          icon: const Icon(Icons.grid_view_rounded),
-                          color: AppColors.primary,
-                          tooltip: 'Crear grilla',
-                        ),
-                        IconButton(
-                          onPressed: () => _openForm(),
-                          icon: const Icon(Icons.add),
-                          color: AppColors.primary,
-                          tooltip: 'Nuevo horario',
-                        ),
+                        if (!_showFixed && _seleccionMultiple)
+                          TextButton(
+                            onPressed: () => setState(() {
+                              _seleccionMultiple = false;
+                              _seleccionadas.clear();
+                            }),
+                            child: const Text('Cancelar',
+                                style: TextStyle(color: AppColors.grey)),
+                          )
+                        else ...[
+                          if (!_showFixed)
+                            IconButton(
+                              onPressed: () =>
+                                  setState(() => _seleccionMultiple = true),
+                              icon: const Icon(Icons.checklist_rounded),
+                              color: AppColors.primary,
+                              tooltip: 'Seleccionar',
+                            ),
+                          IconButton(
+                            onPressed: _openGridForm,
+                            icon: const Icon(Icons.grid_view_rounded),
+                            color: AppColors.primary,
+                            tooltip: 'Crear grilla',
+                          ),
+                          IconButton(
+                            onPressed: () => _openForm(),
+                            icon: const Icon(Icons.add),
+                            color: AppColors.primary,
+                            tooltip: 'Nuevo horario',
+                          ),
+                        ],
                       ] else
                         SizedBox(
                           height: 40,
@@ -2356,7 +2383,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
                         child: Row(children: [
-                          Expanded(child: _SegmentButton(label: 'Horarios fijos', selected: _showFixed, onTap: () => setState(() => _showFixed = true))),
+                          Expanded(child: _SegmentButton(label: 'Horarios fijos', selected: _showFixed, onTap: () => setState(() { _showFixed = true; _seleccionMultiple = false; _seleccionadas.clear(); }))),
                           Expanded(child: _SegmentButton(label: 'Clases cargadas', selected: !_showFixed, onTap: () => setState(() => _showFixed = false))),
                         ]),
                       ),
@@ -2922,22 +2949,62 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     ];
   }
 
+  void _toggleSeleccion(int? id) {
+    if (id == null) return;
+    setState(() {
+      if (_seleccionadas.contains(id)) {
+        _seleccionadas.remove(id);
+      } else {
+        _seleccionadas.add(id);
+      }
+    });
+  }
+
   Widget _buildClasesList(List<Map<String, dynamic>> clases) {
     return Column(
       children: [
         for (final c in clases)
           Padding(
             padding: const EdgeInsets.only(bottom: 14),
-            child: GestureDetector(
-              onLongPress: () => _mostrarMenuClase(c),
-              child: _StudioClassCard(
-                clase: c,
-                studioMode: true,
-                onAvisar: () => _mostrarAvisoSheet(c),
-                onMore: () => _mostrarMenuClase(c),
-                onEdit: () => _editClaseDialog(c),
-              ),
-            ),
+            child: _seleccionMultiple
+                ? Builder(builder: (_) {
+                    final id = (c['id'] as num?)?.toInt();
+                    final selected =
+                        id != null && _seleccionadas.contains(id);
+                    return GestureDetector(
+                      onTap: () => _toggleSeleccion(id),
+                      child: Row(
+                        children: [
+                          Checkbox(
+                            value: selected,
+                            activeColor: AppColors.primary,
+                            onChanged: (_) => _toggleSeleccion(id),
+                          ),
+                          Expanded(
+                            child: AbsorbPointer(
+                              child: _StudioClassCard(
+                                clase: c,
+                                studioMode: true,
+                                onAvisar: () {},
+                                onMore: () {},
+                                onEdit: () {},
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  })
+                : GestureDetector(
+                    onLongPress: () => _mostrarMenuClase(c),
+                    child: _StudioClassCard(
+                      clase: c,
+                      studioMode: true,
+                      onAvisar: () => _mostrarAvisoSheet(c),
+                      onMore: () => _mostrarMenuClase(c),
+                      onEdit: () => _editClaseDialog(c),
+                    ),
+                  ),
           ),
       ],
     );
@@ -2956,6 +3023,37 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       itemCount: clases.length,
       itemBuilder: (context, index) {
         final c = clases[index];
+        if (_seleccionMultiple) {
+          final id = (c['id'] as num?)?.toInt();
+          final selected = id != null && _seleccionadas.contains(id);
+          return GestureDetector(
+            onTap: () => _toggleSeleccion(id),
+            child: Stack(
+              children: [
+                AbsorbPointer(child: _ClaseGridCard(clase: c)),
+                Positioned(
+                  top: 6,
+                  left: 6,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: selected ? AppColors.primary : Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selected ? AppColors.primary : AppColors.grey,
+                        width: 2,
+                      ),
+                    ),
+                    child: Icon(
+                      selected ? Icons.check : Icons.circle_outlined,
+                      size: 18,
+                      color: selected ? Colors.white : Colors.transparent,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
         return GestureDetector(
           onTap: () => _mostrarMenuClase(c),
           onLongPress: () => _mostrarMenuClase(c),
@@ -3121,6 +3219,116 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         SnackBar(content: Text('No se pudo eliminar la grilla: $e')),
       );
     }
+  }
+
+  // ── Cancelación múltiple ──────────────────────────────────────────────────
+
+  Widget _buildBarraCancelacion() {
+    final n = _seleccionadas.length;
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SizedBox(
+          height: 50,
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _cancelandoLote ? null : _cancelarSeleccionadas,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: _cancelandoLote
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Icon(Icons.cancel_outlined),
+            label: Text(
+              _cancelandoLote
+                  ? 'Cancelando…'
+                  : 'Cancelar seleccionadas ($n)',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _cancelarSeleccionadas() async {
+    final ids = _seleccionadas.toList();
+    if (ids.isEmpty) return;
+    final n = ids.length;
+
+    final ok = await _confirmDialog(
+      titulo: '¿Cancelar $n clase${n != 1 ? 's' : ''}?',
+      mensaje:
+          'Los alumnos que reservaron reciben sus créditos de vuelta '
+          'automáticamente.',
+      confirmar: 'Sí, cancelar',
+    );
+    if (ok != true || !mounted) return;
+
+    setState(() => _cancelandoLote = true);
+
+    int totalDevueltos = 0;
+    int canceladas = 0;
+    for (final id in ids) {
+      final clase = _clases.firstWhere(
+        (c) => (c['id'] as num?)?.toInt() == id,
+        orElse: () => <String, dynamic>{},
+      );
+      final nom = clase['nombre']?.toString() ?? 'la clase';
+      try {
+        totalDevueltos +=
+            await _reservasService.cancelarClaseConDevolucion(id, nom);
+        canceladas++;
+      } catch (_) {}
+      // Borrado extra "por las dudas" (cancelarClaseConDevolucion ya borra la
+      // fila, pero replicamos el patrón de _eliminarClase para robustez).
+      try {
+        await _service.eliminarClaseRow(id);
+      } catch (_) {}
+    }
+
+    await _loadStudio();
+    if (!mounted) return;
+    setState(() {
+      _cancelandoLote = false;
+      _seleccionMultiple = false;
+      _seleccionadas.clear();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '$canceladas clase${canceladas != 1 ? 's' : ''} '
+          'cancelada${canceladas != 1 ? 's' : ''}'
+          '${totalDevueltos > 0 ? ', $totalDevueltos alumno${totalDevueltos != 1 ? 's' : ''} con créditos devueltos' : ''}.',
+        ),
+      ),
+    );
   }
 
   Future<bool?> _confirmDialog({

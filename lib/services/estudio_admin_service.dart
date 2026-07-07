@@ -171,6 +171,37 @@ class EstudioAdminService {
     }
   }
 
+  /// Lista las profes (rol limitado) de un estudio. Solo funciona si el caller
+  /// es admin real del estudio (validado en el RPC).
+  Future<List<Map<String, dynamic>>> listProfes(int estudioId) async {
+    try {
+      final res = await _client.rpc(
+        'studio_list_profes',
+        params: {'p_estudio_id': estudioId},
+      );
+      return List<Map<String, dynamic>>.from(res as List)
+          .map((row) => Map<String, dynamic>.from(row as Map))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Agrega una profe (por email de una cuenta Aura existente) a un estudio.
+  /// Devuelve el mapa del RPC: `{ok: bool, error?: String, user_id?: String}`.
+  Future<Map<String, dynamic>> addProfe({
+    required int estudioId,
+    required String email,
+  }) async {
+    final res = await _client.rpc(
+      'studio_add_profe',
+      params: {'p_estudio_id': estudioId, 'p_email': email.trim()},
+    );
+    return res is Map
+        ? Map<String, dynamic>.from(res)
+        : <String, dynamic>{'ok': false, 'error': 'unknown'};
+  }
+
   Future<List<Map<String, dynamic>>> getClasesDeEstudio({
     DateTime? from,
     DateTime? to,

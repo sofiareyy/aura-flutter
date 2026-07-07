@@ -28,6 +28,15 @@ class EstudioSidebar extends StatelessWidget {
     final studioName = provider.estudioAsociado?.nombre ?? 'Mi Estudio';
     final initials = _initials(studioName);
 
+    // La profe (admin de estudio con vista limitada) solo ve Mis Clases y
+    // Asistencia; sin Dashboard, Cobros, Mis Alumnos ni Perfil del estudio.
+    final items = provider.esProfe
+        ? _items
+            .where((i) =>
+                i.path == '/estudio/clases' || i.path == '/estudio/asistencia')
+            .toList()
+        : _items;
+
     return Container(
       width: 240,
       color: _kBg,
@@ -95,7 +104,7 @@ class EstudioSidebar extends StatelessWidget {
           const SizedBox(height: 8),
 
           // ── Navigation items ──────────────────────────────────────────────
-          for (final item in _items)
+          for (final item in items)
             _SidebarItem(
               item: item,
               isActive: location.startsWith(item.path),

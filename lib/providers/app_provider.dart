@@ -20,6 +20,14 @@ class AppProvider extends ChangeNotifier {
   Estudio? get estudioAsociado => _estudioAsociado;
   bool get isLoggedIn => Supabase.instance.client.auth.currentUser != null;
 
+  /// Rol global del usuario ('usuario', 'profe', 'admin_estudio', 'estudio',
+  /// 'admin'). Puede ser null mientras carga.
+  String? get rol => _usuario?.rol;
+
+  /// Una profe es un admin de estudio con vista limitada (solo Mis Clases y
+  /// Asistencia; sin Cobros, Configuración ni gestión de usuarios).
+  bool get esProfe => _usuario?.rol == 'profe';
+
   String get userId =>
       Supabase.instance.client.auth.currentUser?.id ?? '';
 

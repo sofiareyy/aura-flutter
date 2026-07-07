@@ -89,6 +89,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (!mounted) return;
         if (rol == 'estudio' || rol == 'admin_estudio') {
           context.go('/estudio/dashboard');
+        } else if (rol == 'profe') {
+          context.go('/estudio/clases');
         } else if (rol == 'admin') {
           context.go('/admin/dashboard');
         } else {
