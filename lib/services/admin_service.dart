@@ -431,6 +431,8 @@ class AdminService {
     double? lng,
     required bool activo,
     int? comision,
+    int? comisionWorkshop,
+    String? cbu,
     String? fechaInicioCobro,
   }) async {
     await _client.rpc(
@@ -454,6 +456,8 @@ class AdminService {
         'p_lng': lng,
         'p_activo': activo,
         'p_comision': comision,
+        'p_comision_workshop': comisionWorkshop,
+        'p_cbu': cbu?.trim().isEmpty == true ? null : cbu?.trim(),
         'p_fecha_inicio_cobro': fechaInicioCobro,
       },
     );

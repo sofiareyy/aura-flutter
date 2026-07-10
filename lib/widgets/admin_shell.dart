@@ -19,10 +19,8 @@ class AdminShell extends StatelessWidget {
     int currentIndex = 0;
     if (location.startsWith('/admin/estudios')) currentIndex = 1;
     if (location.startsWith('/admin/usuarios')) currentIndex = 2;
-    if (location.startsWith('/admin/reservas')) currentIndex = 3;
-    if (location.startsWith('/admin/historial')) currentIndex = 4;
-    if (location.startsWith('/admin/liquidaciones')) currentIndex = 5;
-    if (location.startsWith('/admin/config')) currentIndex = 6;
+    if (location.startsWith('/admin/pagos')) currentIndex = 3;
+    if (location.startsWith('/admin/config')) currentIndex = 4;
 
     return AdminGate(
       child: Scaffold(
@@ -37,9 +35,7 @@ class AdminShell extends StatelessWidget {
               '/admin/dashboard',
               '/admin/estudios',
               '/admin/usuarios',
-              '/admin/reservas',
-              '/admin/historial',
-              '/admin/liquidaciones',
+              '/admin/pagos',
               '/admin/config',
             ];
             context.go(paths[index]);
@@ -56,14 +52,6 @@ class AdminShell extends StatelessWidget {
             BottomNavigationBarItem(
               icon: Icon(Icons.people_outline_rounded),
               label: 'Usuarios',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long_outlined),
-              label: 'Reservas',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.history_rounded),
-              label: 'Historial',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.account_balance_wallet_outlined),

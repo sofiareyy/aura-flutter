@@ -1100,6 +1100,55 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                             const SizedBox(height: 18),
                           ],
                         ),
+                      if ((clase['descripcion']?.toString().trim() ?? '')
+                          .isNotEmpty)
+                        Column(
+                          children: [
+                            _SectionBlock(
+                              title: 'Sobre el evento',
+                              child: Text(
+                                clase['descripcion'].toString(),
+                                style: const TextStyle(
+                                  color: Color(0xFF5E584F),
+                                  fontSize: 14,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                          ],
+                        ),
+                      if ((clase['direccion']?.toString().trim() ?? '')
+                          .isNotEmpty)
+                        Column(
+                          children: [
+                            _SectionBlock(
+                              title: 'Dónde',
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.location_on_outlined,
+                                    size: 18,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      clase['direccion'].toString(),
+                                      style: const TextStyle(
+                                        color: Color(0xFF5E584F),
+                                        fontSize: 14,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                          ],
+                        ),
                       if ((clase['incluye']?.toString().trim() ?? '').isNotEmpty)
                         Column(
                           children: [

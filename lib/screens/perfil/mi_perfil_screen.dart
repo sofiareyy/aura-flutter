@@ -36,11 +36,21 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
   String? _appVersion;
   final _imagePicker = ImagePicker();
 
+  bool _editandoNombre = false;
+  bool _guardandoNombre = false;
+  final _nombreController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _cargarTodo();
     _cargarVersion();
+  }
+
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    super.dispose();
   }
 
   Future<void> _cargarVersion() async {
@@ -414,10 +424,36 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            usuario?.nombre ?? '',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          _editandoNombre
+              ? _buildNombreEditor(usuario)
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        usuario?.nombre ?? '',
+                        style: Theme.of(context).textTheme.titleMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    InkWell(
+                      onTap: () {
+                        _nombreController.text = usuario?.nombre ?? '';
+                        setState(() => _editandoNombre = true);
+                      },
+                      borderRadius: BorderRadius.circular(20),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.edit_outlined,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
           const SizedBox(height: 4),
           Text(
             usuario?.email ?? '',
@@ -444,6 +480,125 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildNombreEditor(Usuario? usuario) {
+    return Column(
+      children: [
+        TextField(
+          controller: _nombreController,
+          enabled: !_guardandoNombre,
+          textAlign: TextAlign.center,
+          textCapitalization: TextCapitalization.words,
+          style: Theme.of(context).textTheme.titleMedium,
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: 'Tu nombre',
+            filled: true,
+            fillColor: AppColors.background,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.primary),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextButton(
+              onPressed: _guardandoNombre
+                  ? null
+                  : () => setState(() => _editandoNombre = false),
+              style: TextButton.styleFrom(foregroundColor: AppColors.grey),
+              child: const Text('Cancelar'),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: _guardandoNombre ? null : _guardarNombre,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _guardandoNombre
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.white,
+                      ),
+                    )
+                  : const Text('Guardar'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _guardarNombre() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final provider = context.read<AppProvider>();
+    final userId = provider.userId;
+    final nuevoNombre = _nombreController.text.trim();
+
+    if (nuevoNombre.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('El nombre no puede estar vacío.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+    if (userId.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Iniciá sesión para editar tu nombre.')),
+      );
+      return;
+    }
+
+    setState(() => _guardandoNombre = true);
+    try {
+      await _usuariosService.updateUsuario(userId, {'nombre': nuevoNombre});
+      await provider.refrescarUsuario();
+      if (!mounted) return;
+      setState(() {
+        _editandoNombre = false;
+        _guardandoNombre = false;
+      });
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Nombre actualizado'),
+          backgroundColor: Color(0xFF2EAA63),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _guardandoNombre = false);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+              'No se pudo actualizar el nombre: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   Future<void> _seleccionarFotoPerfil() async {

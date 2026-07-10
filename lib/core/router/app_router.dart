@@ -31,10 +31,8 @@ import '../../screens/perfil/terminos_screen.dart';
 import '../../screens/perfil/privacidad_screen.dart';
 import '../../screens/admin/admin_dashboard_screen.dart';
 import '../../screens/admin/admin_estudios_screen.dart';
-import '../../screens/admin/admin_usuarios_screen.dart';
-import '../../screens/admin/admin_reservas_screen.dart';
+import '../../screens/admin/admin_usuarios_tabs_screen.dart';
 import '../../screens/admin/admin_config_screen.dart';
-import '../../screens/admin/admin_historial_screen.dart';
 import '../../screens/admin/admin_liquidaciones_screen.dart';
 import '../../screens/creditos/mis_creditos_screen.dart';
 import '../../screens/onboarding/creditos_onboarding_screen.dart';
@@ -143,22 +141,14 @@ final appRouter = GoRouter(
         ),
         GoRoute(
           path: '/admin/usuarios',
-          builder: (context, state) => const AdminUsuariosScreen(),
-        ),
-        GoRoute(
-          path: '/admin/reservas',
-          builder: (context, state) => const AdminReservasScreen(),
-        ),
-        GoRoute(
-          path: '/admin/historial',
-          builder: (context, state) => const AdminHistorialScreen(),
+          builder: (context, state) => const AdminUsuariosTabsScreen(),
         ),
         GoRoute(
           path: '/admin/config',
           builder: (context, state) => const AdminConfigScreen(),
         ),
         GoRoute(
-          path: '/admin/liquidaciones',
+          path: '/admin/pagos',
           builder: (context, state) => const AdminLiquidacionesScreen(),
         ),
       ],

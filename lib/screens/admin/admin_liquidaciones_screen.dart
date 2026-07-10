@@ -93,7 +93,7 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       // 2. Traer todos los estudios activos (con comisión + fecha inicio cobro)
       final estudiosData = await _client
           .from('estudios')
-          .select('id, nombre, comision_aura, fecha_inicio_cobro')
+          .select('id, nombre, comision_aura, comision_workshop, fecha_inicio_cobro')
           .eq('activo', true)
           .order('nombre');
 
@@ -147,16 +147,18 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
         // Comisión efectiva: antes de fecha_inicio_cobro Aura no cobra (0%),
         // el estudio recibe el 100%. Desde esa fecha (o si no hay fecha):
         //  - clases normales: comisión configurada del estudio (~30%)
-        //  - workshops/eventos: comisión fija 15%
+        //  - workshops/eventos: comisión de workshops del estudio (default 15%)
         final comisionConfig =
             (e['comision_aura'] as num?)?.toDouble() ?? 30;
+        final comisionWorkshopConfig =
+            (e['comision_workshop'] as num?)?.toDouble() ?? 15;
         final fechaInicioStr = e['fecha_inicio_cobro']?.toString();
         final fechaInicio =
             fechaInicioStr == null ? null : DateTime.tryParse(fechaInicioStr);
         final cobraComision =
             !(fechaInicio != null && DateTime.now().isBefore(fechaInicio));
         final comisionNormal = cobraComision ? comisionConfig : 0.0;
-        final comisionWorkshop = cobraComision ? 15.0 : 0.0;
+        final comisionWorkshop = cobraComision ? comisionWorkshopConfig : 0.0;
         final montoPagar = ((credNormal * 1000) * (100 - comisionNormal) / 100 +
                 (credWorkshop * 1000) * (100 - comisionWorkshop) / 100)
             .round();

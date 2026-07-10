@@ -137,6 +137,11 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     final comisionCtrl = TextEditingController(
       text: (estudio?['comision_aura'] as num?)?.toInt().toString() ?? '30',
     );
+    final comisionWorkshopCtrl = TextEditingController(
+      text: (estudio?['comision_workshop'] as num?)?.toInt().toString() ?? '15',
+    );
+    final cbuCtrl =
+        TextEditingController(text: estudio?['cbu']?.toString() ?? '');
 
     String? categoria = estudio?['categoria']?.toString();
     bool activo = estudio?['activo'] as bool? ?? true;
@@ -149,118 +154,83 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
           title: Text(estudio == null ? 'Nuevo estudio' : 'Editar estudio'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nombreCtrl,
-                  decoration: const InputDecoration(labelText: 'Nombre'),
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  value: _categories.contains(categoria) ? categoria : null,
-                  decoration: const InputDecoration(labelText: 'Categoría'),
-                  items: _categories
-                      .map(
-                        (item) => DropdownMenuItem<String>(
-                          value: item,
-                          child: Text(item),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) => categoria = value,
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: barrioCtrl,
-                  decoration: const InputDecoration(labelText: 'Barrio'),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: direccionCtrl,
-                  decoration: const InputDecoration(labelText: 'Dirección'),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: descripcionCtrl,
-                  maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'Descripción'),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: fotoCtrl,
-                  decoration: const InputDecoration(labelText: 'URL imagen'),
-                ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton(
-                    onPressed: () async {
-                      final currentUserId =
-                          Supabase.instance.client.auth.currentUser?.id ?? 'admin';
-                      final url = await _mediaUploadService.pickAndUpload(
-                        bucket: 'study-media',
-                        folder: 'logos',
-                        userId: currentUserId,
-                      );
-                      if (url != null) {
-                        fotoCtrl.text = url;
-                        setLocal(() {});
-                      }
-                    },
-                    child: const Text('Subir imagen'),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── SECCIÓN 1 — INFORMACIÓN BÁSICA ──────────────────────
+                  const _FormSectionHeader('INFORMACIÓN BÁSICA'),
+                  TextField(
+                    controller: nombreCtrl,
+                    decoration: const InputDecoration(labelText: 'Nombre'),
                   ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: instagramCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Instagram (opcional)'),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: whatsappCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'WhatsApp (opcional)'),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: webCtrl,
-                  decoration: const InputDecoration(labelText: 'Web (opcional)'),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: latCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                          signed: true,
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: descripcionCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Descripción'),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: _categories.contains(categoria) ? categoria : null,
+                    decoration: const InputDecoration(labelText: 'Categoría'),
+                    items: _categories
+                        .map(
+                          (item) => DropdownMenuItem<String>(
+                            value: item,
+                            child: Text(item),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) => categoria = value,
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: barrioCtrl,
+                    decoration: const InputDecoration(labelText: 'Barrio'),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── SECCIÓN 2 — UBICACIÓN Y CONTACTO ────────────────────
+                  const _FormSectionHeader('UBICACIÓN Y CONTACTO'),
+                  TextField(
+                    controller: direccionCtrl,
+                    decoration:
+                        const InputDecoration(labelText: 'Dirección exacta'),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: latCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                            signed: true,
+                          ),
+                          decoration:
+                              const InputDecoration(labelText: 'Latitud'),
                         ),
-                        decoration:
-                            const InputDecoration(labelText: 'Latitud'),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: lngCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                          signed: true,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: lngCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                            signed: true,
+                          ),
+                          decoration:
+                              const InputDecoration(labelText: 'Longitud'),
                         ),
-                        decoration:
-                            const InputDecoration(labelText: 'Longitud'),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
                     'Podés pegarlas manualmente desde Google Maps o Apple Maps hasta que automaticemos la geocodificación.',
                     style: TextStyle(
                       color: AppColors.grey,
@@ -268,83 +238,199 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                       height: 1.35,
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Cobros',
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: instagramCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Instagram (sin @)',
+                      hintText: 'auraestudio',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: whatsappCtrl,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'WhatsApp (con código de área)',
+                      hintText: '+54 9 11 ...',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: webCtrl,
+                    keyboardType: TextInputType.url,
+                    decoration: const InputDecoration(
+                      labelText: 'Link web del estudio (URL)',
+                      hintText: 'https://...',
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Solo para mostrar información — no para comprar clases.',
                     style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                      color: AppColors.grey,
+                      fontSize: 12,
+                      height: 1.35,
                     ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: comisionCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(3),
-                  ],
-                  decoration: const InputDecoration(
-                    labelText: 'Comisión (%)',
-                    helperText: 'Porcentaje que retiene Aura. Default 30.',
-                    suffixText: '%',
+                  const SizedBox(height: 20),
+
+                  // ── SECCIÓN 3 — FOTO ────────────────────────────────────
+                  const _FormSectionHeader('FOTO'),
+                  TextField(
+                    controller: fotoCtrl,
+                    decoration:
+                        const InputDecoration(labelText: 'URL de imagen'),
+                    onChanged: (_) => setLocal(() {}),
                   ),
-                ),
-                const SizedBox(height: 10),
-                InkWell(
-                  onTap: () async {
-                    final now = DateTime.now();
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: fechaInicioCobro ?? now,
-                      firstDate: DateTime(now.year - 2),
-                      lastDate: DateTime(now.year + 5),
-                      helpText: 'Fecha inicio de cobro',
-                    );
-                    if (picked != null) {
-                      setLocal(() => fechaInicioCobro = picked);
-                    }
-                  },
-                  child: InputDecorator(
-                    decoration: InputDecoration(
-                      labelText: 'Fecha inicio de cobro',
-                      helperText:
-                          'Antes de esta fecha Aura no cobra comisión (estudio recibe 100%).',
-                      helperMaxLines: 2,
-                      suffixIcon: fechaInicioCobro == null
-                          ? const Icon(Icons.calendar_today, size: 18)
-                          : IconButton(
-                              icon: const Icon(Icons.clear, size: 18),
-                              onPressed: () =>
-                                  setLocal(() => fechaInicioCobro = null),
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: fotoCtrl.text.trim().isEmpty
+                        ? Container(
+                            height: 130,
+                            width: double.infinity,
+                            color: const Color(0xFFEDE7E1),
+                            child: const Icon(
+                              Icons.image_outlined,
+                              color: AppColors.grey,
+                              size: 44,
                             ),
+                          )
+                        : Image.network(
+                            fotoCtrl.text.trim(),
+                            height: 130,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              height: 130,
+                              width: double.infinity,
+                              color: const Color(0xFFEDE7E1),
+                              child: const Icon(
+                                Icons.broken_image_outlined,
+                                color: AppColors.grey,
+                                size: 44,
+                              ),
+                            ),
+                          ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final currentUserId =
+                            Supabase.instance.client.auth.currentUser?.id ??
+                                'admin';
+                        final url = await _mediaUploadService.pickAndUpload(
+                          bucket: 'study-media',
+                          folder: 'logos',
+                          userId: currentUserId,
+                        );
+                        if (url != null) {
+                          fotoCtrl.text = url;
+                          setLocal(() {});
+                        }
+                      },
+                      icon: const Icon(Icons.upload_outlined, size: 18),
+                      label: const Text('Subir imagen'),
                     ),
-                    child: Text(
-                      fechaInicioCobro == null
-                          ? 'Sin fecha (cobra desde siempre)'
-                          : '${fechaInicioCobro!.day.toString().padLeft(2, '0')}/'
-                              '${fechaInicioCobro!.month.toString().padLeft(2, '0')}/'
-                              '${fechaInicioCobro!.year}',
-                      style: TextStyle(
-                        color: fechaInicioCobro == null
-                            ? AppColors.grey
-                            : AppColors.black,
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── SECCIÓN 4 — COBROS ──────────────────────────────────
+                  const _FormSectionHeader('COBROS'),
+                  TextField(
+                    controller: cbuCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'CBU',
+                      hintText: '22 dígitos',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: comisionCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(3),
+                    ],
+                    decoration: const InputDecoration(
+                      labelText: 'Comisión clases (%)',
+                      helperText: 'Porcentaje que retiene Aura. Default 30.',
+                      suffixText: '%',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: comisionWorkshopCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(3),
+                    ],
+                    decoration: const InputDecoration(
+                      labelText: 'Comisión workshops (%)',
+                      helperText: 'Comisión de Aura para eventos. Default 15.',
+                      suffixText: '%',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  InkWell(
+                    onTap: () async {
+                      final now = DateTime.now();
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: fechaInicioCobro ?? now,
+                        firstDate: DateTime(now.year - 2),
+                        lastDate: DateTime(now.year + 5),
+                        helpText: 'Fecha inicio de cobro',
+                      );
+                      if (picked != null) {
+                        setLocal(() => fechaInicioCobro = picked);
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Fecha inicio de cobro',
+                        helperText:
+                            'Antes de esta fecha Aura no cobra comisión (estudio recibe 100%).',
+                        helperMaxLines: 2,
+                        suffixIcon: fechaInicioCobro == null
+                            ? const Icon(Icons.calendar_today, size: 18)
+                            : IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                onPressed: () =>
+                                    setLocal(() => fechaInicioCobro = null),
+                              ),
+                      ),
+                      child: Text(
+                        fechaInicioCobro == null
+                            ? 'Sin fecha (cobra desde siempre)'
+                            : '${fechaInicioCobro!.day.toString().padLeft(2, '0')}/'
+                                '${fechaInicioCobro!.month.toString().padLeft(2, '0')}/'
+                                '${fechaInicioCobro!.year}',
+                        style: TextStyle(
+                          color: fechaInicioCobro == null
+                              ? AppColors.grey
+                              : AppColors.black,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                SwitchListTile(
-                  value: activo,
-                  onChanged: (value) => setLocal(() => activo = value),
-                  title: const Text('Activo'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ],
+                  const SizedBox(height: 20),
+
+                  // ── SECCIÓN 5 — ESTADO ──────────────────────────────────
+                  const _FormSectionHeader('ESTADO'),
+                  SwitchListTile(
+                    value: activo,
+                    onChanged: (value) => setLocal(() => activo = value),
+                    title: Text(activo ? 'Activo' : 'Inactivo'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -377,6 +463,8 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
       lng: double.tryParse(lngCtrl.text.replaceAll(',', '.')),
       activo: activo,
       comision: int.tryParse(comisionCtrl.text.trim()),
+      comisionWorkshop: int.tryParse(comisionWorkshopCtrl.text.trim()),
+      cbu: cbuCtrl.text,
       fechaInicioCobro: fechaInicioCobro == null
           ? null
           : '${fechaInicioCobro!.year}-'
@@ -733,32 +821,52 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        toolbarHeight: 0,
         backgroundColor: AppColors.background,
         elevation: 0,
         scrolledUnderElevation: 0,
         automaticallyImplyLeading: false,
-      ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          FloatingActionButton.extended(
-            heroTag: 'estudio_con_cuenta',
-            onPressed: _openCreateWithAccountDialog,
-            backgroundColor: AppColors.black,
-            foregroundColor: Colors.white,
-            icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
-            label: const Text('Crear con cuenta'),
-          ),
-          const SizedBox(height: 10),
-          FloatingActionButton.extended(
-            heroTag: 'estudio_solo',
-            onPressed: () => _openForm(),
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            icon: const Icon(Icons.add_business_rounded, size: 18),
-            label: const Text('Solo estudio'),
+        title: Text(
+          'Estudios',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: PopupMenuButton<String>(
+              tooltip: 'Agregar estudio',
+              icon: const Icon(Icons.add_rounded, color: AppColors.primary),
+              onSelected: (value) {
+                if (value == 'con_cuenta') {
+                  _openCreateWithAccountDialog();
+                } else if (value == 'solo') {
+                  _openForm();
+                }
+              },
+              itemBuilder: (ctx) => const [
+                PopupMenuItem<String>(
+                  value: 'con_cuenta',
+                  child: Row(
+                    children: [
+                      Icon(Icons.person_add_alt_1_rounded,
+                          size: 20, color: AppColors.black),
+                      SizedBox(width: 10),
+                      Text('Crear con cuenta'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'solo',
+                  child: Row(
+                    children: [
+                      Icon(Icons.add_business_rounded,
+                          size: 20, color: AppColors.primary),
+                      SizedBox(width: 10),
+                      Text('Solo estudio'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -767,16 +875,8 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
               child: CircularProgressIndicator(color: AppColors.primary),
             )
           : ListView(
-              // Padding inferior generoso para que los dos FAB apilados
-              // ("Crear con cuenta" + "Solo estudio") no tapen el último
-              // estudio ni su botón Editar.
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 150),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
               children: [
-                Text(
-                  'Estudios',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 6),
                 const Text(
                   'Alta, edición y estado general de los estudios publicados.',
                   style: TextStyle(color: AppColors.grey),
@@ -978,6 +1078,34 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                   ),
               ],
             ),
+    );
+  }
+}
+
+/// Encabezado de sección del formulario de estudio: título naranja + separador.
+class _FormSectionHeader extends StatelessWidget {
+  final String title;
+
+  const _FormSectionHeader(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Divider(height: 1, color: Color(0xFFEDE7E1)),
+        const SizedBox(height: 12),
+      ],
     );
   }
 }

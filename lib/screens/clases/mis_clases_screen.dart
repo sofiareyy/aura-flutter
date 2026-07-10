@@ -964,6 +964,13 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           .join('\n'),
     );
     final s = TextEditingController(text: item?['sala']?.toString() ?? '');
+    // Campos exclusivos de workshops/eventos (FIX 8).
+    final descCtrl = TextEditingController(
+      text: item?['descripcion']?.toString() ?? '',
+    );
+    final dirCtrl = TextEditingController(
+      text: item?['direccion']?.toString() ?? '',
+    );
     final c = TextEditingController(text: ((item?['lugares_total'] as num?)?.toInt() ?? 12).toString());
     final cr = TextEditingController(text: ((item?['creditos'] as num?)?.toInt() ?? 10).toString());
     int cierreReserva = (item?['reserva_cierre_minutos'] as num?)?.toInt() ?? 0;
@@ -995,7 +1002,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     void disposeAll() {
       n.dispose(); i.dispose(); iDesc.dispose(); incluye.dispose();
       imagenUrl.dispose(); galeria.dispose(); s.dispose(); c.dispose();
-      cr.dispose();
+      cr.dispose(); descCtrl.dispose(); dirCtrl.dispose();
       for (final x in orgNombreCtrls) { x.dispose(); }
       for (final x in orgInstaCtrls) { x.dispose(); }
     }
@@ -1110,9 +1117,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 if (tipo == 'workshop') ...[
                                   const SizedBox(height: 10),
                                   const Text(
-                                    'Comisión de Aura para eventos: 15% '
-                                    '(en vez del 30% de clases). Precio libre '
-                                    'en créditos.',
+                                    'Comisión (%): la define Aura desde el '
+                                    'backoffice (por defecto 15% para eventos, '
+                                    'en vez del 30% de las clases). No es '
+                                    'editable desde el estudio. Vos ponés el '
+                                    'precio libre en créditos.',
                                     style: TextStyle(
                                       color: AppColors.grey,
                                       fontSize: 12,
@@ -1364,6 +1373,88 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               ],
                             ),
                             const SizedBox(height: 12),
+                            // Detalles del evento (workshop): descripción larga,
+                            // foto con preview, dirección propia y qué incluye.
+                            _SectionCard(
+                              title: 'Detalles del evento',
+                              children: [
+                                _AuraTextField(
+                                  controller: descCtrl,
+                                  label: 'Descripción del evento',
+                                  hint:
+                                      'Contá de qué se trata, para quién es, qué van a vivir…',
+                                  maxLines: 4,
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraTextField(
+                                  controller: dirCtrl,
+                                  label: 'Dirección del evento',
+                                  hint: 'Puede ser distinta a la del estudio',
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraTextField(
+                                  controller: incluye,
+                                  label: 'Qué incluye',
+                                  hint: 'Materiales, bebida, sorpresas…',
+                                  maxLines: 2,
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraTextField(
+                                  controller: imagenUrl,
+                                  label: 'Foto del evento (URL)',
+                                  hint: 'https://...',
+                                  onChanged: (_) => setD(() {}),
+                                ),
+                                const SizedBox(height: 10),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: imagenUrl.text.trim().isEmpty
+                                      ? Container(
+                                          height: 140,
+                                          width: double.infinity,
+                                          color: const Color(0xFFEDE7E1),
+                                          child: const Icon(
+                                            Icons.image_outlined,
+                                            color: AppColors.grey,
+                                            size: 44,
+                                          ),
+                                        )
+                                      : Image.network(
+                                          imagenUrl.text.trim(),
+                                          height: 140,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => Container(
+                                            height: 140,
+                                            width: double.infinity,
+                                            color: const Color(0xFFEDE7E1),
+                                            child: const Icon(
+                                              Icons.broken_image_outlined,
+                                              color: AppColors.grey,
+                                              size: 44,
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final uploaded =
+                                          await _subirImagenClase();
+                                      if (uploaded != null) {
+                                        imagenUrl.text = uploaded;
+                                        setD(() {});
+                                      }
+                                    },
+                                    icon: const Icon(Icons.image_outlined),
+                                    label: const Text('Subir foto del evento'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
                           ],
                           // Card 5: Detalles adicionales (colapsable)
                           _CollapsibleSectionCard(
@@ -1517,6 +1608,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       'activo': item?['activo'] ?? true,
       'tipo': tipo,
       if (tipo == 'workshop') 'organizadores': organizadores,
+      // Campos exclusivos de workshops (columnas descripcion/direccion en
+      // `clases`). No se mandan en clases normales / horarios fijos.
+      if (tipo == 'workshop')
+        'descripcion': descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+      if (tipo == 'workshop')
+        'direccion': dirCtrl.text.trim().isEmpty ? null : dirCtrl.text.trim(),
       if (cat != null) 'categoria': cat,
     };
     try {
@@ -4726,12 +4823,14 @@ class _AuraTextField extends StatelessWidget {
   final String? hint;
   final TextInputType? keyboardType;
   final int maxLines;
+  final ValueChanged<String>? onChanged;
   const _AuraTextField({
     required this.controller,
     required this.label,
     this.hint,
     this.keyboardType,
     this.maxLines = 1,
+    this.onChanged,
   });
 
   @override
@@ -4740,6 +4839,7 @@ class _AuraTextField extends StatelessWidget {
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
+      onChanged: onChanged,
       style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 15),
       decoration: _formInputDecoration(label: label, hint: hint),
     );
