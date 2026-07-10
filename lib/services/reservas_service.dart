@@ -526,11 +526,28 @@ class ReservasService {
   /// Returns credits to every confirmed reservation and marks them
   /// as 'cancelada_por_estudio'. Returns the number of users refunded.
   Future<int> cancelarClaseConDevolucion(int claseId, String claseNombre) async {
+    // Fecha de la clase para el mensaje de la notificación in-app.
+    String fechaSuffix = '';
+    try {
+      final clase = await _supabase
+          .from(AppConstants.tableClases)
+          .select('fecha')
+          .eq('id', claseId)
+          .maybeSingle();
+      final f = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
+      if (f != null) {
+        fechaSuffix = ' del ${f.day.toString().padLeft(2, '0')}/'
+            '${f.month.toString().padLeft(2, '0')}';
+      }
+    } catch (_) {}
+
+    // Notificamos a quien tuviera un lugar activo (confirmada o pre_confirmada
+    // de lista de espera), no solo a los que gastaron créditos.
     final reservas = await _supabase
         .from(AppConstants.tableReservas)
         .select()
         .eq('clase_id', claseId)
-        .eq('estado', 'confirmada');
+        .inFilter('estado', ['confirmada', 'presente', 'pre_confirmada']);
 
     int devueltos = 0;
     for (final raw in (reservas as List)) {
@@ -560,6 +577,20 @@ class ReservasService {
             .from(AppConstants.tableReservas)
             .update({'estado': 'cancelada_por_estudio'})
             .eq('id', reservaId);
+      }
+
+      // Notificación in-app (campanita) para el alumno afectado.
+      if (userId.isNotEmpty) {
+        try {
+          await _supabase.from('notificaciones_usuario').insert({
+            'usuario_id': userId,
+            'titulo': 'Clase cancelada',
+            'mensaje': 'El estudio canceló $claseNombre$fechaSuffix. '
+                'Tus créditos fueron devueltos 🧡',
+            'tipo': 'clase_cancelada',
+            'leida': false,
+          });
+        } catch (_) {}
       }
     }
 

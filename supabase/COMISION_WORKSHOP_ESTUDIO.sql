@@ -11,12 +11,9 @@
 -- (la columna estudios.cbu ya existe; se usa en el panel del estudio).
 
 -- 1. Columna nueva ---------------------------------------------------------
-alter table public.estudios
-  add column if not exists comision_workshop integer not null default 15;
+alter table public.estudios add column if not exists comision_workshop integer not null default 15;
 
-comment on column public.estudios.comision_workshop is
-  'Comisión de Aura (%) para clases tipo workshop. Default 15. '
-  'Editable solo desde el backoffice, no por el estudio.';
+comment on column public.estudios.comision_workshop is 'Comision de Aura (%) para clases tipo workshop. Default 15. Editable solo desde el backoffice, no por el estudio.';
 
 -- 2. admin_upsert_estudio: aceptar comisión workshop + cbu -----------------
 drop function if exists public.admin_upsert_estudio(

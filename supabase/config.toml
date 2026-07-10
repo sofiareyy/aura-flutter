@@ -416,3 +416,14 @@ entrypoint = "./functions/crear-pago-pack/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/crear-pago-pack/*.html" ]
+
+# Crons (invocadas por pg_cron, sin JWT de usuario). Autorizan por CRON_SECRET.
+[functions.cleanup-lista-espera]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/cleanup-lista-espera/index.ts"
+
+[functions.regenerar-grillas]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/regenerar-grillas/index.ts"
