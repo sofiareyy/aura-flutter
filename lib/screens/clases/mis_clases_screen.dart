@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
+import '../../providers/app_provider.dart';
 import '../../services/aviso_alumnos_service.dart';
 import '../../services/clases_service.dart';
 import '../../utils/pricing.dart';
@@ -136,6 +138,123 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
   Future<void> _load() async => _studio ? _loadStudio() : _loadUser();
+
+  /// Configuración acotada para la profe: hoy solo expone "Salir del estudio".
+  Future<void> _mostrarConfiguracionProfe() async {
+    final estudioNombre = _estudioNombre ?? 'el estudio';
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 4),
+              child: Text(
+                'Configuración',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.black,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.logout_rounded,
+                    color: AppColors.error, size: 18),
+              ),
+              title: Text(
+                'Salir del estudio $estudioNombre',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.error,
+                ),
+              ),
+              subtitle: const Text(
+                'Perdés el acceso al panel del estudio.',
+                style: TextStyle(fontSize: 12, color: AppColors.grey),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _salirDelEstudio();
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// La profe abandona el estudio: elimina su vínculo en estudio_admins (el RPC
+  /// además baja su rol de 'profe' a 'usuario' si no le quedan estudios) y
+  /// vuelve a la home como usuaria normal.
+  Future<void> _salirDelEstudio() async {
+    final estudioNombre = _estudioNombre ?? 'el estudio';
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    var estudioId = (_estudio?['id'] as num?)?.toInt();
+    estudioId ??= await _service.getCurrentStudioId();
+    if (userId == null || estudioId == null) return;
+
+    if (!mounted) return;
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Salir del estudio'),
+        content: Text(
+          '¿Querés salir de $estudioNombre?\n'
+          'Perdés el acceso al panel del estudio.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            style: TextButton.styleFrom(foregroundColor: AppColors.grey),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.white,
+            ),
+            child: const Text('Sí, salir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+
+    final ok = await _service.removeEstudioAdminAccess(
+      estudioId: estudioId,
+      usuarioId: userId,
+    );
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo salir del estudio.')),
+      );
+      return;
+    }
+
+    // Refrescar el rol en el provider antes de navegar para que el shell no
+    // vuelva a tratarla como profe.
+    await context.read<AppProvider>().refrescarUsuario();
+    if (!mounted) return;
+    context.go('/home');
+  }
 
   Future<void> _toggleFixed(int id, bool activo) async {
     if (_togglingFixed) return;
@@ -2504,6 +2623,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                   children: [
                     Row(children: [
                       const Expanded(child: Text('Mis clases', style: TextStyle(color: AppColors.black, fontSize: 22, fontWeight: FontWeight.w700))),
+                      // La profe tiene un panel acotado (Clases + Asistencia) sin
+                      // solapa de Perfil, así que su única puerta a "Salir del
+                      // estudio" es este engranaje de configuración.
+                      if (context.watch<AppProvider>().esProfe)
+                        IconButton(
+                          onPressed: _mostrarConfiguracionProfe,
+                          icon: const Icon(Icons.settings_outlined),
+                          color: AppColors.grey,
+                          tooltip: 'Configuración',
+                        ),
                       if (_studio) ...[
                         if (!_showFixed && _seleccionMultiple)
                           TextButton(

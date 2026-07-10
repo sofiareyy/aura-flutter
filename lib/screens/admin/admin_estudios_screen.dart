@@ -716,7 +716,6 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
   }
 
   Future<void> _openLinkAccessDialog(Map<String, dynamic> estudio) async {
-    final emailCtrl = TextEditingController();
     final estudioId = (estudio['id'] as num).toInt();
     await showDialog<void>(
       context: context,
@@ -724,11 +723,9 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
         estudioId: estudioId,
         estudioNombre: estudio['nombre']?.toString() ?? 'Sin nombre',
         service: _service,
-        emailCtrl: emailCtrl,
         onChanged: _load,
       ),
     );
-    emailCtrl.dispose();
   }
 
   @override
@@ -770,7 +767,10 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
               child: CircularProgressIndicator(color: AppColors.primary),
             )
           : ListView(
-              padding: const EdgeInsets.all(20),
+              // Padding inferior generoso para que los dos FAB apilados
+              // ("Crear con cuenta" + "Solo estudio") no tapen el último
+              // estudio ni su botón Editar.
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 150),
               children: [
                 Text(
                   'Estudios',
@@ -1006,18 +1006,19 @@ class _InfoBanner extends StatelessWidget {
   }
 }
 
+/// Panel de gestión de accesos de un estudio, organizado en dos secciones:
+/// Administradores (rol admin_estudio / estudio) y Profes (rol profe). Permite
+/// agregar admin, agregar profe, cambiar el rol de cada uno y eliminarlos.
 class _StudioAccessDialog extends StatefulWidget {
   final int estudioId;
   final String estudioNombre;
   final AdminService service;
-  final TextEditingController emailCtrl;
   final Future<void> Function() onChanged;
 
   const _StudioAccessDialog({
     required this.estudioId,
     required this.estudioNombre,
     required this.service,
-    required this.emailCtrl,
     required this.onChanged,
   });
 
@@ -1028,26 +1029,32 @@ class _StudioAccessDialog extends StatefulWidget {
 class _StudioAccessDialogState extends State<_StudioAccessDialog> {
   bool _loading = true;
   bool _saving = false;
-  List<Map<String, dynamic>> _accesses = [];
+  List<Map<String, dynamic>> _members = [];
   String? _error;
+
+  List<Map<String, dynamic>> get _admins =>
+      _members.where((m) => m['rol']?.toString() != 'profe').toList();
+
+  List<Map<String, dynamic>> get _profes =>
+      _members.where((m) => m['rol']?.toString() == 'profe').toList();
 
   @override
   void initState() {
     super.initState();
-    _loadAccesses();
+    _loadMembers();
   }
 
-  Future<void> _loadAccesses() async {
+  Future<void> _loadMembers() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final accesses =
-          await widget.service.listEstudioAccesses(estudioId: widget.estudioId);
+      final members =
+          await widget.service.listEstudioMembers(estudioId: widget.estudioId);
       if (!mounted) return;
       setState(() {
-        _accesses = accesses;
+        _members = members;
         _loading = false;
       });
     } catch (e) {
@@ -1059,46 +1066,131 @@ class _StudioAccessDialogState extends State<_StudioAccessDialog> {
     }
   }
 
-  Future<void> _addAccess() async {
-    final email = widget.emailCtrl.text.trim();
-    if (email.isEmpty) return;
+  void _snack(String message, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: error ? AppColors.error : AppColors.success,
+      ),
+    );
+  }
+
+  Future<String?> _promptEmail({
+    required String title,
+    required String helper,
+  }) async {
+    final emailCtrl = TextEditingController();
+    final email = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              helper,
+              style: const TextStyle(color: AppColors.grey, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: emailCtrl,
+              autofocus: true,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                hintText: 'persona@correo.com',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, emailCtrl.text.trim()),
+            child: const Text('Agregar'),
+          ),
+        ],
+      ),
+    );
+    emailCtrl.dispose();
+    return (email == null || email.isEmpty) ? null : email;
+  }
+
+  Future<void> _addAdmin() async {
+    final email = await _promptEmail(
+      title: 'Agregar admin',
+      helper:
+          'El admin ve todo el panel (clases, cobros, configuración). Tiene '
+          'que tener una cuenta Aura ya registrada.',
+    );
+    if (email == null) return;
     setState(() => _saving = true);
     try {
-      await widget.service.linkEstudioAccess(
-        estudioId: widget.estudioId,
-        email: email,
-      );
-      widget.emailCtrl.clear();
-      await _loadAccesses();
+      await widget.service
+          .linkEstudioAccess(estudioId: widget.estudioId, email: email);
+      await _loadMembers();
       await widget.onChanged();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Acceso agregado correctamente.'),
-          backgroundColor: AppColors.success,
-        ),
-      );
+      _snack('Admin agregado correctamente.');
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      _snack(e.toString().replaceFirst('Exception: ', ''), error: true);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
-  Future<void> _removeAccess(Map<String, dynamic> access) async {
+  Future<void> _addProfe() async {
+    final email = await _promptEmail(
+      title: 'Agregar profe',
+      helper:
+          'La profe ve solo Mis Clases y Asistencia (sin cobros ni '
+          'configuración). Tiene que tener una cuenta Aura ya registrada.',
+    );
+    if (email == null) return;
+    setState(() => _saving = true);
+    try {
+      await widget.service
+          .addEstudioProfe(estudioId: widget.estudioId, email: email);
+      await _loadMembers();
+      await widget.onChanged();
+      _snack('Profe agregada correctamente.');
+    } catch (e) {
+      _snack(e.toString().replaceFirst('Exception: ', ''), error: true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _cambiarRol(Map<String, dynamic> member, String nuevoRol) async {
+    final label = nuevoRol == 'profe' ? 'profe' : 'administrador';
+    setState(() => _saving = true);
+    try {
+      await widget.service.setEstudioAccessRol(
+        estudioId: widget.estudioId,
+        userId: member['id'].toString(),
+        rol: nuevoRol,
+      );
+      await _loadMembers();
+      await widget.onChanged();
+      _snack('Ahora es $label.');
+    } catch (e) {
+      _snack(e.toString().replaceFirst('Exception: ', ''), error: true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _removeMember(Map<String, dynamic> member) async {
+    final email = member['email']?.toString() ?? 'este usuario';
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Quitar acceso'),
-        content: Text(
-          '¿Querés quitar el acceso de ${access['email'] ?? 'este usuario'}?',
-        ),
+        content: Text('¿Querés quitar el acceso de $email?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -1106,10 +1198,7 @@ class _StudioAccessDialogState extends State<_StudioAccessDialog> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Quitar',
-              style: TextStyle(color: AppColors.error),
-            ),
+            child: const Text('Quitar', style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -1120,25 +1209,13 @@ class _StudioAccessDialogState extends State<_StudioAccessDialog> {
     try {
       await widget.service.removeEstudioAccess(
         estudioId: widget.estudioId,
-        userId: access['id'].toString(),
+        userId: member['id'].toString(),
       );
-      await _loadAccesses();
+      await _loadMembers();
       await widget.onChanged();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Acceso quitado correctamente.'),
-          backgroundColor: AppColors.success,
-        ),
-      );
+      _snack('Acceso quitado correctamente.');
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      _snack(e.toString().replaceFirst('Exception: ', ''), error: true);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -1147,130 +1224,200 @@ class _StudioAccessDialogState extends State<_StudioAccessDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Agregar acceso al estudio'),
+      title: Text('Accesos · ${widget.estudioNombre}'),
       content: SizedBox(
         width: 520,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Estudio: ${widget.estudioNombre}'),
-              const SizedBox(height: 12),
-              const Text(
-                'Accesos actuales',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.black,
+        child: _loading
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 28),
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
                 ),
-              ),
-              const SizedBox(height: 8),
-              if (_loading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  ),
-                )
-              else if (_error != null)
-                Text(
-                  _error!,
-                  style: const TextStyle(color: AppColors.error),
-                )
-              else if (_accesses.isEmpty)
-                const Text(
-                  'Todavía no hay mails asociados a este estudio.',
-                  style: TextStyle(color: AppColors.grey),
-                )
-              else
-                ..._accesses.map(
-                  (access) => Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.background,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(
+              )
+            : _error != null
+                ? Text(_error!, style: const TextStyle(color: AppColors.error))
+                : SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                access['email']?.toString() ?? '',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              if ((access['nombre']?.toString() ?? '').isNotEmpty)
-                                Text(
-                                  access['nombre'].toString(),
-                                  style: const TextStyle(
-                                    color: AppColors.grey,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                            ],
-                          ),
+                        _AccessSection(
+                          title: 'ADMINISTRADORES DEL ESTUDIO',
+                          subtitle:
+                              'Acceso completo: clases, cobros y configuración.',
+                          members: _admins,
+                          emptyLabel: 'Todavía no hay administradores.',
+                          addLabel: 'Agregar admin',
+                          onAdd: _saving ? null : _addAdmin,
+                          saving: _saving,
+                          // A un admin se lo puede convertir en profe.
+                          otherRoleLabel: 'Convertir en profe',
+                          onChangeRole: (m) => _cambiarRol(m, 'profe'),
+                          onRemove: _removeMember,
                         ),
-                        IconButton(
-                          onPressed: _saving ? null : () => _removeAccess(access),
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            color: AppColors.error,
-                          ),
-                          tooltip: 'Quitar acceso',
+                        const SizedBox(height: 20),
+                        _AccessSection(
+                          title: 'PROFES DEL ESTUDIO',
+                          subtitle:
+                              'Vista limitada: solo Mis Clases y Asistencia.',
+                          members: _profes,
+                          emptyLabel: 'Todavía no hay profes.',
+                          addLabel: 'Agregar profe',
+                          onAdd: _saving ? null : _addProfe,
+                          saving: _saving,
+                          // A una profe se la puede promover a admin.
+                          otherRoleLabel: 'Convertir en admin',
+                          onChangeRole: (m) => _cambiarRol(m, 'admin_estudio'),
+                          onRemove: _removeMember,
                         ),
                       ],
                     ),
                   ),
-                ),
-              const SizedBox(height: 16),
-              const Text(
-                'Sumar nuevo acceso',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.black,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Ingresá el email de una cuenta ya registrada en Aura. Esa cuenta se suma como administradora de este estudio.',
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: widget.emailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email de acceso del estudio',
-                  hintText: 'estudio@correo.com',
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.pop(context),
           child: const Text('Cerrar'),
         ),
-        TextButton(
-          onPressed: _saving ? null : _addAccess,
-          child: _saving
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    color: AppColors.primary,
-                    strokeWidth: 2,
+      ],
+    );
+  }
+}
+
+/// Una sección (Admins o Profes) del panel de accesos: encabezado, lista de
+/// miembros con menú de acciones (cambiar rol / eliminar) y botón de agregar.
+class _AccessSection extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final List<Map<String, dynamic>> members;
+  final String emptyLabel;
+  final String addLabel;
+  final VoidCallback? onAdd;
+  final bool saving;
+  final String otherRoleLabel;
+  final void Function(Map<String, dynamic>) onChangeRole;
+  final void Function(Map<String, dynamic>) onRemove;
+
+  const _AccessSection({
+    required this.title,
+    required this.subtitle,
+    required this.members,
+    required this.emptyLabel,
+    required this.addLabel,
+    required this.onAdd,
+    required this.saving,
+    required this.otherRoleLabel,
+    required this.onChangeRole,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppColors.grey,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          style: const TextStyle(color: AppColors.grey, fontSize: 12),
+        ),
+        const SizedBox(height: 10),
+        if (members.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              emptyLabel,
+              style: const TextStyle(color: AppColors.grey),
+            ),
+          )
+        else
+          ...members.map(
+            (member) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          member['email']?.toString() ?? '',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        if ((member['nombre']?.toString() ?? '').isNotEmpty)
+                          Text(
+                            member['nombre'].toString(),
+                            style: const TextStyle(
+                              color: AppColors.grey,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                )
-              : const Text('Agregar acceso'),
+                  PopupMenuButton<String>(
+                    enabled: !saving,
+                    icon: const Icon(Icons.more_vert, color: AppColors.grey),
+                    onSelected: (value) {
+                      if (value == 'rol') {
+                        onChangeRole(member);
+                      } else if (value == 'eliminar') {
+                        onRemove(member);
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      PopupMenuItem<String>(
+                        value: 'rol',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.swap_horiz_rounded,
+                                size: 20, color: AppColors.grey),
+                            const SizedBox(width: 8),
+                            Text(otherRoleLabel),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: 'eliminar',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline,
+                                size: 20, color: AppColors.error),
+                            SizedBox(width: 8),
+                            Text('Eliminar acceso',
+                                style: TextStyle(color: AppColors.error)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        const SizedBox(height: 4),
+        OutlinedButton.icon(
+          onPressed: onAdd,
+          icon: const Icon(Icons.add_rounded, size: 18),
+          label: Text(addLabel),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.primary,
+            side: const BorderSide(color: AppColors.primary),
+          ),
         ),
       ],
     );

@@ -284,6 +284,76 @@ class AdminService {
     return List<Map<String, dynamic>>.from(res as List);
   }
 
+  /// Lista TODOS los miembros de un estudio (admins y profes) con su `rol`.
+  /// Usa la RPC `admin_list_studio_members` (superadmin o admin del estudio).
+  Future<List<Map<String, dynamic>>> listEstudioMembers({
+    required int estudioId,
+  }) async {
+    final res = await _client.rpc(
+      'admin_list_studio_members',
+      params: {'p_estudio_id': estudioId},
+    );
+    return List<Map<String, dynamic>>.from(res as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+  }
+
+  /// Agrega una profe (rol 'profe') por email. Superadmin-aware.
+  /// Lanza Exception con mensaje legible si el RPC devuelve error.
+  Future<void> addEstudioProfe({
+    required int estudioId,
+    required String email,
+  }) async {
+    final res = await _client.rpc(
+      'admin_add_studio_profe',
+      params: {'p_estudio_id': estudioId, 'p_email': email.trim()},
+    );
+    final map =
+        res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+    if (map['ok'] == true) return;
+    switch (map['error']?.toString()) {
+      case 'user_not_found':
+        throw Exception(
+          'No existe una cuenta Aura con ese email. Pedile que se registre primero.',
+        );
+      case 'forbidden':
+        throw Exception('No tenés permisos para agregar profes a este estudio.');
+      case 'email_required':
+        throw Exception('Ingresá un email válido.');
+      default:
+        throw Exception('No se pudo agregar la profe.');
+    }
+  }
+
+  /// Cambia el rol de un miembro existente entre 'admin_estudio' y 'profe'.
+  Future<void> setEstudioAccessRol({
+    required int estudioId,
+    required String userId,
+    required String rol,
+  }) async {
+    final res = await _client.rpc(
+      'admin_set_studio_access_rol',
+      params: {
+        'p_estudio_id': estudioId,
+        'p_usuario_id': userId,
+        'p_rol': rol,
+      },
+    );
+    final map =
+        res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+    if (map['ok'] == true) return;
+    switch (map['error']?.toString()) {
+      case 'forbidden':
+        throw Exception('No tenés permisos para editar accesos de este estudio.');
+      case 'not_member':
+        throw Exception('Esta persona ya no es miembro del estudio.');
+      case 'invalid_rol':
+        throw Exception('Rol inválido.');
+      default:
+        throw Exception('No se pudo cambiar el rol.');
+    }
+  }
+
   Future<void> removeEstudioAccess({
     required int estudioId,
     required String userId,
