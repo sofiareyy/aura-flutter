@@ -78,11 +78,8 @@ grant execute on function public.generar_clases_todos_estudios(int)
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
--- (Re)crear los jobs de forma idempotente.
-select cron.unschedule('cleanup-lista-espera-15min')
-  where exists (select 1 from cron.job where jobname = 'cleanup-lista-espera-15min');
-select cron.unschedule('regenerar-grillas-diario')
-  where exists (select 1 from cron.job where jobname = 'regenerar-grillas-diario');
+-- cron.schedule('nombre', ...) hace UPSERT por nombre: si el job ya existe,
+-- lo reemplaza. Por eso podés re-correr esta parte sin duplicar jobs.
 
 -- CRÍTICO 2 — lista de espera: cada 15 minutos.
 select cron.schedule(

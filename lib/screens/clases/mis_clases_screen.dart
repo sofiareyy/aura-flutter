@@ -55,7 +55,30 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   Map<String, dynamic>? _estudio;
   String? _error;
   String? _estudioNombre;
+  // F5 — vista por profe: lista de profes del estudio (solo la carga el admin),
+  // filtro "Ver por profe" y datos del profe logueado para el badge "Tu clase".
+  List<Map<String, dynamic>> _profesEstudio = [];
+  String? _filtroProfe;
+  bool _esProfe = false;
+  String _miNombre = '';
   DateTime _selectedDay = DateTime.now(), _weekAnchor = DateTime.now(), _monthAnchor = DateTime.now();
+
+  List<String> get _profeNombres => _profesEstudio
+      .map((p) => (p['nombre']?.toString() ?? '').trim())
+      .where((n) => n.isNotEmpty)
+      .toList();
+
+  String _normNombre(dynamic v) => (v?.toString() ?? '').trim().toLowerCase();
+
+  bool _matchInstructor(dynamic instructor, String? profeNombre) {
+    if (profeNombre == null || profeNombre.trim().isEmpty) return true;
+    return _normNombre(instructor) == _normNombre(profeNombre);
+  }
+
+  bool _esMiClase(dynamic instructor) =>
+      _esProfe &&
+      _miNombre.isNotEmpty &&
+      _normNombre(instructor) == _normNombre(_miNombre);
 
   @override
   void initState() {
@@ -142,13 +165,28 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   /// Configuración acotada para la profe: hoy solo expone "Salir del estudio".
   Future<void> _mostrarConfiguracionProfe() async {
     final estudioNombre = _estudioNombre ?? 'el estudio';
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    // Valor actual del toggle de notificaciones de reservas (F6).
+    bool notifReservas = true;
+    if (uid != null) {
+      try {
+        final row = await Supabase.instance.client
+            .from('usuarios')
+            .select('notifs_reservas_profe')
+            .eq('id', uid)
+            .maybeSingle();
+        notifReservas = (row?['notifs_reservas_profe'] as bool?) ?? true;
+      } catch (_) {}
+    }
+    if (!mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => SafeArea(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,6 +202,39 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                 ),
               ),
             ),
+            SwitchListTile(
+              value: notifReservas,
+              activeThumbColor: AppColors.primary,
+              secondary: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.notifications_active_outlined,
+                    color: AppColors.primary, size: 18),
+              ),
+              title: const Text(
+                'Avisarme nuevas reservas',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'Cuando alguien se anota en tus clases.',
+                style: TextStyle(fontSize: 12, color: AppColors.grey),
+              ),
+              onChanged: (v) async {
+                setSheet(() => notifReservas = v);
+                if (uid != null) {
+                  try {
+                    await Supabase.instance.client
+                        .from('usuarios')
+                        .update({'notifs_reservas_profe': v}).eq('id', uid);
+                  } catch (_) {}
+                }
+              },
+            ),
+            const Divider(height: 1, indent: 20, endIndent: 20),
             ListTile(
               leading: Container(
                 width: 36,
@@ -195,6 +266,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
             const SizedBox(height: 8),
           ],
         ),
+      ),
       ),
     );
   }
@@ -437,10 +509,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 hint: 'Yoga restaurativo',
                               ),
                               const SizedBox(height: 12),
-                              _AuraTextField(
+                              _InstructorField(
                                 controller: ins,
-                                label: 'Instructor/a',
-                                hint: 'Florencia Pérez',
+                                profes: _profeNombres,
                               ),
                             ],
                           ),
@@ -908,6 +979,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       final categoriasAdmin = results[2] as List<String>;
       final configCreditos = results[3] as String?;
       final estudio = results[4] as Map<String, dynamic>?;
+      // F5: profes del estudio (para el filtro y el dropdown de instructor).
+      // La RPC devuelve [] si el caller no es admin real (ej. una profe).
+      final estudioIdProfes = (estudio?['id'] as num?)?.toInt();
+      final profes = estudioIdProfes != null
+          ? await _service.listProfes(estudioIdProfes)
+          : <Map<String, dynamic>>[];
       final categorias = <String>{
         ...categoriasAdmin.where((item) => item.trim().isNotEmpty),
         ...horarios
@@ -926,6 +1003,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         _estudiosDefinenCreditos = configCreditos == 'true';
         _estudio = estudio;
         _estudioNombre = estudio?['nombre']?.toString();
+        _profesEstudio = profes;
+        // Si el filtro apuntaba a una profe que ya no está, lo reseteamos.
+        if (_filtroProfe != null && !_profeNombres.contains(_filtroProfe)) {
+          _filtroProfe = null;
+        }
         _loading = false;
         _tablaOk = true;
         _error = null;
@@ -1143,10 +1225,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 hint: 'Yoga restaurativo',
                               ),
                               const SizedBox(height: 12),
-                              _AuraTextField(
+                              _InstructorField(
                                 controller: i,
-                                label: 'Instructor/a',
-                                hint: 'Florencia Pérez',
+                                profes: _profeNombres,
                               ),
                             ],
                           ),
@@ -1772,10 +1853,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 hint: 'Yoga restaurativo',
                               ),
                               const SizedBox(height: 12),
-                              _AuraTextField(
+                              _InstructorField(
                                 controller: i,
-                                label: 'Instructor/a',
-                                hint: 'Florencia Pérez',
+                                profes: _profeNombres,
                               ),
                             ],
                           ),
@@ -2683,6 +2763,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width >= 768;
+    // F5: datos del profe logueado (para el badge "Tu clase" y el gating).
+    final app = context.watch<AppProvider>();
+    _esProfe = app.esProfe;
+    _miNombre = app.usuario?.nombre ?? '';
     // Studio: solo lo que reservo el user (dueño viendo sus alumnos).
     // User: TODAS las clases disponibles ese dia (para que pueda reservar
     // tocando una). Marcamos cuales ya reservo el user.
@@ -2783,6 +2867,48 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                           Expanded(child: _SegmentButton(label: 'Horarios fijos', selected: _showFixed, onTap: () => setState(() { _showFixed = true; _seleccionMultiple = false; _seleccionadas.clear(); }))),
                           Expanded(child: _SegmentButton(label: 'Clases cargadas', selected: !_showFixed, onTap: () => setState(() => _showFixed = false))),
                         ]),
+                      ),
+                    ],
+                    // F5 — filtro "Ver por profe" (solo para el estudio admin,
+                    // cuando hay profes cargadas).
+                    if (_studio && !_esProfe && _profeNombres.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.person_search_rounded,
+                                color: AppColors.primary, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String?>(
+                                  isExpanded: true,
+                                  value: _filtroProfe,
+                                  hint: const Text('Ver por profe'),
+                                  items: [
+                                    const DropdownMenuItem<String?>(
+                                      value: null,
+                                      child: Text('Todas las profes'),
+                                    ),
+                                    ..._profeNombres.map(
+                                      (n) => DropdownMenuItem<String?>(
+                                        value: n,
+                                        child: Text(n),
+                                      ),
+                                    ),
+                                  ],
+                                  onChanged: (v) =>
+                                      setState(() => _filtroProfe = v),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                     const SizedBox(height: 16),
@@ -3215,8 +3341,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     if (_horarios.isEmpty) {
       return const [_InfoPanel(title: 'Todavía no hay horarios fijos', body: 'Podés cargar una grilla semanal tipo Deportnet con el botón "Nuevo horario".')];
     }
+    final horariosVisibles = _horarios
+        .where((h) => _matchInstructor(h['instructor'], _filtroProfe))
+        .toList();
     final grouped = <int, List<Map<String, dynamic>>>{};
-    for (final h in _horarios) {
+    for (final h in horariosVisibles) {
       final d = (h['dia_semana'] as num?)?.toInt() ?? 1;
       grouped.putIfAbsent(d, () => []).add(h);
     }
@@ -3238,6 +3367,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                     padding: const EdgeInsets.only(bottom: 10),
                     child: _HorarioFijoCard(
                       horario: h,
+                      esMiClase: _esMiClase(h['instructor']),
                       onEdit: () => _openForm(h),
                       onDelete: () => _deleteFixed((h['id'] as num?)?.toInt() ?? 0),
                       onToggle: (v) => _toggleFixed((h['id'] as num?)?.toInt() ?? 0, v),
@@ -3258,7 +3388,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     return _clases.where((c) {
       final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
       if (dt == null) return false;
-      return !dt.isBefore(ahora);
+      return !dt.isBefore(ahora) &&
+          _matchInstructor(c['instructor'], _filtroProfe);
     }).toList()
       ..sort((a, b) => (a['fecha']?.toString() ?? '')
           .compareTo(b['fecha']?.toString() ?? ''));
@@ -3269,7 +3400,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     return _clases.where((c) {
       final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
       if (dt == null) return false;
-      return dt.isBefore(ahora);
+      return dt.isBefore(ahora) &&
+          _matchInstructor(c['instructor'], _filtroProfe);
     }).toList()
       // Mas reciente primero — al estudio le interesa lo recien pasado.
       ..sort((a, b) => (b['fecha']?.toString() ?? '')
@@ -3382,6 +3514,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               child: _StudioClassCard(
                                 clase: c,
                                 studioMode: true,
+                                esMiClase: _esMiClase(c['instructor']),
                                 onAvisar: () {},
                                 onMore: () {},
                                 onEdit: () {},
@@ -3397,6 +3530,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                     child: _StudioClassCard(
                       clase: c,
                       studioMode: true,
+                      esMiClase: _esMiClase(c['instructor']),
                       onAvisar: () => _mostrarAvisoSheet(c),
                       onMore: () => _mostrarMenuClase(c),
                       onEdit: () => _editClaseDialog(c),
@@ -3427,7 +3561,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
             onTap: () => _toggleSeleccion(id),
             child: Stack(
               children: [
-                AbsorbPointer(child: _ClaseGridCard(clase: c)),
+                AbsorbPointer(
+                    child: _ClaseGridCard(
+                        clase: c, esMiClase: _esMiClase(c['instructor']))),
                 Positioned(
                   top: 6,
                   left: 6,
@@ -3454,7 +3590,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         return GestureDetector(
           onTap: () => _mostrarMenuClase(c),
           onLongPress: () => _mostrarMenuClase(c),
-          child: _ClaseGridCard(clase: c),
+          child: _ClaseGridCard(clase: c, esMiClase: _esMiClase(c['instructor'])),
         );
       },
     );
@@ -3951,12 +4087,14 @@ class _WeekHeader extends StatelessWidget {
 class _StudioClassCard extends StatelessWidget {
   final Map<String, dynamic> clase;
   final bool studioMode;
+  final bool esMiClase;
   final VoidCallback? onAvisar;
   final VoidCallback? onMore;
   final VoidCallback? onEdit;
   const _StudioClassCard({
     required this.clase,
     required this.studioMode,
+    this.esMiClase = false,
     this.onAvisar,
     this.onMore,
     this.onEdit,
@@ -3987,6 +4125,10 @@ class _StudioClassCard extends StatelessWidget {
             decoration: BoxDecoration(color: AppColors.blackSoft, borderRadius: BorderRadius.circular(8)),
             child: Text(time.toUpperCase(), style: const TextStyle(color: AppColors.white, fontSize: 12, fontWeight: FontWeight.w700)),
           ),
+          if (esMiClase) ...[
+            const SizedBox(width: 6),
+            const _TuClaseBadge(),
+          ],
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -4337,11 +4479,36 @@ class _SegmentButton extends StatelessWidget {
       );
 }
 
+/// Badge naranja "Tu clase" para las clases donde la profe logueada es la
+/// instructora (F5).
+class _TuClaseBadge extends StatelessWidget {
+  const _TuClaseBadge();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: const Text(
+        'Tu clase',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
 class _HorarioFijoCard extends StatelessWidget {
   final Map<String, dynamic> horario;
   final VoidCallback onEdit, onDelete;
   final ValueChanged<bool> onToggle;
-  const _HorarioFijoCard({required this.horario, required this.onEdit, required this.onDelete, required this.onToggle});
+  final bool esMiClase;
+  const _HorarioFijoCard({required this.horario, required this.onEdit, required this.onDelete, required this.onToggle, this.esMiClase = false});
   @override
   Widget build(BuildContext context) {
     final nombre = horario['nombre']?.toString() ?? 'Clase';
@@ -4368,7 +4535,13 @@ class _HorarioFijoCard extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(nombre, style: const TextStyle(color: AppColors.black, fontSize: 15, fontWeight: FontWeight.w700)),
+              Row(children: [
+                Flexible(child: Text(nombre, style: const TextStyle(color: AppColors.black, fontSize: 15, fontWeight: FontWeight.w700))),
+                if (esMiClase) ...[
+                  const SizedBox(width: 8),
+                  const _TuClaseBadge(),
+                ],
+              ]),
               const SizedBox(height: 4),
               Text(extras.join(' · '), style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13)),
             ]),
@@ -4846,6 +5019,51 @@ class _AuraTextField extends StatelessWidget {
   }
 }
 
+/// Campo de instructor (F5): texto libre + botón-dropdown con las profes del
+/// estudio. Elegir una completa el campo; igual se puede escribir a mano.
+class _InstructorField extends StatelessWidget {
+  final TextEditingController controller;
+  final List<String> profes;
+  const _InstructorField({required this.controller, required this.profes});
+
+  @override
+  Widget build(BuildContext context) {
+    const field = 'Instructor/a';
+    if (profes.isEmpty) {
+      return _AuraTextField(
+        controller: controller,
+        label: field,
+        hint: 'Florencia Pérez',
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: _AuraTextField(
+            controller: controller,
+            label: field,
+            hint: 'Elegí una profe o escribí un nombre',
+          ),
+        ),
+        const SizedBox(width: 6),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: PopupMenuButton<String>(
+            tooltip: 'Elegir profe',
+            icon: const Icon(Icons.arrow_drop_down_circle_outlined,
+                color: AppColors.primary),
+            onSelected: (v) => controller.text = v,
+            itemBuilder: (_) => profes
+                .map((p) => PopupMenuItem<String>(value: p, child: Text(p)))
+                .toList(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _AuraDropdown<T> extends StatelessWidget {
   final String label;
   final T? value;
@@ -5165,7 +5383,8 @@ class _ViewToggleButton extends StatelessWidget {
 
 class _ClaseGridCard extends StatelessWidget {
   final Map<String, dynamic> clase;
-  const _ClaseGridCard({required this.clase});
+  final bool esMiClase;
+  const _ClaseGridCard({required this.clase, this.esMiClase = false});
 
   static const _weekday = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -5247,6 +5466,10 @@ class _ClaseGridCard extends StatelessWidget {
               height: 1.2,
             ),
           ),
+          if (esMiClase) ...[
+            const SizedBox(height: 6),
+            const _TuClaseBadge(),
+          ],
           const Spacer(),
           Row(
             children: [

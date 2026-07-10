@@ -273,6 +273,9 @@ class ReservasService {
         }
       }
 
+      // Notify the assigned profe(s) — instructor de la clase (F6).
+      _notifyProfes(claseId, userId).ignore();
+
       return Reserva.fromMap(data);
     } catch (e) {
       if (!esGratuita && creditosReales > 0) {
@@ -305,6 +308,18 @@ class ReservasService {
         usuarioNombre: nombre,
         claseId: claseId,
       );
+    } catch (_) {}
+  }
+
+  /// Notifica in-app a las profes cuyo nombre coincide con el instructor de la
+  /// clase (F6). Toda la lógica corre server-side (RPC security definer) porque
+  /// el reservante no puede leer estudio_admins ni notificar a otros por RLS.
+  Future<void> _notifyProfes(int claseId, String reservanteId) async {
+    try {
+      await _supabase.rpc('notify_profes_nueva_reserva', params: {
+        'p_clase_id': claseId,
+        'p_reservante_id': reservanteId,
+      });
     } catch (_) {}
   }
 
