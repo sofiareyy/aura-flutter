@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../providers/app_provider.dart';
 import '../../services/estudio_admin_service.dart';
 import '../../services/notificaciones_estudio_service.dart';
 import '../../widgets/notificaciones_estudio_sheet.dart';
@@ -77,6 +79,8 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                 final id = (e['estudio_id'] as num?)?.toInt();
                 final nombre = e['nombre']?.toString() ?? 'Sin nombre';
                 final isActive = e['is_active'] == true;
+                final rol = e['rol']?.toString();
+                final rolLabel = rol == 'profe' ? 'Profe' : 'Administrador';
                 return ListTile(
                   leading: Container(
                     width: 36,
@@ -96,6 +100,13 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                     style: TextStyle(
                       fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                       color: AppColors.black,
+                    ),
+                  ),
+                  subtitle: Text(
+                    rolLabel,
+                    style: const TextStyle(
+                      color: AppColors.grey,
+                      fontSize: 12,
                     ),
                   ),
                   trailing: isActive
@@ -123,6 +134,18 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo cambiar de estudio.')),
       );
+      return;
+    }
+    // Refrescar el rol activo (roles múltiples): si el nuevo estudio es de
+    // profe, hay que mandarla al panel limitado en vez del dashboard.
+    await context.read<AppProvider>().refrescarUsuario();
+    if (!mounted) return;
+    final sel = _misEstudios.firstWhere(
+      (e) => (e['estudio_id'] as num?)?.toInt() == seleccionado,
+      orElse: () => const {},
+    );
+    if (sel['rol']?.toString() == 'profe') {
+      context.go('/estudio/clases');
       return;
     }
     await _cargar();
@@ -255,6 +278,8 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 16),
+        _misProfesQuickAction(),
         const SizedBox(height: 24),
         // Main content: classes table + activity panel
         Row(
@@ -643,6 +668,8 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 12),
+                      _misProfesQuickAction(),
                       const SizedBox(height: 18),
                       const _SectionLabel('Clases de hoy'),
                       const SizedBox(height: 10),
@@ -953,6 +980,58 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
   }
 
   // ── Estadísticas section ──────────────────────────────────────────────────
+
+  /// Acceso rápido a "Mis Profes" (F2). Lleva al perfil del estudio, donde
+  /// está la sección para gestionar profes. No duplica el "cambiar a usuario".
+  Widget _misProfesQuickAction() {
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () => context.go('/estudio/perfil'),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.groups_2_outlined,
+                    color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Mis Profes',
+                      style: TextStyle(
+                        color: AppColors.black,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Ver y gestionar las profes del estudio',
+                      style: TextStyle(color: AppColors.grey, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.grey),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _miniStatCard(String emoji, String value, String label) {
     return Container(

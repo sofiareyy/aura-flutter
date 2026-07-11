@@ -85,17 +85,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
         await _authService.signInWithAppleNative();
         if (!mounted) return;
-        final rol = await _authService.ensureUsuarioCreado();
+        final destino = await _authService.destinoInicial();
         if (!mounted) return;
-        if (rol == 'estudio' || rol == 'admin_estudio') {
-          context.go('/estudio/dashboard');
-        } else if (rol == 'profe') {
-          context.go('/estudio/clases');
-        } else if (rol == 'admin') {
-          context.go('/admin/dashboard');
-        } else {
-          context.go('/home');
-        }
+        context.go(destino);
         return;
       }
 

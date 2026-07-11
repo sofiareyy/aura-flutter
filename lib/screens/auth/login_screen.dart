@@ -101,17 +101,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
         await _authService.signInWithAppleNative();
         if (!mounted) return;
-        final rol = await _authService.ensureUsuarioCreado();
+        final destino = await _authService.destinoInicial();
         if (!mounted) return;
-        if (rol == 'estudio' || rol == 'admin_estudio') {
-          context.go('/estudio/dashboard');
-        } else if (rol == 'profe') {
-          context.go('/estudio/clases');
-        } else if (rol == 'admin') {
-          context.go('/admin/dashboard');
-        } else {
-          context.go('/home');
-        }
+        context.go(destino);
         return;
       }
 
@@ -176,21 +168,12 @@ class _LoginScreenState extends State<LoginScreen> {
       if (uid != null) {
         await context.read<AppProvider>().refrescarUsuario();
         try {
-          final data = await Supabase.instance.client
-              .from('usuarios')
-              .select('rol')
-              .eq('id', uid)
-              .maybeSingle();
-          final rol = data?['rol']?.toString();
-          if (rol == 'estudio' || rol == 'admin_estudio') {
-            destino = '/estudio/dashboard';
-          } else if (rol == 'profe') {
-            destino = '/estudio/clases';
-          }
+          // Resuelve la ruta según los accesos (usuario / estudio / profe /
+          // selector si tiene roles en más de un estudio).
+          destino = await _authService.destinoInicial();
         } catch (_) {
-          // Si RLS o un fallo transitorio bloquean leer el rol, no rompemos el
-          // login: caemos a /home y dejamos que las pantallas internas
-          // resuelvan el routing si hace falta.
+          // Si RLS o un fallo transitorio bloquean resolver el destino, no
+          // rompemos el login: caemos a /home.
         }
       }
       if (mounted) context.go(destino);

@@ -39,18 +39,11 @@ class _AuthSplashScreenState extends State<AuthSplashScreen>
     final user = Supabase.instance.client.auth.currentUser;
     if (user != null) {
       try {
-        // ensureUsuarioCreado crea la fila si es OAuth por primera vez
-        final rol = await AuthService().ensureUsuarioCreado();
+        // destinoInicial crea la fila si es OAuth por primera vez y resuelve
+        // la ruta según los accesos (usuario / estudio / profe / selector).
+        final destino = await AuthService().destinoInicial();
         if (!mounted) return;
-        if (rol == 'estudio' || rol == 'admin_estudio') {
-          context.go('/estudio/dashboard');
-        } else if (rol == 'profe') {
-          context.go('/estudio/clases');
-        } else if (rol == 'admin') {
-          context.go('/admin/dashboard');
-        } else {
-          context.go('/home');
-        }
+        context.go(destino);
         return;
       } catch (_) {
         if (mounted) context.go('/home');

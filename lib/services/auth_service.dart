@@ -7,6 +7,8 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'estudio_admin_service.dart';
+
 class AuthService {
   final _supabase = Supabase.instance.client;
 
@@ -274,5 +276,30 @@ class AuthService {
     }
 
     return 'usuario';
+  }
+
+  /// Decide a dónde entrar según los accesos del usuario (roles múltiples).
+  /// - superadmin de Aura -> /admin/dashboard
+  /// - sin estudios       -> /home (usuario)
+  /// - 1 estudio          -> entra directo (admin -> dashboard, profe -> clases)
+  /// - 2+ estudios        -> selector /seleccionar-acceso
+  Future<String> destinoInicial() async {
+    final rol = await ensureUsuarioCreado();
+    if (rol == 'admin') return '/admin/dashboard';
+
+    final estudioService = EstudioAdminService();
+    final estudios = await estudioService.listMyStudios();
+    if (estudios.isEmpty) return '/home';
+
+    if (estudios.length == 1) {
+      final e = estudios.first;
+      final eid = (e['estudio_id'] as num?)?.toInt();
+      if (eid != null) await estudioService.setActiveEstudio(eid);
+      return e['rol']?.toString() == 'profe'
+          ? '/estudio/clases'
+          : '/estudio/dashboard';
+    }
+
+    return '/seleccionar-acceso';
   }
 }

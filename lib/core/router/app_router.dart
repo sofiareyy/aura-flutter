@@ -9,6 +9,7 @@ import '../../screens/auth/onboarding_screen.dart';
 import '../../screens/auth/landing_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
+import '../../screens/auth/seleccionar_acceso_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/explorar/explorar_screen.dart';
 import '../../screens/estudios/detalle_estudio_screen.dart';
@@ -101,6 +102,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/creditos-onboarding',
       builder: (context, state) => const CreditosOnboardingScreen(),
+    ),
+    GoRoute(
+      path: '/seleccionar-acceso',
+      builder: (context, state) => const SeleccionarAccesoScreen(),
     ),
     ShellRoute(
       navigatorKey: _shellNavigatorKey,

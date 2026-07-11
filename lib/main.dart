@@ -95,11 +95,19 @@ class _AuraAppState extends State<AuraApp> {
       (data) async {
         final event = data.event;
         if (event == AuthChangeEvent.signedIn ||
-            event == AuthChangeEvent.userUpdated) {
+            event == AuthChangeEvent.userUpdated ||
+            event == AuthChangeEvent.initialSession) {
           try {
             await _authService.ensureUsuarioCreado();
           } catch (e) {
             debugPrint('[authListener] ensureUsuarioCreado falló: $e');
+          }
+          // Cargar el usuario en el provider para que esProfe / rol activo
+          // (roles múltiples) estén disponibles apenas se entra a un panel.
+          if (mounted) {
+            try {
+              await context.read<AppProvider>().cargarUsuario();
+            } catch (_) {}
           }
         }
       },
@@ -226,19 +234,12 @@ class _AuraAppState extends State<AuraApp> {
     debugPrint('[OAuthCallback] Apple email: ${user.email}');
     debugPrint('[OAuthCallback] Apple metadata: ${user.userMetadata}');
     try {
-      // Crear usuario si es primera vez con OAuth (Google o Apple)
-      final rol = await _authService.ensureUsuarioCreado();
+      // Crear usuario si es primera vez con OAuth (Google o Apple) y resolver
+      // el destino según los accesos (usuario / estudio / profe / selector).
+      final destino = await _authService.destinoInicial();
       Future.delayed(const Duration(milliseconds: 200), () {
         if (!mounted) return;
-        if (rol == 'estudio' || rol == 'admin_estudio') {
-          appRouter.go('/estudio/dashboard');
-        } else if (rol == 'profe') {
-          appRouter.go('/estudio/clases');
-        } else if (rol == 'admin') {
-          appRouter.go('/admin/dashboard');
-        } else {
-          appRouter.go('/home');
-        }
+        appRouter.go(destino);
       });
     } catch (e) {
       // No pudimos crear/leer la fila en usuarios: cerramos la sesión a

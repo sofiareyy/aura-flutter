@@ -112,7 +112,7 @@ class EstudioAdminService {
       if (uid == null) return const [];
       final ea = await _client
           .from('estudio_admins')
-          .select('estudio_id, estudios(id, nombre, foto_url)')
+          .select('estudio_id, rol, estudios(id, nombre, foto_url)')
           .eq('usuario_id', uid);
       final userRow = await _client
           .from('usuarios')
@@ -129,6 +129,7 @@ class EstudioAdminService {
           'nombre': est?['nombre'],
           'foto_url': est?['foto_url'],
           'is_active': eId == activoId,
+          'rol': row['rol'],
         };
       }).toList();
     } catch (_) {
