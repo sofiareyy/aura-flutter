@@ -73,7 +73,7 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'No se pudo preparar el pago.' }, 500)
     }
 
-    const mpToken = Deno.env.get('MP_PACKS_ACCESS_TOKEN') ?? Deno.env.get('MP_ACCESS_TOKEN')!
+    const mpToken = Deno.env.get('MP_PACKS_ACCESS_TOKEN')!
     const configuredBaseUrl = Deno.env.get('APP_BASE_URL')?.trim() ?? ''
     const requestOrigin = req.headers.get('origin')?.trim() ?? ''
     const requestReferer = req.headers.get('referer')?.trim() ?? ''

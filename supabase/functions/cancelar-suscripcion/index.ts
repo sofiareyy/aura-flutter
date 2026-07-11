@@ -38,7 +38,7 @@ Deno.serve(async (req: Request) => {
 
     const mpToken =
       Deno.env.get('MP_SUBSCRIPTIONS_ACCESS_TOKEN') ??
-      Deno.env.get('MP_ACCESS_TOKEN')!
+      Deno.env.get('MP_SUSCRIPCIONES_ACCESS_TOKEN')!
 
     const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${subscriptionId}`, {
       method: 'PUT',

@@ -59,9 +59,8 @@ Deno.serve(async (req: Request) => {
     }
 
     const mpToken =
-      Deno.env.get('MP_SUSCRIPCIONES_ACCESS_TOKEN') ??
       Deno.env.get('MP_SUBSCRIPTIONS_ACCESS_TOKEN') ??
-      Deno.env.get('MP_ACCESS_TOKEN')!
+      Deno.env.get('MP_SUSCRIPCIONES_ACCESS_TOKEN')!
 
     const configuredBaseUrl = Deno.env.get('APP_BASE_URL')?.trim() ?? ''
     const requestOrigin = req.headers.get('origin')?.trim() ?? ''
