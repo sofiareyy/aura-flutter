@@ -69,7 +69,7 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
       builder: (ctx) => AlertDialog(
         title: Text('¿Eliminar $nombre?'),
         content: const Text(
-          'Esta acción es permanente y eliminará todas las clases asociadas.',
+          'Esta acción es permanente y no se puede deshacer.',
         ),
         actions: [
           TextButton(
@@ -1409,7 +1409,11 @@ class _StudioAccessDialogState extends State<_StudioAccessDialog> {
         _members = members;
         _loading = false;
       });
-    } catch (e) {
+    } catch (e, st) {
+      // Error exacto en consola para diagnóstico.
+      debugPrint('[accesos] error listando miembros del estudio '
+          '${widget.estudioId}: $e');
+      debugPrintStack(stackTrace: st);
       if (!mounted) return;
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');

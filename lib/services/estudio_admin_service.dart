@@ -55,6 +55,35 @@ class EstudioAdminService {
     return null;
   }
 
+  /// Métricas del dashboard del estudio: favoritos + vistas del mes.
+  /// Devuelve {favoritos, vistas_mes} (0 si falla o no hay permisos).
+  Future<({int favoritos, int vistasMes})> getMetricasEstudio(
+      int estudioId) async {
+    try {
+      final res = await _client.rpc(
+        'estudio_metricas',
+        params: {'p_estudio_id': estudioId},
+      );
+      final map = res is Map ? Map<String, dynamic>.from(res) : {};
+      return (
+        favoritos: (map['favoritos'] as num?)?.toInt() ?? 0,
+        vistasMes: (map['vistas_mes'] as num?)?.toInt() ?? 0,
+      );
+    } catch (_) {
+      return (favoritos: 0, vistasMes: 0);
+    }
+  }
+
+  /// Registra una vista del perfil de un estudio (fire-and-forget).
+  Future<void> registrarVistaEstudio(int estudioId) async {
+    try {
+      await _client.from('estudio_vistas').insert({
+        'estudio_id': estudioId,
+        'usuario_id': _client.auth.currentUser?.id,
+      });
+    } catch (_) {}
+  }
+
   Future<Map<String, dynamic>?> getCurrentStudio() async {
     final studioId = await getCurrentStudioId();
     if (studioId == null) return null;

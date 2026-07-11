@@ -25,6 +25,9 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
   bool _loading = true;
   String? _error;
   int _unreadNotifs = 0;
+  // FIX 4 — métricas del perfil.
+  int _favoritos = 0;
+  int _vistasMes = 0;
 
   @override
   void initState() {
@@ -158,6 +161,8 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
       final misEstudios = results[4] as List<Map<String, dynamic>>;
 
       int unread = 0;
+      int favoritos = 0;
+      int vistasMes = 0;
       if (estudio != null) {
         final estudioId = (estudio['id'] as num?)?.toInt();
         if (estudioId != null) {
@@ -165,6 +170,9 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
             unread = await NotificacionesEstudioService.instance
                 .getUnreadCount(estudioId);
           } catch (_) {}
+          final metricas = await _service.getMetricasEstudio(estudioId);
+          favoritos = metricas.favoritos;
+          vistasMes = metricas.vistasMes;
         }
       }
 
@@ -178,6 +186,8 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
         _loading = false;
         _error = estudio == null ? 'No encontramos un estudio asociado.' : null;
         _unreadNotifs = unread;
+        _favoritos = favoritos;
+        _vistasMes = vistasMes;
       });
 
       if (!tutorialOk) {
@@ -944,6 +954,36 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
 
   // ── Estadísticas section ──────────────────────────────────────────────────
 
+  Widget _miniStatCard(String emoji, String value, String label) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 18)),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Color(0xFF1A1A1A),
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(color: Color(0xFF8F877F), fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEstadisticasSection() {
     final now = DateTime.now();
 
@@ -962,6 +1002,22 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
       );
       if (topClase.isNotEmpty) {
         clasePopular = topClase['nombre']?.toString() ?? 'Sin datos';
+      }
+    }
+
+    // ── Top 3 clases por reservas ────────────────────────────────────────────
+    final top3 = <({String nombre, int reservas})>[];
+    {
+      final ordenadas = claseCounts.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      for (final e in ordenadas.take(3)) {
+        final c = _clases.firstWhere(
+          (x) => (x['id'] as num?)?.toInt() == e.key,
+          orElse: () => <String, dynamic>{},
+        );
+        final nombre =
+            c.isNotEmpty ? (c['nombre']?.toString() ?? 'Clase') : 'Clase';
+        top3.add((nombre: nombre, reservas: e.value));
       }
     }
 
@@ -989,20 +1045,22 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
       return dt != null && dt.year == now.year && dt.month == now.month;
     }).toList();
 
-    double tasaOcupacion = 0;
-    if (clasesDelMes.isNotEmpty) {
-      double sumTasas = 0;
-      int count = 0;
-      for (final clase in clasesDelMes) {
-        final total = (clase['lugares_total'] as num?)?.toDouble() ?? 0;
-        final disponibles = (clase['lugares_disponibles'] as num?)?.toDouble() ?? 0;
-        if (total > 0) {
-          sumTasas += (total - disponibles).clamp(0, total) / total;
-          count++;
-        }
-      }
-      if (count > 0) tasaOcupacion = (sumTasas / count) * 100;
+    // Tasa de ocupación del mes = reservas del mes / cupos totales del mes.
+    int cuposMes = 0;
+    for (final clase in clasesDelMes) {
+      cuposMes += (clase['lugares_total'] as num?)?.toInt() ?? 0;
     }
+    final idsMes = clasesDelMes
+        .map((c) => (c['id'] as num?)?.toInt())
+        .whereType<int>()
+        .toSet();
+    int reservasMes = 0;
+    for (final r in _reservas) {
+      final cid = (r['clase_id'] as num?)?.toInt();
+      if (cid != null && idsMes.contains(cid)) reservasMes++;
+    }
+    final tasaOcupacion =
+        cuposMes > 0 ? (reservasMes / cuposMes * 100).clamp(0, 100) : 0.0;
 
     // ── Reservas por día de semana (mes actual) ──────────────────────────────
     // Build clase fecha map
@@ -1030,6 +1088,19 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _SectionLabel('Estadísticas del mes'),
+        const SizedBox(height: 10),
+        // Favoritos + vistas del perfil (FIX 4).
+        Row(
+          children: [
+            Expanded(
+              child: _miniStatCard('❤️', '$_favoritos', 'En favoritos'),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _miniStatCard('👁️', '$_vistasMes', 'Vistas del mes'),
+            ),
+          ],
+        ),
         const SizedBox(height: 10),
         // 3 stat cards
         Row(
@@ -1135,6 +1206,83 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 10),
+        // Top 3 clases más populares (FIX 4).
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Clases más populares',
+                style: TextStyle(
+                  color: Color(0xFF1A1A1A),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (top3.isEmpty)
+                const Text(
+                  'Todavía no hay reservas para rankear.',
+                  style: TextStyle(color: Color(0xFF8F877F), fontSize: 12),
+                )
+              else
+                ...top3.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final t = entry.value;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 22,
+                          height: 22,
+                          alignment: Alignment.center,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primaryLight,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            '${i + 1}',
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            t.nombre,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF1A1A1A),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${t.reservas} reserva${t.reservas == 1 ? '' : 's'}',
+                          style: const TextStyle(
+                            color: Color(0xFF8F877F),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+            ],
+          ),
         ),
         const SizedBox(height: 10),
         // Bar chart by day of week

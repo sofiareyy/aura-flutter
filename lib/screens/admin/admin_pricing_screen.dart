@@ -49,8 +49,11 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
   // fitness: un solo rango por estudio
   final _minCtrl = TextEditingController();
   final _maxCtrl = TextEditingController();
-  // experiencia: precio fijo
+  // experiencia: precio fijo (legacy, ya no se muestra)
   final _fijoCtrl = TextEditingController();
+  // experiencia: comisión de workshops (%). El precio lo pone el estudio en
+  // cada workshop, no acá.
+  final _comisionWorkshopCtrl = TextEditingController();
 
   // horarios: clave "dia|rango" -> 'pico' | 'valle'
   final Map<String, String> _clasificacion = {};
@@ -68,6 +71,7 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
     _minCtrl.dispose();
     _maxCtrl.dispose();
     _fijoCtrl.dispose();
+    _comisionWorkshopCtrl.dispose();
     super.dispose();
   }
 
@@ -79,7 +83,8 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
     try {
       final row = await _client
           .from('estudios')
-          .select('id, nombre, tipo_estudio, precio_config, horarios_config')
+          .select(
+              'id, nombre, tipo_estudio, precio_config, horarios_config, comision_workshop')
           .eq('id', widget.estudioId)
           .maybeSingle();
       _valorCredito = await _pricingService.getValorCreditoArs();
@@ -107,6 +112,8 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       _maxCtrl.text = max?.toString() ?? '';
       // para experiencia el precio fijo se guarda en min
       _fijoCtrl.text = min?.toString() ?? '';
+      _comisionWorkshopCtrl.text =
+          (_asInt(row['comision_workshop']) ?? 15).toString();
 
       // horarios_config = {"pico": [{"dia":1,"rango":"tarde_noche"}], "valle": [...]}
       _clasificacion.clear();
@@ -143,17 +150,35 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
   Future<void> _guardar() async {
     if (widget.readOnly) return;
 
+    // Experiencia: no hay precio central (lo pone el estudio en cada workshop).
+    // Solo se guarda tipo_estudio + comisión de workshops.
+    if (_tipoEstudio == 'experiencia') {
+      final comision = int.tryParse(_comisionWorkshopCtrl.text.trim()) ?? 15;
+      setState(() => _saving = true);
+      try {
+        await _client.from('estudios').update({
+          'tipo_estudio': 'experiencia',
+          'comision_workshop': comision,
+        }).eq('id', widget.estudioId);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Configuración guardada.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      } catch (e) {
+        _snack('No se pudo guardar: $e');
+      } finally {
+        if (mounted) setState(() => _saving = false);
+      }
+      return;
+    }
+
     final Map<String, dynamic> precioConfig;
     Map<String, dynamic> horariosConfig = {'pico': [], 'valle': []};
 
-    if (_tipoEstudio == 'experiencia') {
-      final fijo = int.tryParse(_fijoCtrl.text.trim());
-      if (fijo == null) {
-        _snack('Ingresá un precio fijo válido.');
-        return;
-      }
-      precioConfig = {'min': fijo, 'max': fijo, 'pico_multiplier': 1.0};
-    } else {
+    {
       final min = int.tryParse(_minCtrl.text.trim());
       final max = int.tryParse(_maxCtrl.text.trim());
       if (min == null || max == null) {
@@ -536,7 +561,7 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Precio fijo',
+          'Comisión de workshops',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
@@ -545,46 +570,21 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Las experiencias cobran siempre lo mismo, sin importar día u hora.',
+          'El precio en créditos lo define el estudio en cada workshop.',
           style: TextStyle(color: AppColors.grey, fontSize: 13, height: 1.4),
         ),
         const SizedBox(height: 14),
         TextField(
-          controller: _fijoCtrl,
+          controller: _comisionWorkshopCtrl,
           enabled: !widget.readOnly,
           keyboardType: TextInputType.number,
-          onChanged: (_) => setState(() {}),
           decoration: const InputDecoration(
-            labelText: 'Precio (créditos)',
-            suffixText: 'cr',
+            labelText: 'Comisión workshops (%)',
+            helperText: 'Porcentaje que retiene Aura en workshops. Default 15.',
+            suffixText: '%',
             isDense: true,
           ),
         ),
-        const SizedBox(height: 12),
-        Builder(builder: (_) {
-          final fijo = int.tryParse(_fijoCtrl.text.trim());
-          final texto = fijo == null
-              ? 'Ingresá el precio para ver cuánto recibe el estudio.'
-              : 'Estudio recibe '
-                  '${_fmtPesos(_pricingService.montoEstudioPorClase(_valorCredito, fijo))} '
-                  'por clase';
-          return Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF1E8),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              texto,
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          );
-        }),
       ],
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/estudio.dart';
@@ -40,7 +41,20 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
   @override
   void initState() {
     super.initState();
+    _registrarVista().ignore();
     _cargar();
+  }
+
+  /// Registra una vista del perfil para las métricas del estudio (FIX 4).
+  /// Fire-and-forget: nunca bloquea ni rompe la pantalla.
+  Future<void> _registrarVista() async {
+    try {
+      final client = Supabase.instance.client;
+      await client.from('estudio_vistas').insert({
+        'estudio_id': widget.estudioId,
+        'usuario_id': client.auth.currentUser?.id,
+      });
+    } catch (_) {}
   }
 
   Future<void> _cargar() async {

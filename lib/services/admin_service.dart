@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminService {
@@ -286,16 +287,35 @@ class AdminService {
 
   /// Lista TODOS los miembros de un estudio (admins y profes) con su `rol`.
   /// Usa la RPC `admin_list_studio_members` (superadmin o admin del estudio).
+  /// Si esa RPC todavía no está deployada (falta correr
+  /// BACKOFFICE_GESTION_ACCESOS.sql), cae a `admin_list_studio_accesses`
+  /// (sin distinción de rol) para no romper el panel.
   Future<List<Map<String, dynamic>>> listEstudioMembers({
     required int estudioId,
   }) async {
-    final res = await _client.rpc(
-      'admin_list_studio_members',
-      params: {'p_estudio_id': estudioId},
-    );
-    return List<Map<String, dynamic>>.from(res as List)
-        .map((row) => Map<String, dynamic>.from(row as Map))
-        .toList();
+    try {
+      final res = await _client.rpc(
+        'admin_list_studio_members',
+        params: {'p_estudio_id': estudioId},
+      );
+      return List<Map<String, dynamic>>.from(res as List)
+          .map((row) => Map<String, dynamic>.from(row as Map))
+          .toList();
+    } on PostgrestException catch (e) {
+      debugPrint(
+        '[accesos] admin_list_studio_members falló '
+        '(code=${e.code}, message=${e.message}, details=${e.details}). '
+        'Fallback a admin_list_studio_accesses. '
+        'Corré supabase/BACKOFFICE_GESTION_ACCESOS.sql para el panel completo.',
+      );
+      final res = await _client.rpc(
+        'admin_list_studio_accesses',
+        params: {'p_estudio_id': estudioId},
+      );
+      return List<Map<String, dynamic>>.from(res as List)
+          .map((row) => Map<String, dynamic>.from(row as Map))
+          .toList();
+    }
   }
 
   /// Agrega una profe (rol 'profe') por email. Superadmin-aware.
