@@ -145,8 +145,11 @@ class EstudioAdminService {
         'set_active_estudio',
         params: {'p_estudio_id': estudioId},
       );
-      final map = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
-      return map['ok'] == true;
+      // La RPC devuelve un boolean (true = ok). Compat: si alguna versión vieja
+      // devolviera un json {ok:...}, también lo tomamos.
+      if (res is bool) return res;
+      if (res is Map) return res['ok'] == true;
+      return false;
     } catch (_) {
       return false;
     }

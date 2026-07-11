@@ -48,42 +48,41 @@ grant execute on function public.list_my_studios() to authenticated;
 
 
 -- 2. set_active_estudio sincroniza el rol global con el rol del estudio -----
+-- Devuelve boolean (true = ok) para evitar literales de texto que se corrompen
+-- al copiar/pegar. El superadmin de Aura se identifica por admin_users (no por
+-- usuarios.rol), asi que sincronizar el rol aca no afecta el acceso al backoffice.
+drop function if exists public.set_active_estudio(int);
+
 create or replace function public.set_active_estudio(
   p_estudio_id int
-) returns json
+) returns boolean
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  v_uid        uuid := auth.uid();
-  v_rol        text;
-  v_global_rol text;
+  v_uid uuid := auth.uid();
+  v_rol text;
 begin
   if v_uid is null then
-    return json_build_object('ok', false, 'error', 'no_auth');
+    return false;
   end if;
 
-  -- Rol del usuario EN el estudio elegido (valida que sea miembro).
   select rol into v_rol
     from public.estudio_admins
    where estudio_id = p_estudio_id
      and usuario_id = v_uid;
 
   if v_rol is null then
-    return json_build_object('ok', false, 'error', 'forbidden');
+    return false;
   end if;
-
-  select rol into v_global_rol from public.usuarios where id = v_uid;
 
   update public.usuarios
      set estudio_id = p_estudio_id,
-         -- Sincronizar el rol global con el del estudio activo. No tocamos a un
-         -- superadmin de Aura ('admin').
-         rol = case when v_global_rol = 'admin' then v_global_rol else v_rol end
+         rol = v_rol
    where id = v_uid;
 
-  return json_build_object('ok', true, 'rol', v_rol);
+  return true;
 end;
 $$;
 
