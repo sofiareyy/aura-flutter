@@ -152,6 +152,10 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     final creditosMaxCtrl = TextEditingController(
       text: (estudio?['creditos_max'] as num?)?.toInt().toString() ?? '',
     );
+    // Precio original, para detectar si cambió al guardar y ofrecer propagarlo.
+    final origTipoPrecio = tipoPrecio;
+    final origMin = (estudio?['creditos_min'] as num?)?.toInt();
+    final origMax = (estudio?['creditos_max'] as num?)?.toInt();
 
     String? categoria = estudio?['categoria']?.toString();
     bool activo = estudio?['activo'] as bool? ?? true;
@@ -576,7 +580,86 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
               '${fechaInicioCobro!.month.toString().padLeft(2, '0')}-'
               '${fechaInicioCobro!.day.toString().padLeft(2, '0')}',
     );
+
+    // Si cambió el precio de un estudio existente, ofrecer propagarlo a las
+    // clases futuras. El valor base es el mínimo (= valor único en precio fijo).
+    final estudioId = (estudio?['id'] as num?)?.toInt();
+    final nuevoMin = int.tryParse(creditosMinCtrl.text.trim());
+    final nuevoMax = tipoPrecio == 'fijo'
+        ? nuevoMin
+        : int.tryParse(creditosMaxCtrl.text.trim());
+    final precioCambio = tipoPrecio != origTipoPrecio ||
+        nuevoMin != origMin ||
+        nuevoMax != origMax;
+    if (estudioId != null && precioCambio && nuevoMin != null) {
+      await _ofrecerActualizarClasesFuturas(estudioId, nuevoMin);
+    }
+
     await _load();
+  }
+
+  /// Pregunta si propagar el nuevo precio a las clases futuras del estudio.
+  Future<void> _ofrecerActualizarClasesFuturas(
+    int estudioId,
+    int creditos,
+  ) async {
+    int cantidad;
+    try {
+      cantidad = await _service.contarClasesFuturas(estudioId);
+    } catch (_) {
+      return;
+    }
+    if (cantidad <= 0 || !mounted) return;
+
+    final actualizar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Actualizar clases futuras'),
+        content: Text(
+          '¿Actualizar también las $cantidad clase${cantidad == 1 ? '' : 's'} '
+          'futura${cantidad == 1 ? '' : 's'} con el nuevo precio?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            style: TextButton.styleFrom(foregroundColor: AppColors.grey),
+            child: const Text('Solo guardar la config'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.white,
+            ),
+            child: const Text('Sí, actualizar todo'),
+          ),
+        ],
+      ),
+    );
+    if (actualizar != true) return;
+
+    try {
+      final n = await _service.actualizarPrecioClasesFuturas(
+        estudioId: estudioId,
+        creditos: creditos,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$n clase${n == 1 ? '' : 's'} '
+              'actualizada${n == 1 ? '' : 's'} con el nuevo precio.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   Future<void> _openCreateWithAccountDialog() async {

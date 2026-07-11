@@ -21,11 +21,7 @@ begin
   end if;
 end $$;
 
-comment on column public.estudios.tipo_precio is 'fijo | rango. Editable solo desde el backoffice.';
-comment on column public.estudios.creditos_min is 'Precio fijo (fijo) o mínimo del rango (rango), en créditos.';
-comment on column public.estudios.creditos_max is 'Máximo del rango (en fijo = creditos_min).';
-
--- 2. admin_upsert_estudio: aceptar tipo_precio + créditos min/max ----------
+-- 2. admin_upsert_estudio: aceptar tipo_precio + creditos min/max ----------
 drop function if exists public.admin_upsert_estudio(
   bigint, text, text, text, text, text, text, text, text, text,
   double precision, double precision, boolean, numeric, date, integer, text);

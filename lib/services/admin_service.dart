@@ -469,6 +469,28 @@ class AdminService {
     );
   }
 
+  /// Cuenta las clases futuras (no workshops) de un estudio.
+  Future<int> contarClasesFuturas(int estudioId) async {
+    final res = await _client.rpc(
+      'admin_contar_clases_futuras',
+      params: {'p_estudio_id': estudioId},
+    );
+    return (res as num?)?.toInt() ?? 0;
+  }
+
+  /// Actualiza los créditos de las clases futuras (no workshops) del estudio
+  /// y sincroniza sus horarios fijos. Devuelve cuántas clases se actualizaron.
+  Future<int> actualizarPrecioClasesFuturas({
+    required int estudioId,
+    required int creditos,
+  }) async {
+    final res = await _client.rpc(
+      'admin_set_precio_clases_futuras',
+      params: {'p_estudio_id': estudioId, 'p_creditos': creditos},
+    );
+    return (res as num?)?.toInt() ?? 0;
+  }
+
   /// Elimina un estudio de forma permanente junto con todo lo asociado
   /// (clases y sus reservas, liquidaciones, reseñas, etc.). El RPC verifica
   /// que el caller sea admin.
