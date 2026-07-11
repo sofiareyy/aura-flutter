@@ -143,6 +143,16 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     final cbuCtrl =
         TextEditingController(text: estudio?['cbu']?.toString() ?? '');
 
+    // Tipo de precio por estudio (fijo / rango). Editable solo desde acá.
+    String tipoPrecio = estudio?['tipo_precio']?.toString() ?? 'rango';
+    if (tipoPrecio != 'fijo' && tipoPrecio != 'rango') tipoPrecio = 'rango';
+    final creditosMinCtrl = TextEditingController(
+      text: (estudio?['creditos_min'] as num?)?.toInt().toString() ?? '',
+    );
+    final creditosMaxCtrl = TextEditingController(
+      text: (estudio?['creditos_max'] as num?)?.toInt().toString() ?? '',
+    );
+
     String? categoria = estudio?['categoria']?.toString();
     bool activo = estudio?['activo'] as bool? ?? true;
     DateTime? fechaInicioCobro = estudio?['fecha_inicio_cobro'] != null
@@ -421,7 +431,96 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // ── SECCIÓN 5 — ESTADO ──────────────────────────────────
+                  // ── SECCIÓN 5 — PRECIO POR CLASE ────────────────────────
+                  const _FormSectionHeader('PRECIO POR CLASE'),
+                  const Text(
+                    'Cómo se cobran las clases del estudio. El estudio no ve ni '
+                    'edita esto.',
+                    style: TextStyle(
+                      color: AppColors.grey,
+                      fontSize: 12,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3EEE8),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _PrecioTipoButton(
+                            label: 'Precio fijo',
+                            selected: tipoPrecio == 'fijo',
+                            onTap: () => setLocal(() => tipoPrecio = 'fijo'),
+                          ),
+                        ),
+                        Expanded(
+                          child: _PrecioTipoButton(
+                            label: 'Rango',
+                            selected: tipoPrecio == 'rango',
+                            onTap: () => setLocal(() => tipoPrecio = 'rango'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (tipoPrecio == 'fijo')
+                    TextField(
+                      controller: creditosMinCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(4),
+                      ],
+                      decoration: const InputDecoration(
+                        labelText: 'Créditos por clase',
+                        helperText:
+                            'Todas las clases del estudio valen esto.',
+                        suffixText: 'cr',
+                      ),
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: creditosMinCtrl,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(4),
+                            ],
+                            decoration: const InputDecoration(
+                              labelText: 'Mínimo',
+                              suffixText: 'cr',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: creditosMaxCtrl,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(4),
+                            ],
+                            decoration: const InputDecoration(
+                              labelText: 'Máximo',
+                              suffixText: 'cr',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 20),
+
+                  // ── SECCIÓN 6 — ESTADO ──────────────────────────────────
                   const _FormSectionHeader('ESTADO'),
                   SwitchListTile(
                     value: activo,
@@ -465,6 +564,12 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
       comision: int.tryParse(comisionCtrl.text.trim()),
       comisionWorkshop: int.tryParse(comisionWorkshopCtrl.text.trim()),
       cbu: cbuCtrl.text,
+      tipoPrecio: tipoPrecio,
+      creditosMin: int.tryParse(creditosMinCtrl.text.trim()),
+      // En precio fijo, min == max == el valor único.
+      creditosMax: tipoPrecio == 'fijo'
+          ? int.tryParse(creditosMinCtrl.text.trim())
+          : int.tryParse(creditosMaxCtrl.text.trim()),
       fechaInicioCobro: fechaInicioCobro == null
           ? null
           : '${fechaInicioCobro!.year}-'
@@ -1106,6 +1211,42 @@ class _FormSectionHeader extends StatelessWidget {
         const Divider(height: 1, color: Color(0xFFEDE7E1)),
         const SizedBox(height: 12),
       ],
+    );
+  }
+}
+
+/// Botón de un segmented control (Precio fijo / Rango) en el form de estudio.
+class _PrecioTipoButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _PrecioTipoButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? AppColors.white : AppColors.grey,
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+          ),
+        ),
+      ),
     );
   }
 }

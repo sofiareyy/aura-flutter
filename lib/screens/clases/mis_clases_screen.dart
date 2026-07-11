@@ -80,6 +80,39 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       _miNombre.isNotEmpty &&
       _normNombre(instructor) == _normNombre(_miNombre);
 
+  /// Config de precio del estudio para el form de clase. `modo` es 'fijo' o
+  /// 'rango'. Cae al min/max de precio_config si las columnas nuevas son null.
+  ({String modo, int min, int max}) _studioPricing() {
+    final e = _estudio;
+    var modo = e?['tipo_precio']?.toString() ?? 'rango';
+    if (modo != 'fijo' && modo != 'rango') modo = 'rango';
+    int? cfgMin, cfgMax;
+    final config = e?['precio_config'];
+    if (config is Map) {
+      cfgMin = (config['min'] as num?)?.toInt() ??
+          int.tryParse('${config['min']}');
+      cfgMax = (config['max'] as num?)?.toInt() ??
+          int.tryParse('${config['max']}');
+    }
+    final min = (e?['creditos_min'] as num?)?.toInt() ?? cfgMin ?? 10;
+    var max = (e?['creditos_max'] as num?)?.toInt() ?? cfgMax ?? min;
+    if (max < min) max = min;
+    return (modo: modo, min: min, max: max);
+  }
+
+  /// Créditos finales a guardar: workshop = libre; fijo = valor único; rango =
+  /// lo que puso el estudio, clampeado a [min, max].
+  int _creditosFinal(
+    TextEditingController ctrl,
+    String tipo,
+    ({String modo, int min, int max}) pricing,
+  ) {
+    final parsed = int.tryParse(ctrl.text.trim());
+    if (tipo == 'workshop') return parsed ?? 10;
+    if (pricing.modo == 'fijo') return pricing.min;
+    return (parsed ?? pricing.min).clamp(pricing.min, pricing.max);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -436,6 +469,19 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     );
     final cupos = TextEditingController(text: ((clase['lugares_total'] as num?)?.toInt() ?? 12).toString());
     final cred = TextEditingController(text: ((clase['creditos'] as num?)?.toInt() ?? 10).toString());
+    final tipoClase = clase['tipo']?.toString() ?? 'clase';
+    // Precio del estudio (fijo/rango) para el campo créditos.
+    final pricing = _studioPricing();
+    if (tipoClase != 'workshop') {
+      final actual = int.tryParse(cred.text.trim());
+      if (pricing.modo == 'fijo') {
+        cred.text = pricing.min.toString();
+      } else if (actual != null) {
+        cred.text = actual.clamp(pricing.min, pricing.max).toString();
+      } else {
+        cred.text = pricing.min.toString();
+      }
+    }
     int cierreReserva = (clase['reserva_cierre_minutos'] as num?)?.toInt() ?? 0;
     String? cat = clase['categoria']?.toString();
     final fechaOrig = DateTime.tryParse(clase['fecha']?.toString() ?? '');
@@ -636,17 +682,20 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   onChanged: (v) => setD(() => cat = v),
                                 ),
                               const SizedBox(height: 12),
-                              _PricingPreview(
-                                estudio: _estudio,
-                                hora: '${horaSel.hour.toString().padLeft(2, '0')}:${horaSel.minute.toString().padLeft(2, '0')}',
-                                dia: fechaSel.weekday,
-                                categoria: cat,
-                                onComputed: (creditos) {
-                                  if (cred.text != creditos.toString()) {
-                                    cred.text = creditos.toString();
-                                  }
-                                },
-                              ),
+                              if (tipoClase == 'workshop')
+                                _AuraTextField(
+                                  controller: cred,
+                                  label: 'Precio en créditos',
+                                  hint: '30',
+                                  keyboardType: TextInputType.number,
+                                )
+                              else
+                                _StudioCreditsField(
+                                  modo: pricing.modo,
+                                  min: pricing.min,
+                                  max: pricing.max,
+                                  controller: cred,
+                                ),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -784,7 +833,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         // que el flujo de reservar la rechace (sino quedaba el viejo valor
         // de disponibles y la clase aparecia reservable).
         if (lugaresTotal == 0) 'lugares_disponibles': 0,
-        'creditos': int.tryParse(cred.text.trim()) ?? 10,
+        'creditos': _creditosFinal(cred, tipoClase, pricing),
         // Solo incluir categoria si tiene valor — evita pisar con null si la
         // columna tiene constraint NOT NULL o si el dropdown quedo vacio.
         if (categoriaTrim.isNotEmpty) 'categoria': categoriaTrim,
@@ -1067,6 +1116,20 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     // Tipo de clase: 'clase' normal o 'workshop' (evento). Solo elegible al
     // crear una clase individual (no en horarios fijos ni edición).
     String tipo = item?['tipo']?.toString() ?? 'clase';
+    // Precio del estudio (fijo/rango). Precarga el campo créditos de clases
+    // normales: fijo -> valor único; rango -> precargado con el mínimo (o el
+    // valor guardado, clampeado al rango si es edición).
+    final pricing = _studioPricing();
+    if (tipo != 'workshop') {
+      final actual = int.tryParse(cr.text.trim());
+      if (pricing.modo == 'fijo') {
+        cr.text = pricing.min.toString();
+      } else if (edit && actual != null) {
+        cr.text = actual.clamp(pricing.min, pricing.max).toString();
+      } else {
+        cr.text = pricing.min.toString();
+      }
+    }
     // Organizadores del workshop: filas de {nombre, instagram}.
     final orgNombreCtrls = <TextEditingController>[];
     final orgInstaCtrls = <TextEditingController>[];
@@ -1366,16 +1429,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   keyboardType: TextInputType.number,
                                 )
                               else
-                                _PricingPreview(
-                                  estudio: _estudio,
-                                  hora: '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
-                                  dia: edit ? d : fecha.weekday,
-                                  categoria: cat,
-                                  onComputed: (creditos) {
-                                    if (cr.text != creditos.toString()) {
-                                      cr.text = creditos.toString();
-                                    }
-                                  },
+                                _StudioCreditsField(
+                                  modo: pricing.modo,
+                                  min: pricing.min,
+                                  max: pricing.max,
+                                  controller: cr,
                                 ),
                             ],
                           ),
@@ -1676,7 +1734,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       'hora_inicio': '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
       'duracion_min': dur,
       'lugares_total': int.tryParse(c.text.trim()) ?? 12,
-      'creditos': int.tryParse(cr.text.trim()) ?? 10,
+      'creditos': _creditosFinal(cr, tipo, pricing),
       'reserva_cierre_minutos': cierreReserva,
       'instructor': i.text.trim().isEmpty ? null : i.text.trim(),
       'instructor_descripcion':
@@ -1760,6 +1818,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final s = TextEditingController();
     final c = TextEditingController(text: '12');
     final cr = TextEditingController(text: '10');
+    // Precio del estudio (fijo/rango): precarga los créditos de la grilla.
+    final pricing = _studioPricing();
+    cr.text = pricing.min.toString();
     int cierreReserva = 0;
     int dur = 60;
     String? cat;
@@ -2040,20 +2101,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   onChanged: (v) => setD(() => cat = v),
                                 ),
                               const SizedBox(height: 12),
-                              Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFF1E8),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Text(
-                                  'Los créditos de cada clase se calculan automáticamente según el día y horario, usando la configuración de precios pico/valle del estudio.',
-                                  style: TextStyle(
-                                    color: AppColors.primary,
-                                    fontSize: 13,
-                                    height: 1.35,
-                                  ),
-                                ),
+                              _StudioCreditsField(
+                                modo: pricing.modo,
+                                min: pricing.min,
+                                max: pricing.max,
+                                controller: cr,
                               ),
                             ],
                           ),
@@ -2205,7 +2257,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final payloadBase = {
       'nombre': n.text.trim(),
       'lugares_total': int.tryParse(c.text.trim()) ?? 12,
-      'creditos': int.tryParse(cr.text.trim()) ?? 10,
+      'creditos': _creditosFinal(cr, 'clase', pricing),
       'reserva_cierre_minutos': cierreReserva,
       'instructor': i.text.trim().isEmpty ? null : i.text.trim(),
       'instructor_descripcion':
@@ -5162,6 +5214,68 @@ class _AuraReadOnlyField extends StatelessWidget {
 /// Muestra los creditos calculados automaticamente segun pricing dinamico
 /// del estudio (pico/valle/normal). Tambien muestra cuanto paga el usuario
 /// y cuanto recibe el estudio (en pesos).
+/// Campo de créditos por clase para el estudio, según el tipo de precio.
+/// fijo  -> bloqueado y precargado con el valor único del estudio.
+/// rango -> editable, con ayuda "Entre X e Y créditos" (se clampea al guardar).
+class _StudioCreditsField extends StatelessWidget {
+  final String modo; // 'fijo' | 'rango'
+  final int min;
+  final int max;
+  final TextEditingController controller;
+  const _StudioCreditsField({
+    required this.modo,
+    required this.min,
+    required this.max,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (modo == 'fijo') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: controller,
+            enabled: false,
+            keyboardType: TextInputType.number,
+            style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 15),
+            decoration: _formInputDecoration(label: 'Créditos por clase')
+                .copyWith(suffixText: 'cr'),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              'Precio fijo del estudio (se configura desde el backoffice).',
+              style:
+                  TextStyle(color: AppColors.grey, fontSize: 12, height: 1.35),
+            ),
+          ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _AuraTextField(
+          controller: controller,
+          label: 'Créditos por clase',
+          hint: '$min',
+          keyboardType: TextInputType.number,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 6, left: 4),
+          child: Text(
+            'Entre $min y $max créditos.',
+            style: const TextStyle(
+                color: AppColors.grey, fontSize: 12, height: 1.35),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _PricingPreview extends StatelessWidget {
   final Map<String, dynamic>? estudio;
   final String hora;

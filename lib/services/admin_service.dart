@@ -434,6 +434,9 @@ class AdminService {
     int? comisionWorkshop,
     String? cbu,
     String? fechaInicioCobro,
+    String? tipoPrecio,
+    int? creditosMin,
+    int? creditosMax,
   }) async {
     await _client.rpc(
       'admin_upsert_estudio',
@@ -459,6 +462,9 @@ class AdminService {
         'p_comision_workshop': comisionWorkshop,
         'p_cbu': cbu?.trim().isEmpty == true ? null : cbu?.trim(),
         'p_fecha_inicio_cobro': fechaInicioCobro,
+        'p_tipo_precio': tipoPrecio,
+        'p_creditos_min': creditosMin,
+        'p_creditos_max': creditosMax,
       },
     );
   }
