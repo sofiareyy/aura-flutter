@@ -1,16 +1,17 @@
-// Recibe notificaciones de Mercado Pago para packs de créditos.
+// Recibe notificaciones de Mercado Pago para packs de créditos y suscripciones.
 // Responde 200 inmediatamente y procesa en segundo plano.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const MP_PACKS_ACCESS_TOKEN =
-  Deno.env.get('MP_PACKS_ACCESS_TOKEN') ?? Deno.env.get('MP_ACCESS_TOKEN')!
+// Tokens dedicados por cuenta MP. Packs y suscripciones pueden ser cuentas
+// distintas, así que cada tipo de pago se verifica con su propio access token.
+// (Se eliminó el MP_ACCESS_TOKEN genérico para no verificar todo con un token.)
+const MP_PACKS_ACCESS_TOKEN = Deno.env.get('MP_PACKS_ACCESS_TOKEN')!
 const MP_SUBSCRIPTIONS_ACCESS_TOKEN =
-  Deno.env.get('MP_SUSCRIPCIONES_ACCESS_TOKEN') ??
   Deno.env.get('MP_SUBSCRIPTIONS_ACCESS_TOKEN') ??
-  Deno.env.get('MP_ACCESS_TOKEN')!
+  Deno.env.get('MP_SUSCRIPCIONES_ACCESS_TOKEN')!
 const MP_WEBHOOK_SECRET = Deno.env.get('MP_WEBHOOK_SECRET')
 const MP_PACKS_WEBHOOK_SECRET = Deno.env.get('MP_PACKS_WEBHOOK_SECRET')
 const MP_SUBSCRIPTIONS_WEBHOOK_SECRET = Deno.env.get('MP_SUBSCRIPTIONS_WEBHOOK_SECRET')
@@ -88,12 +89,35 @@ async function isValidSignature(req: Request, rawBody: string): Promise<boolean>
   return false
 }
 
-async function procesarPago(paymentId: string) {
+async function procesarPago(paymentId: string, eventType = 'payment') {
   const supabase = getAdmin()
 
-  const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-    headers: { Authorization: `Bearer ${MP_PACKS_ACCESS_TOKEN}` },
+  // El external_reference (pack vs plan) solo se conoce DESPUÉS de traer el pago,
+  // pero el token depende de la cuenta MP (packs y suscripciones son distintas).
+  // Usamos el tipo de evento como señal: 'subscription_authorized_payment' es un
+  // cobro recurrente de suscripción -> token de suscripciones; el resto ('payment')
+  // es un pack -> token de packs. Con fallback al otro token por las dudas.
+  const esSuscripcion = eventType === 'subscription_authorized_payment'
+  const primaryToken = esSuscripcion
+    ? MP_SUBSCRIPTIONS_ACCESS_TOKEN
+    : MP_PACKS_ACCESS_TOKEN
+  const fallbackToken = esSuscripcion
+    ? MP_PACKS_ACCESS_TOKEN
+    : MP_SUBSCRIPTIONS_ACCESS_TOKEN
+
+  let mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+    headers: { Authorization: `Bearer ${primaryToken}` },
   })
+  if (!mpRes.ok && fallbackToken && fallbackToken !== primaryToken) {
+    console.warn(
+      `mp-webhook: pago ${paymentId} falló con el token primario ` +
+      `(${esSuscripcion ? 'suscripciones' : 'packs'}, status ${mpRes.status}), ` +
+      `reintentando con el otro token`,
+    )
+    mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+      headers: { Authorization: `Bearer ${fallbackToken}` },
+    })
+  }
   if (!mpRes.ok) {
     console.error(`mp-webhook: no se pudo obtener pago ${paymentId}:`, await mpRes.text())
     return
@@ -347,7 +371,7 @@ Deno.serve(async (req: Request) => {
     if ((topic === 'payment' || topic === 'subscription_authorized_payment') && id) {
       queueMicrotask(async () => {
         try {
-          await procesarPago(id)
+          await procesarPago(id, topic)
         } catch (error) {
           console.error('mp-webhook: error procesando GET', error)
         }
@@ -394,7 +418,7 @@ Deno.serve(async (req: Request) => {
         console.log('mp-webhook: POST parseado', { type, dataId })
 
         if ((type === 'payment' || type === 'subscription_authorized_payment') && dataId) {
-          await procesarPago(dataId)
+          await procesarPago(dataId, type)
         } else if ((type === 'preapproval' || type === 'subscription_preapproval') && dataId) {
           await procesarPreapproval(dataId)
         } else {
