@@ -55,15 +55,33 @@ class _PaymentResultScreenState extends State<PaymentResultScreen> {
 
     // status == 'success' o sin status — confirmar con la edge function
     try {
-      if (widget.pagoId != null && widget.pagoId!.isNotEmpty) {
-        await _usuariosService.confirmarPagoManual(
-          pagoId: widget.pagoId!,
-          paymentId: widget.paymentId,
-        );
+      final hasPagoId = widget.pagoId != null && widget.pagoId!.isNotEmpty;
+      final hasPaymentId =
+          widget.paymentId != null && widget.paymentId!.isNotEmpty;
+      if (!hasPagoId && !hasPaymentId) {
+        throw const FormatException('Faltan datos para verificar el pago.');
+      }
+
+      final status = await _usuariosService
+          .confirmarPagoManual(
+            pagoId: widget.pagoId,
+            paymentId: widget.paymentId,
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (status != 'approved') {
+        if (!mounted) return;
+        setState(() {
+          _resultState = _ResultState.confirmError;
+          _loading = false;
+        });
+        return;
       }
 
       if (!mounted) return;
-      await context.read<AppProvider>().refrescarUsuario();
+      await context.read<AppProvider>().refrescarUsuario().timeout(
+        const Duration(seconds: 15),
+      );
       if (!mounted) return;
       context.go('/home');
     } catch (e) {
@@ -302,7 +320,7 @@ class _ConfirmErrorView extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         const Text(
-          'El pago puede tardar unos segundos en confirmarse. Tus créditos van a aparecer en tu cuenta en breve.',
+          'Estamos verificando tu pago. Puede demorar unos segundos.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14,
@@ -316,7 +334,7 @@ class _ConfirmErrorView extends StatelessWidget {
           height: 50,
           child: ElevatedButton(
             onPressed: onRetry,
-            child: const Text('Verificar ahora'),
+            child: const Text('Verificar nuevamente'),
           ),
         ),
         const SizedBox(height: 12),

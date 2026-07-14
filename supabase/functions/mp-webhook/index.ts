@@ -44,6 +44,153 @@ function expirationDate(validDays: number) {
   return expiry.toISOString().split('T')[0]
 }
 
+type PackPagoRow = {
+  id: string
+  user_id: string
+  type: string
+  status: string
+  creditos: number
+  pack_nombre: string | null
+  mp_payment_id: string | null
+  mp_preference_id: string | null
+  credits_granted_at: string | null
+}
+
+const packPagoSelect =
+  'id, user_id, type, status, creditos, pack_nombre, mp_payment_id, mp_preference_id, credits_granted_at'
+
+async function findPackPago(
+  supabase: ReturnType<typeof createClient>,
+  internalPagoId: string,
+  mpPaymentId: string,
+  preferenceId: string,
+  userId: string,
+): Promise<PackPagoRow | null> {
+  if (internalPagoId) {
+    const { data, error } = await supabase
+      .from('pagos')
+      .select(packPagoSelect)
+      .eq('id', internalPagoId)
+      .maybeSingle<PackPagoRow>()
+    if (error) throw error
+    if (data) {
+      if (data.user_id !== userId || data.type !== 'pack') {
+        throw new Error('El pago interno no coincide con el usuario o el tipo del pago de Mercado Pago')
+      }
+      return data
+    }
+  }
+
+  const { data: byPaymentId, error: paymentIdError } = await supabase
+    .from('pagos')
+    .select(packPagoSelect)
+    .eq('mp_payment_id', mpPaymentId)
+    .maybeSingle<PackPagoRow>()
+  if (paymentIdError) throw paymentIdError
+  if (byPaymentId) return byPaymentId
+
+  if (preferenceId) {
+    const { data: byPreference, error: preferenceError } = await supabase
+      .from('pagos')
+      .select(packPagoSelect)
+      .eq('mp_preference_id', preferenceId)
+      .maybeSingle<PackPagoRow>()
+    if (preferenceError) throw preferenceError
+    if (byPreference) return byPreference
+  }
+
+  return null
+}
+
+async function processPackPayment(
+  supabase: ReturnType<typeof createClient>,
+  payment: Record<string, unknown>,
+  params: Record<string, string>,
+) {
+  const status = String(payment.status ?? 'pending')
+  const mpPaymentId = String(payment.id ?? '')
+  const preferenceId = payment.preference_id ? String(payment.preference_id) : ''
+  const internalPagoId = params['pago_id'] ?? ''
+  const userId = params['user_id'] ?? ''
+  const externalCredits = parseInt(params['creditos'] ?? '0', 10)
+  const externalPackName = params['pack'] ?? ''
+
+  let pago = await findPackPago(
+    supabase,
+    internalPagoId,
+    mpPaymentId,
+    preferenceId,
+    userId,
+  )
+
+  if (!pago) {
+    const safeInitialStatus = status === 'approved' ? 'pending' : status
+    const { data: inserted, error: insertError } = await supabase
+      .from('pagos')
+      .insert({
+        user_id: userId,
+        type: 'pack',
+        mp_payment_id: mpPaymentId,
+        mp_preference_id: preferenceId || null,
+        status: safeInitialStatus,
+        amount: Math.round(Number(payment.transaction_amount ?? 0)),
+        creditos: externalCredits,
+        pack_nombre: externalPackName || null,
+      })
+      .select(packPagoSelect)
+      .single<PackPagoRow>()
+    if (insertError || !inserted) {
+      throw insertError ?? new Error('No se pudo registrar el pago de Mercado Pago')
+    }
+    pago = inserted
+  }
+
+  if (pago.user_id !== userId || pago.type !== 'pack') {
+    throw new Error('El pago localizado no coincide con el usuario o el tipo esperado')
+  }
+
+  if (pago.credits_granted_at != null) {
+    console.log(`mp-webhook: pago ${mpPaymentId} ya acreditado, ignorando reintento`)
+    return
+  }
+
+  if (pago.status === 'approved') {
+    throw new Error('Pago aprobado sin marca de acreditacion; requiere revision manual')
+  }
+
+  if (status !== 'approved') {
+    const { error } = await supabase
+      .from('pagos')
+      .update({ status, mp_payment_id: mpPaymentId })
+      .eq('id', pago.id)
+    if (error) throw error
+    return
+  }
+
+  const creditos = pago.creditos ?? externalCredits
+  const packNombre = pago.pack_nombre ?? externalPackName
+  const expiryStr = expirationDate(packValidityDays(params, packNombre, creditos))
+  const { data: result, error: processError } = await supabase.rpc(
+    'process_approved_pack_payment',
+    {
+      p_pago_id: pago.id,
+      p_mp_payment_id: mpPaymentId,
+      p_expires_at: expiryStr,
+    },
+  )
+
+  if (processError) {
+    console.error('mp-webhook: no se pudieron acreditar los creditos del pack:', processError.message)
+    throw processError
+  }
+
+  console.log('mp-webhook: pago pack procesado', {
+    pagoId: pago.id,
+    mpPaymentId,
+    result,
+  })
+}
+
 async function isValidSignature(req: Request, rawBody: string): Promise<boolean> {
   const secrets = [MP_WEBHOOK_SECRET, MP_PACKS_WEBHOOK_SECRET, MP_SUBSCRIPTIONS_WEBHOOK_SECRET]
     .filter((value): value is string => Boolean(value))
@@ -145,6 +292,11 @@ async function procesarPago(paymentId: string, eventType = 'payment') {
     return
   }
 
+  if (type === 'pack') {
+    await processPackPayment(supabase, payment, params)
+    return
+  }
+
   const { data: existingByPaymentId } = await supabase
     .from('pagos')
     .select('id, status')
@@ -212,32 +364,7 @@ async function procesarPago(paymentId: string, eventType = 'payment') {
     return
   }
 
-  if (type === 'pack') {
-    const expiryStr = expirationDate(packValidityDays(params, packNombre, creditos))
-    const { error: rpcErr } = await supabase.rpc('grant_user_credits', {
-      p_user_id: userId,
-      p_amount: creditos,
-      p_source: 'pack',
-      p_expires_at: expiryStr,
-    })
-
-    if (rpcErr) {
-      console.warn('mp-webhook: grant_user_credits fallo (pack), usando fallback:', rpcErr.message)
-      const { data: userRow } = await supabase
-        .from('usuarios')
-        .select('creditos')
-        .eq('id', userId)
-        .single()
-      if (userRow) {
-        await supabase
-          .from('usuarios')
-          .update({ creditos: (userRow.creditos ?? 0) + creditos, creditos_vencimiento: expiryStr })
-          .eq('id', userId)
-      }
-    }
-
-    console.log(`mp-webhook: acreditados ${creditos} créditos pack (${packNombre}) al usuario ${userId}`)
-  } else if (type === 'plan') {
+  if (type === 'plan') {
     // Suscripción mensual: otorgar créditos con vencimiento de 30 días
     const expiryStr = expirationDate(30)
     const { error: rpcErr } = await supabase.rpc('grant_user_credits', {

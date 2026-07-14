@@ -15,12 +15,23 @@ type PagoRow = {
   pack_nombre: string | null
   mp_preference_id: string | null
   mp_payment_id: string | null
+  credits_granted_at: string | null
 }
 
 type MercadoPagoPayment = {
   id: string | number
   status?: string
   preference_id?: string | number | null
+  external_reference?: string | null
+}
+
+function parseRef(ref: string): Record<string, string> {
+  const params: Record<string, string> = {}
+  for (const part of (ref ?? '').split('|')) {
+    const idx = part.indexOf('=')
+    if (idx !== -1) params[part.slice(0, idx)] = decodeURIComponent(part.slice(idx + 1))
+  }
+  return params
 }
 
 function expirationDate(validDays: number) {
@@ -65,16 +76,24 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'Falta pago_id o payment_id' }, 400)
     }
 
+    let payment: MercadoPagoPayment | null = null
+    if (paymentId) {
+      payment = await fetchMercadoPagoPayment(paymentId)
+      if (!payment) {
+        return json({ error: 'No se pudo verificar el pago en Mercado Pago' }, 502)
+      }
+    }
+
     let pago: PagoRow | null = null
     if (pagoId) {
       const { data } = await adminSupabase
         .from('pagos')
-        .select('id, user_id, type, status, creditos, pack_nombre, mp_preference_id, mp_payment_id')
+        .select('id, user_id, type, status, creditos, pack_nombre, mp_preference_id, mp_payment_id, credits_granted_at')
         .eq('id', pagoId)
         .maybeSingle<PagoRow>()
       pago = data
-    } else if (paymentId) {
-      pago = await findPagoByPaymentId(adminSupabase, paymentId)
+    } else if (payment) {
+      pago = await findPagoForPayment(adminSupabase, payment)
     }
 
     if (!pago) {
@@ -89,11 +108,34 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'Solo se admiten packs de creditos.' }, 400)
     }
 
-    if (pago.status == 'approved') {
+    if (pago.credits_granted_at != null) {
       return json({ status: 'approved' })
     }
 
-    const status = await reconcilePack(adminSupabase, pago, paymentId)
+    if (pago.status == 'approved') {
+      return json({ error: 'Pago aprobado sin marca de acreditacion; requiere revision manual' }, 409)
+    }
+
+    if (!payment) {
+      return json({ status: pago.status })
+    }
+
+    const paymentRef = parseRef(payment.external_reference ?? '')
+    if (paymentRef['user_id'] && paymentRef['user_id'] !== user.id) {
+      return json({ error: 'El pago de Mercado Pago corresponde a otro usuario' }, 403)
+    }
+    if (paymentRef['type'] && paymentRef['type'] !== 'pack') {
+      return json({ error: 'El pago de Mercado Pago no corresponde a un pack' }, 400)
+    }
+    if (paymentRef['pago_id'] && paymentRef['pago_id'] !== pago.id) {
+      return json({ error: 'El pago no coincide con la compra iniciada' }, 409)
+    }
+    if (payment.preference_id && pago.mp_preference_id &&
+        String(payment.preference_id) !== pago.mp_preference_id) {
+      return json({ error: 'La preferencia no coincide con la compra iniciada' }, 409)
+    }
+
+    const status = await reconcilePack(adminSupabase, pago, payment)
     return json({ status })
   } catch (error) {
     console.error('confirmar-pago-manual excepcion:', error)
@@ -104,57 +146,31 @@ Deno.serve(async (req: Request) => {
 async function reconcilePack(
   adminSupabase: ReturnType<typeof createClient>,
   pago: PagoRow,
-  paymentId: string,
+  payment: MercadoPagoPayment,
 ) {
-  if (!paymentId) return pago.status
-
-  const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-    headers: { Authorization: `Bearer ${MP_PACKS_ACCESS_TOKEN}` },
-  })
-
-  if (!mpRes.ok) {
-    console.error('confirmar-pago-manual pack error:', await mpRes.text())
-    return pago.status
-  }
-
-  const payment = await mpRes.json()
   const status: string = payment.status ?? pago.status
 
-  await adminSupabase
-    .from('pagos')
-    .update({
-      status,
-      mp_payment_id: String(payment.id),
-    })
-    .eq('id', pago.id)
-
-  if (status === 'approved' && pago.status !== 'approved') {
-    const expiryStr = expirationDate(validityForPack(pago.pack_nombre, pago.creditos ?? 0))
-    const { error: rpcErr } = await adminSupabase.rpc('grant_user_credits', {
-      p_user_id: pago.user_id,
-      p_amount: pago.creditos ?? 0,
-      p_source: 'pack',
-      p_expires_at: expiryStr,
-    })
-
-    if (rpcErr) {
-      const { data: userRow } = await adminSupabase
-        .from('usuarios')
-        .select('creditos')
-        .eq('id', pago.user_id)
-        .single()
-
-      await adminSupabase
-        .from('usuarios')
-        .update({
-          creditos: (userRow?.creditos ?? 0) + (pago.creditos ?? 0),
-          creditos_vencimiento: expiryStr,
-        })
-        .eq('id', pago.user_id)
-    }
+  if (status !== 'approved') {
+    const { error } = await adminSupabase
+      .from('pagos')
+      .update({ status, mp_payment_id: String(payment.id) })
+      .eq('id', pago.id)
+    if (error) throw error
+    return status
   }
 
-  return status
+  const expiryStr = expirationDate(validityForPack(pago.pack_nombre, pago.creditos ?? 0))
+  const { error } = await adminSupabase.rpc('process_approved_pack_payment', {
+    p_pago_id: pago.id,
+    p_mp_payment_id: String(payment.id),
+    p_expires_at: expiryStr,
+  })
+  if (error) {
+    console.error('confirmar-pago-manual: no se pudieron acreditar los creditos:', error.message)
+    throw error
+  }
+
+  return 'approved'
 }
 
 function json(body: unknown, status = 200) {
@@ -164,19 +180,34 @@ function json(body: unknown, status = 200) {
   })
 }
 
-async function findPagoByPaymentId(
+async function findPagoForPayment(
   adminSupabase: ReturnType<typeof createClient>,
-  paymentId: string,
+  payment: MercadoPagoPayment,
 ): Promise<PagoRow | null> {
-  const payment = await fetchMercadoPagoPayment(paymentId)
-  if (!payment) return null
+  const params = parseRef(payment.external_reference ?? '')
+  const internalPagoId = params['pago_id'] ?? ''
+  if (internalPagoId) {
+    const { data } = await adminSupabase
+      .from('pagos')
+      .select('id, user_id, type, status, creditos, pack_nombre, mp_preference_id, mp_payment_id, credits_granted_at')
+      .eq('id', internalPagoId)
+      .maybeSingle<PagoRow>()
+    if (data) return data
+  }
+
+  const { data: byPaymentId } = await adminSupabase
+    .from('pagos')
+    .select('id, user_id, type, status, creditos, pack_nombre, mp_preference_id, mp_payment_id, credits_granted_at')
+    .eq('mp_payment_id', String(payment.id))
+    .maybeSingle<PagoRow>()
+  if (byPaymentId) return byPaymentId
 
   const preferenceId = payment.preference_id ? String(payment.preference_id) : ''
   if (!preferenceId) return null
 
   const { data } = await adminSupabase
     .from('pagos')
-    .select('id, user_id, type, status, creditos, pack_nombre, mp_preference_id, mp_payment_id')
+    .select('id, user_id, type, status, creditos, pack_nombre, mp_preference_id, mp_payment_id, credits_granted_at')
     .eq('mp_preference_id', preferenceId)
     .maybeSingle<PagoRow>()
 

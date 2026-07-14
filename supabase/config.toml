@@ -416,3 +416,9 @@ entrypoint = "./functions/cleanup-lista-espera/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/regenerar-grillas/index.ts"
+
+# Webhook de Mercado Pago (MP no envía JWT de usuario; valida por firma HMAC).
+[functions.mp-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/mp-webhook/index.ts"
