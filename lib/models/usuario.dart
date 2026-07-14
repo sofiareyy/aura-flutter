@@ -14,6 +14,10 @@ class Usuario {
   final bool notifReservas;
   final bool notifRecordatorios;
   final bool notifPromos;
+  // Beneficio corporativo: si el usuario está vinculado a una empresa.
+  final int? empresaId;
+  final bool esCorporativo;
+  final String? empresaNombre;
 
   const Usuario({
     required this.id,
@@ -31,6 +35,9 @@ class Usuario {
     this.notifReservas = true,
     this.notifRecordatorios = true,
     this.notifPromos = false,
+    this.empresaId,
+    this.esCorporativo = false,
+    this.empresaNombre,
   });
 
   factory Usuario.fromMap(Map<String, dynamic> map) {
@@ -54,6 +61,10 @@ class Usuario {
       notifReservas: map['notifs_reservas'] as bool? ?? true,
       notifRecordatorios: map['notifs_recordatorios'] as bool? ?? true,
       notifPromos: map['notifs_promos'] as bool? ?? false,
+      empresaId: (map['empresa_id'] as num?)?.toInt(),
+      esCorporativo: map['es_corporativo'] as bool? ?? false,
+      // Nombre de la empresa: viene del embed `empresas(nombre)` del select.
+      empresaNombre: (map['empresas'] as Map?)?['nombre']?.toString(),
     );
   }
 
@@ -99,6 +110,9 @@ class Usuario {
       notifReservas: notifReservas,
       notifRecordatorios: notifRecordatorios,
       notifPromos: notifPromos,
+      empresaId: empresaId,
+      esCorporativo: esCorporativo,
+      empresaNombre: empresaNombre,
     );
   }
 }

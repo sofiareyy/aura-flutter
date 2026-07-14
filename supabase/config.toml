@@ -417,6 +417,11 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/regenerar-grillas/index.ts"
 
+[functions.acreditar-creditos-corporativos]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/acreditar-creditos-corporativos/index.ts"
+
 # Webhook de Mercado Pago (MP no envía JWT de usuario; valida por firma HMAC).
 [functions.mp-webhook]
 enabled = true

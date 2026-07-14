@@ -736,4 +736,58 @@ class AdminService {
       params: {'p_json': json},
     );
   }
+
+  // ── Empresas (usuarios corporativos) ──────────────────────────────────────
+
+  /// Lista las empresas con nº de empleados registrados y créditos usados
+  /// este mes. Requiere superadmin (la RPC valida is_admin()).
+  Future<List<Map<String, dynamic>>> listEmpresas() async {
+    final res = await _client.rpc('admin_list_empresas');
+    return List<Map<String, dynamic>>.from(res as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+  }
+
+  /// Crea o edita una empresa. Devuelve el id.
+  Future<int> upsertEmpresa({
+    int? empresaId,
+    required String nombre,
+    required String dominioMail,
+    required int creditosPorEmpleado,
+    required bool activa,
+  }) async {
+    final res = await _client.rpc(
+      'admin_upsert_empresa',
+      params: {
+        'p_id': empresaId,
+        'p_nombre': nombre.trim(),
+        'p_dominio_mail': dominioMail.trim(),
+        'p_creditos_por_empleado': creditosPorEmpleado,
+        'p_activa': activa,
+      },
+    );
+    return (res as num).toInt();
+  }
+
+  /// Activa o desactiva una empresa.
+  Future<void> setEmpresaActiva({
+    required int empresaId,
+    required bool activa,
+  }) async {
+    await _client.rpc(
+      'admin_set_empresa_activa',
+      params: {'p_id': empresaId, 'p_activa': activa},
+    );
+  }
+
+  /// Empleados registrados de una empresa: saldo y créditos usados este mes.
+  Future<List<Map<String, dynamic>>> listEmpresaEmpleados(int empresaId) async {
+    final res = await _client.rpc(
+      'admin_list_empresa_empleados',
+      params: {'p_empresa_id': empresaId},
+    );
+    return List<Map<String, dynamic>>.from(res as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+  }
 }

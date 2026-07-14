@@ -15,7 +15,8 @@ class UsuariosService {
 
     final data = await _supabase
         .from(AppConstants.tableUsuarios)
-        .select()
+        // Embed empresas(nombre) para el badge "Beneficio [Empresa]".
+        .select('*, empresas(nombre)')
         .eq('id', id)
         .maybeSingle();
     if (data == null) return null;

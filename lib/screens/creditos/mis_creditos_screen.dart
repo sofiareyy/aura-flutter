@@ -167,6 +167,14 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                   ],
                 ),
               ),
+              // Badge de beneficio corporativo: solo para usuarios vinculados
+              // a una empresa. Es la única diferencia visible con un usuario
+              // normal.
+              if (usuario?.esCorporativo == true &&
+                  (usuario?.empresaNombre?.isNotEmpty ?? false)) ...[
+                const SizedBox(height: 12),
+                _BeneficioEmpresaBadge(empresa: usuario!.empresaNombre!),
+              ],
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -447,6 +455,50 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
 }
 
 // ── Supporting widgets ────────────────────────────────────────────────────────
+
+/// Badge "Beneficio [Empresa]" para usuarios corporativos. Va junto a los
+/// créditos para dejar claro que parte del saldo lo aporta su empresa.
+class _BeneficioEmpresaBadge extends StatelessWidget {
+  final String empresa;
+  const _BeneficioEmpresaBadge({required this.empresa});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.business_rounded, color: AppColors.primary, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  color: AppColors.black,
+                  fontSize: 13.5,
+                  height: 1.3,
+                ),
+                children: [
+                  const TextSpan(text: 'Beneficio '),
+                  TextSpan(
+                    text: empresa,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _SectionLabel extends StatelessWidget {
   final String text;
