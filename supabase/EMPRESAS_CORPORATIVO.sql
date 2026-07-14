@@ -104,14 +104,14 @@ begin
          es_corporativo = true
    where id = p_user_id;
 
-  -- Créditos iniciales del beneficio (vencen en 30 días, igual que un plan).
+  -- Créditos iniciales del beneficio (vencen en 45 días).
   -- La fuente 'corporativo' es la que la app usa para mostrar el badge.
   if coalesce(v_empresa.creditos_por_empleado, 0) > 0 then
     perform public.grant_user_credits(
       p_user_id,
       v_empresa.creditos_por_empleado,
       'corporativo',
-      to_char((now() + interval '30 days')::date, 'YYYY-MM-DD'),
+      to_char((now() + interval '45 days')::date, 'YYYY-MM-DD'),
       'Beneficio ' || v_empresa.nombre
     );
   end if;
@@ -165,9 +165,9 @@ declare
   v_empresas  int := 0;
   v_usuarios  int := 0;
   v_creditos  int := 0;
-  -- Vencimiento a 30 días desde hoy (hora Argentina).
+  -- Vencimiento a 45 días desde hoy (hora Argentina).
   v_expiry text := to_char(
-    ((now() at time zone 'America/Argentina/Buenos_Aires')::date + 30),
+    ((now() at time zone 'America/Argentina/Buenos_Aires')::date + 45),
     'YYYY-MM-DD'
   );
 begin
