@@ -1,6 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Red: necesaria en TODAS las builds. Sin esto el release no tiene
+         internet (los manifests debug/profile no aplican al build release). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Ubicación: mapa de estudios y búsqueda por cercanía. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Cámara: escaneo de QR de asistencia (mobile_scanner). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:label="aura_app"
@@ -28,12 +35,21 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
-            <!-- Custom scheme: aura://payment-result?... -->
+            <!-- Custom scheme: aura://payment-result?... (retorno de Mercado Pago) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="aura" android:host="payment-result"/>
+            </intent-filter>
+
+            <!-- Custom scheme: aura://login-callback (retorno de OAuth Google/Apple).
+                 Sin esto, el login con Google no vuelve a la app en Android. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="aura" android:host="login-callback"/>
             </intent-filter>
 
             <!-- App Links (HTTPS): https://somosauraar.netlify.app/payment-result?... -->
@@ -63,6 +79,24 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- url_launcher (Android 11+): visibilidad de apps que abren el
+             checkout de Mercado Pago (https), mails de soporte y WhatsApp. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="http"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="mailto"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL"/>
+            <data android:scheme="tel"/>
         </intent>
     </queries>
 </manifest>
