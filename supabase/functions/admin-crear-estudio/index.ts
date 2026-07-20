@@ -50,6 +50,7 @@ Deno.serve(async (req: Request) => {
       email,
       password,
       categoria,
+      categorias,
       direccion,
       barrio,
     } = body ?? {}
@@ -67,7 +68,13 @@ Deno.serve(async (req: Request) => {
 
     const emailLower = email.trim().toLowerCase()
     const nombreLimpio = estudio_nombre.trim()
-    const categoriaLimpia = (categoria ?? '').toString().trim()
+    // Un estudio puede tener varias categorias. Se acepta `categoria`
+    // (singular) por compatibilidad con clientes viejos.
+    const categoriasLimpias: string[] = (
+      Array.isArray(categorias) ? categorias : [categoria]
+    )
+      .map((c) => (c ?? '').toString().trim())
+      .filter((c) => c.length > 0)
     const direccionLimpia = (direccion ?? '').toString().trim()
     const barrioLimpio = (barrio ?? '').toString().trim()
 
@@ -77,7 +84,9 @@ Deno.serve(async (req: Request) => {
       .from('estudios')
       .insert({
         nombre: nombreLimpio,
-        categoria: categoriaLimpia.length > 0 ? categoriaLimpia : null,
+        categorias: categoriasLimpias,
+        // Escalar sincronizado con la primera, para queries legacy.
+        categoria: categoriasLimpias.length > 0 ? categoriasLimpias[0] : null,
         direccion: direccionLimpia.length > 0 ? direccionLimpia : null,
         barrio: barrioLimpio.length > 0 ? barrioLimpio : null,
         activo: true,

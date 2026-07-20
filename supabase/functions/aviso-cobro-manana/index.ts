@@ -77,7 +77,8 @@ Deno.serve(async (req: Request) => {
   const { data: todasReservas } = await adminSupabase
     .from('reservas')
     .select('estudio_id, creditos_usados')
-    .in('estado', ['confirmada', 'presente'])
+    // 'ausente' liquida igual: el credito se consumio al reservar y no vuelve.
+    .in('estado', ['confirmada', 'presente', 'ausente'])
     .gte('created_at', inicioMes)
     .lte('created_at', finMes)
 

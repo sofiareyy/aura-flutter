@@ -6,9 +6,11 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../models/estudio.dart';
 import '../../providers/app_provider.dart';
 import '../../services/clases_service.dart';
 import '../../services/reservas_service.dart';
+import '../../utils/cierre_minutos.dart';
 
 const _darkAppBar = Color(0xFF1A1A1A);
 const _cream = Color(0xFFF5F0E8);
@@ -96,8 +98,13 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
     // Categorias derivadas de los estudios presentes en las clases.
     final cats = <String>{};
     for (final c in clasesFiltered) {
-      final cat = (c['estudios'] as Map?)?['categoria']?.toString().trim();
-      if (cat != null && cat.isNotEmpty) cats.add(cat);
+      final estudio = c['estudios'] as Map?;
+      if (estudio == null) continue;
+      cats.addAll(
+        Estudio.parseCategorias(Map<String, dynamic>.from(estudio))
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty),
+      );
     }
     final categorias = ['Todos', ...cats.toList()..sort()];
 
@@ -208,9 +215,12 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
 
   bool _matchesCategoria(Map<String, dynamic> clase) {
     if (_categoriaSeleccionada == 'Todos') return true;
-    final cat =
-        (clase['estudios'] as Map?)?['categoria']?.toString().toLowerCase();
-    return cat == _categoriaSeleccionada.toLowerCase();
+    final estudio = clase['estudios'] as Map?;
+    if (estudio == null) return false;
+    // Matchea si CUALQUIERA de las categorias del estudio coincide.
+    final objetivo = _categoriaSeleccionada.toLowerCase();
+    return Estudio.parseCategorias(Map<String, dynamic>.from(estudio))
+        .any((c) => c.trim().toLowerCase() == objetivo);
   }
 
   List<DateTime> get _diasDisponibles {
@@ -258,12 +268,10 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
 
   // ── Cancelar reserva (logica preservada del original) ─────────────────────
 
-  /// Minutos antes del inicio en que cierra la cancelacion. Configurable
-  /// por clase via reserva_cierre_minutos; default 720 (12 hs).
-  int _cierreMinutosDe(Map<String, dynamic> reserva) {
-    final raw = (reserva['clases'] as Map?)?['reserva_cierre_minutos'];
-    return (raw as num?)?.toInt() ?? 720;
-  }
+  /// Minutos antes del inicio en que cierra la CANCELACION (no la reserva:
+  /// son dos ventanas distintas). Se resuelve clase -> estudio -> 720 (12 hs).
+  int _cierreMinutosDe(Map<String, dynamic> reserva) =>
+      CierreMinutos.cancelacion(reserva['clases'] as Map?);
 
   bool _puedeCancelar(Map<String, dynamic> reserva) {
     final fecha = _parseFecha((reserva['clases'] as Map?)?['fecha']);
@@ -274,18 +282,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
   }
 
   /// Formato amigable de duracion para los mensajes.
-  String _formatDuracion(int minutes) {
-    if (minutes <= 0) return 'que la clase arranque';
-    if (minutes % 1440 == 0) {
-      final d = minutes ~/ 1440;
-      return d == 1 ? '1 día' : '$d días';
-    }
-    if (minutes % 60 == 0) {
-      final h = minutes ~/ 60;
-      return h == 1 ? '1 hora' : '$h horas';
-    }
-    return '$minutes minutos';
-  }
+  String _formatDuracion(int minutes) => CierreMinutos.formatDuracion(minutes);
 
   Future<void> _cancelar(Map<String, dynamic> reserva) async {
     if (!_puedeCancelar(reserva)) {

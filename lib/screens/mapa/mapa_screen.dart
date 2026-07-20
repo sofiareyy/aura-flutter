@@ -74,14 +74,14 @@ class _MapaScreenState extends State<MapaScreen> {
   List<NearbyStudyResult> get _results {
     final q = _searchCtrl.text.trim().toLowerCase();
     final filtered = _estudios.where((estudio) {
+      // Un estudio matchea si CUALQUIERA de sus categorias coincide.
       final matchesCategory = _categoriaSeleccionada == 'Todos' ||
-          estudio.categoria.toLowerCase() ==
-              _categoriaSeleccionada.toLowerCase();
+          estudio.tieneCategoria(_categoriaSeleccionada);
       final matchesSearch = q.isEmpty ||
           estudio.nombre.toLowerCase().contains(q) ||
           (estudio.barrio?.toLowerCase().contains(q) ?? false) ||
           (estudio.direccion?.toLowerCase().contains(q) ?? false) ||
-          estudio.categoria.toLowerCase().contains(q);
+          estudio.categorias.any((c) => c.toLowerCase().contains(q));
       return matchesCategory && matchesSearch;
     }).toList();
 

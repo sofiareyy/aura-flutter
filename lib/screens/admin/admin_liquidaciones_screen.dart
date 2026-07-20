@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/admin_service.dart';
 
@@ -86,7 +87,7 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
           .from('reservas')
           .select(
               'creditos_usados, clases!reservas_clase_id_fkey(estudio_id, tipo)')
-          .inFilter('estado', ['confirmada', 'presente'])
+          .inFilter('estado', AppConstants.estadosLiquidables)
           .gte('created_at', inicio)
           .lte('created_at', fin);
 

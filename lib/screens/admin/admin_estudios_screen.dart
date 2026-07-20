@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../models/estudio.dart';
 import '../../services/admin_service.dart';
 import '../../services/media_upload_service.dart';
+import '../../widgets/categorias_checklist.dart';
 import 'admin_pricing_screen.dart';
 
 class AdminEstudiosScreen extends StatefulWidget {
@@ -157,7 +159,10 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     final origMin = (estudio?['creditos_min'] as num?)?.toInt();
     final origMax = (estudio?['creditos_max'] as num?)?.toInt();
 
-    String? categoria = estudio?['categoria']?.toString();
+    // Un estudio puede tener varias categorias (Pilates + Barre + Yoga).
+    final categorias = estudio == null
+        ? <String>[]
+        : Estudio.parseCategorias(Map<String, dynamic>.from(estudio));
     bool activo = estudio?['activo'] as bool? ?? true;
     DateTime? fechaInicioCobro = estudio?['fecha_inicio_cobro'] != null
         ? DateTime.tryParse(estudio!['fecha_inicio_cobro'].toString())
@@ -188,18 +193,16 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                     decoration: const InputDecoration(labelText: 'Descripción'),
                   ),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    value: _categories.contains(categoria) ? categoria : null,
-                    decoration: const InputDecoration(labelText: 'Categoría'),
-                    items: _categories
-                        .map(
-                          (item) => DropdownMenuItem<String>(
-                            value: item,
-                            child: Text(item),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) => categoria = value,
+                  CategoriasChecklist(
+                    disponibles: _categories,
+                    seleccionadas: categorias,
+                    onToggle: (cat, marcada) => setLocal(() {
+                      if (marcada) {
+                        if (!categorias.contains(cat)) categorias.add(cat);
+                      } else {
+                        categorias.remove(cat);
+                      }
+                    }),
                   ),
                   const SizedBox(height: 10),
                   TextField(
@@ -554,7 +557,7 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     await _service.saveEstudio(
       estudioId: (estudio?['id'] as num?)?.toInt(),
       nombre: nombreCtrl.text,
-      categoria: categoria ?? '',
+      categorias: categorias,
       barrio: barrioCtrl.text,
       direccion: direccionCtrl.text,
       descripcion: descripcionCtrl.text,
@@ -668,7 +671,7 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     final passwordCtrl = TextEditingController();
     final direccionCtrl = TextEditingController();
     final barrioCtrl = TextEditingController();
-    String? categoria;
+    final categorias = <String>[];
 
     final formKey = GlobalKey<FormState>();
     bool obscurePassword = true;
@@ -741,16 +744,16 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                         : null,
                   ),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    initialValue: categoria,
-                    decoration: const InputDecoration(labelText: 'Categoría'),
-                    items: _categories
-                        .map((c) =>
-                            DropdownMenuItem(value: c, child: Text(c)))
-                        .toList(),
-                    onChanged: (v) => setLocal(() => categoria = v),
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? 'Elegí una categoría' : null,
+                  CategoriasChecklist(
+                    disponibles: _categories,
+                    seleccionadas: categorias,
+                    onToggle: (cat, marcada) => setLocal(() {
+                      if (marcada) {
+                        if (!categorias.contains(cat)) categorias.add(cat);
+                      } else {
+                        categorias.remove(cat);
+                      }
+                    }),
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
@@ -782,6 +785,15 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                       if (!(formKey.currentState?.validate() ?? false)) {
                         return;
                       }
+                      // El checklist no vive en el Form, se valida aparte.
+                      if (categorias.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Elegí al menos una categoría'),
+                          ),
+                        );
+                        return;
+                      }
                       setLocal(() => saving = true);
                       try {
                         final res =
@@ -789,7 +801,7 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                           estudioNombre: nombreCtrl.text,
                           email: emailCtrl.text.trim(),
                           password: passwordCtrl.text,
-                          categoria: categoria,
+                          categorias: categorias,
                           direccion: direccionCtrl.text.trim(),
                           barrio: barrioCtrl.text.trim(),
                         );
@@ -1193,7 +1205,7 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                           const SizedBox(height: 6),
                           Text(
                             [
-                              studio['categoria']?.toString() ?? '',
+                              Estudio.parseCategorias(studio).join(', '),
                               studio['barrio']?.toString() ?? '',
                             ].where((e) => e.isNotEmpty).join(' · '),
                             style: const TextStyle(color: AppColors.grey),

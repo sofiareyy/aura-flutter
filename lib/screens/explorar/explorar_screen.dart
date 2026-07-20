@@ -150,13 +150,14 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   List<Estudio> get _estudiosFiltrados {
     final query = _searchCtrl.text.trim().toLowerCase();
     final filtrados = _estudios.where((estudio) {
+      // Un estudio matchea si CUALQUIERA de sus categorias coincide.
       final matchesCategory = _categoriaSeleccionada == 'Todos' ||
-          estudio.categoria.toLowerCase() ==
-              _categoriaSeleccionada.toLowerCase();
+          estudio.tieneCategoria(_categoriaSeleccionada);
       final matchesSearch = query.isEmpty ||
           estudio.nombre.toLowerCase().contains(query) ||
           (estudio.barrio?.toLowerCase().contains(query) ?? false) ||
-          estudio.categoria.toLowerCase().contains(query);
+          estudio.categorias
+              .any((c) => c.toLowerCase().contains(query));
       return matchesCategory && matchesSearch;
     }).toList();
 
@@ -851,7 +852,7 @@ class _FeaturedExploreCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _Pill(
-                                text: estudio.categoria.toUpperCase(),
+                                text: estudio.categoriasLabel.toUpperCase(),
                                 dark: true,
                               ),
                               const Spacer(),
@@ -937,7 +938,9 @@ class _ResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final estudio = clase['estudios'] as Map<String, dynamic>?;
-    final categoria = (estudio?['categoria'] ?? '').toString().toUpperCase();
+    final categoria = estudio == null
+        ? ''
+        : Estudio.parseCategorias(estudio).take(2).join(' · ').toUpperCase();
     final barrio = (estudio?['barrio'] ?? '').toString().toUpperCase();
     final imageUrl = (clase['imagen_url'] ?? estudio?['foto_url'])?.toString();
     final tipoPrecio = clase['tipo_precio']?.toString();

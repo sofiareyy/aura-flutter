@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/constants/app_constants.dart';
+import '../models/estudio.dart';
 
 String _toSupaDate(DateTime dt) {
   return '${dt.year.toString().padLeft(4, '0')}-'
@@ -119,7 +120,7 @@ class ClasesService {
       // Get categories and studio IDs from those classes
       final clases = await _supabase
           .from('clases')
-          .select('estudio_id, estudios(categoria)')
+          .select('estudio_id, estudios(categoria, categorias)')
           .inFilter('id', claseIds);
       final clasesList = List<Map<String, dynamic>>.from(clases as List);
 
@@ -128,9 +129,16 @@ class ClasesService {
           .whereType<int>()
           .toSet()
           .toList();
+      // Un estudio puede tener varias categorias: juntamos todas las de los
+      // estudios visitados para recomendar sobre el set completo.
       final categorias = clasesList
-          .map((c) => (c['estudios'] as Map?)?['categoria']?.toString())
-          .whereType<String>()
+          .expand((c) {
+            final estudio = c['estudios'] as Map?;
+            if (estudio == null) return const <String>[];
+            return Estudio.parseCategorias(
+                Map<String, dynamic>.from(estudio));
+          })
+          .where((item) => item.isNotEmpty)
           .toSet()
           .toList();
       if (categorias.isEmpty) return [];
@@ -141,10 +149,13 @@ class ClasesService {
       final hasta = ahora.add(const Duration(days: 30));
       final resultado = await _supabase
           .from('clases')
-          .select('*, estudios!inner(id, nombre, categoria, barrio, foto_url)')
+          .select(
+              '*, estudios!inner(id, nombre, categoria, categorias, barrio, foto_url)')
           .gte('fecha', _toSupaDate(ahora))
           .lte('fecha', _toSupaDate(hasta))
-          .inFilter('estudios.categoria', categorias)
+          // `overlaps` = el estudio comparte AL MENOS una categoria con las
+          // que el usuario ya visitó.
+          .overlaps('estudios.categorias', categorias)
           .order('fecha', ascending: true)
           .limit(limit * 3);
       final all = List<Map<String, dynamic>>.from(resultado as List);

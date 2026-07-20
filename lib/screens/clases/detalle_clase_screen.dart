@@ -12,6 +12,7 @@ import '../../services/clases_service.dart';
 import '../../services/reservas_service.dart';
 import '../../services/reviews_service.dart';
 import '../../services/waitlist_service.dart';
+import '../../utils/cierre_minutos.dart';
 import '../../widgets/study_review_sheet.dart';
 
 class DetalleClaseScreen extends StatefulWidget {
@@ -282,8 +283,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     if (_yaReservado || _reservando || _clase == null) return;
 
     final fecha = DateTime.tryParse(_clase!['fecha']?.toString() ?? '');
-    final cierreMinutos =
-        (_clase!['reserva_cierre_minutos'] as num?)?.toInt() ?? 0;
+    final cierreMinutos = CierreMinutos.reserva(_clase);
     if (fecha != null &&
         ReservasService.reservaCerrada(fecha, cierreMinutos)) {
       if (!mounted) return;
@@ -678,8 +678,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     final fecha = clase['fecha'] != null
         ? DateTime.tryParse(clase['fecha'].toString())
         : null;
-    final cierreMinutos =
-        (clase['reserva_cierre_minutos'] as num?)?.toInt() ?? 0;
+    final cierreMinutos = CierreMinutos.reserva(clase);
     final reservaCerrada = fecha != null &&
         ReservasService.reservaCerrada(fecha, cierreMinutos);
     final lugaresDisp =
@@ -1230,14 +1229,24 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                         title: 'Política de cancelación',
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
+                            // La ventana la define el estudio (o la clase);
+                            // no hardcodeamos 12 hs. Ver CierreMinutos.
                             _PolicyItem(
-                              'Cancelación gratuita hasta 12 horas antes de la clase.',
+                              'Cancelación gratuita hasta '
+                              '${CierreMinutos.formatDuracion(CierreMinutos.cancelacion(clase))}'
+                              ' antes de la clase.',
                             ),
-                            _PolicyItem(
+                            if (cierreMinutos > 0)
+                              _PolicyItem(
+                                'Las reservas cierran '
+                                '${CierreMinutos.formatDuracion(cierreMinutos)}'
+                                ' antes de que empiece.',
+                              ),
+                            const _PolicyItem(
                               'Cancelaciones tardías o no-shows consumen los créditos completos.',
                             ),
-                            _PolicyItem(
+                            const _PolicyItem(
                               'Los créditos no son reembolsables una vez consumidos.',
                             ),
                           ],
