@@ -314,6 +314,10 @@ create index if not exists horarios_fijos_categorias_gin
 -- buscara la categoria del estudio solo para pasarsela. Se saca ese lookup
 -- y ademas se propagan las categorias del horario fijo a la clase.
 
+-- drop previo: la version deployada tiene otro default (4 o 13) y puede
+-- tener otro tipo de retorno; `create or replace` no puede cambiarlo.
+drop function if exists public.generar_clases_estudio(int, int);
+
 create or replace function public.generar_clases_estudio(
   p_estudio_id int,
   p_weeks int default 9
