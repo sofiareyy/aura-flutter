@@ -94,7 +94,8 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       // 2. Traer todos los estudios activos (con comisión + fecha inicio cobro)
       final estudiosData = await _client
           .from('estudios')
-          .select('id, nombre, comision_aura, comision_workshop, fecha_inicio_cobro')
+          .select('id, nombre, comision_aura, comision_workshop, '
+              'fecha_inicio_cobro, valor_credito')
           .eq('activo', true)
           .order('nombre');
 
@@ -143,7 +144,11 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
         final credNormal = creditosNormalPorEstudio[esId] ?? 0;
         final credWorkshop = creditosWorkshopPorEstudio[esId] ?? 0;
         final creditos = credNormal + credWorkshop;
-        final montoTotal = creditos * 1000;
+        // El valor del crédito lo define cada estudio. Antes estaba fijo en
+        // 1000, así que el backoffice mostraba montos 6x más chicos que los
+        // que veía el estudio en Cobros (que usa `valor_credito ?? 6000`).
+        final valorCredito = (e['valor_credito'] as num?)?.toInt() ?? 6000;
+        final montoTotal = creditos * valorCredito;
 
         // Comisión efectiva: antes de fecha_inicio_cobro Aura no cobra (0%),
         // el estudio recibe el 100%. Desde esa fecha (o si no hay fecha):
@@ -160,10 +165,20 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
             !(fechaInicio != null && DateTime.now().isBefore(fechaInicio));
         final comisionNormal = cobraComision ? comisionConfig : 0.0;
         final comisionWorkshop = cobraComision ? comisionWorkshopConfig : 0.0;
-        final montoPagar = ((credNormal * 1000) * (100 - comisionNormal) / 100 +
-                (credWorkshop * 1000) * (100 - comisionWorkshop) / 100)
-            .round();
-        final comisionPct = comisionNormal;
+        final montoPagar =
+            ((credNormal * valorCredito) * (100 - comisionNormal) / 100 +
+                    (credWorkshop * valorCredito) *
+                        (100 - comisionWorkshop) /
+                        100)
+                .round();
+        // Comisión EFECTIVA, derivada de los montos reales. Antes mostraba
+        // siempre `comisionNormal`, así que un estudio con workshops veía
+        // "30%" mientras el monto se había calculado al 15% — el porcentaje
+        // no cerraba con la resta de arriba. Para un estudio mixto ahora da
+        // el promedio ponderado, que es lo que efectivamente retiene Aura.
+        final comisionPct = montoTotal > 0
+            ? (montoTotal - montoPagar) / montoTotal * 100
+            : comisionNormal;
 
         final liq = liqMap[esId];
         resultado.add({

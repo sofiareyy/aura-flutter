@@ -537,7 +537,10 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                     ),
                                   _BankRow(
                                     icon: Icons.percent_rounded,
-                                    label: 'Comisión Aura',
+                                    // Aclaramos "(clases)": este valor NO
+                                    // aplica a los workshops, que tienen su
+                                    // propia comisión definida por Aura.
+                                    label: 'Comisión Aura (clases)',
                                     value:
                                         '${_comisionAura.toStringAsFixed(_comisionAura.truncateToDouble() == _comisionAura ? 0 : 1)}%',
                                   ),
@@ -654,15 +657,19 @@ class _CobrosScreenState extends State<CobrosScreen> {
       symbol: '\$',
       decimalDigits: 0,
     );
-    final comision = _comisionAura;
     final totalBruto = reservas.fold<int>(0, (acc, r) {
       final creditos = (r['creditos_usados'] as num?)?.toInt() ?? 0;
       final valorCredito =
           (_estudio?['valor_credito'] as num?)?.toInt() ?? 6000;
       return acc + creditos * valorCredito;
     });
-    final comisionMonto = (totalBruto * comision / 100).round();
     final aTransferir = _montoPendiente;
+    // La comisión sale de la resta, no de multiplicar por `_comisionAura`.
+    // Con workshops de por medio (que van al 15%) el desglose no cerraba:
+    // bruto - comisión daba distinto de "a transferir".
+    final comisionMonto = totalBruto - aTransferir;
+    final hayWorkshops = reservas
+        .any((r) => r['_clase_tipo']?.toString() == 'workshop');
 
     showModalBottomSheet(
       context: context,
@@ -906,8 +913,13 @@ class _CobrosScreenState extends State<CobrosScreen> {
                     ),
                     const SizedBox(height: 6),
                     _DetalleRow(
-                      label:
-                          'Comisión Aura (${comision.toStringAsFixed(comision.truncateToDouble() == comision ? 0 : 1)}%)',
+                      // Con workshops en el mes no mostramos porcentaje: la
+                      // comisión de workshops la define Aura desde el
+                      // backoffice y el estudio no la ve (FEATURE 6). Poner
+                      // el % de clases sería directamente incorrecto.
+                      label: hayWorkshops
+                          ? 'Comisión Aura'
+                          : 'Comisión Aura (${_comisionAura.toStringAsFixed(_comisionAura.truncateToDouble() == _comisionAura ? 0 : 1)}%)',
                       value: '- ${moneyFmt.format(comisionMonto)}',
                       valueColor: AppColors.error,
                     ),
