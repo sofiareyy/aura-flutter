@@ -423,16 +423,23 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         cantidadAlumnos: cantAlumnos,
         estudioNombre: estudioNombre,
         onEnviar: (mensaje, tipo) async {
-          await _avisoService.enviarAviso(
+          final emails = await _avisoService.enviarAviso(
             claseId: claseId,
             mensaje: mensaje,
             tipo: tipo,
             tituloEstudio: estudioNombre,
           );
           if (mounted) {
+            // Los urgentes además mandan email, así que lo contamos aparte:
+            // el estudio necesita saber si el aviso salió por los dos canales.
+            final detalle = emails > 0
+                ? ' · $emails por email'
+                : (tipo == 'urgente' ? ' · sin emails' : '');
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('✓ Aviso enviado a $cantAlumnos alumnos'),
+                content: Text(
+                  '✓ Aviso enviado a $cantAlumnos alumnos$detalle',
+                ),
                 backgroundColor: const Color(0xFF1A1A1A),
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -4297,10 +4304,52 @@ class _AvisoSheetState extends State<_AvisoSheet> {
   bool _urgente = false;
   bool _enviando = false;
 
+  /// Plantillas para los casos que el estudio manda una y otra vez. Los
+  /// `[corchetes]` son huecos a completar: al tocar la plantilla se
+  /// selecciona el primero para que escribir encima lo reemplace.
+  static const _rapidosUrgentes = [
+    'La clase de hoy se cancela. Sus créditos serán devueltos.',
+    'La clase se reprograma para [fecha]. Confirmen si pueden asistir.',
+    'La profe de hoy no puede dar la clase. Se cancela y se devuelven '
+        'los créditos.',
+  ];
+
+  static const _rapidosGenerales = [
+    'Recordatorio: clase hoy a las [hora]. ¡Las esperamos!',
+    'Traigan mat y ropa cómoda.',
+    'La clase de hoy es en [lugar].',
+    'Hay lugar disponible en la clase de hoy. ¡Pueden traer una amiga!',
+    '¡Quedan pocos lugares para la clase de mañana! Reserven ya.',
+    'Nueva clase disponible esta semana. ¡Mirá los horarios en la app!',
+    'Gracias por venir hoy. ¡Las esperamos la próxima!',
+    'Este mes tenemos novedades. ¡Entrá a la app para ver!',
+    '¿Traés una amiga? Compartí Aura y sumamos más clases juntas.',
+    'Recordá que podés cancelar hasta 12hs antes sin perder créditos.',
+    'Nuevo horario disponible. Reservá tu lugar antes de que se llene.',
+  ];
+
   @override
   void dispose() {
     _ctrl.dispose();
     super.dispose();
+  }
+
+  /// Carga una plantilla en el campo editable. Marca la urgencia acorde al
+  /// grupo, así tocar "la clase se cancela" no queda como aviso general.
+  void _usarPlantilla(String texto, {required bool urgente}) {
+    final hueco = RegExp(r'\[[^\]]+\]').firstMatch(texto);
+    setState(() {
+      _urgente = urgente;
+      _ctrl.text = texto;
+      // Si la plantilla tiene un hueco, lo dejamos seleccionado para que
+      // escribir encima lo reemplace sin tener que borrarlo a mano.
+      _ctrl.selection = hueco != null
+          ? TextSelection(
+              baseOffset: hueco.start,
+              extentOffset: hueco.end,
+            )
+          : TextSelection.collapsed(offset: texto.length);
+    });
   }
 
   Future<void> _enviar() async {
@@ -4325,7 +4374,10 @@ class _AvisoSheetState extends State<_AvisoSheet> {
         20, 12, 20,
         20 + MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Column(
+      // Scrolleable: con las plantillas + el preview el contenido puede
+      // pasar el alto del sheet, sobre todo con el teclado abierto.
+      child: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -4350,6 +4402,34 @@ class _AvisoSheetState extends State<_AvisoSheet> {
           Text(
             '${widget.cantidadAlumnos} alumno${widget.cantidadAlumnos != 1 ? 's' : ''} va${widget.cantidadAlumnos != 1 ? 'n' : ''} a recibir una notificación',
             style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          // Mensajes rápidos: plantillas para los casos repetidos. Scroll
+          // horizontal para no comerse la altura del sheet.
+          const Text(
+            'MENSAJES RÁPIDOS',
+            style: TextStyle(
+              color: Color(0xFF8F877F),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _PlantillaFila(
+            etiqueta: '🚨  Urgentes',
+            plantillas: _rapidosUrgentes,
+            urgente: true,
+            seleccionada: _ctrl.text.trim(),
+            onTap: (t) => _usarPlantilla(t, urgente: true),
+          ),
+          const SizedBox(height: 8),
+          _PlantillaFila(
+            etiqueta: '📢  Generales',
+            plantillas: _rapidosGenerales,
+            urgente: false,
+            seleccionada: _ctrl.text.trim(),
+            onTap: (t) => _usarPlantilla(t, urgente: false),
           ),
           const SizedBox(height: 16),
           // Campo de texto
@@ -4469,6 +4549,7 @@ class _AvisoSheetState extends State<_AvisoSheet> {
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -5656,6 +5737,91 @@ class _OpcionTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Fila de plantillas de aviso, con scroll horizontal para no comerse el
+/// alto del bottom sheet (son 11 generales).
+class _PlantillaFila extends StatelessWidget {
+  final String etiqueta;
+  final List<String> plantillas;
+  final bool urgente;
+
+  /// Texto actual del campo, para marcar cuál plantilla está en uso.
+  final String seleccionada;
+  final ValueChanged<String> onTap;
+
+  const _PlantillaFila({
+    required this.etiqueta,
+    required this.plantillas,
+    required this.urgente,
+    required this.seleccionada,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final acento = urgente ? AppColors.primary : const Color(0xFF6A635D);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          etiqueta,
+          style: TextStyle(
+            color: acento,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 34,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: plantillas.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (_, i) {
+              final texto = plantillas[i];
+              final activa = seleccionada == texto.trim();
+              return GestureDetector(
+                onTap: () => onTap(texto),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: activa
+                        ? acento.withValues(alpha: 0.12)
+                        : const Color(0xFFF7F5F2),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: activa ? acento : const Color(0xFFEDE7E1),
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      // Recortado: el texto completo va al campo editable.
+                      texto.length > 38
+                          ? '${texto.substring(0, 36)}…'
+                          : texto,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: activa ? acento : const Color(0xFF6A635D),
+                        fontSize: 12,
+                        fontWeight:
+                            activa ? FontWeight.w600 : FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

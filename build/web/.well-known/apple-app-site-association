@@ -1,0 +1,8 @@
+{
+  "applinks": {
+    "details": [{
+      "appIDs": ["TU_TEAM_ID.com.aura.auraApp"],
+      "components": [{ "/": "/payment-result*" }]
+    }]
+  }
+}

@@ -97,7 +97,10 @@ Deno.serve(async (req: Request) => {
   const { data: reservasMesDosAtras } = await adminSupabase
     .from('reservas')
     .select('clase_id')
-    .in('estado', ['confirmada', 'presente'])
+    // Incluye 'ausente' y 'completada': son reservas que el estudio cobra.
+    // Sin 'completada' el reporte del mes pasado saldria casi vacio, porque
+    // el cron completar-reservas ya las movio a ese estado.
+    .in('estado', ['confirmada', 'presente', 'ausente', 'completada'])
     .gte('created_at', inicioMesDosAtras)
     .lte('created_at', finMesDosAtras)
 
@@ -239,8 +242,11 @@ Deno.serve(async (req: Request) => {
       (uid) => !alumnosPreviosPorEstudio.has(`${uid}|${esId}`),
     ).length
 
-    // Monto neto: reservas confirmadas o presentes
-    const reservasCobradas = reservasEstudio.filter((r) => r.estado === 'confirmada' || r.estado === 'presente')
+    // Monto neto: todos los estados que el estudio cobra. 'ausente' liquida
+    // igual (el credito se consumio al reservar) y 'completada' es el estado
+    // final al que las manda el cron apenas termina la clase.
+    const ESTADOS_COBRABLES = ['confirmada', 'presente', 'ausente', 'completada']
+    const reservasCobradas = reservasEstudio.filter((r) => ESTADOS_COBRABLES.includes(r.estado as string))
     const creditosTotales = reservasCobradas.reduce((acc, r) => acc + ((r.creditos_usados as number) ?? 0), 0)
     const montoBruto = creditosTotales * 1000
     // Separar créditos de workshops (comisión fija 15%) de clases normales

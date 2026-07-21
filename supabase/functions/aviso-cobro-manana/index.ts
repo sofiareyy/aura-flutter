@@ -78,7 +78,9 @@ Deno.serve(async (req: Request) => {
     .from('reservas')
     .select('estudio_id, creditos_usados')
     // 'ausente' liquida igual: el credito se consumio al reservar y no vuelve.
-    .in('estado', ['confirmada', 'presente', 'ausente'])
+    // 'completada' es obligatorio: el cron completar-reservas mueve ahi las
+    // reservas apenas termina la clase. Sin eso, no se cobraria casi nada.
+    .in('estado', ['confirmada', 'presente', 'ausente', 'completada'])
     .gte('created_at', inicioMes)
     .lte('created_at', finMes)
 

@@ -626,7 +626,10 @@ class ReservasService {
     return devueltos;
   }
 
-  /// Returns current-month reservations (confirmada or presente) with class data joined.
+  /// Reservas del mes en curso con la clase joineada. Alimenta "clases que
+  /// tomaste este mes" en MisCreditos, así que incluye los estados finales:
+  /// una vez que el cron `completar-reservas` las pasa a 'completada' seguirían
+  /// contando, si no desaparecerían del resumen apenas termina la clase.
   Future<List<Map<String, dynamic>>> getReservasMes([String? userId]) async {
     final effectiveUserId = userId ?? _supabase.auth.currentUser?.id ?? '';
     if (effectiveUserId.isEmpty) return [];
@@ -639,7 +642,7 @@ class ReservasService {
         .from(AppConstants.tableReservas)
         .select()
         .eq('usuario_id', effectiveUserId)
-        .inFilter('estado', ['confirmada', 'presente'])
+        .inFilter('estado', AppConstants.estadosLiquidables)
         .gte('created_at', firstDay.toIso8601String())
         .lt('created_at', lastDay.toIso8601String())
         .order('created_at', ascending: false);

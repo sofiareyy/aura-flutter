@@ -64,10 +64,17 @@ class AppConstants {
   /// Estados de reserva que el estudio cobra. Un 'ausente' (reservó y no vino)
   /// se liquida igual: el crédito ya se consumió al reservar y no se devuelve.
   /// Ver `_montoPendiente` / `_montoCobrado` en cobros_screen.
+  ///
+  /// 'completada' TIENE que estar acá: el cron `completar-reservas` mueve las
+  /// reservas a ese estado apenas termina la clase, así que sin incluirlo el
+  /// estudio dejaría de cobrar todo lo que ya pasó — que es justamente lo que
+  /// más cobra. Se excluyen solo 'cancelada', 'cancelada_por_estudio' (ambas
+  /// devuelven créditos) y 'pre_confirmada' (todavía no consumió nada).
   static const List<String> estadosLiquidables = [
     'confirmada',
     'presente',
     'ausente',
+    'completada',
   ];
 
   /// Minutos antes del inicio en que cierra la cancelacion, si el estudio no
