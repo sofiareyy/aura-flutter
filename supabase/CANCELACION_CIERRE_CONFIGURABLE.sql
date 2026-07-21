@@ -69,7 +69,17 @@ comment on column public.horarios_fijos.cancelacion_cierre_minutos is
 comment on column public.clases.reserva_cierre_minutos is
   'Override de la ventana de reserva para esta clase. null = usar estudios.reserva_cierre_minutos. OJO: 0 NO es null, 0 significa "se reserva hasta el inicio".';
 
--- ── 3. Limpiar el 0 espurio que dejo el coalesce viejo ─────────────────────
+-- ── 3. Soltar el NOT NULL de reserva_cierre_minutos ────────────────────────
+-- Sin esto no se puede expresar "sin override, heredar del estudio". Era la
+-- causa de fondo del bug: como null no entraba, se guardaba 0, y 0 significa
+-- "sin ventana". Por eso la politica de 12 hs nunca se aplicaba.
+alter table public.clases
+  alter column reserva_cierre_minutos drop not null;
+
+alter table public.horarios_fijos
+  alter column reserva_cierre_minutos drop not null;
+
+-- ── 4. Limpiar el 0 espurio que dejo el coalesce viejo ─────────────────────
 -- Los 0 escritos por `coalesce(v_h.reserva_cierre_minutos, 0)` no fueron una
 -- decision del estudio: eran el default disfrazado. Los pasamos a null para
 -- que hereden. Solo tocamos las filas cuyo horario fijo tampoco tenia valor,
@@ -86,7 +96,7 @@ update public.clases
  where reserva_cierre_minutos = 0
    and horario_fijo_id is null;
 
--- ── 4. Re-emitir generar_clases_estudio propagando las dos columnas ────────
+-- ── 5. Re-emitir generar_clases_estudio propagando las dos columnas ────────
 -- Identica a la de PRICING_DINAMICO.sql salvo el bloque de insert: se quita
 -- el coalesce(...,0) y se suma cancelacion_cierre_minutos.
 create or replace function public.generar_clases_estudio(
@@ -189,7 +199,7 @@ $$;
 
 grant execute on function public.generar_clases_estudio(int, int) to authenticated;
 
--- ── 5. RPC para que el estudio edite sus dos ventanas ──────────────────────
+-- ── 6. RPC para que el estudio edite sus dos ventanas ──────────────────────
 -- Solo un admin del estudio puede tocarlas. Devuelve los valores guardados.
 create or replace function public.set_estudio_cierres(
   p_estudio_id int,
