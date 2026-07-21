@@ -68,6 +68,8 @@ grant execute on function public.admin_list_studio_categories() to authenticated
 
 
 -- ── RPC: crear ─────────────────────────────────────────────────────────────
+drop function if exists public.admin_add_studio_category(text);
+
 create or replace function public.admin_add_studio_category(p_nombre text)
 returns json
 language plpgsql
@@ -105,6 +107,9 @@ grant execute on function public.admin_add_studio_category(text) to authenticate
 -- ── RPC: renombrar ─────────────────────────────────────────────────────────
 -- Propaga el nombre nuevo a estudios.categorias, clases.categorias y
 -- horarios_fijos.categorias, si no las asignaciones quedan colgadas.
+-- La version vieja usaba p_old_name/p_new_name: se dropea por firma.
+drop function if exists public.admin_rename_studio_category(text, text);
+
 create or replace function public.admin_rename_studio_category(
   p_actual text,
   p_nuevo  text
@@ -161,6 +166,8 @@ grant execute on function public.admin_rename_studio_category(text, text)
 -- ── RPC: activar / desactivar ──────────────────────────────────────────────
 -- Preferible a borrar: saca la categoria de los selectores pero no toca las
 -- clases que ya la tienen asignada.
+drop function if exists public.admin_toggle_studio_category(text, boolean);
+
 create or replace function public.admin_toggle_studio_category(
   p_nombre text,
   p_activa boolean
@@ -195,6 +202,8 @@ grant execute on function public.admin_toggle_studio_category(text, boolean)
 
 -- ── RPC: eliminar ──────────────────────────────────────────────────────────
 -- Borra la categoria y la saca de todas las asignaciones.
+drop function if exists public.admin_delete_studio_category(text);
+
 create or replace function public.admin_delete_studio_category(p_nombre text)
 returns json
 language plpgsql
