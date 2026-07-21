@@ -415,17 +415,11 @@ final appRouter = GoRouter(
       path: '/mapa',
       builder: (context, state) => const MapaScreen(),
     ),
-    GoRoute(
-      path: '/asistencia',
-      builder: (context, state) => const AsistenciaScreen(),
-    ),
-    GoRoute(
-      path: '/cobros',
-      builder: (context, state) => const CobrosScreen(),
-    ),
-    GoRoute(
-      path: '/dashboard-estudios',
-      builder: (context, state) => const DashboardEstudiosScreen(),
-    ),
+    // D1 — Se eliminan /asistencia, /cobros y /dashboard-estudios.
+    // Eran rutas espejo de las del panel (/estudio/*) pero FUERA del shell,
+    // así que el gate de rol del redirect —que matchea startsWith('/estudio')—
+    // no las alcanzaba: una profe entraba a /cobros y veía la caja completa
+    // del estudio. Las versiones válidas viven en /estudio/asistencia,
+    // /estudio/cobros y /estudio/dashboard.
   ],
 );

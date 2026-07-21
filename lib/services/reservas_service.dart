@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/constants/app_constants.dart';
@@ -172,18 +170,10 @@ class ReservasService {
           )
         : false;
 
+    // El descuento de créditos y la decisión de gratuidad pasaron al RPC
+    // `reservar_clase` (D1): desde el cliente eran manipulables. `esGratuita`
+    // se sigue calculando acá solo para el copy de la UI.
     final creditosReales = esGratuita ? 0 : creditosUsados;
-
-    if (!esGratuita) {
-      final consumidos =
-          await _usuariosService.descontarCreditos(userId, creditosReales);
-      if (!consumidos) {
-        throw Exception(
-            'No tenés créditos disponibles para reservar esta clase.');
-      }
-    }
-
-    final codigoQr = _generarCodigoQr(userId, claseId);
 
     try {
       // Reserva atomica via RPC: lockea la fila de clases, valida lugares,
@@ -192,18 +182,20 @@ class ReservasService {
       // INSERT -> decrementar_lugares).
       dynamic res;
       try {
-        res = await _supabase.rpc('apply_reservation', params: {
-          'p_user_id': userId,
+        // D1 — `reservar_clase` valida auth.uid(), toma el precio de la
+        // clase (antes venía del cliente y nada lo revalidaba), consume los
+        // créditos y llama a apply_reservation, todo en una transacción.
+        // `apply_reservation` y `consume_user_credits` ya no son invocables
+        // desde el cliente.
+        res = await _supabase.rpc('reservar_clase', params: {
           'p_clase_id': claseId,
-          'p_codigo_qr': codigoQr,
-          'p_creditos_usados': creditosReales,
         });
       } on PostgrestException catch (e) {
         // Casos comunes: la RPC no esta deployada (function not found),
         // schema cache stale, o RLS bloquea. Sin esto el user veia el
         // PostgrestException crudo como "error generico".
         final msg = e.message.toLowerCase();
-        if (msg.contains('apply_reservation') &&
+        if (msg.contains('reservar_clase') &&
             (msg.contains('does not exist') || msg.contains('not found'))) {
           throw Exception(
               'Sistema temporalmente no disponible. Probá de nuevo en unos minutos.');
@@ -238,7 +230,10 @@ class ReservasService {
       final fechaDetalle = DateTime.tryParse(
         claseDetalle?['fecha']?.toString() ?? '',
       );
-      if (claseDetalle != null && fechaDetalle != null) {
+      // El código QR ahora lo genera `reservar_clase` server-side; lo
+      // tomamos de la reserva devuelta en vez de recalcularlo.
+      final codigoQr = data['codigo_qr']?.toString() ?? '';
+      if (claseDetalle != null && fechaDetalle != null && codigoQr.isNotEmpty) {
         final notifId = codigoQr.hashCode.abs() % 2147483647;
         await NotificacionesService.instance.scheduleReservaReminder(
           reservaId: notifId,
@@ -329,70 +324,59 @@ class ReservasService {
   /// no se encuentra. Devuelve la cantidad de créditos restituidos para que la UI
   /// pueda mostrar feedback ("Te devolvimos N créditos").
   Future<int> cancelarReserva(String codigoQr) async {
-    // Obtener datos antes de cancelar para devolver créditos + nombre de clase
-    final reserva = await _supabase
-        .from(AppConstants.tableReservas)
-        .select()
-        .eq('codigo_qr', codigoQr)
-        .maybeSingle();
+    // D1 — Todo el flujo pasó al RPC `cancelar_mi_reserva`, que valida que la
+    // reserva sea tuya, exige que esté en 'confirmada' (antes dos taps
+    // devolvían los créditos dos veces), respeta la ventana de cancelación
+    // server-side y RESTAURA EL CUPO — que el flujo viejo nunca hacía, así
+    // que el lugar se perdía si no había lista de espera.
+    final res = await _supabase.rpc(
+      'cancelar_mi_reserva',
+      params: {'p_codigo_qr': codigoQr},
+    );
+    final map = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
 
-    if (reserva == null) return 0;
-
-    await _supabase
-        .from(AppConstants.tableReservas)
-        .update({'estado': 'cancelada'}).eq('codigo_qr', codigoQr);
-
-    final usuarioId = reserva['usuario_id']?.toString() ?? '';
-    final creditosUsados = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
-    final claseId = (reserva['clase_id'] as num?)?.toInt();
-
-    // Buscar nombre de clase para la descripción del movimiento
-    String claseNombre = 'clase cancelada';
-    if (claseId != null) {
-      try {
-        final clase = await _supabase
-            .from(AppConstants.tableClases)
-            .select('nombre')
-            .eq('id', claseId)
-            .maybeSingle();
-        final nombre = clase?['nombre']?.toString().trim();
-        if (nombre != null && nombre.isNotEmpty) {
-          claseNombre = nombre;
-        }
-      } catch (_) {
-        // Non-critical: dejamos el fallback
-      }
+    if (map['ok'] != true) {
+      throw Exception(_mensajeCancelacionError(
+        map['error']?.toString(),
+        (map['cierre_minutos'] as num?)?.toInt(),
+      ));
     }
 
-    // Devolver créditos vía RPC para que quede asentado en creditos_movimientos
-    // como entrada de historial. Si falla, fallback a UPDATE directo.
-    if (usuarioId.isNotEmpty && creditosUsados > 0) {
-      final vencimiento = DateTime.now().add(const Duration(days: 60));
-      try {
-        await _supabase.rpc('grant_user_credits', params: {
-          'p_user_id': usuarioId,
-          'p_amount': creditosUsados,
-          'p_source': 'devolucion_cancelacion',
-          'p_description': 'Devolución — $claseNombre',
-          'p_expires_at': vencimiento.toIso8601String(),
-        });
-      } catch (_) {
-        await _usuariosService.agregarCreditos(usuarioId, creditosUsados);
-      }
-    }
+    final devueltos = (map['creditos_devueltos'] as num?)?.toInt() ?? 0;
+    final claseId = (map['clase_id'] as num?)?.toInt();
 
     // Cancelar notificación local (usa hash del código como ID entero)
     final notifId = codigoQr.hashCode.abs() % 2147483647;
     await NotificacionesService.instance.cancelReservaReminder(notifId);
 
     // Si la clase tiene lista de espera, promover al siguiente y avisarle.
-    // Fire-and-forget: cualquier error en este path no debe romper la
-    // cancelacion (los creditos ya fueron devueltos al usuario).
+    // Fire-and-forget: cualquier error acá no debe romper la cancelación
+    // (los créditos ya fueron devueltos dentro de la transacción).
     if (claseId != null) {
       _promoverYAvisar(claseId).ignore();
     }
 
-    return creditosUsados;
+    return devueltos;
+  }
+
+  String _mensajeCancelacionError(String? code, int? cierreMinutos) {
+    switch (code) {
+      case 'no_encontrada':
+        return 'No encontramos esa reserva.';
+      case 'no_es_tuya':
+        return 'Esa reserva no es tuya.';
+      case 'estado_invalido':
+        return 'Esta reserva ya no se puede cancelar.';
+      case 'fuera_de_ventana':
+        final txt = cierreMinutos == null
+            ? 'que la clase arranque'
+            : CierreMinutos.formatDuracion(cierreMinutos);
+        return 'No podés cancelar — faltan menos de $txt para la clase.';
+      case 'no_auth':
+        return 'Iniciá sesión para cancelar.';
+      default:
+        return 'No se pudo cancelar la reserva.';
+    }
   }
 
   /// Llama a la RPC waitlist_promote_next y para cada promovido manda
@@ -543,87 +527,57 @@ class ReservasService {
   /// Returns credits to every confirmed reservation and marks them
   /// as 'cancelada_por_estudio'. Returns the number of users refunded.
   Future<int> cancelarClaseConDevolucion(int claseId, String claseNombre) async {
-    // Fecha de la clase para el mensaje de la notificación in-app.
-    String fechaSuffix = '';
+    // D1 — Antes era un loop en el cliente, no transaccional: si fallaba a la
+    // mitad, unos alumnos quedaban con créditos devueltos y la reserva sin
+    // cancelar, y reintentar devolvía dos veces. Ahora es un RPC que valida
+    // que quien llama sea ADMIN del estudio (una profe no cancela clases) y
+    // hace todo en una sola transacción.
+    final res = await _supabase.rpc(
+      'estudio_cancelar_clase',
+      params: {'p_clase_id': claseId},
+    );
+    final map = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+
+    if (map['ok'] != true) {
+      final code = map['error']?.toString();
+      throw Exception(
+        code == 'sin_permisos'
+            ? 'No tenés permisos para cancelar esta clase.'
+            : 'No se pudo cancelar la clase.',
+      );
+    }
+
+    final afectados = (map['reservas_canceladas'] as num?)?.toInt() ?? 0;
+
+    // Notificación in-app a cada alumno. Va fuera de la transacción: si algo
+    // falla acá, los créditos ya están devueltos igual.
     try {
-      final clase = await _supabase
-          .from(AppConstants.tableClases)
-          .select('fecha')
-          .eq('id', claseId)
-          .maybeSingle();
-      final f = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
-      if (f != null) {
-        fechaSuffix = ' del ${f.day.toString().padLeft(2, '0')}/'
-            '${f.month.toString().padLeft(2, '0')}';
+      final reservas = await _supabase
+          .from(AppConstants.tableReservas)
+          .select('usuario_id')
+          .eq('clase_id', claseId)
+          .eq('estado', 'cancelada_por_estudio');
+
+      final inserts = (reservas as List)
+          .map((r) => r['usuario_id'])
+          .whereType<String>()
+          .toSet()
+          .map((uid) => {
+                'usuario_id': uid,
+                'titulo': '❌ Clase cancelada',
+                'mensaje':
+                    'Se canceló "$claseNombre". Te devolvimos tus créditos.',
+                'tipo': 'clase_cancelada',
+                'leida': false,
+              })
+          .toList();
+
+      if (inserts.isNotEmpty) {
+        await _supabase.from('notificaciones_usuario').insert(inserts);
       }
     } catch (_) {}
 
-    // Notificamos a quien tuviera un lugar activo (confirmada o pre_confirmada
-    // de lista de espera), no solo a los que gastaron créditos.
-    final reservas = await _supabase
-        .from(AppConstants.tableReservas)
-        .select()
-        .eq('clase_id', claseId)
-        .inFilter('estado', ['confirmada', 'presente', 'pre_confirmada']);
-
-    int devueltos = 0;
-    for (final raw in (reservas as List)) {
-      final reserva = Map<String, dynamic>.from(raw);
-      final userId = reserva['usuario_id']?.toString() ?? '';
-      final creditos = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
-      final reservaId = (reserva['id'] as num?)?.toInt();
-
-      if (userId.isNotEmpty && creditos > 0) {
-        final vencimiento = DateTime.now().add(const Duration(days: 90));
-        try {
-          await _supabase.rpc('grant_user_credits', params: {
-            'p_user_id': userId,
-            'p_amount': creditos,
-            'p_source': 'devolucion_cancelacion',
-            'p_description': 'Devolución por clase cancelada: $claseNombre',
-            'p_expires_at': vencimiento.toIso8601String(),
-          });
-        } catch (_) {
-          await _usuariosService.agregarCreditos(userId, creditos);
-        }
-        devueltos++;
-      }
-
-      if (reservaId != null) {
-        await _supabase
-            .from(AppConstants.tableReservas)
-            .update({'estado': 'cancelada_por_estudio'})
-            .eq('id', reservaId);
-      }
-
-      // Notificación in-app (campanita) para el alumno afectado.
-      if (userId.isNotEmpty) {
-        try {
-          await _supabase.from('notificaciones_usuario').insert({
-            'usuario_id': userId,
-            'titulo': 'Clase cancelada',
-            'mensaje': 'El estudio canceló $claseNombre$fechaSuffix. '
-                'Tus créditos fueron devueltos 🧡',
-            'tipo': 'clase_cancelada',
-            'leida': false,
-          });
-        } catch (_) {}
-      }
-    }
-
-    // Eliminar la clase ahora que las reservas estan canceladas. Antes
-    // hacia `update({'estado': 'cancelada'})` pero la columna `estado`
-    // no existe en la tabla clases en produccion (PostgREST dropeaba
-    // ese campo en silencio, no-op). Resultado: la clase seguia visible
-    // como disponible para reservar despues de "cancelarla". Ahora la
-    // borramos directo para que ambos paths (sheet de detalle y menu de
-    // eliminar) tengan el mismo comportamiento consistente.
-    await _supabase
-        .from(AppConstants.tableClases)
-        .delete()
-        .eq('id', claseId);
-
-    return devueltos;
+    return afectados;
   }
 
   /// Reservas del mes en curso con la clase joineada. Alimenta "clases que
@@ -702,11 +656,6 @@ class ReservasService {
     return Map<String, dynamic>.from(reserva);
   }
 
-  String _generarCodigoQr(String userId, int claseId) {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final random = Random().nextInt(9999).toString().padLeft(4, '0');
-    return 'AURA-${userId.substring(0, 8).toUpperCase()}-$claseId-$timestamp-$random';
-  }
 
   /// Mapea los codigos de error que devuelve la RPC apply_reservation a
   /// mensajes user-friendly. Cualquier codigo desconocido (incluido un
