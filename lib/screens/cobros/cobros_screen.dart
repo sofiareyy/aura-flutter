@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../services/valor_credito.dart';
 import '../../core/constants/app_constants.dart';
+import '../../utils/liquidacion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/estudio_admin_service.dart';
 
@@ -955,49 +956,27 @@ class _CobrosScreenState extends State<CobrosScreen> {
     }).toList();
   }
 
-  double get _comisionAura => (_estudio?['comision_aura'] as num?)?.toDouble() ?? 30;
+  /// Comisión de clases del estudio (variable, default 30). Solo para mostrar
+  /// el porcentaje; el cálculo real de plata pasa por [Liquidacion].
+  double get _comisionAura =>
+      Liquidacion.comision(_estudio, esWorkshop: false);
 
-  /// Comisión de workshops. Es distinta de la de clases y la fija Aura desde
-  /// el backoffice; el estudio no la edita.
-  double get _comisionWorkshop =>
-      (_estudio?['comision_workshop'] as num?)?.toDouble() ?? 15;
+  int get _montoPendiente =>
+      Liquidacion.netoTotal(_reservasMesActual, _estudio);
 
-  /// La comisión que aplica a una reserva depende del tipo de su clase.
-  double _comisionDe(Map<String, dynamic> reserva) =>
-      reserva['_clase_tipo']?.toString() == 'workshop'
-          ? _comisionWorkshop
-          : _comisionAura;
-
-  /// Mismo filtro de estados que `_montoCobrado`: antes este KPI incluía
-  /// todo lo no cancelado (ej. pre_confirmada) y el otro solo
-  /// confirmada/presente, así que nunca cerraban entre sí.
-  int get _montoPendiente => _reservasMesActual
-      .where((r) =>
-          AppConstants.estadosLiquidables.contains(r['estado']?.toString()))
-      .fold<int>(0, (acc, r) => acc + _montoReserva(r));
-
-  /// Un 'ausente' (reservó y no vino) se cobra igual que un 'presente': el
-  /// crédito ya se consumió al reservar y no se devuelve. Marcarlo como
-  /// ausente es informativo y no cambia lo que cobra el estudio.
-  int get _montoCobrado => _reservas
-      .where((r) =>
-          AppConstants.estadosLiquidables.contains(r['estado']?.toString()))
-      .fold<int>(0, (acc, r) => acc + _montoReserva(r));
+  int get _montoCobrado => Liquidacion.netoTotal(_reservas, _estudio);
 
   int get _ticketPromedio {
-    if (_reservasNoCanceladas.isEmpty) return 0;
-    final total = _reservasNoCanceladas.fold<int>(0, (acc, r) => acc + _montoReserva(r));
-    return total ~/ _reservasNoCanceladas.length;
+    final cobrables = _reservas
+        .where((r) => AppConstants.estadosLiquidables
+            .contains(r['estado']?.toString()))
+        .toList();
+    if (cobrables.isEmpty) return 0;
+    return Liquidacion.netoTotal(cobrables, _estudio) ~/ cobrables.length;
   }
 
-  int _montoReserva(Map<String, dynamic> reserva) {
-    final creditos = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
-    final valorCredito = ValorCredito.deEstudio(_estudio);
-    final bruto = creditos * valorCredito;
-    // Antes usaba siempre `_comisionAura`, así que los workshops se neteaban
-    // al 30% cuando la liquidación real les aplica 15%.
-    return (bruto * ((100 - _comisionDe(reserva)) / 100)).round();
-  }
+  int _montoReserva(Map<String, dynamic> reserva) =>
+      Liquidacion.netoReserva(reserva, _estudio);
 
   String _money(int value) =>
       NumberFormat.currency(locale: 'es_AR', symbol: '\$', decimalDigits: 0)

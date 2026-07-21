@@ -15,8 +15,6 @@ class PricingService {
   final _client = Supabase.instance.client;
 
   static const int _valorCreditoFallback = 1000;
-  static const double _comisionEstudio = 0.70;
-
   static const List<_PackBase> _packsBase = [
     _PackBase(
       nombre: 'Pack Prueba',
@@ -74,9 +72,11 @@ class PricingService {
     }
   }
 
-  /// Calcula el monto que recibe el estudio por una clase de N creditos.
-  int montoEstudioPorClase(int valorCredito, int creditos) =>
-      (valorCredito * creditos * _comisionEstudio).round();
+  /// Monto que recibe el estudio por una clase de N créditos, dada la
+  /// comisión de Aura para ese estudio (variable: puede ser 0, 30 o lo que
+  /// se haya negociado). Antes tenía 30% hardcodeado.
+  int montoEstudioPorClase(int valorCredito, int creditos, double comisionPct) =>
+      (valorCredito * creditos * (100 - comisionPct) / 100).round();
 
   /// Devuelve los 4 packs canonicos con precio calculado.
   Future<List<Map<String, dynamic>>> getPacks() async {

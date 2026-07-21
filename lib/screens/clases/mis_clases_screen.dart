@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/valor_credito.dart';
+import '../../utils/liquidacion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/aviso_alumnos_service.dart';
@@ -115,7 +116,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     ({String modo, int min, int max}) pricing,
   ) {
     if (tipo == 'workshop') {
-      return creditosDeWorkshop(_montoWorkshop(ctrl));
+      return Liquidacion.creditosDeWorkshop(_montoWorkshop(ctrl), _estudio);
     }
     final parsed = int.tryParse(ctrl.text.trim());
     if (pricing.modo == 'fijo') return pricing.min;
@@ -592,7 +593,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       // El campo de workshop se edita en PESOS, no en créditos: convertimos
       // el precio guardado de vuelta al monto que recibe el estudio.
       cred.text =
-          montoEstudioDeCreditos((clase['creditos'] as num?)?.toInt() ?? 0)
+          Liquidacion.montoEstudioDeWorkshop(
+              (clase['creditos'] as num?)?.toInt() ?? 0, _estudio)
               .toString();
     } else {
       final actual = int.tryParse(cred.text.trim());
@@ -814,6 +816,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               if (tipoClase == 'workshop')
                                 _WorkshopPrecioField(
                                   controller: cred,
+                                  estudio: _estudio,
                                   onChanged: () => setD(() {}),
                                 )
                               else
@@ -1259,7 +1262,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final pricing = _studioPricing();
     if (tipo == 'workshop') {
       cr.text =
-          montoEstudioDeCreditos((item?['creditos'] as num?)?.toInt() ?? 0)
+          Liquidacion.montoEstudioDeWorkshop(
+              (item?['creditos'] as num?)?.toInt() ?? 0, _estudio)
               .toString();
     } else {
       final actual = int.tryParse(cr.text.trim());
@@ -1574,6 +1578,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               if (tipo == 'workshop')
                                 _WorkshopPrecioField(
                                   controller: cr,
+                                  estudio: _estudio,
                                   onChanged: () => setD(() {}),
                                 )
                               else
@@ -6218,26 +6223,6 @@ const int kMaxCategoriasClase = 5;
 List<String> _parseCategorias(Map<String, dynamic> row) =>
     Estudio.parseCategorias(row);
 
-/// Comisión de Aura sobre workshops: el alumno paga un 15% más de lo que
-/// recibe el estudio. Se aplica sobre el monto neto que el estudio pide.
-const double kRecargoWorkshop = 1.15;
-
-/// Convierte los pesos que el estudio quiere recibir en créditos que paga el
-/// alumno: `monto * 1.15 / valor_credito`, redondeado.
-///
-/// El redondeo deja la comisión efectiva algo por debajo del 15% (con
-/// $40.000 → 46 créditos da ~13%). Es a propósito: preferimos un número
-/// redondo de créditos antes que exactitud en la comisión.
-int creditosDeWorkshop(int montoEstudio) {
-  if (montoEstudio <= 0) return 0;
-  final valor = ValorCredito.actual;
-  if (valor <= 0) return 0;
-  return (montoEstudio * kRecargoWorkshop / valor).round();
-}
-
-/// Lo que efectivamente recibe el estudio dados N créditos.
-int montoEstudioDeCreditos(int creditos) =>
-    (creditos * ValorCredito.actual / kRecargoWorkshop).round();
 
 /// Precio de un workshop expresado en PESOS que recibe el estudio.
 ///
@@ -6248,17 +6233,19 @@ int montoEstudioDeCreditos(int creditos) =>
 class _WorkshopPrecioField extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onChanged;
+  final Map<String, dynamic>? estudio;
 
   const _WorkshopPrecioField({
     required this.controller,
     required this.onChanged,
+    required this.estudio,
   });
 
   @override
   Widget build(BuildContext context) {
     final monto =
         int.tryParse(controller.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-    final creditos = creditosDeWorkshop(monto);
+    final creditos = Liquidacion.creditosDeWorkshop(monto, estudio);
     final money = NumberFormat.currency(
       locale: 'es_AR',
       symbol: r'$',

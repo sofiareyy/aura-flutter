@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/valor_credito.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../utils/liquidacion.dart';
 import '../../services/admin_service.dart';
 
 class AdminLiquidacionesScreen extends StatefulWidget {
@@ -87,7 +88,7 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       final reservas = await _client
           .from('reservas')
           .select(
-              'creditos_usados, clases!reservas_clase_id_fkey(estudio_id, tipo)')
+              'estado, creditos_usados, clases!reservas_clase_id_fkey(estudio_id, tipo)')
           .inFilter('estado', AppConstants.estadosLiquidables)
           .gte('created_at', inicio)
           .lte('created_at', fin);
@@ -106,25 +107,37 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
           .select()
           .eq('mes', _mesSeleccionado);
 
-      // 4. Agrupar reservas por estudio, separando clases normales (comisión
-      // del estudio, ~30%) de workshops/eventos (comisión fija 15%).
-      final Map<int, int> creditosNormalPorEstudio = {};
-      final Map<int, int> creditosWorkshopPorEstudio = {};
+      // 4. Índice de estudios (trae comisión, valor_credito, fecha_inicio_cobro)
+      final Map<int, Map<String, dynamic>> estudioPorId = {
+        for (final e in (estudiosData as List))
+          (e['id'] as num).toInt(): Map<String, dynamic>.from(e as Map),
+      };
+
+      // 5. Neto por estudio, usando la MISMA fórmula que Cobros y Dashboard
+      // (Liquidacion.netoReserva): valor_credito del estudio, comisión por
+      // tipo, y fecha_inicio_cobro. Así las tres pantallas dan el mismo número.
+      final Map<int, int> montoPagarPorEstudio = {};
+      final Map<int, int> montoBrutoPorEstudio = {};
       final Map<int, int> reservasPorEstudio = {};
 
       for (final r in (reservas as List)) {
         final clase = r['clases'] as Map<String, dynamic>?;
         final esId = (clase?['estudio_id'] as num?)?.toInt();
         if (esId == null) continue;
+        final estudio = estudioPorId[esId];
+
+        // Reserva aplanada como la esperan los helpers.
+        final reservaPlana = <String, dynamic>{
+          'estado': r['estado'],
+          'creditos_usados': r['creditos_usados'],
+          '_clase_tipo': clase?['tipo'],
+        };
         final cred = (r['creditos_usados'] as num?)?.toInt() ?? 0;
-        final esWorkshop = clase?['tipo']?.toString() == 'workshop';
-        if (esWorkshop) {
-          creditosWorkshopPorEstudio[esId] =
-              (creditosWorkshopPorEstudio[esId] ?? 0) + cred;
-        } else {
-          creditosNormalPorEstudio[esId] =
-              (creditosNormalPorEstudio[esId] ?? 0) + cred;
-        }
+
+        montoPagarPorEstudio[esId] = (montoPagarPorEstudio[esId] ?? 0) +
+            Liquidacion.netoReserva(reservaPlana, estudio);
+        montoBrutoPorEstudio[esId] = (montoBrutoPorEstudio[esId] ?? 0) +
+            cred * ValorCredito.deEstudio(estudio);
         reservasPorEstudio[esId] = (reservasPorEstudio[esId] ?? 0) + 1;
       }
 
@@ -135,51 +148,20 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
         if (esId != null) liqMap[esId] = Map<String, dynamic>.from(l);
       }
 
-      // 5. Construir lista solo de estudios con reservas
+      // 6. Construir lista solo de estudios con reservas
       final List<Map<String, dynamic>> resultado = [];
-      for (final e in (estudiosData as List)) {
+      for (final e in estudioPorId.values) {
         final esId = (e['id'] as num).toInt();
         final cantReservas = reservasPorEstudio[esId] ?? 0;
         if (cantReservas == 0) continue;
 
-        final credNormal = creditosNormalPorEstudio[esId] ?? 0;
-        final credWorkshop = creditosWorkshopPorEstudio[esId] ?? 0;
-        final creditos = credNormal + credWorkshop;
-        // El valor del crédito lo define cada estudio. Antes estaba fijo en
-        // 1000, así que el backoffice mostraba montos 6x más chicos que los
-        // que veía el estudio en Cobros.
-        final valorCredito = ValorCredito.deEstudio(Map<String, dynamic>.from(e as Map));
-        final montoTotal = creditos * valorCredito;
-
-        // Comisión efectiva: antes de fecha_inicio_cobro Aura no cobra (0%),
-        // el estudio recibe el 100%. Desde esa fecha (o si no hay fecha):
-        //  - clases normales: comisión configurada del estudio (~30%)
-        //  - workshops/eventos: comisión de workshops del estudio (default 15%)
-        final comisionConfig =
-            (e['comision_aura'] as num?)?.toDouble() ?? 30;
-        final comisionWorkshopConfig =
-            (e['comision_workshop'] as num?)?.toDouble() ?? 15;
-        final fechaInicioStr = e['fecha_inicio_cobro']?.toString();
-        final fechaInicio =
-            fechaInicioStr == null ? null : DateTime.tryParse(fechaInicioStr);
-        final cobraComision =
-            !(fechaInicio != null && DateTime.now().isBefore(fechaInicio));
-        final comisionNormal = cobraComision ? comisionConfig : 0.0;
-        final comisionWorkshop = cobraComision ? comisionWorkshopConfig : 0.0;
-        final montoPagar =
-            ((credNormal * valorCredito) * (100 - comisionNormal) / 100 +
-                    (credWorkshop * valorCredito) *
-                        (100 - comisionWorkshop) /
-                        100)
-                .round();
-        // Comisión EFECTIVA, derivada de los montos reales. Antes mostraba
-        // siempre `comisionNormal`, así que un estudio con workshops veía
-        // "30%" mientras el monto se había calculado al 15% — el porcentaje
-        // no cerraba con la resta de arriba. Para un estudio mixto ahora da
-        // el promedio ponderado, que es lo que efectivamente retiene Aura.
+        final montoTotal = montoBrutoPorEstudio[esId] ?? 0;
+        final montoPagar = montoPagarPorEstudio[esId] ?? 0;
+        // Comisión efectiva derivada de los montos reales (promedio ponderado
+        // para estudios con clases + workshops).
         final comisionPct = montoTotal > 0
             ? (montoTotal - montoPagar) / montoTotal * 100
-            : comisionNormal;
+            : Liquidacion.comision(e, esWorkshop: false);
 
         final liq = liqMap[esId];
         resultado.add({

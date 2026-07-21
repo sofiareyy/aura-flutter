@@ -3,7 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../services/valor_credito.dart';
+import '../../core/constants/app_constants.dart';
+import '../../utils/liquidacion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/estudio_admin_service.dart';
@@ -866,9 +867,12 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
     }).toList();
   }
 
-  int _ingresosDelMes(DateTime date) => _reservasDelMes(date)
-      .fold<int>(0, (acc, reserva) => acc + _montoReserva(reserva));
+  int _ingresosDelMes(DateTime date) =>
+      Liquidacion.netoTotal(_reservasDelMes(date), _estudio);
 
+  /// Reservas del mes que el estudio cobra. Antes filtraba solo
+  /// `!= 'cancelada'`, así que sumaba `cancelada_por_estudio` (créditos ya
+  /// reembolsados) y `pre_confirmada` (todavía sin consumir) como ingreso.
   List<Map<String, dynamic>> _reservasDelMes(DateTime date) {
     return _reservas.where((reserva) {
       final created = DateTime.tryParse(reserva['created_at']?.toString() ?? '');
@@ -876,7 +880,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
       return created != null &&
           created.year == date.year &&
           created.month == date.month &&
-          estado != 'cancelada';
+          AppConstants.estadosLiquidables.contains(estado);
     }).toList();
   }
 
@@ -894,28 +898,18 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
   List<Map<String, dynamic>> get _reservasMesWorkshops =>
       _reservasDelMes(DateTime.now()).where(_esWorkshop).toList();
 
-  int get _ingresosMesClases => _reservasMesClases
-      .fold<int>(0, (acc, r) => acc + _montoReserva(r));
+  int get _ingresosMesClases =>
+      Liquidacion.netoTotal(_reservasMesClases, _estudio);
 
-  int get _ingresosMesWorkshops => _reservasMesWorkshops
-      .fold<int>(0, (acc, r) => acc + _montoReserva(r));
+  int get _ingresosMesWorkshops =>
+      Liquidacion.netoTotal(_reservasMesWorkshops, _estudio);
 
   /// True si el estudio tiene algún workshop en el mes. Sin esto le
   /// mostraríamos una sección vacía a los estudios que solo dan clases.
   bool get _tieneWorkshops => _reservasMesWorkshops.isNotEmpty;
 
-  int _montoReserva(Map<String, dynamic> reserva) {
-    final creditos = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
-    final precioCredito = ValorCredito.deEstudio(_estudio);
-    // Los workshops liquidan con `comision_workshop` (default 15), no con la
-    // comisión de clases (default 30).
-    final esWorkshop = reserva['_clase_tipo']?.toString() == 'workshop';
-    final comision = esWorkshop
-        ? ((_estudio?['comision_workshop'] as num?)?.toDouble() ?? 15)
-        : ((_estudio?['comision_aura'] as num?)?.toDouble() ?? 30);
-    final bruto = creditos * precioCredito;
-    return (bruto * ((100 - comision) / 100)).round();
-  }
+  int _montoReserva(Map<String, dynamic> reserva) =>
+      Liquidacion.netoReserva(reserva, _estudio);
 
   List<Map<String, dynamic>> _buildActividad(
     List<Map<String, dynamic>> reservas,

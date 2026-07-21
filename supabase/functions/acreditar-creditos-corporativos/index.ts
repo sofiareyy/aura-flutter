@@ -26,7 +26,12 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  if (CRON_SECRET) {
+  // Fail-CLOSED: sin CRON_SECRET configurado se rechaza (antes aceptaba todo).
+  if (!CRON_SECRET) {
+    console.error('CRON_SECRET no configurado; rechazando')
+    return json({ ok: false, error: 'No configurado' }, 503)
+  }
+  {
     const provided =
       req.headers.get('x-cron-secret') ??
       (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '')

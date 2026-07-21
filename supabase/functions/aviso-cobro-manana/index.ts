@@ -3,6 +3,7 @@
 // También puede invocarse manualmente desde el backoffice.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { netoReserva } from '../_shared/liquidacion.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 
 const MESES_ES = [
@@ -64,7 +65,7 @@ Deno.serve(async (req: Request) => {
   // ── Obtener estudios activos ──────────────────────────────────────────────
   const { data: estudios, error: estudiosErr } = await adminSupabase
     .from('estudios')
-    .select('id, nombre, comision_aura')
+    .select('id, nombre, comision_aura, comision_workshop, valor_credito, fecha_inicio_cobro')
     .eq('activo', true)
     .order('nombre')
 
@@ -76,7 +77,7 @@ Deno.serve(async (req: Request) => {
   // ── Obtener todas las reservas del mes de una vez ─────────────────────────
   const { data: todasReservas } = await adminSupabase
     .from('reservas')
-    .select('estudio_id, creditos_usados')
+    .select('estado, estudio_id, creditos_usados, clases!reservas_clase_id_fkey(tipo)')
     // 'ausente' liquida igual: el credito se consumio al reservar y no vuelve.
     // 'completada' es obligatorio: el cron completar-reservas mueve ahi las
     // reservas apenas termina la clase. Sin eso, no se cobraria casi nada.
@@ -84,13 +85,36 @@ Deno.serve(async (req: Request) => {
     .gte('created_at', inicioMes)
     .lte('created_at', finMes)
 
-  // Agrupar por estudio
-  const creditosPorEstudio: Record<number, number> = {}
+  // Valor global del crédito (fallback si el estudio no tiene el suyo).
+  const { data: cfg } = await adminSupabase
+    .from('configuracion_global')
+    .select('valor')
+    .eq('clave', 'valor_credito_ars')
+    .maybeSingle()
+  const valorGlobal = parseInt(String(cfg?.valor ?? '1000'), 10) || 1000
+
+  const estudioPorId: Record<number, any> = {}
+  for (const e of estudios) estudioPorId[e.id as number] = e
+
+  // Neto por estudio con la MISMA fórmula que las pantallas de plata.
+  const netoPorEstudio: Record<number, number> = {}
+  const brutoPorEstudio: Record<number, number> = {}
   const reservasPorEstudio: Record<number, number> = {}
   for (const r of (todasReservas ?? [])) {
     const esId = r.estudio_id as number
     if (!esId) continue
-    creditosPorEstudio[esId] = (creditosPorEstudio[esId] ?? 0) + ((r.creditos_usados as number) ?? 0)
+    const est = estudioPorId[esId]
+    const esWorkshop =
+      (r.clases as { tipo?: string } | null)?.tipo === 'workshop'
+    netoPorEstudio[esId] = (netoPorEstudio[esId] ?? 0) + netoReserva(
+      { estado: r.estado, creditos_usados: r.creditos_usados, esWorkshop },
+      est,
+      valorGlobal,
+    )
+    const v = (est?.valor_credito && est.valor_credito > 0)
+      ? est.valor_credito : valorGlobal
+    brutoPorEstudio[esId] = (brutoPorEstudio[esId] ?? 0) +
+      ((r.creditos_usados as number) ?? 0) * v
     reservasPorEstudio[esId] = (reservasPorEstudio[esId] ?? 0) + 1
   }
 
@@ -121,23 +145,25 @@ Deno.serve(async (req: Request) => {
   for (const estudio of estudios) {
     const esId = estudio.id as number
     const cantidadReservas = reservasPorEstudio[esId] ?? 0
-    const creditosTotales = creditosPorEstudio[esId] ?? 0
-    const montoBruto = creditosTotales * 1000
+    const montoNeto = netoPorEstudio[esId] ?? 0
 
-    if (montoBruto === 0) {
+    if (montoNeto === 0) {
       resultados.push({ estudio: estudio.nombre as string, enviado: false, monto: 0, motivo: 'sin_reservas' })
       continue
     }
 
     const adminEmail = emailPorEstudio[esId]
     if (!adminEmail) {
-      resultados.push({ estudio: estudio.nombre as string, enviado: false, monto: montoBruto, motivo: 'sin_email_admin' })
+      resultados.push({ estudio: estudio.nombre as string, enviado: false, monto: montoNeto, motivo: 'sin_email_admin' })
       continue
     }
 
-    const comisionPct = (estudio.comision_aura as number) ?? 30
-    const comisionMonto = Math.round(montoBruto * comisionPct / 100)
-    const montoNeto = montoBruto - comisionMonto
+    const montoBruto = brutoPorEstudio[esId] ?? 0
+    const comisionMonto = montoBruto - montoNeto
+    // % efectivo (promedio ponderado clases/workshops), derivado de la resta.
+    const comisionPct = montoBruto > 0
+      ? Math.round((comisionMonto / montoBruto) * 100)
+      : 0
 
     const html = buildEmailHtml({
       nombreEstudio: estudio.nombre as string,

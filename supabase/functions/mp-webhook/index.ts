@@ -195,7 +195,12 @@ async function isValidSignature(req: Request, rawBody: string): Promise<boolean>
   const secrets = [MP_WEBHOOK_SECRET, MP_PACKS_WEBHOOK_SECRET, MP_SUBSCRIPTIONS_WEBHOOK_SECRET]
     .filter((value): value is string => Boolean(value))
 
-  if (secrets.length === 0) return true
+  // Fail-CLOSED: sin secret configurado se rechaza todo. Antes devolvía true
+  // (aceptaba cualquier POST), lo que permitía acreditar packs falsos.
+  if (secrets.length === 0) {
+    console.error('mp-webhook: sin MP_WEBHOOK_SECRET configurado; rechazando')
+    return false
+  }
 
   const signature = req.headers.get('x-signature') ?? ''
   const requestId = req.headers.get('x-request-id') ?? ''

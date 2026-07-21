@@ -44,7 +44,9 @@ class AvisoAlumnosService {
           .from('reservas')
           .select('usuario_id')
           .inFilter('clase_id', claseIds)
-          .eq('estado', 'confirmada');
+          // Incluye 'presente': a quien ya se le marcó asistencia igual le
+          // llega el aviso (coincide con enviar_aviso_estudio).
+          .inFilter('estado', ['confirmada', 'presente']);
       return (res as List)
           .map((r) => r['usuario_id']?.toString())
           .whereType<String>()

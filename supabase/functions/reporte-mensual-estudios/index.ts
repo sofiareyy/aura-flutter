@@ -2,6 +2,7 @@
 // Puede invocarse manualmente desde el backoffice.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { netoReserva, valorCredito as valorCred } from '../_shared/liquidacion.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 
 const MESES_ES = [
@@ -75,7 +76,7 @@ Deno.serve(async (req: Request) => {
   // ── Obtener estudios activos ──────────────────────────────────────────────
   const { data: estudios, error: estudiosErr } = await adminSupabase
     .from('estudios')
-    .select('id, nombre, comision_aura, fecha_inicio_cobro')
+    .select('id, nombre, comision_aura, comision_workshop, valor_credito, fecha_inicio_cobro')
     .eq('activo', true)
     .order('nombre')
 
@@ -110,6 +111,14 @@ Deno.serve(async (req: Request) => {
     .select('id, nombre, estudio_id, fecha, tipo')
     .gte('fecha', inicioMesAnterior)
     .lte('fecha', finMesAnterior)
+
+  // Valor global del crédito (fallback si el estudio no tiene el suyo).
+  const { data: cfgVal } = await adminSupabase
+    .from('configuracion_global')
+    .select('valor')
+    .eq('clave', 'valor_credito_ars')
+    .maybeSingle()
+  const valorGlobal = parseInt(String(cfgVal?.valor ?? '1000'), 10) || 1000
 
   const claseMap: Record<number, { nombre: string; estudio_id: number; hora: number; tipo: string }> = {}
   for (const c of (clasesDelMes ?? [])) {
@@ -242,37 +251,30 @@ Deno.serve(async (req: Request) => {
       (uid) => !alumnosPreviosPorEstudio.has(`${uid}|${esId}`),
     ).length
 
-    // Monto neto: todos los estados que el estudio cobra. 'ausente' liquida
-    // igual (el credito se consumio al reservar) y 'completada' es el estado
-    // final al que las manda el cron apenas termina la clase.
-    const ESTADOS_COBRABLES = ['confirmada', 'presente', 'ausente', 'completada']
-    const reservasCobradas = reservasEstudio.filter((r) => ESTADOS_COBRABLES.includes(r.estado as string))
-    const creditosTotales = reservasCobradas.reduce((acc, r) => acc + ((r.creditos_usados as number) ?? 0), 0)
-    const montoBruto = creditosTotales * 1000
-    // Separar créditos de workshops (comisión fija 15%) de clases normales
-    // (comisión configurada del estudio, ~30%).
-    let credWorkshop = 0
-    let credNormal = 0
+    // Monto neto con la MISMA fórmula que las pantallas de plata
+    // (netoReserva): valor_credito del estudio, comisión por tipo y
+    // fecha_inicio_cobro. Antes hardcodeaba 1000 y 15%.
+    const reservasCobradas = reservasEstudio.filter((r) =>
+      ['confirmada', 'presente', 'ausente', 'completada'].includes(r.estado as string)
+    )
+    const vCred = valorCred(estudio, valorGlobal)
+    let montoBruto = 0
+    let montoNeto = 0
     for (const r of reservasCobradas) {
       const cred = (r.creditos_usados as number) ?? 0
-      if (claseEstudioMap[r.clase_id as number]?.tipo === 'workshop') {
-        credWorkshop += cred
-      } else {
-        credNormal += cred
-      }
+      const esWorkshop =
+        claseEstudioMap[r.clase_id as number]?.tipo === 'workshop'
+      montoBruto += cred * vCred
+      montoNeto += netoReserva(
+        { estado: r.estado as string, creditos_usados: cred, esWorkshop },
+        estudio,
+        valorGlobal,
+      )
     }
-    // Antes de fecha_inicio_cobro Aura no cobra comisión (estudio recibe 100%).
-    // Desde esa fecha (o si no hay fecha) se aplica la comisión configurada.
-    const comisionConfig = (estudio.comision_aura as number) ?? 30
-    const fechaInicioCobro = estudio.fecha_inicio_cobro as string | null
-    const cobraComision = !fechaInicioCobro || new Date() >= new Date(fechaInicioCobro)
-    const comisionNormal = cobraComision ? comisionConfig : 0
-    const comisionWorkshop = cobraComision ? 15 : 0
-    const comisionPct = comisionNormal
-    const montoNeto = Math.round(
-      (credNormal * 1000) * (1 - comisionNormal / 100) +
-      (credWorkshop * 1000) * (1 - comisionWorkshop / 100),
-    )
+    // % efectivo, derivado de la resta (promedio ponderado clases/workshops).
+    const comisionPct = montoBruto > 0
+      ? Math.round(((montoBruto - montoNeto) / montoBruto) * 100)
+      : 0
 
     // Clase más popular
     const reservasPorClase: Record<number, number> = {}

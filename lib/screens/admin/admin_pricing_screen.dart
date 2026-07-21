@@ -45,6 +45,7 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
 
   String _tipoEstudio = 'fitness'; // 'fitness' | 'experiencia'
   int _valorCredito = 1000;
+  double _comisionAura = 30;
 
   // fitness: un solo rango por estudio
   final _minCtrl = TextEditingController();
@@ -84,7 +85,7 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       final row = await _client
           .from('estudios')
           .select(
-              'id, nombre, tipo_estudio, precio_config, horarios_config, comision_workshop')
+              'id, nombre, tipo_estudio, precio_config, horarios_config, comision_workshop, comision_aura')
           .eq('id', widget.estudioId)
           .maybeSingle();
       _valorCredito = await _pricingService.getValorCreditoArs();
@@ -99,6 +100,7 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
 
       _tipoEstudio =
           (row['tipo_estudio']?.toString() ?? 'fitness').toLowerCase();
+      _comisionAura = (row['comision_aura'] as num?)?.toDouble() ?? 30;
 
       // precio_config = {"min": 10, "max": 18, "pico_multiplier": 1.0}
       final config = row['precio_config'];
@@ -419,8 +421,10 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
     } else {
       final lo = min ?? max!;
       final hi = max ?? min!;
-      final recibeLo = _pricingService.montoEstudioPorClase(_valorCredito, lo);
-      final recibeHi = _pricingService.montoEstudioPorClase(_valorCredito, hi);
+      final recibeLo =
+          _pricingService.montoEstudioPorClase(_valorCredito, lo, _comisionAura);
+      final recibeHi =
+          _pricingService.montoEstudioPorClase(_valorCredito, hi, _comisionAura);
       texto = recibeLo == recibeHi
           ? 'Estudio recibe ${_fmtPesos(recibeLo)} por clase'
           : 'Estudio recibe entre ${_fmtPesos(recibeLo)} y '
