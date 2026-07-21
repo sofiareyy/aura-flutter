@@ -154,13 +154,16 @@ grant execute on function public.studio_add_profe(int, text) to authenticated;
 -- reservas del estudio por API (los datos de Cobros) aunque la UI se lo
 -- ocultara.
 --
--- Ahora:
---   - admin/dueño del estudio -> todas las reservas de sus clases
---   - profe                   -> solo las clases donde figura como
---                                instructora (lo que necesita Asistencia)
+-- A1: la profe puede ver y tomar asistencia en TODAS las clases de los
+-- estudios donde esta vinculada. Se descarto acotarla a las clases donde
+-- figura como instructora: `clases.instructor` es texto libre y el match
+-- por nombre se rompe con cualquier diferencia de tipeo, dejandola sin
+-- poder tomar asistencia.
 --
--- El match de profe es por nombre porque `clases.instructor` es texto libre;
--- es el mismo criterio que ya usa notify_profes_nueva_reserva.
+-- Lo que la profe NO puede sigue estando cubierto por la UI y el router
+-- (cobros, configuracion, crear/editar/eliminar/avisar). El limite de esta
+-- policy es que una profe con acceso directo a la API igual podria leer las
+-- reservas del estudio; es el precio de que Asistencia funcione siempre.
 
 create or replace function public.puede_ver_reservas_de_clase(p_clase_id bigint)
 returns boolean
@@ -176,19 +179,6 @@ as $$
         on ea.estudio_id = c.estudio_id
        and ea.usuario_id = auth.uid()
      where c.id = p_clase_id
-       and (
-         ea.rol in ('estudio', 'admin_estudio')
-         or (
-           ea.rol = 'profe'
-           and exists (
-             select 1 from public.usuarios u
-              where u.id = auth.uid()
-                and lower(trim(coalesce(u.nombre, ''))) =
-                    lower(trim(coalesce(c.instructor, '')))
-                and coalesce(trim(c.instructor), '') <> ''
-           )
-         )
-       )
   );
 $$;
 
@@ -276,13 +266,27 @@ update public.horarios_fijos
    set cancelacion_cierre_minutos = 720
  where cancelacion_cierre_minutos > 720;
 
+-- A2: el cierre de RESERVAS topea en 48 hs (2880 min), que es lo que ya
+-- permitia el stepper. La constraint estaba en 7 dias y quedaba desalineada.
+update public.estudios
+   set reserva_cierre_minutos = 2880
+ where reserva_cierre_minutos > 2880;
+
+update public.clases
+   set reserva_cierre_minutos = 2880
+ where reserva_cierre_minutos > 2880;
+
+update public.horarios_fijos
+   set reserva_cierre_minutos = 2880
+ where reserva_cierre_minutos > 2880;
+
 alter table public.estudios
   drop constraint if exists estudios_cierres_rango_check;
 
 alter table public.estudios
   add constraint estudios_cierres_rango_check
   check (
-    reserva_cierre_minutos between 0 and 10080
+    reserva_cierre_minutos between 0 and 2880
     and cancelacion_cierre_minutos between 0 and 720
   );
 
@@ -316,9 +320,10 @@ begin
     return json_build_object('ok', false, 'error', 'Sin permisos');
   end if;
 
+  -- Cierre de reservas: hasta 48 hs antes (A2).
   if p_reserva_cierre_minutos is null
      or p_cancelacion_cierre_minutos is null
-     or p_reserva_cierre_minutos not between 0 and 10080 then
+     or p_reserva_cierre_minutos not between 0 and 2880 then
     return json_build_object('ok', false, 'error', 'Fuera de rango');
   end if;
 
