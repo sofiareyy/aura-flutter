@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../services/valor_credito.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/estudio_admin_service.dart';
@@ -659,8 +660,7 @@ class _CobrosScreenState extends State<CobrosScreen> {
     );
     final totalBruto = reservas.fold<int>(0, (acc, r) {
       final creditos = (r['creditos_usados'] as num?)?.toInt() ?? 0;
-      final valorCredito =
-          (_estudio?['valor_credito'] as num?)?.toInt() ?? 6000;
+      final valorCredito = ValorCredito.deEstudio(_estudio);
       return acc + creditos * valorCredito;
     });
     final aTransferir = _montoPendiente;
@@ -992,7 +992,7 @@ class _CobrosScreenState extends State<CobrosScreen> {
 
   int _montoReserva(Map<String, dynamic> reserva) {
     final creditos = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
-    final valorCredito = (_estudio?['valor_credito'] as num?)?.toInt() ?? 6000;
+    final valorCredito = ValorCredito.deEstudio(_estudio);
     final bruto = creditos * valorCredito;
     // Antes usaba siempre `_comisionAura`, así que los workshops se neteaban
     // al 30% cuando la liquidación real les aplica 15%.

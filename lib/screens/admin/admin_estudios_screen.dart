@@ -441,8 +441,9 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                   // ── SECCIÓN 5 — PRECIO POR CLASE ────────────────────────
                   const _FormSectionHeader('PRECIO POR CLASE'),
                   const Text(
-                    'Cómo se cobran las clases del estudio. El estudio no ve ni '
-                    'edita esto.',
+                    'Cómo se cobran las clases del estudio. En modo fijo el '
+                    'estudio solo ve el valor; en modo rango elige dentro del '
+                    'rango que definís acá.',
                     style: TextStyle(
                       color: AppColors.grey,
                       fontSize: 12,

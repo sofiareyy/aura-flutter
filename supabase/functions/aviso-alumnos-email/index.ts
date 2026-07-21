@@ -61,35 +61,36 @@ Deno.serve(async (req: Request) => {
     if (authError || !user) return json({ error: 'No autorizado' }, 401)
 
     const body = await req.json().catch(() => null)
-    const { clase_id, mensaje, tipo } = body ?? {}
+    const { aviso_id } = body ?? {}
 
-    if (!clase_id || typeof mensaje !== 'string' || !mensaje.trim()) {
-      return json({ error: 'Faltan campos: clase_id, mensaje' }, 400)
-    }
-
-    // Solo los urgentes disparan mail.
-    if (tipo !== 'urgente') {
-      return json({ ok: true, skipped: 'no_urgente', enviados: 0 })
+    if (!aviso_id) {
+      return json({ error: 'Falta aviso_id' }, 400)
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
-    // ── 1. Clase + estudio ───────────────────────────────────────────────
-    const { data: clase, error: claseErr } = await admin
-      .from('clases')
-      .select('id, nombre, fecha, estudio_id, estudios(nombre)')
-      .eq('id', clase_id)
+    // ── 1. El envio, con su estudio y sus clases ─────────────────────────
+    const { data: aviso, error: avisoErr } = await admin
+      .from('avisos_envios')
+      .select('id, estudio_id, tipo, mensaje, clase_ids, estudios(nombre)')
+      .eq('id', aviso_id)
       .maybeSingle()
 
-    if (claseErr || !clase) {
-      return json({ error: 'Clase no encontrada' }, 404)
+    if (avisoErr || !aviso) {
+      return json({ error: 'Aviso no encontrado' }, 404)
     }
 
-    // ── 2. Autorizacion: el caller administra el estudio de la clase ─────
+    // Solo los urgentes mandan mail: uno por cada aviso general haria que
+    // dejen de leerlos, y entonces el urgente tampoco llega.
+    if (aviso.tipo !== 'urgente') {
+      return json({ ok: true, skipped: 'no_urgente', enviados: 0 })
+    }
+
+    // ── 2. Autorizacion: el caller administra ese estudio ────────────────
     const { data: esAdmin } = await admin
       .from('estudio_admins')
       .select('id')
-      .eq('estudio_id', clase.estudio_id)
+      .eq('estudio_id', aviso.estudio_id)
       .eq('usuario_id', user.id)
       .maybeSingle()
 
@@ -97,48 +98,45 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'No administras este estudio' }, 403)
     }
 
-    // ── 3. Destinatarios: reservas activas + opt-in de notificaciones ────
-    const { data: reservas } = await admin
-      .from('reservas')
-      .select('usuario_id')
-      .eq('clase_id', clase_id)
-      .in('estado', ['confirmada', 'presente'])
+    // ── 3. Destinatarios ────────────────────────────────────────────────
+    // El RPC ya resolvio dedup, tope diario y preferencias: aca solo
+    // leemos a quien le corresponde canal email.
+    const { data: filas } = await admin.rpc('aviso_destinatarios_email', {
+      p_aviso_id: aviso_id,
+    })
 
-    const userIds = [
+    const destinatarios = [
       ...new Set(
-        (reservas ?? [])
-          .map((r) => r.usuario_id as string)
-          .filter(Boolean),
+        (filas ?? [])
+          .map((f: { email: string }) => f.email?.trim().toLowerCase())
+          .filter((e: string) => !!e && e.includes('@')),
       ),
-    ]
-
-    if (userIds.length === 0) {
-      return json({ ok: true, enviados: 0, motivo: 'sin_reservas' })
-    }
-
-    const { data: usuarios } = await admin
-      .from('usuarios')
-      .select('id, email, notifs_reservas')
-      .in('id', userIds)
-
-    const destinatarios = (usuarios ?? [])
-      .filter((u) => u.notifs_reservas !== false)
-      .map((u) => (u.email as string | null)?.trim().toLowerCase())
-      .filter((e): e is string => !!e && e.includes('@'))
-
-    const optOut = (usuarios ?? []).length - destinatarios.length
+    ] as string[]
 
     if (destinatarios.length === 0) {
-      return json({ ok: true, enviados: 0, motivo: 'todos_opt_out', optOut })
+      return json({ ok: true, enviados: 0, motivo: 'sin_destinatarios' })
     }
+
+    // Fecha de la primera clase del envio, solo para el cuerpo del mail.
+    const claseIds = (aviso.clase_ids ?? []) as number[]
+    const { data: clases } = await admin
+      .from('clases')
+      .select('nombre, fecha')
+      .in('id', claseIds.length > 0 ? claseIds : [-1])
+      .order('fecha', { ascending: true })
+      .limit(1)
+
+    const primera = (clases ?? [])[0]
+    const mensaje = String(aviso.mensaje ?? '')
 
     // ── 4. Armar y mandar ────────────────────────────────────────────────
     const estudioNombre =
-      (clase.estudios as { nombre?: string } | null)?.nombre?.trim() ||
+      (aviso.estudios as { nombre?: string } | null)?.nombre?.trim() ||
       'Tu estudio'
-    const claseNombre = (clase.nombre as string | null)?.trim() || 'tu clase'
+    const claseNombre = (primera?.nombre as string | null)?.trim() ||
+      'tus clases'
 
-    const fecha = clase.fecha ? new Date(String(clase.fecha)) : null
+    const fecha = primera?.fecha ? new Date(String(primera.fecha)) : null
     const fechaStr = fecha && !Number.isNaN(fecha.getTime())
       ? fecha.toLocaleDateString('es-AR', {
         weekday: 'long',
@@ -204,7 +202,6 @@ Deno.serve(async (req: Request) => {
     return json({
       ok: errores.length === 0,
       enviados,
-      opt_out: optOut,
       errores: errores.length > 0 ? errores : undefined,
     })
   } catch (e) {

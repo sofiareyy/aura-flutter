@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../services/valor_credito.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/admin_service.dart';
@@ -146,8 +147,8 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
         final creditos = credNormal + credWorkshop;
         // El valor del crédito lo define cada estudio. Antes estaba fijo en
         // 1000, así que el backoffice mostraba montos 6x más chicos que los
-        // que veía el estudio en Cobros (que usa `valor_credito ?? 6000`).
-        final valorCredito = (e['valor_credito'] as num?)?.toInt() ?? 6000;
+        // que veía el estudio en Cobros.
+        final valorCredito = ValorCredito.deEstudio(Map<String, dynamic>.from(e as Map));
         final montoTotal = creditos * valorCredito;
 
         // Comisión efectiva: antes de fecha_inicio_cobro Aura no cobra (0%),

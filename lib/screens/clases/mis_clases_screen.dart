@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/valor_credito.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/aviso_alumnos_service.dart';
@@ -102,18 +103,28 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     return (modo: modo, min: min, max: max);
   }
 
-  /// Créditos finales a guardar: workshop = libre; fijo = valor único; rango =
-  /// lo que puso el estudio, clampeado a [min, max].
+  /// Créditos finales a guardar.
+  ///
+  ///  - workshop: el controller trae PESOS que el estudio quiere recibir; los
+  ///    créditos los deriva Aura. Ver [creditosDeWorkshop].
+  ///  - fijo: el valor único del estudio, se ignora lo tipeado.
+  ///  - rango: lo que puso el estudio, clampeado a [min, max].
   int _creditosFinal(
     TextEditingController ctrl,
     String tipo,
     ({String modo, int min, int max}) pricing,
   ) {
+    if (tipo == 'workshop') {
+      return creditosDeWorkshop(_montoWorkshop(ctrl));
+    }
     final parsed = int.tryParse(ctrl.text.trim());
-    if (tipo == 'workshop') return parsed ?? 10;
     if (pricing.modo == 'fijo') return pricing.min;
     return (parsed ?? pricing.min).clamp(pricing.min, pricing.max);
   }
+
+  /// Pesos tipeados en el campo de workshop, tolerando puntos y comas de miles.
+  int _montoWorkshop(TextEditingController ctrl) =>
+      int.tryParse(ctrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
 
   @override
   void initState() {
@@ -419,17 +430,110 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     );
   }
 
-  Future<void> _mostrarAvisoSheet(Map<String, dynamic> clase) async {
-    // Guarda de permiso: la profe no crea, edita, borra ni avisa.
-    // Va acá y no solo en la UI para cubrir cualquier camino de
-    // navegación que no haya quedado gateado.
+  /// FIX 6 — Menú del "+": crear clase o mandar aviso.
+  ///
+  /// Antes "avisar" solo estaba en el submenú de cada clase, que es donde
+  /// nadie lo buscaba. Ahora vive al lado de "nueva clase", que es el lugar
+  /// al que el estudio va cuando quiere hacer algo.
+  Future<void> _abrirMenuCrear() async {
     if (!_puedeEditar) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 42,
+              height: 5,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE0DBD6),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            const SizedBox(height: 14),
+            _OpcionTile(
+              icon: Icons.add_circle_outline,
+              label: 'Nueva clase',
+              onTap: () {
+                Navigator.pop(ctx);
+                _openForm();
+              },
+            ),
+            _OpcionTile(
+              icon: Icons.grid_view_rounded,
+              label: 'Crear grilla',
+              onTap: () {
+                Navigator.pop(ctx);
+                _openGridForm();
+              },
+            ),
+            _OpcionTile(
+              icon: Icons.campaign_outlined,
+              label: 'Mandar aviso',
+              onTap: () {
+                Navigator.pop(ctx);
+                _abrirFlujoAviso();
+              },
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Abre el flujo de aviso ya apuntando a una clase concreta.
+  Future<void> _mostrarAvisoSheet(Map<String, dynamic> clase) async {
     final claseId = (clase['id'] as num?)?.toInt();
     if (claseId == null) return;
-    final claseNombre = clase['nombre']?.toString() ?? 'Clase';
-    final estudioNombre = _estudioNombre ?? 'Aura';
-    final cantAlumnos = await _avisoService.contarAlumnosReservados(claseId);
+    await _abrirFlujoAviso(preseleccionadas: {claseId});
+  }
+
+  /// FIX 6 — Flujo de aviso: elegir clase(s) -> escribir -> enviar.
+  ///
+  /// Vive en el menú "+" y no escondido en el submenú de cada clase, y
+  /// permite mandar el mismo aviso a varias clases de una (tope 10). Quien
+  /// esté anotada en más de una recibe uno solo: el dedup lo hace el RPC.
+  Future<void> _abrirFlujoAviso({Set<int> preseleccionadas = const {}}) async {
+    // Guarda de permiso: la profe no avisa. Va acá y no solo en la UI para
+    // cubrir cualquier camino de navegación que no haya quedado gateado.
+    if (!_puedeEditar) return;
+
+    final estudioId = (_estudio?['id'] as num?)?.toInt();
+    if (estudioId == null) return;
+
+    // Solo clases futuras: avisar sobre una que ya pasó no tiene sentido.
+    final ahora = _ahoraAr();
+    final candidatas = _clases.where((c) {
+      final f = DateTime.tryParse(c['fecha']?.toString() ?? '');
+      return f != null && f.isAfter(ahora);
+    }).toList()
+      ..sort((a, b) {
+        final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
+        final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
+        if (fa == null || fb == null) return 0;
+        return fa.compareTo(fb);
+      });
+
+    if (candidatas.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No tenés clases próximas para avisar.'),
+        ),
+      );
+      return;
+    }
+
+    final cupo = await _avisoService.cupoMensual(estudioId);
     if (!mounted) return;
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -438,35 +542,17 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => _AvisoSheet(
-        claseId: claseId,
-        claseNombre: claseNombre,
-        cantidadAlumnos: cantAlumnos,
-        estudioNombre: estudioNombre,
-        onEnviar: (mensaje, tipo) async {
-          final emails = await _avisoService.enviarAviso(
-            claseId: claseId,
-            mensaje: mensaje,
-            tipo: tipo,
-            tituloEstudio: estudioNombre,
-          );
-          if (mounted) {
-            // Los urgentes además mandan email, así que lo contamos aparte:
-            // el estudio necesita saber si el aviso salió por los dos canales.
-            final detalle = emails > 0
-                ? ' · $emails por email'
-                : (tipo == 'urgente' ? ' · sin emails' : '');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  '✓ Aviso enviado a $cantAlumnos alumnos$detalle',
-                ),
-                backgroundColor: const Color(0xFF1A1A1A),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            );
-          }
-        },
+        clases: candidatas,
+        preseleccionadas: preseleccionadas,
+        estudioNombre: _estudioNombre ?? 'Aura',
+        cupoInicial: cupo,
+        contarAlumnos: _avisoService.contarAlumnosDeClases,
+        onEnviar: (claseIds, mensaje, tipo) =>
+            _avisoService.enviarAviso(
+          claseIds: claseIds,
+          mensaje: mensaje,
+          tipo: tipo,
+        ),
       ),
     );
   }
@@ -502,7 +588,13 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final tipoClase = clase['tipo']?.toString() ?? 'clase';
     // Precio del estudio (fijo/rango) para el campo créditos.
     final pricing = _studioPricing();
-    if (tipoClase != 'workshop') {
+    if (tipoClase == 'workshop') {
+      // El campo de workshop se edita en PESOS, no en créditos: convertimos
+      // el precio guardado de vuelta al monto que recibe el estudio.
+      cred.text =
+          montoEstudioDeCreditos((clase['creditos'] as num?)?.toInt() ?? 0)
+              .toString();
+    } else {
       final actual = int.tryParse(cred.text.trim());
       if (pricing.modo == 'fijo') {
         cred.text = pricing.min.toString();
@@ -720,11 +812,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 ),
                               const SizedBox(height: 12),
                               if (tipoClase == 'workshop')
-                                _AuraTextField(
+                                _WorkshopPrecioField(
                                   controller: cred,
-                                  label: 'Precio en créditos',
-                                  hint: '30',
-                                  keyboardType: TextInputType.number,
+                                  onChanged: () => setD(() {}),
                                 )
                               else
                                 _StudioCreditsField(
@@ -1167,7 +1257,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     // normales: fijo -> valor único; rango -> precargado con el mínimo (o el
     // valor guardado, clampeado al rango si es edición).
     final pricing = _studioPricing();
-    if (tipo != 'workshop') {
+    if (tipo == 'workshop') {
+      cr.text =
+          montoEstudioDeCreditos((item?['creditos'] as num?)?.toInt() ?? 0)
+              .toString();
+    } else {
       final actual = int.tryParse(cr.text.trim());
       if (pricing.modo == 'fijo') {
         cr.text = pricing.min.toString();
@@ -1296,6 +1390,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                         selected: tipo == 'workshop',
                                         onTap: () => setD(() {
                                           tipo = 'workshop';
+                                          // El campo pasa de créditos a
+                                          // pesos: lo vaciamos para que no
+                                          // se lea "10" como $10.
+                                          cr.clear();
                                           // duración por defecto para eventos
                                           if (![60, 90, 120, 150, 180, 240]
                                               .contains(dur)) {
@@ -1474,11 +1572,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 ),
                               const SizedBox(height: 12),
                               if (tipo == 'workshop')
-                                _AuraTextField(
+                                _WorkshopPrecioField(
                                   controller: cr,
-                                  label: 'Precio en créditos',
-                                  hint: '30',
-                                  keyboardType: TextInputType.number,
+                                  onChanged: () => setD(() {}),
                                 )
                               else
                                 _StudioCreditsField(
@@ -2471,10 +2567,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                 tooltip: 'Crear grilla',
               ),
               IconButton(
-                onPressed: () => _openForm(),
+                onPressed: _abrirMenuCrear,
                 icon: const Icon(Icons.add),
                 color: AppColors.primary,
-                tooltip: 'Nueva clase',
+                tooltip: 'Nueva clase o aviso',
               ),
             ],
           ],
@@ -2954,10 +3050,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                             tooltip: 'Crear grilla',
                           ),
                           IconButton(
-                            onPressed: () => _openForm(),
+                            onPressed: _abrirMenuCrear,
                             icon: const Icon(Icons.add),
                             color: AppColors.primary,
-                            tooltip: 'Nuevo horario',
+                            tooltip: 'Nueva clase o aviso',
                           ),
                         ],
                       ]
@@ -4355,18 +4451,29 @@ class _StudioClassCard extends StatelessWidget {
 
 // ─── Aviso a alumnos ─────────────────────────────────────────────────────────
 
+/// Bottom sheet de "Mandar aviso": elegir clase(s), escribir y enviar.
+///
+/// El envío entero lo resuelve el RPC `enviar_aviso_estudio`: valida
+/// permisos, aplica el tope mensual de generales, deduplica destinatarios y
+/// decide a quién le corresponde canal externo. Acá solo se arma el pedido y
+/// se muestra el resultado.
 class _AvisoSheet extends StatefulWidget {
-  final int claseId;
-  final String claseNombre;
-  final int cantidadAlumnos;
+  final List<Map<String, dynamic>> clases;
+  final Set<int> preseleccionadas;
   final String estudioNombre;
-  final Future<void> Function(String mensaje, String tipo) onEnviar;
+
+  /// `{max, usados, restantes, reinicia}` del mes en curso.
+  final Map<String, dynamic>? cupoInicial;
+
+  final Future<int> Function(List<int>) contarAlumnos;
+  final Future<ResultadoAviso> Function(List<int>, String, String) onEnviar;
 
   const _AvisoSheet({
-    required this.claseId,
-    required this.claseNombre,
-    required this.cantidadAlumnos,
+    required this.clases,
+    required this.preseleccionadas,
     required this.estudioNombre,
+    required this.cupoInicial,
+    required this.contarAlumnos,
     required this.onEnviar,
   });
 
@@ -4376,8 +4483,11 @@ class _AvisoSheet extends StatefulWidget {
 
 class _AvisoSheetState extends State<_AvisoSheet> {
   final _ctrl = TextEditingController();
+  late Set<int> _seleccionadas;
   bool _urgente = false;
   bool _enviando = false;
+  int _alumnos = 0;
+  Map<String, dynamic>? _cupo;
 
   /// Plantillas para los casos que el estudio manda una y otra vez. Los
   /// `[corchetes]` son huecos a completar: al tocar la plantilla se
@@ -4404,41 +4514,132 @@ class _AvisoSheetState extends State<_AvisoSheet> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _cupo = widget.cupoInicial;
+    _seleccionadas = {...widget.preseleccionadas};
+    if (_seleccionadas.isEmpty && widget.clases.isNotEmpty) {
+      _seleccionadas.add((widget.clases.first['id'] as num).toInt());
+    }
+    _refrescarAlumnos();
+  }
+
+  @override
   void dispose() {
     _ctrl.dispose();
     super.dispose();
   }
 
-  /// Carga una plantilla en el campo editable. Marca la urgencia acorde al
-  /// grupo, así tocar "la clase se cancela" no queda como aviso general.
+  Future<void> _refrescarAlumnos() async {
+    final n = await widget.contarAlumnos(_seleccionadas.toList());
+    if (mounted) setState(() => _alumnos = n);
+  }
+
+  int get _restantes =>
+      (_cupo?['restantes'] as num?)?.toInt() ?? AvisoAlumnosService.maxClasesPorEnvio;
+
+  /// Un general más no entra si ya se usaron los del mes. Los urgentes
+  /// nunca se bloquean: son operativos.
+  bool get _bloqueadoPorCupo => !_urgente && _restantes <= 0;
+
   void _usarPlantilla(String texto, {required bool urgente}) {
     final hueco = RegExp(r'\[[^\]]+\]').firstMatch(texto);
     setState(() {
       _urgente = urgente;
       _ctrl.text = texto;
-      // Si la plantilla tiene un hueco, lo dejamos seleccionado para que
-      // escribir encima lo reemplace sin tener que borrarlo a mano.
       _ctrl.selection = hueco != null
-          ? TextSelection(
-              baseOffset: hueco.start,
-              extentOffset: hueco.end,
-            )
+          ? TextSelection(baseOffset: hueco.start, extentOffset: hueco.end)
           : TextSelection.collapsed(offset: texto.length);
     });
   }
 
+  void _toggleClase(int id) {
+    setState(() {
+      if (_seleccionadas.contains(id)) {
+        if (_seleccionadas.length > 1) _seleccionadas.remove(id);
+      } else if (_seleccionadas.length <
+          AvisoAlumnosService.maxClasesPorEnvio) {
+        _seleccionadas.add(id);
+      }
+    });
+    _refrescarAlumnos();
+  }
+
   Future<void> _enviar() async {
-    if (_ctrl.text.trim().isEmpty) return;
+    if (_ctrl.text.trim().isEmpty || _seleccionadas.isEmpty) return;
     setState(() => _enviando = true);
     try {
-      await widget.onEnviar(
+      final res = await widget.onEnviar(
+        _seleccionadas.toList(),
         _ctrl.text.trim(),
         _urgente ? 'urgente' : 'aviso_general',
       );
-      if (mounted) Navigator.of(context).pop();
+      if (!mounted) return;
+
+      if (res.limiteMensual) {
+        setState(() => _cupo = res.cupo ?? _cupo);
+        await _mostrarLimite();
+        return;
+      }
+
+      if (!res.ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res.error ?? 'No se pudo enviar el aviso.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+
+      Navigator.of(context).pop();
+      final detalle = res.emailsEnviados > 0
+          ? ' · ${res.emailsEnviados} por email'
+          : '';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '✓ Aviso enviado a ${res.destinatarios} alumna'
+            '${res.destinatarios == 1 ? '' : 's'}$detalle',
+          ),
+          backgroundColor: const Color(0xFF1A1A1A),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _enviando = false);
     }
+  }
+
+  Future<void> _mostrarLimite() async {
+    final reinicia = _cupo?['reinicia']?.toString() ?? 'el mes que viene';
+    final max = (_cupo?['max'] as num?)?.toInt() ?? 3;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text('Llegaste al límite del mes'),
+        content: Text(
+          'Ya enviaste los $max avisos generales de este mes. Este límite '
+          'cuida a tus alumnas de recibir demasiadas notificaciones. '
+          'Los avisos urgentes (cancelaciones o cambios de horario) no '
+          'tienen límite. Vas a poder enviar avisos generales de nuevo '
+          'el $reinicia.',
+          style: const TextStyle(height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -4449,74 +4650,125 @@ class _AvisoSheetState extends State<_AvisoSheet> {
         20, 12, 20,
         20 + MediaQuery.of(context).viewInsets.bottom,
       ),
-      // Scrolleable: con las plantillas + el preview el contenido puede
-      // pasar el alto del sheet, sobre todo con el teclado abierto.
       child: SingleChildScrollView(
         child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Handle
-          Center(
-            child: Container(
-              width: 42,
-              height: 5,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE0DBD6),
-                borderRadius: BorderRadius.circular(999),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0DBD6),
+                  borderRadius: BorderRadius.circular(999),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 18),
-          // Título
-          const Text(
-            'Avisar a alumnos',
-            style: TextStyle(color: AppColors.black, fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${widget.cantidadAlumnos} alumno${widget.cantidadAlumnos != 1 ? 's' : ''} va${widget.cantidadAlumnos != 1 ? 'n' : ''} a recibir una notificación',
-            style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
-          ),
-          const SizedBox(height: 16),
-          // Mensajes rápidos: plantillas para los casos repetidos. Scroll
-          // horizontal para no comerse la altura del sheet.
-          const Text(
-            'MENSAJES RÁPIDOS',
-            style: TextStyle(
-              color: Color(0xFF8F877F),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1,
+            const SizedBox(height: 18),
+            const Text(
+              'Mandar aviso',
+              style: TextStyle(
+                color: AppColors.black,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          _PlantillaFila(
-            etiqueta: '🚨  Urgentes',
-            plantillas: _rapidosUrgentes,
-            urgente: true,
-            seleccionada: _ctrl.text.trim(),
-            onTap: (t) => _usarPlantilla(t, urgente: true),
-          ),
-          const SizedBox(height: 8),
-          _PlantillaFila(
-            etiqueta: '📢  Generales',
-            plantillas: _rapidosGenerales,
-            urgente: false,
-            seleccionada: _ctrl.text.trim(),
-            onTap: (t) => _usarPlantilla(t, urgente: false),
-          ),
-          const SizedBox(height: 16),
-          // Campo de texto
-          StatefulBuilder(
-            builder: (_, setLocal) => TextField(
+            const SizedBox(height: 4),
+            Text(
+              '$_alumnos alumna${_alumnos == 1 ? '' : 's'} con reserva '
+              'confirmada',
+              style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Selección de clases ────────────────────────────────────
+            Text(
+              'CLASES (${_seleccionadas.length}/'
+              '${AvisoAlumnosService.maxClasesPorEnvio})',
+              style: const TextStyle(
+                color: Color(0xFF8F877F),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 148),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: widget.clases.map((c) {
+                    final id = (c['id'] as num).toInt();
+                    final sel = _seleccionadas.contains(id);
+                    final f =
+                        DateTime.tryParse(c['fecha']?.toString() ?? '');
+                    final cuando = f == null
+                        ? ''
+                        : DateFormat("EEE d/M · HH:mm", 'es').format(f);
+                    return CheckboxListTile(
+                      value: sel,
+                      onChanged: (_) => _toggleClase(id),
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      activeColor: AppColors.primary,
+                      title: Text(
+                        c['nombre']?.toString() ?? 'Clase',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      subtitle: Text(
+                        cuando,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF8F877F),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // ── Mensajes rápidos ───────────────────────────────────────
+            const Text(
+              'MENSAJES RÁPIDOS',
+              style: TextStyle(
+                color: Color(0xFF8F877F),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _PlantillaFila(
+              etiqueta: '🚨  Urgentes',
+              plantillas: _rapidosUrgentes,
+              urgente: true,
+              seleccionada: mensaje,
+              onTap: (t) => _usarPlantilla(t, urgente: true),
+            ),
+            const SizedBox(height: 8),
+            _PlantillaFila(
+              etiqueta: '📢  Generales',
+              plantillas: _rapidosGenerales,
+              urgente: false,
+              seleccionada: mensaje,
+              onTap: (t) => _usarPlantilla(t, urgente: false),
+            ),
+            const SizedBox(height: 16),
+
+            TextField(
               controller: _ctrl,
               maxLines: 4,
               minLines: 2,
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
-                hintText: 'Ej: La clase de hoy se traslada al salón 2. ¡Los esperamos!',
-                hintStyle: const TextStyle(color: Color(0xFFB0A8A0), fontSize: 14),
+                hintText:
+                    'Ej: La clase de hoy se traslada al salón 2. ¡Los esperamos!',
+                hintStyle:
+                    const TextStyle(color: Color(0xFFB0A8A0), fontSize: 14),
                 filled: true,
                 fillColor: const Color(0xFFF7F5F2),
                 border: OutlineInputBorder(
@@ -4526,104 +4778,153 @@ class _AvisoSheetState extends State<_AvisoSheet> {
                 contentPadding: const EdgeInsets.all(14),
               ),
             ),
-          ),
-          const SizedBox(height: 14),
-          // Selector de urgencia
-          Row(
-            children: [
-              _UrgenciaChip(
-                label: '📢  Aviso general',
-                selected: !_urgente,
-                onTap: () => setState(() => _urgente = false),
+            const SizedBox(height: 14),
+
+            Row(
+              children: [
+                _UrgenciaChip(
+                  label: '📢  Aviso general',
+                  selected: !_urgente,
+                  onTap: () => setState(() => _urgente = false),
+                ),
+                const SizedBox(width: 10),
+                _UrgenciaChip(
+                  label: '🚨  Urgente',
+                  selected: _urgente,
+                  onTap: () => setState(() => _urgente = true),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Cupo: solo importa para los generales.
+            if (!_urgente && _cupo != null)
+              Text(
+                _restantes > 0
+                    ? 'Te quedan $_restantes aviso'
+                    '${_restantes == 1 ? '' : 's'} general'
+                    '${_restantes == 1 ? '' : 'es'} este mes.'
+                    : 'Ya usaste los avisos generales del mes. '
+                        'Los urgentes no tienen límite.',
+                style: TextStyle(
+                  color: _restantes > 0
+                      ? const Color(0xFF8F877F)
+                      : AppColors.error,
+                  fontSize: 12,
+                ),
               ),
-              const SizedBox(width: 10),
-              _UrgenciaChip(
-                label: '🚨  Urgente',
-                selected: _urgente,
-                onTap: () => setState(() => _urgente = true),
+
+            if (mensaje.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          widget.estudioNombre,
+                          style: const TextStyle(
+                            color: Color(0xFFF7F5F2),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (_urgente) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'URGENTE',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      mensaje,
+                      style: const TextStyle(
+                        color: Color(0xFFF7F5F2),
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
-          ),
-          // Preview
-          if (mensaje.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Container(
+            const SizedBox(height: 18),
+
+            SizedBox(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        widget.estudioNombre,
-                        style: const TextStyle(
-                          color: Color(0xFFF7F5F2),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: (_enviando ||
+                        mensaje.isEmpty ||
+                        _seleccionadas.isEmpty ||
+                        _bloqueadoPorCupo)
+                    ? null
+                    : _enviar,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                child: _enviando
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
                         ),
+                      )
+                    : Text(
+                        _bloqueadoPorCupo
+                            ? 'Sin avisos generales este mes'
+                            : 'Enviar a $_alumnos alumna'
+                                '${_alumnos == 1 ? '' : 's'}',
                       ),
-                      if (_urgente) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'URGENTE',
-                            style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    mensaje,
-                    style: const TextStyle(color: Color(0xFFF7F5F2), fontSize: 13, height: 1.4),
-                  ),
-                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: _enviando ? null : () => Navigator.of(context).pop(),
+                child: const Text(
+                  'Cancelar',
+                  style: TextStyle(color: Color(0xFF8F877F)),
+                ),
               ),
             ),
           ],
-          const SizedBox(height: 18),
-          // Botón enviar
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: (_enviando || mensaje.isEmpty) ? null : _enviar,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-              ),
-              child: _enviando
-                  ? const SizedBox(
-                      width: 20, height: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                    )
-                  : Text('Enviar a ${widget.cantidadAlumnos} alumno${widget.cantidadAlumnos != 1 ? 's' : ''}'),
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Botón cancelar
-          SizedBox(
-            width: double.infinity,
-            child: TextButton(
-              onPressed: _enviando ? null : () => Navigator.of(context).pop(),
-              child: const Text('Cancelar', style: TextStyle(color: Color(0xFF8F877F))),
-            ),
-          ),
-        ],
         ),
       ),
     );
@@ -5485,7 +5786,7 @@ class _PricingPreview extends StatelessWidget {
     );
     WidgetsBinding.instance.addPostFrameCallback((_) => onComputed(pricing.creditos));
 
-    final valorCredito = (estudio!['valor_credito'] as num?)?.toInt() ?? 6000;
+    final valorCredito = ValorCredito.deEstudio(estudio);
     final comisionAura = (estudio!['comision_aura'] as num?)?.toDouble() ?? 30;
     final precioBruto = pricing.creditos * valorCredito;
     final estudioRecibe = (precioBruto * (100 - comisionAura) / 100).round();
@@ -5916,3 +6217,85 @@ const int kMaxCategoriasClase = 5;
 /// criterio que `Estudio.parseCategorias`.
 List<String> _parseCategorias(Map<String, dynamic> row) =>
     Estudio.parseCategorias(row);
+
+/// Comisión de Aura sobre workshops: el alumno paga un 15% más de lo que
+/// recibe el estudio. Se aplica sobre el monto neto que el estudio pide.
+const double kRecargoWorkshop = 1.15;
+
+/// Convierte los pesos que el estudio quiere recibir en créditos que paga el
+/// alumno: `monto * 1.15 / valor_credito`, redondeado.
+///
+/// El redondeo deja la comisión efectiva algo por debajo del 15% (con
+/// $40.000 → 46 créditos da ~13%). Es a propósito: preferimos un número
+/// redondo de créditos antes que exactitud en la comisión.
+int creditosDeWorkshop(int montoEstudio) {
+  if (montoEstudio <= 0) return 0;
+  final valor = ValorCredito.actual;
+  if (valor <= 0) return 0;
+  return (montoEstudio * kRecargoWorkshop / valor).round();
+}
+
+/// Lo que efectivamente recibe el estudio dados N créditos.
+int montoEstudioDeCreditos(int creditos) =>
+    (creditos * ValorCredito.actual / kRecargoWorkshop).round();
+
+/// Precio de un workshop expresado en PESOS que recibe el estudio.
+///
+/// El estudio no elige créditos: dice cuánta plata quiere recibir y Aura
+/// deriva el precio en créditos sumando su comisión. Antes este campo era
+/// "Precio en créditos" libre, sin tope: se podía cargar un workshop de 9999
+/// créditos sin que nadie lo notara.
+class _WorkshopPrecioField extends StatelessWidget {
+  final TextEditingController controller;
+  final VoidCallback onChanged;
+
+  const _WorkshopPrecioField({
+    required this.controller,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final monto =
+        int.tryParse(controller.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    final creditos = creditosDeWorkshop(monto);
+    final money = NumberFormat.currency(
+      locale: 'es_AR',
+      symbol: r'$',
+      decimalDigits: 0,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _AuraTextField(
+          controller: controller,
+          label: 'Cuánto querés recibir (pesos)',
+          hint: '40000',
+          keyboardType: TextInputType.number,
+          onChanged: (_) => onChanged(),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF1E8),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            monto <= 0
+                ? 'Poné el monto que querés recibir y calculamos los créditos.'
+                : 'Recibís ${money.format(monto)} · '
+                    'Cuesta $creditos crédito${creditos == 1 ? '' : 's'}',
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

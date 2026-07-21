@@ -14,6 +14,7 @@ import 'core/theme/app_theme.dart';
 import 'providers/app_provider.dart';
 import 'services/auth_service.dart';
 import 'services/notificaciones_service.dart';
+import 'services/valor_credito.dart';
 import 'widgets/connectivity_banner.dart';
 
 /// Key global del ScaffoldMessenger para poder mostrar SnackBars desde fuera
@@ -31,6 +32,11 @@ void main() async {
   );
 
   await NotificacionesService.instance.initialize();
+
+  // Valor del crédito en ARS: se cachea al arranque para que las
+  // pantallas de dinero lo lean sincrónicamente sin hardcodear nada.
+  // No bloqueamos el arranque si falla: queda el default.
+  unawaited(ValorCredito.cargar());
 
   // Sentry: solo activo en producción (DSN vacío = sin reportes en dev/test)
   final sentryDsn = AppConstants.sentryDsn;

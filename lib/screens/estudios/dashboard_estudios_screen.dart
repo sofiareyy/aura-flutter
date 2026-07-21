@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../services/valor_credito.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/estudio_admin_service.dart';
@@ -250,7 +251,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
             Expanded(
               child: _StatBox(
                 value: _moneyCompact(_ingresosMes),
-                label: 'Ingresos mes',
+                label: 'Ingresos mes (total)',
                 accent: AppColors.white,
                 change: _formatChange(_ingresosMes, _ingresosMesAnterior),
                 changeColor: _colorForDelta(_ingresosMes - _ingresosMesAnterior),
@@ -277,6 +278,15 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 12),
+        _DesgloseMes(
+          reservasClases: _reservasMesClases.length,
+          ingresosClases: _ingresosMesClases,
+          reservasWorkshops: _reservasMesWorkshops.length,
+          ingresosWorkshops: _ingresosMesWorkshops,
+          mostrarWorkshops: _tieneWorkshops,
+          money: _moneyCompact,
         ),
         const SizedBox(height: 16),
         _misProfesQuickAction(),
@@ -653,7 +663,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                           const SizedBox(width: 8),
                           _StatBox(
                             value: _moneyCompact(_ingresosMes),
-                            label: 'Ingresos mes',
+                            label: 'Ingresos mes (total)',
                             accent: AppColors.white,
                             change: _formatChange(_ingresosMes, _ingresosMesAnterior),
                             changeColor: _colorForDelta(_ingresosMes - _ingresosMesAnterior),
@@ -667,6 +677,15 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                             footerColor: AppColors.primary,
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 12),
+                      _DesgloseMes(
+                        reservasClases: _reservasMesClases.length,
+                        ingresosClases: _ingresosMesClases,
+                        reservasWorkshops: _reservasMesWorkshops.length,
+                        ingresosWorkshops: _ingresosMesWorkshops,
+                        mostrarWorkshops: _tieneWorkshops,
+                        money: _moneyCompact,
                       ),
                       const SizedBox(height: 12),
                       _misProfesQuickAction(),
@@ -847,7 +866,10 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
     }).toList();
   }
 
-  int _ingresosDelMes(DateTime date) {
+  int _ingresosDelMes(DateTime date) => _reservasDelMes(date)
+      .fold<int>(0, (acc, reserva) => acc + _montoReserva(reserva));
+
+  List<Map<String, dynamic>> _reservasDelMes(DateTime date) {
     return _reservas.where((reserva) {
       final created = DateTime.tryParse(reserva['created_at']?.toString() ?? '');
       final estado = reserva['estado']?.toString();
@@ -855,12 +877,36 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
           created.year == date.year &&
           created.month == date.month &&
           estado != 'cancelada';
-    }).fold<int>(0, (acc, reserva) => acc + _montoReserva(reserva));
+    }).toList();
   }
+
+  // ── FIX 5: clases y workshops se miden por separado ──────────────────────
+  // Antes el dashboard sumaba todo junto, así que un workshop puntual de
+  // monto alto tapaba cómo venían las clases (y al revés). Además liquidan
+  // con comisiones distintas: 30% clases, 15% workshops.
+
+  bool _esWorkshop(Map<String, dynamic> r) =>
+      r['_clase_tipo']?.toString() == 'workshop';
+
+  List<Map<String, dynamic>> get _reservasMesClases =>
+      _reservasDelMes(DateTime.now()).where((r) => !_esWorkshop(r)).toList();
+
+  List<Map<String, dynamic>> get _reservasMesWorkshops =>
+      _reservasDelMes(DateTime.now()).where(_esWorkshop).toList();
+
+  int get _ingresosMesClases => _reservasMesClases
+      .fold<int>(0, (acc, r) => acc + _montoReserva(r));
+
+  int get _ingresosMesWorkshops => _reservasMesWorkshops
+      .fold<int>(0, (acc, r) => acc + _montoReserva(r));
+
+  /// True si el estudio tiene algún workshop en el mes. Sin esto le
+  /// mostraríamos una sección vacía a los estudios que solo dan clases.
+  bool get _tieneWorkshops => _reservasMesWorkshops.isNotEmpty;
 
   int _montoReserva(Map<String, dynamic> reserva) {
     final creditos = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
-    final precioCredito = (_estudio?['valor_credito'] as num?)?.toInt() ?? 6000;
+    final precioCredito = ValorCredito.deEstudio(_estudio);
     // Los workshops liquidan con `comision_workshop` (default 15), no con la
     // comisión de clases (default 30).
     final esWorkshop = reserva['_clase_tipo']?.toString() == 'workshop';
@@ -1953,6 +1999,136 @@ class _DashboardError extends StatelessWidget {
           fontSize: 14,
         ),
       ),
+    );
+  }
+}
+
+/// FIX 5 — Desglose del mes separando clases de workshops.
+///
+/// Antes el dashboard sumaba todo junto y un workshop puntual de monto alto
+/// tapaba cómo venían las clases regulares (o al revés). Además liquidan con
+/// comisiones distintas — 30% las clases, 15% los workshops — así que el
+/// total mezclado no permitía entender de dónde salió la plata.
+class _DesgloseMes extends StatelessWidget {
+  final int reservasClases;
+  final int ingresosClases;
+  final int reservasWorkshops;
+  final int ingresosWorkshops;
+
+  /// Los estudios que no hacen workshops no ven una sección vacía.
+  final bool mostrarWorkshops;
+  final String Function(int) money;
+
+  const _DesgloseMes({
+    required this.reservasClases,
+    required this.ingresosClases,
+    required this.reservasWorkshops,
+    required this.ingresosWorkshops,
+    required this.mostrarWorkshops,
+    required this.money,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'DESGLOSE DEL MES',
+            style: TextStyle(
+              color: Color(0xFF8F877F),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _DesgloseFila(
+            icon: Icons.fitness_center_rounded,
+            titulo: 'Clases',
+            reservas: reservasClases,
+            ingresos: money(ingresosClases),
+          ),
+          if (mostrarWorkshops) ...[
+            const Divider(height: 20, color: Color(0xFFEDE7E1)),
+            _DesgloseFila(
+              icon: Icons.celebration_rounded,
+              titulo: 'Workshops y experiencias',
+              reservas: reservasWorkshops,
+              ingresos: money(ingresosWorkshops),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DesgloseFila extends StatelessWidget {
+  final IconData icon;
+  final String titulo;
+  final int reservas;
+  final String ingresos;
+
+  const _DesgloseFila({
+    required this.icon,
+    required this.titulo,
+    required this.reservas,
+    required this.ingresos,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: AppColors.primaryLight,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: AppColors.primary, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                titulo,
+                style: const TextStyle(
+                  color: AppColors.black,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                '$reservas reserva${reservas == 1 ? '' : 's'}',
+                style: const TextStyle(
+                  color: Color(0xFF8F877F),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Text(
+          ingresos,
+          style: const TextStyle(
+            color: AppColors.black,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }
