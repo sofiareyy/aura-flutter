@@ -12,6 +12,13 @@ String _toSupaDate(DateTime dt) {
       '${dt.minute.toString().padLeft(2, '0')}:00';
 }
 
+/// Ventana de generacion de grilla: 9 semanas = 63 dias.
+///
+/// Se usa tanto desde el boton del panel como desde el cron nocturno
+/// (`regenerar-grillas`), que antes generaban 13 y 4 semanas
+/// respectivamente — el estudio veia una ventana y el cron mantenia otra.
+const int kGrillaSemanas = 9;
+
 class EstudioAdminService {
   final SupabaseClient _client = Supabase.instance.client;
 
@@ -642,7 +649,7 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
     }
   }
 
-  Future<Map<String, int>> generarProximasSemanasDesdeHorarios({int weeks = 2}) async {
+  Future<Map<String, int>> generarProximasSemanasDesdeHorarios({int weeks = kGrillaSemanas}) async {
     // Path rapido: si existe la RPC server-side (supabase/GENERAR_CLASES_DESDE_SQL.sql),
     // delega todo el loop a la base. Es ~10x mas rapido y no depende de
     // que el cliente pase RLS de INSERT/UPDATE/SELECT por cada semana.

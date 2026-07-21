@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/constants/app_constants.dart';
 import '../../models/estudio.dart';
 import '../../services/estudio_admin_service.dart';
 import '../../services/estudios_service.dart';
@@ -521,6 +522,12 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
     await _cargar();
   }
 
+  /// Máximo de horas de la ventana de cancelación. Política de Aura: el
+  /// estudio puede acortarla pero no estirarla. Espejado en el RPC
+  /// `set_estudio_cierres` y en la constraint `estudios_cierres_rango_check`.
+  static final int _maxCancelacionHoras =
+      AppConstants.cancelacionCierreMinutosDefault ~/ 60;
+
   List<String> get _categoriasEstudio => _estudio == null
       ? const []
       : Estudio.parseCategorias(Map<String, dynamic>.from(_estudio!));
@@ -731,7 +738,11 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
     if (estudioId == null) return;
 
     int reservaHoras = _horasDe('reserva_cierre_minutos', 0);
-    int cancelacionHoras = _horasDe('cancelacion_cierre_minutos', 12);
+    // Clamp al tope: si en la base quedó un valor viejo por encima de 12 hs,
+    // el stepper lo baja al máximo en vez de mostrar algo que ya no se puede
+    // guardar (el RPC y la constraint también lo rechazan).
+    int cancelacionHoras =
+        _horasDe('cancelacion_cierre_minutos', 12).clamp(0, _maxCancelacionHoras);
 
     final guardar = await showModalBottomSheet<bool>(
       context: context,
@@ -774,6 +785,7 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                     : 'Nadie puede reservar en las últimas '
                         '$reservaHoras h antes de la clase.',
                 value: reservaHoras,
+                maxHoras: 48,
                 onChanged: (v) => setSheet(() => reservaHoras = v),
               ),
               const SizedBox(height: 18),
@@ -781,9 +793,14 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                 label: 'Límite de cancelación (horas antes)',
                 helper: cancelacionHoras == 0
                     ? 'Se puede cancelar hasta que la clase arranca.'
-                    : 'Cancelar con menos de $cancelacionHoras h consume '
-                        'los créditos.',
+                    : cancelacionHoras >= _maxCancelacionHoras
+                        ? 'Cancelar con menos de $cancelacionHoras h consume '
+                            'los créditos. Es el máximo permitido.'
+                        : 'Cancelar con menos de $cancelacionHoras h consume '
+                            'los créditos.',
                 value: cancelacionHoras,
+                // Tope duro: el estudio puede BAJARLO, nunca subirlo de 12 hs.
+                maxHoras: _maxCancelacionHoras,
                 onChanged: (v) => setSheet(() => cancelacionHoras = v),
               ),
               const SizedBox(height: 24),
@@ -2073,9 +2090,13 @@ class _HorasStepper extends StatelessWidget {
     required this.helper,
     required this.value,
     required this.onChanged,
+    required this.maxHoras,
   });
 
-  static const _maxHoras = 48;
+  /// Tope de horas. Cada ventana tiene el suyo: la de cancelación no puede
+  /// pasar de 12 hs (política de Aura, el estudio solo puede bajarla), la de
+  /// reservas sí admite más margen.
+  final int maxHoras;
 
   @override
   Widget build(BuildContext context) {
@@ -2111,7 +2132,7 @@ class _HorasStepper extends StatelessWidget {
             ),
             IconButton(
               onPressed:
-                  value < _maxHoras ? () => onChanged(value + 1) : null,
+                  value < maxHoras ? () => onChanged(value + 1) : null,
               icon: const Icon(Icons.add_circle_outline_rounded),
               color: AppColors.primary,
             ),

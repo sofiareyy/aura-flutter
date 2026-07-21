@@ -195,6 +195,15 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
   Future<void> _load() async => _studio ? _loadStudio() : _loadUser();
 
+  /// `_studio` dice "estoy en una ruta /estudio", NO "tengo permiso de
+  /// editar". Como /estudio/clases es la única ruta que una profe puede
+  /// abrir, gatear la escritura con `_studio` se la habilitaba entera:
+  /// crear, editar, borrar y avisar. La escritura va contra esto.
+  ///
+  /// `_studio` se sigue usando para decidir qué datos cargar y cómo
+  /// mostrarlos: la profe sí tiene que ver las clases del estudio.
+  bool get _puedeEditar => _studio && !_esProfe;
+
   /// Configuración acotada para la profe: hoy solo expone "Salir del estudio".
   Future<void> _mostrarConfiguracionProfe() async {
     final estudioNombre = _estudioNombre ?? 'el estudio';
@@ -404,6 +413,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
   Future<void> _mostrarAvisoSheet(Map<String, dynamic> clase) async {
+    // Guarda de permiso: la profe no crea, edita, borra ni avisa.
+    // Va acá y no solo en la UI para cubrir cualquier camino de
+    // navegación que no haya quedado gateado.
+    if (!_puedeEditar) return;
     final claseId = (clase['id'] as num?)?.toInt();
     if (claseId == null) return;
     final claseNombre = clase['nombre']?.toString() ?? 'Clase';
@@ -452,6 +465,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
   Future<void> _editClaseDialog(Map<String, dynamic> clase) async {
+    // Guarda de permiso: la profe no crea, edita, borra ni avisa.
+    // Va acá y no solo en la UI para cubrir cualquier camino de
+    // navegación que no haya quedado gateado.
+    if (!_puedeEditar) return;
     final claseId = (clase['id'] as num?)?.toInt();
     if (claseId == null) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -870,6 +887,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
   Future<void> _confirmarCancelacion(Map<String, dynamic> clase) async {
+    // Guarda de permiso: la profe no crea, edita, borra ni avisa.
+    // Va acá y no solo en la UI para cubrir cualquier camino de
+    // navegación que no haya quedado gateado.
+    if (!_puedeEditar) return;
     final claseId = (clase['id'] as num?)?.toInt();
     if (claseId == null) return;
     final nombre = clase['nombre']?.toString() ?? 'esta clase';
@@ -1008,7 +1029,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       // ya existen. Asi el "horario fijo activo" siempre coincide con clases
       // visibles para los usuarios, sin que el estudio tenga que apretar
       // "Generar 3 meses" manualmente.
-      await _service.generarProximasSemanasDesdeHorarios(weeks: 13);
+      await _service.generarProximasSemanasDesdeHorarios(weeks: kGrillaSemanas);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -1081,6 +1102,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
 
   Future<void> _openForm([Map<String, dynamic>? item]) async {
+    // Guarda de permiso: la profe no crea, edita, borra ni avisa.
+    // Va acá y no solo en la UI para cubrir cualquier camino de
+    // navegación que no haya quedado gateado.
+    if (!_puedeEditar) return;
     final edit = item != null;
     final messenger = ScaffoldMessenger.of(context);
     final categoriasDisponibles = await _loadCategoriasDisponibles(
@@ -1817,6 +1842,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
   Future<void> _openGridForm() async {
+    // Guarda de permiso: la profe no crea, edita, borra ni avisa.
+    // Va acá y no solo en la UI para cubrir cualquier camino de
+    // navegación que no haya quedado gateado.
+    if (!_puedeEditar) return;
     final messenger = ScaffoldMessenger.of(context);
     final categoriasDisponibles = await _loadCategoriasDisponibles();
     final n = TextEditingController();
@@ -2295,7 +2324,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         SnackBar(content: Text('Grilla creada: $creados horarios fijos. Generando próximos 3 meses…')),
       );
       try {
-        final result = await _service.generarProximasSemanasDesdeHorarios(weeks: 13);
+        final result = await _service.generarProximasSemanasDesdeHorarios(weeks: kGrillaSemanas);
         await _loadStudio();
         if (!mounted) return;
         final creadas = result['creadas'] ?? 0;
@@ -2348,7 +2377,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   Future<void> _generateWeek() async {
     setState(() => _publishingWeek = true);
     try {
-      final result = await _service.generarProximasSemanasDesdeHorarios(weeks: 13);
+      final result = await _service.generarProximasSemanasDesdeHorarios(weeks: kGrillaSemanas);
       await _loadStudio();
       if (!mounted) return;
       final creadas = result['creadas'] ?? 0;
@@ -2413,18 +2442,20 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
               ),
             ),
             const Spacer(),
-            IconButton(
-              onPressed: _openGridForm,
-              icon: const Icon(Icons.grid_view_rounded),
-              color: AppColors.primary,
-              tooltip: 'Crear grilla',
-            ),
-            IconButton(
-              onPressed: () => _openForm(),
-              icon: const Icon(Icons.add),
-              color: AppColors.primary,
-              tooltip: 'Nueva clase',
-            ),
+            if (_puedeEditar) ...[
+              IconButton(
+                onPressed: _openGridForm,
+                icon: const Icon(Icons.grid_view_rounded),
+                color: AppColors.primary,
+                tooltip: 'Crear grilla',
+              ),
+              IconButton(
+                onPressed: () => _openForm(),
+                icon: const Icon(Icons.add),
+                color: AppColors.primary,
+                tooltip: 'Nueva clase',
+              ),
+            ],
           ],
         ),
         const SizedBox(height: 20),
@@ -2876,7 +2907,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                           color: AppColors.grey,
                           tooltip: 'Configuración',
                         ),
-                      if (_studio) ...[
+                      if (_puedeEditar) ...[
                         if (!_showFixed && _seleccionMultiple)
                           TextButton(
                             onPressed: () => setState(() {
@@ -2908,7 +2939,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                             tooltip: 'Nuevo horario',
                           ),
                         ],
-                      ] else
+                      ]
+                      // Solo el usuario final ve el atajo a Explorar. Una
+                      // profe no cae acá: no ve ni los botones de escritura
+                      // ni este botón, que es del lado usuario.
+                      else if (!_studio)
                         SizedBox(
                           height: 40,
                           child: ElevatedButton(
@@ -2920,7 +2955,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                           ),
                         ),
                     ]),
-                    if (_studio) ...[
+                    // El toggle "Horarios fijos" es configuración de la
+                    // grilla: la profe ve directo sus clases cargadas.
+                    if (_puedeEditar) ...[
                       const SizedBox(height: 16),
                       Container(
                         padding: const EdgeInsets.all(6),
@@ -2974,7 +3011,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                       ),
                     ],
                     const SizedBox(height: 16),
-                    if (_studio && _showFixed) ..._buildFixed()
+                    // `_puedeEditar` y no `_studio`: _buildFixed() renderiza
+                    // filas con editar/eliminar del horario fijo.
+                    if (_puedeEditar && _showFixed) ..._buildFixed()
                     else if (_studio) ..._buildClasesLoadedSection()
                     else ...[
                       _buildMonthCalendar(),
@@ -2998,7 +3037,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                           final card = _StudioClassCard(
                             clase: c,
                             studioMode: _studio,
-                            onAvisar: _studio ? () => _mostrarAvisoSheet(c) : null,
+                            onAvisar:
+                                _puedeEditar ? () => _mostrarAvisoSheet(c) : null,
                           );
                           if (_studio) {
                             return Padding(
@@ -3588,14 +3628,20 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                     );
                   })
                 : GestureDetector(
-                    onLongPress: () => _mostrarMenuClase(c),
+                    // La profe ve la card en modo lectura: sin menú de
+                    // acciones, sin editar y sin avisar.
+                    onLongPress:
+                        _puedeEditar ? () => _mostrarMenuClase(c) : null,
                     child: _StudioClassCard(
                       clase: c,
                       studioMode: true,
                       esMiClase: _esMiClase(c['instructor']),
-                      onAvisar: () => _mostrarAvisoSheet(c),
-                      onMore: () => _mostrarMenuClase(c),
-                      onEdit: () => _editClaseDialog(c),
+                      onAvisar:
+                          _puedeEditar ? () => _mostrarAvisoSheet(c) : null,
+                      onMore:
+                          _puedeEditar ? () => _mostrarMenuClase(c) : null,
+                      onEdit:
+                          _puedeEditar ? () => _editClaseDialog(c) : null,
                     ),
                   ),
           ),
@@ -3661,6 +3707,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   /// Bottom sheet de opciones cuando el estudio hace long-press o tap
   /// en los 3 puntitos de una card de clase.
   Future<void> _mostrarMenuClase(Map<String, dynamic> clase) async {
+    // Guarda de permiso: la profe no crea, edita, borra ni avisa.
+    // Va acá y no solo en la UI para cubrir cualquier camino de
+    // navegación que no haya quedado gateado.
+    if (!_puedeEditar) return;
     final horarioFijoId = (clase['horario_fijo_id'] as num?)?.toInt();
     await showModalBottomSheet<void>(
       context: context,
@@ -3724,6 +3774,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
   Future<void> _eliminarClase(Map<String, dynamic> clase) async {
+    // Guarda de permiso: la profe no crea, edita, borra ni avisa.
+    // Va acá y no solo en la UI para cubrir cualquier camino de
+    // navegación que no haya quedado gateado.
+    if (!_puedeEditar) return;
     final claseId = (clase['id'] as num?)?.toInt();
     if (claseId == null) return;
     final nombre = clase['nombre']?.toString() ?? 'esta clase';

@@ -57,6 +57,12 @@ final _shellNavigatorKey = GlobalKey<NavigatorState>();
 final _estudioNavigatorKey = GlobalKey<NavigatorState>();
 final _adminNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Rutas del panel de estudio a las que puede entrar una profe.
+const _rutasProfe = ['/estudio/clases', '/estudio/asistencia'];
+
+bool _rutaPermitidaProfe(String loc) =>
+    _rutasProfe.any((p) => loc.startsWith(p));
+
 final appRouter = GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: '/splash',
@@ -77,6 +83,16 @@ final appRouter = GoRouter(
 
     // Si no está logueado, redirigir a login
     if (!isLoggedIn) return '/login';
+
+    // Una profe solo accede a Mis Clases y Asistencia. El gate va acá, en el
+    // redirect global, y no en el builder del shell: el builder corre DESPUES
+    // de resolver la ruta, así que CobrosScreen alcanzaba a montarse y a
+    // disparar su query de reservas antes de que el redirect la sacara.
+    if (loc.startsWith('/estudio') && !_rutaPermitidaProfe(loc)) {
+      // read, no watch: en redirect no hay que suscribirse.
+      final esProfe = context.read<AppProvider>().esProfe;
+      if (esProfe) return '/estudio/clases';
+    }
     return null;
   },
   routes: [
@@ -167,15 +183,21 @@ final appRouter = GoRouter(
       navigatorKey: _estudioNavigatorKey,
       builder: (context, state, child) {
         final loc = state.matchedLocation;
-        // Una profe solo puede ver Mis Clases y Asistencia. Si intenta entrar
-        // a otra ruta del panel (dashboard, cobros, perfil, gestión) por URL,
-        // la mandamos a sus clases.
+        // Red de seguridad para cuando el rol todavía no estaba cargado en el
+        // momento del redirect global (login recién hecho, cambio de estudio).
+        // Devolvemos un placeholder en vez de `child`: así la pantalla
+        // prohibida no llega a montarse ni a ejecutar sus queries.
         final esProfe = context.watch<AppProvider>().esProfe;
-        const rutasProfe = ['/estudio/clases', '/estudio/asistencia'];
-        if (esProfe && !rutasProfe.any((p) => loc.startsWith(p))) {
+        if (esProfe && !_rutaPermitidaProfe(loc)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) context.go('/estudio/clases');
           });
+          return const Scaffold(
+            backgroundColor: AppColors.background,
+            body: Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+          );
         }
         return LayoutBuilder(
           builder: (ctx, constraints) {

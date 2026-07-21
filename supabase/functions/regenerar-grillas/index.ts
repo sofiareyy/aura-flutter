@@ -39,8 +39,12 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
   try {
-    // Semanas a generar hacia adelante (default 4, override por body/query).
-    let weeks = 4
+    // Ventana de grilla: 9 semanas = 63 dias. Antes el cron mantenia 4
+    // semanas y el boton del panel generaba 13, asi que el estudio veia una
+    // ventana y el cron otra.
+    const SEMANAS_GRILLA = 9
+    // Semanas a generar hacia adelante (override por body/query).
+    let weeks = SEMANAS_GRILLA
     try {
       const url = new URL(req.url)
       const qp = url.searchParams.get('weeks')
@@ -52,7 +56,12 @@ Deno.serve(async (req: Request) => {
     } catch (_) {
       // Ignorar parseo: usamos el default.
     }
-    if (!Number.isFinite(weeks) || weeks < 1) weeks = 4
+    // Piso en 9: el cron ya agendado en el dashboard manda `weeks: 4` en el
+    // body. En vez de pisar ese cron (no tenemos sus placeholders), lo
+    // tratamos como minimo garantizado. Mandar mas de 9 sigue funcionando.
+    if (!Number.isFinite(weeks) || weeks < SEMANAS_GRILLA) {
+      weeks = SEMANAS_GRILLA
+    }
 
     const { data, error } = await admin.rpc('generar_clases_todos_estudios', {
       p_weeks: weeks,
