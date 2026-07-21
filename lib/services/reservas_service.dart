@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/constants/app_constants.dart';
 import '../models/reserva.dart';
+import '../utils/cierre_minutos.dart';
 import 'aura_gestion_service.dart';
 import 'notificaciones_estudio_service.dart';
 import 'notificaciones_service.dart';
@@ -130,7 +131,8 @@ class ReservasService {
   }) async {
     final clase = await _supabase
         .from(AppConstants.tableClases)
-        .select('fecha, reserva_cierre_minutos, lugares_total, lugares_disponibles')
+        .select('fecha, reserva_cierre_minutos, lugares_total, '
+            'lugares_disponibles, estudios(reserva_cierre_minutos)')
         .eq('id', claseId)
         .maybeSingle();
 
@@ -139,8 +141,8 @@ class ReservasService {
     }
 
     final fechaClase = DateTime.tryParse(clase['fecha']?.toString() ?? '');
-    final cierreMinutos =
-        (clase['reserva_cierre_minutos'] as num?)?.toInt() ?? 0;
+    // Cascada clase -> estudio -> 0 (se reserva hasta que arranca la clase).
+    final cierreMinutos = CierreMinutos.reserva(clase);
     if (fechaClase != null && reservaCerrada(fechaClase, cierreMinutos)) {
       throw Exception(_mensajeCierreReserva(cierreMinutos));
     }

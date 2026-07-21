@@ -69,7 +69,7 @@ begin
         estudio_id, horario_fijo_id, nombre, instructor, instructor_descripcion,
         incluye, imagen_url, imagen_ajuste, galeria_urls, fecha, duracion_min,
         lugares_total, lugares_disponibles, creditos, reserva_cierre_minutos,
-        categoria, sala
+        cancelacion_cierre_minutos, categoria, sala
       ) values (
         p_estudio_id, v_h.id, v_h.nombre, v_h.instructor, v_h.instructor_descripcion,
         v_h.incluye, v_h.imagen_url, v_h.imagen_ajuste, v_h.galeria_urls, v_fecha,
@@ -77,7 +77,9 @@ begin
         coalesce(v_h.lugares_total, 12),
         coalesce(v_h.lugares_total, 12),
         coalesce(v_h.creditos, 10),
-        coalesce(v_h.reserva_cierre_minutos, 0),
+        -- Sin coalesce a 0: null = hereda el default del estudio.
+        v_h.reserva_cierre_minutos,
+        v_h.cancelacion_cierre_minutos,
         v_h.categoria, v_h.sala
       );
       v_creadas := v_creadas + 1;

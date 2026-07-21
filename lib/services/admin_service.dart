@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/estudio.dart';
+
 class AdminService {
   final _client = Supabase.instance.client;
 
@@ -397,11 +399,12 @@ class AdminService {
     } catch (_) {
       final rows = await _client
           .from('estudios')
-          .select('categoria')
-          .not('categoria', 'is', null);
+          .select('categoria, categorias');
       final values = (rows as List)
-          .map((e) => (e as Map)['categoria']?.toString() ?? '')
-          .where((e) => e.trim().isNotEmpty)
+          .expand((e) =>
+              Estudio.parseCategorias(Map<String, dynamic>.from(e as Map)))
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
           .toSet()
           .toList()
         ..sort();
@@ -439,7 +442,7 @@ class AdminService {
   Future<void> saveEstudio({
     int? estudioId,
     required String nombre,
-    required String categoria,
+    required List<String> categorias,
     String? barrio,
     String? direccion,
     String? descripcion,
@@ -463,7 +466,13 @@ class AdminService {
       params: {
         'p_estudio_id': estudioId,
         'p_nombre': nombre.trim(),
-        'p_categoria': categoria.trim(),
+        'p_categorias': categorias
+            .map((c) => c.trim())
+            .where((c) => c.isNotEmpty)
+            .toList(),
+        // `p_categoria` sigue yendo (la primera) porque la columna escalar se
+        // mantiene sincronizada para las vistas y queries legacy.
+        'p_categoria': categorias.isEmpty ? '' : categorias.first.trim(),
         'p_barrio': barrio?.trim().isEmpty == true ? null : barrio?.trim(),
         'p_direccion':
             direccion?.trim().isEmpty == true ? null : direccion?.trim(),
@@ -643,7 +652,7 @@ class AdminService {
     required String estudioNombre,
     required String email,
     required String password,
-    String? categoria,
+    List<String> categorias = const [],
     String? direccion,
     String? barrio,
   }) async {
@@ -658,7 +667,7 @@ class AdminService {
         'estudio_nombre': estudioNombre,
         'email': email,
         'password': password,
-        if (categoria != null && categoria.isNotEmpty) 'categoria': categoria,
+        if (categorias.isNotEmpty) 'categorias': categorias,
         if (direccion != null && direccion.isNotEmpty) 'direccion': direccion,
         if (barrio != null && barrio.isNotEmpty) 'barrio': barrio,
       },

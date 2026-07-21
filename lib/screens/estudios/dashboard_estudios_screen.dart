@@ -861,7 +861,12 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
   int _montoReserva(Map<String, dynamic> reserva) {
     final creditos = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
     final precioCredito = (_estudio?['valor_credito'] as num?)?.toInt() ?? 6000;
-    final comision = (_estudio?['comision_aura'] as num?)?.toDouble() ?? 30;
+    // Los workshops liquidan con `comision_workshop` (default 15), no con la
+    // comisión de clases (default 30).
+    final esWorkshop = reserva['_clase_tipo']?.toString() == 'workshop';
+    final comision = esWorkshop
+        ? ((_estudio?['comision_workshop'] as num?)?.toDouble() ?? 15)
+        : ((_estudio?['comision_aura'] as num?)?.toDouble() ?? 30);
     final bruto = creditos * precioCredito;
     return (bruto * ((100 - comision) / 100)).round();
   }

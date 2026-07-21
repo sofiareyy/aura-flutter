@@ -45,4 +45,32 @@ class AppConstants {
     'Gym / funcional',
     'Ceramica + vino 3hs',
   ];
+
+  /// Categorias que puede elegir un estudio. La fuente de verdad en runtime es
+  /// la tabla `study_categories`; esta lista es el fallback si no responde.
+  static const List<String> categoriasEstudio = [
+    'Pilates',
+    'Yoga',
+    'Barre',
+    'Gym / Funcional',
+    'Cerámica',
+    'Tufting',
+    'Danza',
+    'Holístico / Bienestar',
+    'Meditación',
+    'Otro',
+  ];
+
+  /// Estados de reserva que el estudio cobra. Un 'ausente' (reservó y no vino)
+  /// se liquida igual: el crédito ya se consumió al reservar y no se devuelve.
+  /// Ver `_montoPendiente` / `_montoCobrado` en cobros_screen.
+  static const List<String> estadosLiquidables = [
+    'confirmada',
+    'presente',
+    'ausente',
+  ];
+
+  /// Minutos antes del inicio en que cierra la cancelacion, si el estudio no
+  /// configuro `cancelacion_cierre_minutos`. 720 min = 12 hs.
+  static const int cancelacionCierreMinutosDefault = 720;
 }

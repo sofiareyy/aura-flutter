@@ -219,7 +219,8 @@ class EstudioCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        estudio.categoria,
+        // Hasta dos categorias + "+N": un estudio puede ser Pilates y Barre.
+        estudio.categoriasLabel,
         style: const TextStyle(
           color: AppColors.primary,
           fontSize: 11,

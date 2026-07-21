@@ -220,9 +220,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ? _proximasClases
         : _proximasClases.where((clase) {
             final estudio = clase['estudios'] as Map<String, dynamic>?;
-            final categoria = (estudio?['categoria'] ?? '').toString();
-            return categoria.toLowerCase() ==
-                _categoriaSeleccionada.toLowerCase();
+            if (estudio == null) return false;
+            // El estudio entra si CUALQUIERA de sus categorias matchea.
+            final objetivo = _categoriaSeleccionada.toLowerCase();
+            return Estudio.parseCategorias(estudio)
+                .any((c) => c.trim().toLowerCase() == objetivo);
           }).toList();
     final clasesEstaSemana = clasesFiltradas.where((clase) {
       // Las fechas en DB estan en hora Argentina sin marker; forzamos UTC con
@@ -234,10 +236,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }).toList();
     final estudiosFiltrados = _categoriaSeleccionada == 'Todos'
         ? _estudios
-        : _estudios.where((estudio) {
-            return estudio.categoria.toLowerCase() ==
-                _categoriaSeleccionada.toLowerCase();
-          }).toList();
+        : _estudios
+            .where((estudio) =>
+                estudio.tieneCategoria(_categoriaSeleccionada))
+            .toList();
     final estudiosCerca = _studioGeoService
         .sortByDistance(estudiosFiltrados, _locationState.position)
         .take(6)
@@ -1734,9 +1736,9 @@ class _HomeStudyCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (estudio.categoria.isNotEmpty)
+                      if (estudio.categorias.isNotEmpty)
                         Text(
-                          estudio.categoria.toUpperCase(),
+                          estudio.categoriasLabel.toUpperCase(),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -1746,7 +1748,8 @@ class _HomeStudyCard extends StatelessWidget {
                             letterSpacing: 0.5,
                           ),
                         ),
-                      if (estudio.categoria.isNotEmpty) const SizedBox(height: 4),
+                      if (estudio.categorias.isNotEmpty)
+                        const SizedBox(height: 4),
                       Text(
                         estudio.nombre,
                         maxLines: 2,

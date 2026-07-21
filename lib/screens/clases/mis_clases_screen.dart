@@ -482,7 +482,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         cred.text = pricing.min.toString();
       }
     }
-    int cierreReserva = (clase['reserva_cierre_minutos'] as num?)?.toInt() ?? 0;
+    // null = hereda el default del estudio (no forzamos 0).
+    int? cierreReserva = (clase['reserva_cierre_minutos'] as num?)?.toInt();
     String? cat = clase['categoria']?.toString();
     final fechaOrig = DateTime.tryParse(clase['fecha']?.toString() ?? '');
     DateTime fechaSel = fechaOrig ?? DateTime.now();
@@ -632,7 +633,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 keyboardType: TextInputType.number,
                               ),
                               const SizedBox(height: 12),
-                              _AuraDropdown<int>(
+                              _AuraDropdown<int?>(
                                 label: 'Cierre de reservas',
                                 value: cierreReserva,
                                 items: _bookingCutoffOptions
@@ -643,7 +644,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                         ))
                                     .toList(),
                                 onChanged: (v) =>
-                                    setD(() => cierreReserva = v ?? 0),
+                                    setD(() => cierreReserva = v),
                               ),
                             ],
                           ),
@@ -1104,7 +1105,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     );
     final c = TextEditingController(text: ((item?['lugares_total'] as num?)?.toInt() ?? 12).toString());
     final cr = TextEditingController(text: ((item?['creditos'] as num?)?.toInt() ?? 10).toString());
-    int cierreReserva = (item?['reserva_cierre_minutos'] as num?)?.toInt() ?? 0;
+    // null = hereda el default del estudio (no forzamos 0).
+    int? cierreReserva = (item?['reserva_cierre_minutos'] as num?)?.toInt();
     int d = (item?['dia_semana'] as num?)?.toInt() ?? 1;
     // Clase individual (solo al crear): fecha concreta del evento único.
     final nowLocal = DateTime.now();
@@ -1244,7 +1246,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: _TipoOption(
-                                        label: 'Workshop/Evento',
+                                        label: 'Workshop / Experiencia',
                                         icon: Icons.celebration_rounded,
                                         selected: tipo == 'workshop',
                                         onTap: () => setD(() {
@@ -1261,12 +1263,13 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 ),
                                 if (tipo == 'workshop') ...[
                                   const SizedBox(height: 10),
+                                  // A propósito no se menciona ningún % de
+                                  // comisión: la maneja Aura desde el
+                                  // backoffice y el estudio solo carga precio.
                                   const Text(
-                                    'Comisión (%): la define Aura desde el '
-                                    'backoffice (por defecto 15% para eventos, '
-                                    'en vez del 30% de las clases). No es '
-                                    'editable desde el estudio. Vos ponés el '
-                                    'precio libre en créditos.',
+                                    'Ponés el precio en créditos que quieras, '
+                                    'sin restricción. Va a aparecer en la '
+                                    'sección Experiencias, no entre las clases.',
                                     style: TextStyle(
                                       color: AppColors.grey,
                                       fontSize: 12,
@@ -1372,7 +1375,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 keyboardType: TextInputType.number,
                               ),
                               const SizedBox(height: 12),
-                              _AuraDropdown<int>(
+                              _AuraDropdown<int?>(
                                 label: 'Cierre de reservas',
                                 value: cierreReserva,
                                 items: _bookingCutoffOptions
@@ -1382,7 +1385,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                         ))
                                     .toList(),
                                 onChanged: (v) =>
-                                    setD(() => cierreReserva = v ?? 0),
+                                    setD(() => cierreReserva = v),
                               ),
                             ],
                           ),
@@ -1821,7 +1824,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     // Precio del estudio (fijo/rango): precarga los créditos de la grilla.
     final pricing = _studioPricing();
     cr.text = pricing.min.toString();
-    int cierreReserva = 0;
+    int? cierreReserva; // null = hereda el default del estudio.
     int dur = 60;
     String? cat;
     final diasSeleccionados = <int>{1, 2, 3, 4, 5};
@@ -2050,7 +2053,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 keyboardType: TextInputType.number,
                               ),
                               const SizedBox(height: 12),
-                              _AuraDropdown<int>(
+                              _AuraDropdown<int?>(
                                 label: 'Cierre de reservas',
                                 value: cierreReserva,
                                 items: _bookingCutoffOptions
@@ -2061,7 +2064,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                         ))
                                     .toList(),
                                 onChanged: (v) =>
-                                    setD(() => cierreReserva = v ?? 0),
+                                    setD(() => cierreReserva = v),
                               ),
                             ],
                           ),
@@ -4110,8 +4113,14 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
   DateTime _weekStart(DateTime d) => DateTime(d.year, d.month, d.day).subtract(Duration(days: d.weekday - 1));
-  static const List<int> _bookingCutoffOptions = [0, 30, 60, 120, 180, 360, 720, 1440];
-  String _bookingCutoffLabel(int minutes) {
+  /// `null` = sin override, la clase hereda el default del estudio. Es el
+  /// primer item a propósito: guardar 0 significaba "sin ventana" y pisaba
+  /// la configuración del estudio.
+  static const List<int?> _bookingCutoffOptions = [
+    null, 0, 30, 60, 120, 180, 360, 720, 1440,
+  ];
+  String _bookingCutoffLabel(int? minutes) {
+    if (minutes == null) return 'Usar el default del estudio';
     if (minutes <= 0) return 'Hasta el inicio de la clase';
     if (minutes == 30) return 'Hasta 30 min antes';
     if (minutes % 1440 == 0) {

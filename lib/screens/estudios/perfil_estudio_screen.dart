@@ -3,8 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../models/estudio.dart';
 import '../../services/estudio_admin_service.dart';
+import '../../services/estudios_service.dart';
 import '../../services/media_upload_service.dart';
+import '../../widgets/categorias_checklist.dart';
 import '../../widgets/eliminar_cuenta_helper.dart';
 
 class PerfilEstudioScreen extends StatefulWidget {
@@ -17,12 +20,16 @@ class PerfilEstudioScreen extends StatefulWidget {
 class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
   final _mediaUploadService = MediaUploadService();
   final _adminService = EstudioAdminService();
+  final _estudiosService = EstudiosService();
   Map<String, dynamic>? _estudio;
   List<Map<String, dynamic>> _admins = [];
   List<Map<String, dynamic>> _profes = [];
   bool _loading = true;
   bool _uploadingPhoto = false;
   bool _uploadingGaleria = false;
+  bool _guardandoCierres = false;
+  /// Las acciones destructivas arrancan colapsadas (FIX 4).
+  bool _avanzadasAbiertas = false;
   String? _error;
 
   List<String> get _galeriaUrls => _parseUrlList(_estudio?['galeria_urls']);
@@ -514,6 +521,332 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
     await _cargar();
   }
 
+  List<String> get _categoriasEstudio => _estudio == null
+      ? const []
+      : Estudio.parseCategorias(Map<String, dynamic>.from(_estudio!));
+
+  /// FEATURE 5 — El estudio elige sus propias categorías (puede ser Pilates
+  /// + Barre + Yoga a la vez). Antes solo se editaban desde el backoffice.
+  Future<void> _editarCategorias() async {
+    if (_estudio == null) return;
+    final disponibles = await _estudiosService.getCategorias();
+    if (!mounted) return;
+
+    final seleccion = [..._categoriasEstudio];
+
+    final guardar = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Categorías del estudio',
+                style: TextStyle(
+                  color: AppColors.black,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Elegí todas las que hagas. Tu estudio aparece cuando el '
+                'usuario filtra por cualquiera de ellas.',
+                style: TextStyle(color: AppColors.grey, fontSize: 13),
+              ),
+              const SizedBox(height: 20),
+              CategoriasChecklist(
+                disponibles: disponibles,
+                seleccionadas: seleccion,
+                onToggle: (cat, marcada) => setSheet(() {
+                  if (marcada) {
+                    if (!seleccion.contains(cat)) seleccion.add(cat);
+                  } else {
+                    seleccion.remove(cat);
+                  }
+                }),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: seleccion.isEmpty
+                      ? null
+                      : () => Navigator.of(ctx).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text('Guardar'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text(
+                    'Cancelar',
+                    style: TextStyle(color: AppColors.grey),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (guardar != true || !mounted) return;
+
+    try {
+      await Supabase.instance.client.from('estudios').update({
+        'categorias': seleccion,
+        // Escalar sincronizado con la primera, para queries legacy.
+        'categoria': seleccion.first,
+      }).eq('id', _estudio!['id']);
+      await _cargar();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Categorías actualizadas.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudieron guardar las categorías: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  /// FIX 4 — Puerta de confirmación por texto para acciones irreversibles.
+  /// Pide escribir CONFIRMAR: un tap accidental o un "Sí" por inercia no
+  /// alcanzan. Si el usuario confirma, corre `accion`.
+  Future<void> _confirmarYEjecutar({
+    required String titulo,
+    required String mensaje,
+    required Future<void> Function() accion,
+  }) async {
+    const palabra = 'CONFIRMAR';
+    final ctrl = TextEditingController();
+
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) {
+          final habilitado = ctrl.text.trim().toUpperCase() == palabra;
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(titulo),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  mensaje,
+                  style: const TextStyle(color: AppColors.grey, fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Escribí CONFIRMAR para continuar',
+                  style: TextStyle(
+                    color: AppColors.black,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: ctrl,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  onChanged: (_) => setDialog(() {}),
+                  decoration: InputDecoration(
+                    hintText: palabra,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text(
+                  'Cancelar',
+                  style: TextStyle(color: AppColors.grey),
+                ),
+              ),
+              TextButton(
+                onPressed:
+                    habilitado ? () => Navigator.of(ctx).pop(true) : null,
+                child: Text(
+                  'Continuar',
+                  style: TextStyle(
+                    color: habilitado ? AppColors.error : AppColors.grey,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    ctrl.dispose();
+    if (ok == true) await accion();
+  }
+
+  /// FIX 3 — Las dos ventanas de tiempo del estudio. Son reglas distintas y
+  /// se guardan por separado: cerrar reservas 2 hs antes no obliga a cerrar
+  /// las cancelaciones 2 hs antes.
+  Future<void> _editarCierres() async {
+    final estudioId = (_estudio?['id'] as num?)?.toInt();
+    if (estudioId == null) return;
+
+    int reservaHoras = _horasDe('reserva_cierre_minutos', 0);
+    int cancelacionHoras = _horasDe('cancelacion_cierre_minutos', 12);
+
+    final guardar = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Reservas y cancelaciones',
+                style: TextStyle(
+                  color: AppColors.black,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Aplica a todas tus clases. Podés cambiarlo en una clase '
+                'puntual desde el formulario de esa clase.',
+                style: TextStyle(color: AppColors.grey, fontSize: 13),
+              ),
+              const SizedBox(height: 20),
+              _HorasStepper(
+                label: 'Cierre de reservas (horas antes)',
+                helper: reservaHoras == 0
+                    ? 'Se puede reservar hasta que la clase arranca.'
+                    : 'Nadie puede reservar en las últimas '
+                        '$reservaHoras h antes de la clase.',
+                value: reservaHoras,
+                onChanged: (v) => setSheet(() => reservaHoras = v),
+              ),
+              const SizedBox(height: 18),
+              _HorasStepper(
+                label: 'Límite de cancelación (horas antes)',
+                helper: cancelacionHoras == 0
+                    ? 'Se puede cancelar hasta que la clase arranca.'
+                    : 'Cancelar con menos de $cancelacionHoras h consume '
+                        'los créditos.',
+                value: cancelacionHoras,
+                onChanged: (v) => setSheet(() => cancelacionHoras = v),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text('Guardar'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text(
+                    'Cancelar',
+                    style: TextStyle(color: AppColors.grey),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (guardar != true || !mounted) return;
+
+    setState(() => _guardandoCierres = true);
+    final ok = await _adminService.guardarCierresEstudio(
+      estudioId: estudioId,
+      reservaCierreMinutos: reservaHoras * 60,
+      cancelacionCierreMinutos: cancelacionHoras * 60,
+    );
+    if (!mounted) return;
+    setState(() {
+      _guardandoCierres = false;
+      if (ok && _estudio != null) {
+        _estudio!['reserva_cierre_minutos'] = reservaHoras * 60;
+        _estudio!['cancelacion_cierre_minutos'] = cancelacionHoras * 60;
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ok
+            ? 'Configuración guardada.'
+            : 'No pudimos guardar la configuración.'),
+        backgroundColor: ok ? null : AppColors.error,
+      ),
+    );
+  }
+
+  /// Lee una columna en minutos y la devuelve en horas enteras.
+  int _horasDe(String columna, int fallbackHoras) {
+    final min = (_estudio?[columna] as num?)?.toInt();
+    if (min == null) return fallbackHoras;
+    return (min / 60).round();
+  }
+
   Future<void> _editarDatosBancarios() async {
     if (_estudio == null) return;
 
@@ -809,26 +1142,49 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                               color: AppColors.black,
                             ),
                           ),
-                          if ((_estudio?['categoria']?.toString() ?? '').isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryLight,
-                                borderRadius: BorderRadius.circular(9999),
-                              ),
-                              child: Text(
-                                _estudio?['categoria']?.toString() ?? '',
-                                style: const TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 12,
-                                ),
-                              ),
+                          // Un estudio puede tener varias categorías: un pill
+                          // por cada una.
+                          if (_categoriasEstudio.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              alignment: WrapAlignment.center,
+                              children: _categoriasEstudio
+                                  .map(
+                                    (cat) => Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryLight,
+                                        borderRadius:
+                                            BorderRadius.circular(9999),
+                                      ),
+                                      child: Text(
+                                        cat,
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
                             ),
                           ],
+                          const SizedBox(height: 6),
+                          TextButton.icon(
+                            onPressed: _editarCategorias,
+                            icon: const Icon(Icons.edit_outlined, size: 16),
+                            label: Text(
+                              _categoriasEstudio.isEmpty
+                                  ? 'Elegir categorías'
+                                  : 'Editar categorías',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
                           if ((_estudio?['direccion']?.toString() ?? '').isNotEmpty) ...[
                             const SizedBox(height: 8),
                             Row(
@@ -1225,6 +1581,26 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                       estudio: _estudio,
                       onEdit: _editarDatosBancarios,
                     ),
+                    const SizedBox(height: 24),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 4, bottom: 10),
+                      child: Text(
+                        'CONFIGURACIÓN',
+                        style: TextStyle(
+                          color: AppColors.grey,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                    _CierresCard(
+                      reservaMinutos: _estudio?['reserva_cierre_minutos'],
+                      cancelacionMinutos:
+                          _estudio?['cancelacion_cierre_minutos'],
+                      guardando: _guardandoCierres,
+                      onEdit: _editarCierres,
+                    ),
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
@@ -1232,27 +1608,6 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                         onPressed: () => context.go('/home'),
                         icon: const Icon(Icons.home_outlined),
                         label: const Text('Cambiar al lado usuario'),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _dejarDeAdministrar,
-                        icon: const Icon(
-                          Icons.exit_to_app_rounded,
-                          color: AppColors.error,
-                        ),
-                        label: const Text(
-                          'Dejar de administrar este estudio',
-                          style: TextStyle(color: AppColors.error),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.error),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
                       ),
                     ),
                   ],
@@ -1274,37 +1629,50 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  // Eliminar cuenta — requisito Apple App Store 5.1.1.
-                  // Forzamos contextoEstudio=true porque desde el panel
-                  // sabemos que el usuario administra al menos un estudio.
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () =>
-                          EliminarCuentaFlow.ejecutar(context,
-                              contextoEstudio: true),
-                      icon: const Icon(
-                        Icons.delete_forever_rounded,
-                        color: AppColors.error,
-                      ),
-                      label: const Text(
-                        'Eliminar mi cuenta',
-                        style: TextStyle(
-                          color: AppColors.error,
-                          fontWeight: FontWeight.w600,
+                  const SizedBox(height: 20),
+                  // FIX 4 — Acciones irreversibles: colapsadas, al final, y
+                  // detrás de una confirmación escribiendo CONFIRMAR.
+                  _OpcionesAvanzadas(
+                    expanded: _avanzadasAbiertas,
+                    onToggle: () => setState(
+                        () => _avanzadasAbiertas = !_avanzadasAbiertas),
+                    children: [
+                      if (_error == null)
+                        _AccionPeligrosa(
+                          icon: Icons.exit_to_app_rounded,
+                          label: 'Dejar de administrar el estudio',
+                          detalle:
+                              'Perdés el acceso al panel. El estudio y sus '
+                              'clases siguen existiendo.',
+                          onTap: () => _confirmarYEjecutar(
+                            titulo: 'Dejar de administrar',
+                            mensaje:
+                                'Vas a perder el acceso al panel de este '
+                                'estudio.',
+                            accion: _dejarDeAdministrar,
+                          ),
+                        ),
+                      // Eliminar cuenta — requisito Apple App Store 5.1.1.
+                      // contextoEstudio=true: desde el panel sabemos que el
+                      // usuario administra al menos un estudio.
+                      _AccionPeligrosa(
+                        icon: Icons.delete_forever_rounded,
+                        label: 'Eliminar mi cuenta',
+                        detalle:
+                            'Se borra tu cuenta y todas las clases de tu '
+                            'estudio. No se puede deshacer.',
+                        onTap: () => _confirmarYEjecutar(
+                          titulo: 'Eliminar mi cuenta',
+                          mensaje:
+                              'Esta acción es permanente. Se eliminan tu '
+                              'cuenta y todas las clases de tu estudio.',
+                          accion: () async => EliminarCuentaFlow.ejecutar(
+                            context,
+                            contextoEstudio: true,
+                          ),
                         ),
                       ),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: AppColors.error.withValues(alpha: 0.4),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                    ),
+                    ],
                   ),
                 ],
               ),
@@ -1579,4 +1947,281 @@ class _ErrorCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// FIX 3 — Resumen de las dos ventanas de tiempo del estudio.
+class _CierresCard extends StatelessWidget {
+  final Object? reservaMinutos;
+  final Object? cancelacionMinutos;
+  final bool guardando;
+  final VoidCallback onEdit;
+
+  const _CierresCard({
+    required this.reservaMinutos,
+    required this.cancelacionMinutos,
+    required this.guardando,
+    required this.onEdit,
+  });
+
+  /// `null` en la columna = el estudio nunca la configuró: mostramos el
+  /// default vigente para no dejar la fila en blanco.
+  static String _texto(Object? minutos, int fallbackHoras) {
+    final min = (minutos as num?)?.toInt() ?? fallbackHoras * 60;
+    if (min <= 0) return 'Hasta que arranca la clase';
+    final horas = (min / 60).round();
+    return horas == 1 ? '1 hora antes' : '$horas horas antes';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEDE7E1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CierreRow(
+            label: 'Cierre de reservas',
+            value: _texto(reservaMinutos, 0),
+          ),
+          const SizedBox(height: 12),
+          _CierreRow(
+            label: 'Límite de cancelación',
+            value: _texto(cancelacionMinutos, 12),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Tus alumnos ven esta política en el detalle de cada clase.',
+            style: TextStyle(color: Color(0xFF8F877F), fontSize: 12),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: guardando ? null : onEdit,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: guardando
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    )
+                  : const Text('Editar'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CierreRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _CierreRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: const TextStyle(
+                color: AppColors.black,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      );
+}
+
+/// Stepper en horas. Va de 0 a 48 hs: cubre desde "sin restricción" hasta
+/// dos días, que es el rango real de un estudio.
+class _HorasStepper extends StatelessWidget {
+  final String label;
+  final String helper;
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  const _HorasStepper({
+    required this.label,
+    required this.helper,
+    required this.value,
+    required this.onChanged,
+  });
+
+  static const _maxHoras = 48;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.black,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            IconButton(
+              onPressed: value > 0 ? () => onChanged(value - 1) : null,
+              icon: const Icon(Icons.remove_circle_outline_rounded),
+              color: AppColors.primary,
+            ),
+            Expanded(
+              child: Text(
+                value == 0 ? 'Sin límite' : '$value h',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.black,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed:
+                  value < _maxHoras ? () => onChanged(value + 1) : null,
+              icon: const Icon(Icons.add_circle_outline_rounded),
+              color: AppColors.primary,
+            ),
+          ],
+        ),
+        Text(
+          helper,
+          style: const TextStyle(color: Color(0xFF8F877F), fontSize: 12),
+        ),
+      ],
+    );
+  }
+}
+
+/// FIX 4 — Sección colapsada para las acciones irreversibles.
+class _OpcionesAvanzadas extends StatelessWidget {
+  final bool expanded;
+  final VoidCallback onToggle;
+  final List<Widget> children;
+
+  const _OpcionesAvanzadas({
+    required this.expanded,
+    required this.onToggle,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEDE7E1)),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 16,
+              ),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Opciones avanzadas',
+                      style: TextStyle(
+                        color: Color(0xFF8F877F),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: expanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 150),
+                    child: const Icon(
+                      Icons.expand_more_rounded,
+                      color: Color(0xFF8F877F),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (expanded) ...[
+            const Divider(height: 1, color: Color(0xFFEDE7E1)),
+            ...children,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AccionPeligrosa extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String detalle;
+  final VoidCallback onTap;
+
+  const _AccionPeligrosa({
+    required this.icon,
+    required this.label,
+    required this.detalle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 6,
+        ),
+        leading: Icon(icon, color: AppColors.error),
+        title: Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.error,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          detalle,
+          style: const TextStyle(color: Color(0xFF8F877F), fontSize: 12),
+        ),
+      );
 }

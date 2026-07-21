@@ -25,12 +25,14 @@ class EstudiosService {
           .toList();
       return ['Todos', ...categorias];
     } catch (_) {
+      // Fallback: derivar las categorias de los propios estudios.
       final rows = await _supabase
           .from(AppConstants.tableEstudios)
-          .select('categoria')
-          .not('categoria', 'is', null);
+          .select('categoria, categorias');
       final categorias = (rows as List)
-          .map((row) => (row as Map)['categoria']?.toString().trim() ?? '')
+          .expand((row) =>
+              Estudio.parseCategorias(Map<String, dynamic>.from(row as Map)))
+          .map((item) => item.trim())
           .where((item) => item.isNotEmpty)
           .toSet()
           .toList()
@@ -44,7 +46,9 @@ class EstudiosService {
         _supabase.from(AppConstants.tableEstudios).select();
 
     if (categoria != null && categoria != 'Todos') {
-      query = query.eq('categoria', categoria) as dynamic;
+      // `contains` sobre text[] = el estudio aparece si CUALQUIERA de sus
+      // categorias matchea (antes era `.eq` sobre el escalar).
+      query = query.contains('categorias', [categoria]) as dynamic;
     }
 
     final data = await query.order('nombre');
@@ -52,12 +56,30 @@ class EstudiosService {
   }
 
   Future<List<Estudio>> buscarEstudios(String query) async {
+    // `ilike` no aplica sobre text[]; se busca por nombre/barrio en el server
+    // y se filtra por categoria en memoria (el set de estudios es chico).
     final data = await _supabase
         .from(AppConstants.tableEstudios)
         .select()
-        .or('nombre.ilike.%$query%,barrio.ilike.%$query%,categoria.ilike.%$query%')
+        .or('nombre.ilike.%$query%,barrio.ilike.%$query%')
         .order('nombre');
-    return (data as List).map((e) => Estudio.fromMap(e)).toList();
+    final porNombre = (data as List).map((e) => Estudio.fromMap(e)).toList();
+
+    final todos = await _supabase
+        .from(AppConstants.tableEstudios)
+        .select()
+        .order('nombre');
+    final q = query.trim().toLowerCase();
+    final porCategoria = (todos as List)
+        .map((e) => Estudio.fromMap(e))
+        .where((e) => e.categorias
+            .any((c) => c.toLowerCase().contains(q)))
+        .toList();
+
+    final vistos = <int?>{};
+    return [...porNombre, ...porCategoria]
+        .where((e) => vistos.add(e.id))
+        .toList();
   }
 
   Future<Estudio?> getEstudio(int id) async {

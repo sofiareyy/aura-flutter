@@ -9,6 +9,7 @@ import '../../providers/app_provider.dart';
 import '../../services/aura_gestion_service.dart';
 import '../../services/clases_service.dart';
 import '../../services/reservas_service.dart';
+import '../../utils/cierre_minutos.dart';
 
 class ConfirmarReservaScreen extends StatefulWidget {
   final int claseId;
@@ -131,8 +132,7 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
     final fecha = clase['fecha'] != null
         ? DateTime.tryParse(clase['fecha'].toString())
         : null;
-    final cierreMinutos =
-        (clase['reserva_cierre_minutos'] as num?)?.toInt() ?? 0;
+    final cierreMinutos = CierreMinutos.reserva(clase);
     final reservaCerrada = fecha != null &&
         ReservasService.reservaCerrada(fecha, cierreMinutos);
     final creditos = (clase['creditos'] as num?)?.toInt() ?? 1;

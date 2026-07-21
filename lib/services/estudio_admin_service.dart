@@ -204,6 +204,30 @@ class EstudioAdminService {
     }
   }
 
+  /// Guarda las dos ventanas de tiempo del estudio (FIX 3). El RPC valida
+  /// que el caller administre el estudio y que los valores esten en rango.
+  Future<bool> guardarCierresEstudio({
+    required int estudioId,
+    required int reservaCierreMinutos,
+    required int cancelacionCierreMinutos,
+  }) async {
+    try {
+      final res = await _client.rpc(
+        'set_estudio_cierres',
+        params: {
+          'p_estudio_id': estudioId,
+          'p_reserva_cierre_minutos': reservaCierreMinutos,
+          'p_cancelacion_cierre_minutos': cancelacionCierreMinutos,
+        },
+      );
+      final map =
+          res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+      return map['ok'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Lista las profes (rol limitado) de un estudio. Solo funciona si el caller
   /// es admin real del estudio (validado en el RPC).
   Future<List<Map<String, dynamic>>> listProfes(int estudioId) async {
@@ -278,7 +302,25 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
     }
 
     final data = await query;
-    return List<Map<String, dynamic>>.from(data as List);
+
+    // Adjuntamos el tipo de la clase ('clase' | 'workshop') sin otra query:
+    // ya lo tenemos en `clases`. Cobros lo necesita porque los workshops
+    // liquidan con `comision_workshop` y no con `comision_aura`.
+    final tipoPorClase = <int, String>{};
+    for (final c in clases) {
+      final id = (c['id'] as num?)?.toInt();
+      if (id != null) {
+        tipoPorClase[id] = c['tipo']?.toString() ?? 'clase';
+      }
+    }
+
+    return List<Map<String, dynamic>>.from(data as List).map((r) {
+      final claseId = (r['clase_id'] as num?)?.toInt();
+      return {
+        ...r,
+        '_clase_tipo': tipoPorClase[claseId] ?? 'clase',
+      };
+    }).toList();
   }
 
   Future<List<Map<String, dynamic>>> getHorariosFijosDeEstudio() async {
@@ -342,8 +384,12 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
       'lugares_total': lugares,
       'lugares_disponibles': lugares,
       'creditos': (payload['creditos'] as num?)?.toInt() ?? 10,
+      // null (no `?? 0`) = "sin override": la clase hereda el default del
+      // estudio. Guardar 0 pisaba ese default y rompia la ventana de 12 hs.
       'reserva_cierre_minutos':
-          (payload['reserva_cierre_minutos'] as num?)?.toInt() ?? 0,
+          (payload['reserva_cierre_minutos'] as num?)?.toInt(),
+      'cancelacion_cierre_minutos':
+          (payload['cancelacion_cierre_minutos'] as num?)?.toInt(),
     };
     // Tipo: 'clase' (normal) o 'workshop' (evento). Si es workshop se guardan
     // los organizadores [{nombre, instagram}] y los campos propios del evento
@@ -576,8 +622,11 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
       // y para el user era un error generico.
       if (lugaresTotal == 0) 'lugares_disponibles': 0,
       'creditos': (horario['creditos'] as num?)?.toInt() ?? 10,
+      // null = hereda del estudio. Ver comentario en crearClaseIndividual.
       'reserva_cierre_minutos':
-          (horario['reserva_cierre_minutos'] as num?)?.toInt() ?? 0,
+          (horario['reserva_cierre_minutos'] as num?)?.toInt(),
+      'cancelacion_cierre_minutos':
+          (horario['cancelacion_cierre_minutos'] as num?)?.toInt(),
       'categoria': horario['categoria'],
       'sala': horario['sala'],
     };
@@ -717,8 +766,11 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
       final lugares = (horario['lugares_total'] as num?)?.toInt() ?? 12;
       final duracion = (horario['duracion_min'] as num?)?.toInt() ?? 60;
       final creditos = (horario['creditos'] as num?)?.toInt() ?? 10;
+      // null = hereda el default del estudio (no `?? 0`, que lo pisaria).
       final reservaCierreMinutos =
-          (horario['reserva_cierre_minutos'] as num?)?.toInt() ?? 0;
+          (horario['reserva_cierre_minutos'] as num?)?.toInt();
+      final cancelacionCierreMinutos =
+          (horario['cancelacion_cierre_minutos'] as num?)?.toInt();
       final categoria = horario['categoria']?.toString();
 
       final fechaStr = _toSupaDate(fechaClase);
@@ -740,6 +792,7 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
         'lugares_disponibles': lugares,  // al crear, siempre igual a total
         'creditos': creditos,
         'reserva_cierre_minutos': reservaCierreMinutos,
+        'cancelacion_cierre_minutos': cancelacionCierreMinutos,
         if (categoria != null && categoria.isNotEmpty) 'categoria': categoria,
       };
       final sala = horario['sala'];
@@ -762,6 +815,7 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
         'duracion_min': duracion,
         'lugares_total': lugares,
         'reserva_cierre_minutos': reservaCierreMinutos,
+        'cancelacion_cierre_minutos': cancelacionCierreMinutos,
         if (categoria != null && categoria.isNotEmpty) 'categoria': categoria,
         if (sala != null && sala.toString().trim().isNotEmpty) 'sala': sala,
       };
