@@ -38,29 +38,6 @@ class AppConstants {
     },
   ];
 
-  static const List<String> categorias = [
-    'Todos',
-    'Yoga',
-    'Pilates',
-    'Gym / funcional',
-    'Ceramica + vino 3hs',
-  ];
-
-  /// Categorias que puede elegir un estudio. La fuente de verdad en runtime es
-  /// la tabla `study_categories`; esta lista es el fallback si no responde.
-  static const List<String> categoriasEstudio = [
-    'Pilates',
-    'Yoga',
-    'Barre',
-    'Gym / Funcional',
-    'Cerámica',
-    'Tufting',
-    'Danza',
-    'Holístico / Bienestar',
-    'Meditación',
-    'Otro',
-  ];
-
   /// Estados de reserva que el estudio cobra. Un 'ausente' (reservó y no vino)
   /// se liquida igual: el crédito ya se consumió al reservar y no se devuelve.
   /// Ver `_montoPendiente` / `_montoCobrado` en cobros_screen.

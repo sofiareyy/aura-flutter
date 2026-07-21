@@ -1,9 +1,5 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../models/estudio.dart';
 
 class AdminService {
   final _client = Supabase.instance.client;
@@ -389,27 +385,23 @@ class AdminService {
     );
   }
 
-  Future<List<String>> listStudyCategories() async {
-    try {
-      final res = await _client.rpc('admin_list_studio_categories');
-      return (res as List)
-          .map((e) => (e as Map)['nombre']?.toString() ?? '')
-          .where((e) => e.trim().isNotEmpty)
-          .toList();
-    } catch (_) {
-      final rows = await _client
-          .from('estudios')
-          .select('categoria, categorias');
-      final values = (rows as List)
-          .expand((e) =>
-              Estudio.parseCategorias(Map<String, dynamic>.from(e as Map)))
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort();
-      return values;
-    }
+  /// Catálogo completo, con estado y uso. Solo para el backoffice.
+  /// Devuelve `{nombre, activa, en_uso}` por categoría.
+  Future<List<Map<String, dynamic>>> listStudyCategoriesDetalle() async {
+    final res = await _client.rpc('admin_list_studio_categories');
+    return List<Map<String, dynamic>>.from(res as List);
+  }
+
+  /// Solo los nombres. `soloActivas` es el default porque los selectores
+  /// (estudio y backoffice) no deben ofrecer categorías dadas de baja.
+  Future<List<String>> listStudyCategories({bool soloActivas = true}) async {
+    final res = await _client.rpc('admin_list_studio_categories');
+    return (res as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .where((e) => !soloActivas || e['activa'] != false)
+        .map((e) => e['nombre']?.toString().trim() ?? '')
+        .where((e) => e.isNotEmpty)
+        .toList();
   }
 
   Future<void> addStudyCategory(String nombre) async {
@@ -426,9 +418,18 @@ class AdminService {
     await _client.rpc(
       'admin_rename_studio_category',
       params: {
-        'p_old_name': oldName.trim(),
-        'p_new_name': newName.trim(),
+        'p_actual': oldName.trim(),
+        'p_nuevo': newName.trim(),
       },
+    );
+  }
+
+  /// Dar de baja en vez de borrar: la saca de los selectores pero no toca
+  /// las clases que ya la tienen asignada.
+  Future<void> toggleStudyCategory(String nombre, bool activa) async {
+    await _client.rpc(
+      'admin_toggle_studio_category',
+      params: {'p_nombre': nombre.trim(), 'p_activa': activa},
     );
   }
 
@@ -713,36 +714,6 @@ class AdminService {
     await _client.rpc(
       'admin_set_valor_credito_ars',
       params: {'p_value': value},
-    );
-  }
-
-  /// Lee creditos por categoria (JSON en configuracion_global).
-  Future<Map<String, int>> getCreditosPorCategoria() async {
-    final raw = await getConfigGlobal('creditos_por_categoria');
-    if (raw == null || raw.isEmpty) return _defaultCreditosPorCategoria();
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map) return _defaultCreditosPorCategoria();
-      return decoded.map(
-        (k, v) => MapEntry(k.toString(), (v is num) ? v.toInt() : 0),
-      );
-    } catch (_) {
-      return _defaultCreditosPorCategoria();
-    }
-  }
-
-  Map<String, int> _defaultCreditosPorCategoria() => {
-        'Gym/Funcional': 10,
-        'Pilates': 14,
-        'Yoga': 18,
-        'Ceramica + vino': 50,
-      };
-
-  Future<void> setCreditosPorCategoria(Map<String, int> map) async {
-    final json = jsonEncode(map);
-    await _client.rpc(
-      'admin_set_creditos_por_categoria',
-      params: {'p_json': json},
     );
   }
 

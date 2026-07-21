@@ -1,4 +1,3 @@
-import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -74,33 +73,6 @@ class PricingService {
       return _valorCreditoFallback;
     }
   }
-
-  /// Lee los creditos por categoria desde configuracion_global (JSON).
-  Future<Map<String, int>> getCreditosPorCategoria() async {
-    try {
-      final res = await _client
-          .from('configuracion_global')
-          .select('valor')
-          .eq('clave', 'creditos_por_categoria')
-          .maybeSingle();
-      final raw = res?['valor']?.toString();
-      if (raw == null || raw.isEmpty) return _defaultCreditosPorCategoria();
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map) return _defaultCreditosPorCategoria();
-      return decoded.map(
-        (k, v) => MapEntry(k.toString(), (v is num) ? v.toInt() : 0),
-      );
-    } catch (_) {
-      return _defaultCreditosPorCategoria();
-    }
-  }
-
-  Map<String, int> _defaultCreditosPorCategoria() => {
-        'Gym/Funcional': 10,
-        'Pilates': 14,
-        'Yoga': 18,
-        'Ceramica + vino': 50,
-      };
 
   /// Calcula el monto que recibe el estudio por una clase de N creditos.
   int montoEstudioPorClase(int valorCredito, int creditos) =>

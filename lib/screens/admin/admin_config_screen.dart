@@ -28,7 +28,9 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
   bool _savingCredit = false;
   bool _savingCategory = false;
   String? _error;
-  List<String> _categories = [];
+  /// {nombre, activa, en_uso} por categoría. El backoffice ve también
+  /// las desactivadas; los selectores del estudio no.
+  List<Map<String, dynamic>> _categories = [];
   List<Map<String, dynamic>> _plans = [];
 
   // Preview de packs en vivo mientras edita el valor
@@ -63,7 +65,7 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
       _error = null;
     });
     try {
-      final categories = await _service.listStudyCategories();
+      final categories = await _service.listStudyCategoriesDetalle();
       final plans = await _service.listPricingPlans();
       final valorCreditoArs = await _service.getValorCreditoArs();
       if (!mounted) return;
@@ -113,6 +115,34 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
       );
     } finally {
       if (mounted) setState(() => _savingCredit = false);
+    }
+  }
+
+  /// Dar de baja en vez de borrar. Es la acción preferida: no toca las
+  /// clases ni los estudios que ya la tienen asignada.
+  Future<void> _toggleCategory(String nombre, bool activa) async {
+    try {
+      await _service.toggleStudyCategory(nombre, activa);
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            activa
+                ? '"$nombre" activada.'
+                : '"$nombre" desactivada. Deja de aparecer en los selectores.',
+          ),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -392,6 +422,7 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
                     onAdd: _agregarCategoria,
                     onRename: _renameCategory,
                     onDelete: _deleteCategory,
+                    onToggle: _toggleCategory,
                   ),
                 ],
               ],
@@ -728,12 +759,13 @@ class _PlanesCard extends StatelessWidget {
 // ───────────────────────── 4. Categorías de estudios ────────────────────
 
 class _CategoriasCard extends StatelessWidget {
-  final List<String> categories;
+  final List<Map<String, dynamic>> categories;
   final TextEditingController controller;
   final bool saving;
   final VoidCallback onAdd;
   final void Function(String) onRename;
   final void Function(String) onDelete;
+  final void Function(String nombre, bool activa) onToggle;
 
   const _CategoriasCard({
     required this.categories,
@@ -742,6 +774,7 @@ class _CategoriasCard extends StatelessWidget {
     required this.onAdd,
     required this.onRename,
     required this.onDelete,
+    required this.onToggle,
   });
 
   @override
@@ -749,7 +782,9 @@ class _CategoriasCard extends StatelessWidget {
     return _DarkCard(
       title: 'Categorías de estudios',
       subtitle:
-          'Las que pueden elegir los estudios (Pilates, Yoga, Gym, Cerámica, Spa, Danza, Tufting, etc.).',
+          'Única fuente de verdad. Los estudios solo asignan de esta lista; '
+          'no pueden crear categorías. Desactivar una la saca de los '
+          'selectores sin tocar las clases que ya la usan.',
       children: [
         if (categories.isEmpty)
           const Padding(
@@ -759,8 +794,11 @@ class _CategoriasCard extends StatelessWidget {
               style: TextStyle(color: _kSubtle, fontSize: 13),
             ),
           ),
-        ...categories.map(
-          (item) => Container(
+        ...categories.map((row) {
+          final nombre = row['nombre']?.toString() ?? '';
+          final activa = row['activa'] != false;
+          final enUso = (row['en_uso'] as num?)?.toInt() ?? 0;
+          return Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
             decoration: BoxDecoration(
@@ -770,22 +808,45 @@ class _CategoriasCard extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    item,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        nombre,
+                        style: TextStyle(
+                          // Las desactivadas se ven apagadas: siguen ahí
+                          // pero ya no se pueden asignar.
+                          color: activa ? Colors.white : _kSubtle,
+                          fontWeight: FontWeight.w600,
+                          decoration: activa
+                              ? TextDecoration.none
+                              : TextDecoration.lineThrough,
+                        ),
+                      ),
+                      Text(
+                        enUso == 0
+                            ? 'Sin estudios asignados'
+                            : 'En uso por $enUso '
+                                'estudio${enUso == 1 ? '' : 's'}',
+                        style: const TextStyle(color: _kSubtle, fontSize: 11),
+                      ),
+                    ],
                   ),
                 ),
+                Switch(
+                  value: activa,
+                  onChanged: (v) => onToggle(nombre, v),
+                  activeThumbColor: AppColors.primary,
+                ),
+                const SizedBox(width: 4),
                 OutlinedButton(
-                  onPressed: () => onRename(item),
+                  onPressed: () => onRename(nombre),
                   style: _darkOutlinedStyle(),
                   child: const Text('Editar'),
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton(
-                  onPressed: () => onDelete(item),
+                  onPressed: () => onDelete(nombre),
                   style: _darkOutlinedStyle().copyWith(
                     foregroundColor:
                         const WidgetStatePropertyAll(Color(0xFFE8763A)),
@@ -794,8 +855,8 @@ class _CategoriasCard extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        ),
+          );
+        }),
         const SizedBox(height: 6),
         Row(
           children: [

@@ -9,7 +9,9 @@ import '../../providers/app_provider.dart';
 import '../../services/aviso_alumnos_service.dart';
 import '../../services/clases_service.dart';
 import '../../utils/pricing.dart';
+import '../../models/estudio.dart';
 import '../../services/estudio_admin_service.dart';
+import '../../widgets/categorias_checklist.dart';
 import '../../services/media_upload_service.dart';
 import '../../services/notificaciones_service.dart';
 import '../../services/reservas_service.dart';
@@ -170,12 +172,17 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       .where((item) => item.isNotEmpty)
       .toList();
 
-  Future<List<String>> _loadCategoriasDisponibles([String? current]) async {
+  /// Catálogo para los selectores. Solo las ACTIVAS del backoffice: el
+  /// estudio no crea categorías, solo asigna de esa lista. Se suman las que
+  /// la clase ya tenía aunque hayan sido dadas de baja, para no borrárselas
+  /// sin querer al editar.
+  Future<List<String>> _loadCategoriasDisponibles([
+    List<String> actuales = const [],
+  ]) async {
     final categoriasAdmin = await _adminService.listStudyCategories();
     final categorias = <String>{
-      ..._categorias.where((item) => item.trim().isNotEmpty),
       ...categoriasAdmin.where((item) => item.trim().isNotEmpty),
-      if (current != null && current.trim().isNotEmpty) current.trim(),
+      ...actuales.where((item) => item.trim().isNotEmpty),
     }.toList()
       ..sort();
     return categorias;
@@ -472,9 +479,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final claseId = (clase['id'] as num?)?.toInt();
     if (claseId == null) return;
     final messenger = ScaffoldMessenger.of(context);
-    final categoriasDisponibles = await _loadCategoriasDisponibles(
-      clase['categoria']?.toString(),
-    );
+    final categoriasDisponibles =
+        await _loadCategoriasDisponibles(_parseCategorias(clase));
     final n = TextEditingController(text: clase['nombre']?.toString() ?? '');
     final ins = TextEditingController(text: clase['instructor']?.toString() ?? '');
     final insDesc = TextEditingController(
@@ -508,7 +514,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     }
     // null = hereda el default del estudio (no forzamos 0).
     int? cierreReserva = (clase['reserva_cierre_minutos'] as num?)?.toInt();
-    String? cat = clase['categoria']?.toString();
+    // Una clase puede tener varias categorías (máx 5). Son etiquetas
+    // descriptivas para que el usuario filtre: NO afectan el precio.
+    final cats = _parseCategorias(clase);
     final fechaOrig = DateTime.tryParse(clase['fecha']?.toString() ?? '');
     DateTime fechaSel = fechaOrig ?? DateTime.now();
     TimeOfDay horaSel = TimeOfDay(hour: fechaSel.hour, minute: fechaSel.minute);
@@ -693,18 +701,22 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   ),
                                 )
                               else
-                                _AuraDropdown<String>(
-                                  label: 'Categoría',
-                                  value: categoriasDisponibles.contains(cat)
-                                      ? cat
-                                      : null,
-                                  items: categoriasDisponibles
-                                      .map((v) => DropdownMenuItem(
-                                            value: v,
-                                            child: Text(v),
-                                          ))
-                                      .toList(),
-                                  onChanged: (v) => setD(() => cat = v),
+                                CategoriasChecklist(
+                                  label: 'Categorías (máx '
+                                      '$kMaxCategoriasClase)',
+                                  disponibles: categoriasDisponibles,
+                                  seleccionadas: cats,
+                                  onToggle: (c, marcada) => setD(() {
+                                    if (marcada) {
+                                      if (cats.length >=
+                                          kMaxCategoriasClase) {
+                                        return;
+                                      }
+                                      if (!cats.contains(c)) cats.add(c);
+                                    } else {
+                                      cats.remove(c);
+                                    }
+                                  }),
                                 ),
                               const SizedBox(height: 12),
                               if (tipoClase == 'workshop')
@@ -842,7 +854,6 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       final lugaresTotal = cuposText.isEmpty
           ? 12
           : (int.tryParse(cuposText) ?? 12);
-      final categoriaTrim = cat?.trim() ?? '';
       final payload = {
         'nombre': n.text.trim().isEmpty ? clase['nombre'] : n.text.trim(),
         'instructor': ins.text.trim().isEmpty ? null : ins.text.trim(),
@@ -861,7 +872,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         'creditos': _creditosFinal(cred, tipoClase, pricing),
         // Solo incluir categoria si tiene valor — evita pisar con null si la
         // columna tiene constraint NOT NULL o si el dropdown quedo vacio.
-        if (categoriaTrim.isNotEmpty) 'categoria': categoriaTrim,
+        'categorias': cats,
         'reserva_cierre_minutos': cierreReserva,
       };
       await _service.editarClase(claseId, payload);
@@ -1109,7 +1120,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final edit = item != null;
     final messenger = ScaffoldMessenger.of(context);
     final categoriasDisponibles = await _loadCategoriasDisponibles(
-      item?['categoria']?.toString(),
+      item == null ? const [] : _parseCategorias(item),
     );
     final n = TextEditingController(text: item?['nombre']?.toString() ?? '');
     final i = TextEditingController(text: item?['instructor']?.toString() ?? '');
@@ -1146,7 +1157,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final hh = (item?['hora_inicio']?.toString() ?? '08:00').split(':');
     TimeOfDay t = TimeOfDay(hour: int.tryParse(hh.first) ?? 8, minute: int.tryParse(hh.length > 1 ? hh[1] : '0') ?? 0);
     int dur = (item?['duracion_min'] as num?)?.toInt() ?? 60;
-    String? cat = item?['categoria']?.toString();
+    final cats = item == null
+        ? <String>[]
+        : _parseCategorias(item);
     // Tipo de clase: 'clase' normal o 'workshop' (evento). Solo elegible al
     // crear una clase individual (no en horarios fijos ni edición).
     String tipo = item?['tipo']?.toString() ?? 'clase';
@@ -1442,18 +1455,22 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   ),
                                 )
                               else
-                                _AuraDropdown<String>(
-                                  label: 'Categoría',
-                                  value: categoriasDisponibles.contains(cat)
-                                      ? cat
-                                      : null,
-                                  items: categoriasDisponibles
-                                      .map((v) => DropdownMenuItem(
-                                            value: v,
-                                            child: Text(v),
-                                          ))
-                                      .toList(),
-                                  onChanged: (v) => setD(() => cat = v),
+                                CategoriasChecklist(
+                                  label: 'Categorías (máx '
+                                      '$kMaxCategoriasClase)',
+                                  disponibles: categoriasDisponibles,
+                                  seleccionadas: cats,
+                                  onToggle: (c, marcada) => setD(() {
+                                    if (marcada) {
+                                      if (cats.length >=
+                                          kMaxCategoriasClase) {
+                                        return;
+                                      }
+                                      if (!cats.contains(c)) cats.add(c);
+                                    } else {
+                                      cats.remove(c);
+                                    }
+                                  }),
                                 ),
                               const SizedBox(height: 12),
                               if (tipo == 'workshop')
@@ -1788,7 +1805,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         'descripcion': descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
       if (tipo == 'workshop')
         'direccion': dirCtrl.text.trim().isEmpty ? null : dirCtrl.text.trim(),
-      if (cat != null) 'categoria': cat,
+      'categorias': cats,
     };
     try {
       if (edit) {
@@ -1862,7 +1879,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     cr.text = pricing.min.toString();
     int? cierreReserva; // null = hereda el default del estudio.
     int dur = 60;
-    String? cat;
+    final cats = <String>[];
     final diasSeleccionados = <int>{1, 2, 3, 4, 5};
     TimeOfDay horaInicio = const TimeOfDay(hour: 7, minute: 0);
     TimeOfDay horaFin = const TimeOfDay(hour: 21, minute: 0);
@@ -2126,18 +2143,22 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   ),
                                 )
                               else
-                                _AuraDropdown<String>(
-                                  label: 'Categoría',
-                                  value: categoriasDisponibles.contains(cat)
-                                      ? cat
-                                      : null,
-                                  items: categoriasDisponibles
-                                      .map((v) => DropdownMenuItem(
-                                            value: v,
-                                            child: Text(v),
-                                          ))
-                                      .toList(),
-                                  onChanged: (v) => setD(() => cat = v),
+                                CategoriasChecklist(
+                                  label: 'Categorías (máx '
+                                      '$kMaxCategoriasClase)',
+                                  disponibles: categoriasDisponibles,
+                                  seleccionadas: cats,
+                                  onToggle: (c, marcada) => setD(() {
+                                    if (marcada) {
+                                      if (cats.length >=
+                                          kMaxCategoriasClase) {
+                                        return;
+                                      }
+                                      if (!cats.contains(c)) cats.add(c);
+                                    } else {
+                                      cats.remove(c);
+                                    }
+                                  }),
                                 ),
                               const SizedBox(height: 12),
                               _StudioCreditsField(
@@ -2307,7 +2328,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       'galeria_urls': _parseGaleria(galeria.text),
       'sala': s.text.trim().isEmpty ? null : s.text.trim(),
       'activo': true,
-      if (cat != null) 'categoria': cat,
+      'categorias': cats,
     };
 
     try {
@@ -4714,7 +4735,13 @@ class _HorarioFijoCard extends StatelessWidget {
     final cupos = (horario['lugares_total'] as num?)?.toInt() ?? 12;
     final creditos = (horario['creditos'] as num?)?.toInt() ?? 10;
     final sala = horario['sala']?.toString();
-    final cat = horario['categoria']?.toString();
+    // Muestra hasta 2 categorías + "+N" para no romper la fila.
+    final cats = _parseCategorias(horario);
+    final cat = cats.isEmpty
+        ? null
+        : (cats.length <= 2
+            ? cats.join(' · ')
+            : '${cats.take(2).join(' · ')} +${cats.length - 2}');
     final activo = horario['activo'] != false;
     final extras = <String>['$duracion min', '$cupos lugares', '$creditos créditos', if (instructor != null && instructor.isNotEmpty) instructor, if (sala != null && sala.isNotEmpty) sala, if (cat != null && cat.isNotEmpty) cat];
     return Opacity(
@@ -5879,3 +5906,13 @@ class _PlantillaFila extends StatelessWidget {
     );
   }
 }
+
+/// Máximo de categorías por clase o workshop. Espejado en el trigger
+/// `sync_categorias_clase` de la base, que rechaza el insert si se pasa.
+const int kMaxCategoriasClase = 5;
+
+/// Lee `categorias` (text[]) de una clase u horario fijo, con fallback al
+/// escalar `categoria` para las filas que todavía no migraron. Mismo
+/// criterio que `Estudio.parseCategorias`.
+List<String> _parseCategorias(Map<String, dynamic> row) =>
+    Estudio.parseCategorias(row);

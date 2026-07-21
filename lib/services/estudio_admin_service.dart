@@ -414,9 +414,12 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
         insertPayload['direccion'] = direccionEvento.trim();
       }
     }
-    final categoria = payload['categoria']?.toString();
-    if (categoria != null && categoria.trim().isNotEmpty) {
-      insertPayload['categoria'] = categoria;
+    // `categorias` es la fuente de verdad; el escalar `categoria` lo
+    // sincroniza el trigger sync_categorias_clase.
+    final categorias = payload['categorias'];
+    if (categorias is List) {
+      insertPayload['categorias'] =
+          categorias.map((e) => e.toString()).toList();
     }
     final sala = payload['sala'];
     if (sala != null && sala.toString().trim().isNotEmpty) {
@@ -634,7 +637,7 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
           (horario['reserva_cierre_minutos'] as num?)?.toInt(),
       'cancelacion_cierre_minutos':
           (horario['cancelacion_cierre_minutos'] as num?)?.toInt(),
-      'categoria': horario['categoria'],
+      'categorias': horario['categorias'] ?? const <String>[],
       'sala': horario['sala'],
     };
 
@@ -778,7 +781,10 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
           (horario['reserva_cierre_minutos'] as num?)?.toInt();
       final cancelacionCierreMinutos =
           (horario['cancelacion_cierre_minutos'] as num?)?.toInt();
-      final categoria = horario['categoria']?.toString();
+      final categorias = (horario['categorias'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const <String>[];
 
       final fechaStr = _toSupaDate(fechaClase);
 
@@ -800,7 +806,7 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
         'creditos': creditos,
         'reserva_cierre_minutos': reservaCierreMinutos,
         'cancelacion_cierre_minutos': cancelacionCierreMinutos,
-        if (categoria != null && categoria.isNotEmpty) 'categoria': categoria,
+        'categorias': categorias,
       };
       final sala = horario['sala'];
       if (sala != null && sala.toString().trim().isNotEmpty) {
@@ -823,7 +829,7 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
         'lugares_total': lugares,
         'reserva_cierre_minutos': reservaCierreMinutos,
         'cancelacion_cierre_minutos': cancelacionCierreMinutos,
-        if (categoria != null && categoria.isNotEmpty) 'categoria': categoria,
+        'categorias': categorias,
         if (sala != null && sala.toString().trim().isNotEmpty) 'sala': sala,
       };
 
