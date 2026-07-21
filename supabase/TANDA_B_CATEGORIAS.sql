@@ -1,3 +1,12 @@
+-- ############################################################################
+-- AURA — PARTE B (la PARTE A ya esta aplicada)
+-- ############################################################################
+-- Categorias: CRUD desde el backoffice, multiples por clase (max 5) y
+-- desacople del precio respecto de la categoria.
+--
+-- Idempotente: se puede correr mas de una vez.
+-- ############################################################################
+
 -- ============================================================================
 -- TANDA B — Categorias: fuente unica, CRUD completo, multiples por clase
 -- ============================================================================
@@ -5,6 +14,35 @@
 -- ============================================================================
 
 begin;
+
+-- ── Drop generico de las funciones que se recrean ──────────────────────────
+-- Las versiones que ya estan en la base se crearon desde el dashboard y
+-- tienen firmas y tipos de retorno que no conocemos, asi que `create or
+-- replace` falla con 42P13. En vez de adivinar cada firma, se dropean TODAS
+-- las sobrecargas de estos nombres consultando el catalogo.
+do $$
+declare
+  r record;
+begin
+  for r in
+    select p.oid::regprocedure as sig
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname in (
+         'admin_list_studio_categories',
+         'admin_add_studio_category',
+         'admin_rename_studio_category',
+         'admin_toggle_studio_category',
+         'admin_delete_studio_category',
+         'admin_set_creditos_por_categoria',
+         'generar_clases_estudio'
+       )
+  loop
+    execute 'drop function if exists ' || r.sig || ' cascade';
+  end loop;
+end $$;
+
 
 -- ══════════════════════════════════════════════════════════════════════════
 -- FIX 2 — Catalogo de categorias con CRUD real
@@ -43,8 +81,6 @@ create policy "study_categories select"
 
 
 -- ── RPC: listar ────────────────────────────────────────────────────────────
-drop function if exists public.admin_list_studio_categories();
-
 create or replace function public.admin_list_studio_categories()
 returns table(id bigint, nombre text, activa boolean, en_uso bigint)
 language sql
@@ -68,8 +104,6 @@ grant execute on function public.admin_list_studio_categories() to authenticated
 
 
 -- ── RPC: crear ─────────────────────────────────────────────────────────────
-drop function if exists public.admin_add_studio_category(text);
-
 create or replace function public.admin_add_studio_category(p_nombre text)
 returns json
 language plpgsql
@@ -107,9 +141,6 @@ grant execute on function public.admin_add_studio_category(text) to authenticate
 -- ── RPC: renombrar ─────────────────────────────────────────────────────────
 -- Propaga el nombre nuevo a estudios.categorias, clases.categorias y
 -- horarios_fijos.categorias, si no las asignaciones quedan colgadas.
--- La version vieja usaba p_old_name/p_new_name: se dropea por firma.
-drop function if exists public.admin_rename_studio_category(text, text);
-
 create or replace function public.admin_rename_studio_category(
   p_actual text,
   p_nuevo  text
@@ -166,8 +197,6 @@ grant execute on function public.admin_rename_studio_category(text, text)
 -- ── RPC: activar / desactivar ──────────────────────────────────────────────
 -- Preferible a borrar: saca la categoria de los selectores pero no toca las
 -- clases que ya la tienen asignada.
-drop function if exists public.admin_toggle_studio_category(text, boolean);
-
 create or replace function public.admin_toggle_studio_category(
   p_nombre text,
   p_activa boolean
@@ -202,8 +231,6 @@ grant execute on function public.admin_toggle_studio_category(text, boolean)
 
 -- ── RPC: eliminar ──────────────────────────────────────────────────────────
 -- Borra la categoria y la saca de todas las asignaciones.
-drop function if exists public.admin_delete_studio_category(text);
-
 create or replace function public.admin_delete_studio_category(p_nombre text)
 returns json
 language plpgsql
@@ -322,10 +349,6 @@ create index if not exists horarios_fijos_categorias_gin
 -- ya ignoraba p_categoria; lo que quedaba era que generar_clases_estudio
 -- buscara la categoria del estudio solo para pasarsela. Se saca ese lookup
 -- y ademas se propagan las categorias del horario fijo a la clase.
-
--- drop previo: la version deployada tiene otro default (4 o 13) y puede
--- tener otro tipo de retorno; `create or replace` no puede cambiarlo.
-drop function if exists public.generar_clases_estudio(int, int);
 
 create or replace function public.generar_clases_estudio(
   p_estudio_id int,
