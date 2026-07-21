@@ -4,7 +4,7 @@
 // acreditar_creditos_corporativos, que recorre las empresas activas y acredita
 // los créditos del beneficio a cada empleado corporativo (fuente 'corporativo').
 //
-// Seguridad: verify_jwt=false + chequeo de CRON_SECRET (header x-cron-secret).
+// Seguridad: verify_jwt=false + validación del service_role en el header.
 // Usa el service role internamente (bypassa RLS).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -12,7 +12,6 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -26,16 +25,14 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  // Fail-CLOSED: sin CRON_SECRET configurado se rechaza (antes aceptaba todo).
-  if (!CRON_SECRET) {
-    console.error('CRON_SECRET no configurado; rechazando')
-    return json({ ok: false, error: 'No configurado' }, 503)
-  }
+  // Auth: el cron manda el service_role en el Authorization. verify_jwt está
+  // en false, así que se valida a mano. Fail-CLOSED: sin service_role válido,
+  // 401. Ya no depende de CRON_SECRET.
   {
-    const provided =
-      req.headers.get('x-cron-secret') ??
-      (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '')
-    if (provided !== CRON_SECRET) {
+    const token = (req.headers.get('Authorization') ?? '')
+      .replace(/^Bearer\s+/i, '')
+      .trim()
+    if (token !== SERVICE_ROLE_KEY) {
       return json({ ok: false, error: 'No autorizado' }, 401)
     }
   }
