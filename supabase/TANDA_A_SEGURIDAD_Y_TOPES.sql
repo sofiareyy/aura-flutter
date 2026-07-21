@@ -18,6 +18,10 @@ begin;
 -- que puede cambiar: al cambiar de estudio y al ser dada de alta como profe.
 -- Nunca se toca a un admin de Aura ('admin'): ese rol es de otra dimension.
 
+-- drop previo: la version deployada puede tener otro tipo de retorno y
+-- `create or replace` no puede cambiarlo.
+drop function if exists public.set_active_estudio(int);
+
 create or replace function public.set_active_estudio(p_estudio_id int)
 returns json
 language plpgsql
@@ -78,6 +82,8 @@ grant execute on function public.set_active_estudio(int) to authenticated;
 -- studio_add_profe: antes solo ponia rol='profe' si el global era exactamente
 -- 'usuario'. Si era 'estudio', 'admin_estudio' o NULL quedaba como estaba y
 -- la persona seguia viendo el panel completo.
+drop function if exists public.studio_add_profe(int, text);
+
 create or replace function public.studio_add_profe(
   p_estudio_id int,
   p_email text
@@ -165,6 +171,12 @@ grant execute on function public.studio_add_profe(int, text) to authenticated;
 -- policy es que una profe con acceso directo a la API igual podria leer las
 -- reservas del estudio; es el precio de que Asistencia funcione siempre.
 
+-- Las policies dependen de esta funcion: se dropean primero para poder
+-- reemplazarla, y se recrean mas abajo.
+drop policy if exists "estudio lee reservas de sus clases" on public.reservas;
+drop policy if exists "estudio actualiza reservas de sus clases" on public.reservas;
+drop function if exists public.puede_ver_reservas_de_clase(bigint);
+
 create or replace function public.puede_ver_reservas_de_clase(p_clase_id bigint)
 returns boolean
 language sql
@@ -204,6 +216,8 @@ create policy "estudio actualiza reservas de sus clases"
 -- reserva a 'completada' apenas terminaba la clase, asi que escanear a un
 -- rezagado 10 minutos despues fallaba con "no esta en estado confirmada".
 -- Se agrega una ventana de gracia de 3 horas.
+
+drop function if exists public.completar_reservas_vencidas();
 
 create or replace function public.completar_reservas_vencidas()
 returns json
@@ -290,6 +304,8 @@ alter table public.estudios
     and cancelacion_cierre_minutos between 0 and 720
   );
 
+drop function if exists public.set_estudio_cierres(int, int, int);
+
 create or replace function public.set_estudio_cierres(
   p_estudio_id int,
   p_reserva_cierre_minutos int,
@@ -360,6 +376,8 @@ grant execute on function public.set_estudio_cierres(int, int, int)
 
 -- Cuerpo IDENTICO al de CRON_GRILLAS_Y_LISTA_ESPERA.sql; lo unico que cambia
 -- es el default de p_weeks (4 -> 9).
+drop function if exists public.generar_clases_todos_estudios(int);
+
 create or replace function public.generar_clases_todos_estudios(
   p_weeks int default 9
 ) returns json
