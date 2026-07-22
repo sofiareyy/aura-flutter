@@ -114,6 +114,16 @@ class EstudioSidebar extends StatelessWidget {
 
           // ── Bottom actions ────────────────────────────────────────────────
           _Divider(),
+          // La profe no tiene "Perfil del estudio" (es admin), así que su
+          // único acceso a editar el perfil PROPIO y volver al lado usuario
+          // va acá.
+          if (provider.esProfe)
+            _BottomAction(
+              icon: Icons.person_outline_rounded,
+              label: 'Mi perfil',
+              color: _kGrey,
+              onTap: () => context.go('/perfil'),
+            ),
           _BottomAction(
             icon: Icons.swap_horiz_rounded,
             label: 'Cambiar a usuario',

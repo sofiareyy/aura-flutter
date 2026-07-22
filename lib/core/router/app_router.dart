@@ -225,7 +225,7 @@ final appRouter = GoRouter(
             // ── Mobile: bottom nav bar ──────────────────────────────────────
             // La profe ve solo Clases + Asistencia; el resto ve el menú completo.
             final navPaths = esProfe
-                ? const ['/estudio/clases', '/estudio/asistencia']
+                ? const ['/estudio/clases', '/estudio/asistencia', '/perfil']
                 : const [
                     '/estudio/dashboard',
                     '/estudio/clases',
@@ -242,6 +242,13 @@ final appRouter = GoRouter(
                     BottomNavigationBarItem(
                       icon: Icon(Icons.qr_code_scanner_rounded),
                       label: 'Asistencia',
+                    ),
+                    // Perfil propio: la profe edita su perfil y vuelve al lado
+                    // usuario. Sale del panel (es otra shell), por eso no queda
+                    // "activo" dentro del bottom nav del estudio.
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.person_outline_rounded),
+                      label: 'Perfil',
                     ),
                   ]
                 : const [
