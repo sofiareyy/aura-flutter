@@ -87,6 +87,11 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
         );
         return;
       }
+      // set_active_estudio espeja usuarios.rol al del estudio activo. Sin
+      // refrescar, la UI sigue con el rol viejo cacheado (p.ej. abría el panel
+      // de profe al entrar a un estudio donde sos admin).
+      await context.read<AppProvider>().refrescarUsuario();
+      if (!mounted) return;
     }
     if (!mounted) return;
     context.go('/estudio/dashboard');

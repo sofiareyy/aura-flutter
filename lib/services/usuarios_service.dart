@@ -78,44 +78,6 @@ class UsuariosService {
         .eq('id', id);
   }
 
-  Future<bool> descontarCreditos(String userId, int cantidad) async {
-    try {
-      final res = await _supabase.rpc(
-        'consume_user_credits',
-        params: {'p_user_id': userId, 'p_amount': cantidad},
-      );
-      return res == true;
-    } catch (_) {
-      final usuario = await getUsuario(userId);
-      if (usuario == null || usuario.creditos < cantidad) return false;
-
-      await _supabase
-          .from(AppConstants.tableUsuarios)
-          .update({'creditos': usuario.creditos - cantidad}).eq('id', userId);
-      return true;
-    }
-  }
-
-  Future<void> agregarCreditos(String userId, int cantidad) async {
-    try {
-      await _supabase.rpc(
-        'grant_user_credits',
-        params: {
-          'p_user_id': userId,
-          'p_amount': cantidad,
-          'p_source': 'manual',
-        },
-      );
-    } catch (_) {
-      final usuario = await getUsuario(userId);
-      if (usuario == null) return;
-
-      await _supabase
-          .from(AppConstants.tableUsuarios)
-          .update({'creditos': usuario.creditos + cantidad}).eq('id', userId);
-    }
-  }
-
   Map<String, String> _authHeaders() {
     final token = Supabase.instance.client.auth.currentSession?.accessToken;
     if (token == null || token.isEmpty) return const {};

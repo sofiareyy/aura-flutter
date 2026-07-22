@@ -164,13 +164,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
 
       // Canje de gift card por RPC atómico (acredita al ledger, no se puede
-      // canjear dos veces). Falla en silencio: no debe frenar el registro.
+      // canjear dos veces). No frena el registro, pero si falla avisamos: antes
+      // el error quedaba mudo y el usuario no se enteraba de que su regalo no
+      // se acreditó.
       final codigoRaw = _codigoRegaloCtrl.text.trim();
+      var giftError = false;
       if (codigoRaw.isNotEmpty) {
         try {
           await ReferidosService().canjearRegalo(codigoRaw);
-        } catch (_) {
-          // Gift code application failure is non-critical
+        } catch (e) {
+          giftError = true;
+          debugPrint('[register] canjearRegalo falló: $e');
         }
       }
 
@@ -182,13 +186,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
         try {
           await ReferidosService()
               .aplicarCodigo(usuarioId: uidNuevo, codigo: refRaw);
-        } catch (_) {
+        } catch (e) {
           // No frena el registro si el código es inválido/ya usado.
+          debugPrint('[register] aplicarCodigo referido: $e');
         }
       }
 
       await context.read<AppProvider>().refrescarUsuario();
-      if (mounted) context.go('/creditos-onboarding');
+      if (!mounted) return;
+      if (giftError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'No pudimos canjear tu regalo. Probá desde Mis Créditos.'),
+          ),
+        );
+      }
+      context.go('/creditos-onboarding');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

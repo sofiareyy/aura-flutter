@@ -3,15 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/constants/app_constants.dart';
 import '../models/reserva.dart';
 import '../utils/cierre_minutos.dart';
-import 'aura_gestion_service.dart';
 import 'notificaciones_estudio_service.dart';
 import 'notificaciones_service.dart';
-import 'usuarios_service.dart';
 
 class ReservasService {
   final _supabase = Supabase.instance.client;
-  final _usuariosService = UsuariosService();
-  final _gestionService = AuraGestionService();
 
   Future<List<Map<String, dynamic>>> getReservasUsuario([String? userId]) async {
     final effectiveUserId = userId ?? _supabase.auth.currentUser?.id ?? '';
@@ -160,21 +156,9 @@ class ReservasService {
       throw Exception('Esta clase no acepta reservas en este momento.');
     }
 
-    // Verificar si es alumno directo en un estudio modo gestión → reserva gratis
-    final userEmail =
-        _supabase.auth.currentUser?.email ?? '';
-    final esGratuita = userEmail.isNotEmpty
-        ? await _gestionService.reservaEsGratuita(
-            claseId: claseId,
-            userEmail: userEmail,
-          )
-        : false;
-
-    // El descuento de créditos y la decisión de gratuidad pasaron al RPC
-    // `reservar_clase` (D1): desde el cliente eran manipulables. `esGratuita`
-    // se sigue calculando acá solo para el copy de la UI.
-    final creditosReales = esGratuita ? 0 : creditosUsados;
-
+    // El descuento de créditos y la gratuidad (alumno directo de un estudio en
+    // modo gestión) los decide reservar_clase server-side (D1): desde el
+    // cliente eran manipulables.
     try {
       // Reserva atomica via RPC: lockea la fila de clases, valida lugares,
       // inserta y decrementa todo en una transaccion. Elimina la race
@@ -275,13 +259,8 @@ class ReservasService {
 
       return Reserva.fromMap(data);
     } catch (e) {
-      if (!esGratuita && creditosReales > 0) {
-        try {
-          await _usuariosService.agregarCreditos(userId, creditosReales);
-        } catch (_) {
-          // Si falla la devolución, priorizamos no ocultar el error original.
-        }
-      }
+      // El descuento y su rollback viven adentro de reservar_clase (RPC
+      // transaccional). Acá no hay nada que devolver client-side.
       rethrow;
     }
   }

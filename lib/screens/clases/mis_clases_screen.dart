@@ -5791,9 +5791,11 @@ class _PricingPreview extends StatelessWidget {
     );
     WidgetsBinding.instance.addPostFrameCallback((_) => onComputed(pricing.creditos));
 
-    final valorCredito = ValorCredito.deEstudio(estudio);
-    final comisionAura = (estudio!['comision_aura'] as num?)?.toDouble() ?? 30;
-    final precioBruto = pricing.creditos * valorCredito;
+    // Usa Liquidacion para que "vos recibís" coincida con lo que muestra
+    // Cobros/Liquidaciones: respeta valor_credito del estudio, la comisión
+    // configurada y fecha_inicio_cobro (en período de gracia, recibe el 100%).
+    final precioBruto = pricing.creditos * ValorCredito.deEstudio(estudio);
+    final comisionAura = Liquidacion.comision(estudio, esWorkshop: false);
     final estudioRecibe = (precioBruto * (100 - comisionAura) / 100).round();
 
     Color badgeColor;

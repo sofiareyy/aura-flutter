@@ -328,9 +328,11 @@ class _CambiarPlanScreenState extends State<CambiarPlanScreen> {
     setState(() => _loading = true);
     try {
       if (provider.userId.isNotEmpty) {
+        // No se manda 'creditos': no cambia acá, y reenviar el valor cacheado
+        // dispara el trigger usuarios_bloquear_columnas_sensibles si difiere
+        // del real (te acreditaron algo entre medio) → el onboarding se trababa.
         await _usuariosService.updateUsuario(provider.userId, {
           'plan': 'Sin plan',
-          'creditos': provider.usuario?.creditos ?? 0,
           'creditos_vencimiento': null,
         });
         await provider.refrescarUsuario();
