@@ -406,6 +406,16 @@ async function procesarPago(paymentId: string, eventType = 'payment') {
       })
       .eq('id', userId)
 
+    // Primera compra real → activa el referido pendiente si lo hay.
+    // No rompe el pago si falla (el RPC atrapa sus propios errores).
+    const { error: refErr } = await supabase.rpc(
+      'activar_referido_por_compra',
+      { p_user_id: userId },
+    )
+    if (refErr) {
+      console.warn('mp-webhook: activar_referido_por_compra (plan) falló:', refErr.message)
+    }
+
     console.log(`mp-webhook: acreditados ${creditos} créditos plan (${planNombre}) al usuario ${userId}`)
   }
 

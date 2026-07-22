@@ -108,6 +108,15 @@ class _AuraAppState extends State<AuraApp> {
           } catch (e) {
             debugPrint('[authListener] ensureUsuarioCreado falló: $e');
           }
+          // Créditos de bienvenida: el RPC es idempotente y NO hace nada si la
+          // feature está apagada. Con el flag ON, acredita una sola vez.
+          try {
+            final uid = Supabase.instance.client.auth.currentUser?.id;
+            if (uid != null) {
+              await Supabase.instance.client
+                  .rpc('acreditar_bienvenida', params: {'p_user_id': uid});
+            }
+          } catch (_) {}
           // Cargar el usuario en el provider para que esProfe / rol activo
           // (roles múltiples) estén disponibles apenas se entra a un panel.
           if (mounted) {

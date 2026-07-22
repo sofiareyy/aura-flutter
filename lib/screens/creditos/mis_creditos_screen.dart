@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
+import '../../services/referidos_service.dart';
 import '../../services/reservas_service.dart';
 
 class MisCreditosScreen extends StatefulWidget {
@@ -28,6 +29,99 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
       _loadedUserId = userId;
       _loadReservas(userId);
     }
+  }
+
+  /// Diálogo simple para canjear una gift card. El canje es un RPC atómico
+  /// (canjear_regalo): no se puede canjear dos veces y acredita al ledger.
+  Future<void> _abrirCanjeRegalo() async {
+    final ctrl = TextEditingController();
+    var enviando = false;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text('Canjear regalo'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Ingresá el código de tu gift card.',
+                style: TextStyle(color: AppColors.grey, fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                autofocus: true,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  hintText: 'GIFT-XXXXXXXX',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: enviando ? null : () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar',
+                  style: TextStyle(color: AppColors.grey)),
+            ),
+            TextButton(
+              onPressed: enviando
+                  ? null
+                  : () async {
+                      final code = ctrl.text.trim();
+                      if (code.isEmpty) return;
+                      setD(() => enviando = true);
+                      try {
+                        final creditos =
+                            await ReferidosService().canjearRegalo(code);
+                        if (!ctx.mounted) return;
+                        Navigator.of(ctx).pop();
+                        if (mounted) {
+                          await context
+                              .read<AppProvider>()
+                              .refrescarUsuario();
+                          final uid =
+                              context.read<AppProvider>().usuario?.id;
+                          if (uid != null) _loadReservas(uid);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    '🎁 ¡Canjeaste $creditos créditos!'),
+                                backgroundColor: AppColors.success,
+                              ),
+                            );
+                          }
+                        }
+                      } catch (e) {
+                        setD(() => enviando = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text(e
+                                  .toString()
+                                  .replaceFirst('Exception: ', '')),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: const Text('Canjear',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _loadReservas(String userId) async {
@@ -207,6 +301,14 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                       icon: Icons.people_outline_rounded,
                       label: 'Ganar\ncon referidos',
                       onTap: () => context.push('/referidos'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _ActionCard(
+                      icon: Icons.card_giftcard_rounded,
+                      label: 'Canjear\nregalo',
+                      onTap: _abrirCanjeRegalo,
                     ),
                   ),
                 ],

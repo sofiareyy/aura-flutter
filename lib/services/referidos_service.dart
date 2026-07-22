@@ -17,7 +17,11 @@ class ReferidosService {
     return usuarioId.replaceAll('-', '').substring(0, 8).toUpperCase();
   }
 
-  Future<void> aplicarCodigo({
+  /// Aplica un código de referido. Ya NO acredita en el acto: solo vincula.
+  /// Los créditos (15 al referido, 20 al referrer) se acreditan cuando el
+  /// referido hace su primera compra real. Devuelve el mensaje del server
+  /// ("...con tu primera compra") para mostrarlo.
+  Future<String> aplicarCodigo({
     required String usuarioId,
     required String codigo,
   }) async {
@@ -29,13 +33,30 @@ class ReferidosService {
       },
     );
 
-    if (res is Map && res['ok'] == true) return;
-
+    if (res is Map && res['ok'] == true) {
+      return res['mensaje']?.toString() ??
+          'Código aplicado. Vas a recibir tus créditos con tu primera compra.';
+    }
     if (res is Map && res['error'] != null) {
       throw Exception(res['error'].toString());
     }
-
     throw Exception('No se pudo aplicar el código de referido.');
+  }
+
+  /// Canjea una gift card por RPC atómico (no se puede canjear dos veces).
+  /// Devuelve los créditos acreditados. No dispara referido.
+  Future<int> canjearRegalo(String codigo) async {
+    final res = await _client.rpc(
+      'canjear_regalo',
+      params: {'p_codigo': codigo.trim().toUpperCase()},
+    );
+    if (res is Map && res['ok'] == true) {
+      return (res['creditos'] as num?)?.toInt() ?? 0;
+    }
+    throw Exception(
+      (res is Map ? res['error']?.toString() : null) ??
+          'No se pudo canjear el regalo.',
+    );
   }
 
   Future<String?> codigoYaUsado(String usuarioId) async {

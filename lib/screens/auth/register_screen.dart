@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
+import '../../services/referidos_service.dart';
 import '../../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -24,6 +25,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _codigoRegaloCtrl = TextEditingController();
+  final _codigoReferidoCtrl = TextEditingController();
   final _authService = AuthService();
 
   bool _loading = false;
@@ -31,6 +33,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _loadingApple = false;
   bool _obscure = true;
   bool _showCodigoRegalo = false;
+  bool _showCodigoReferido = false;
 
   @override
   void dispose() {
@@ -38,6 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _codigoRegaloCtrl.dispose();
+    _codigoReferidoCtrl.dispose();
     super.dispose();
   }
 
@@ -159,31 +163,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      // Apply gift code if provided
+      // Canje de gift card por RPC atómico (acredita al ledger, no se puede
+      // canjear dos veces). Falla en silencio: no debe frenar el registro.
       final codigoRaw = _codigoRegaloCtrl.text.trim();
       if (codigoRaw.isNotEmpty) {
-        final codigo = codigoRaw.toUpperCase();
         try {
-          final regalo = await Supabase.instance.client
-              .from('regalos')
-              .select()
-              .eq('codigo', codigo)
-              .eq('usado', false)
-              .maybeSingle();
-          if (regalo != null) {
-            final uid = response.user?.id ?? '';
-            if (uid.isNotEmpty) {
-              await Supabase.instance.client.from('usuarios').update({
-                'creditos': (regalo['creditos'] as num).toInt(),
-              }).eq('id', uid);
-              await Supabase.instance.client
-                  .from('regalos')
-                  .update({'usado': true})
-                  .eq('codigo', codigo);
-            }
-          }
+          await ReferidosService().canjearRegalo(codigoRaw);
         } catch (_) {
           // Gift code application failure is non-critical
+        }
+      }
+
+      // Código de referido: solo VINCULA. Los créditos (15 al referido, 20 al
+      // referrer) se acreditan con la primera compra real. Falla en silencio.
+      final refRaw = _codigoReferidoCtrl.text.trim();
+      final uidNuevo = response.user?.id ?? '';
+      if (refRaw.isNotEmpty && uidNuevo.isNotEmpty) {
+        try {
+          await ReferidosService()
+              .aplicarCodigo(usuarioId: uidNuevo, codigo: refRaw);
+        } catch (_) {
+          // No frena el registro si el código es inválido/ya usado.
         }
       }
 
@@ -369,6 +369,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       _DarkField(
                         controller: _codigoRegaloCtrl,
                         hintText: 'GIFT-XXXXXXXX',
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      onTap: () => setState(
+                          () => _showCodigoReferido = !_showCodigoReferido),
+                      child: const Text(
+                        '¿Te invitó una amiga? Código de referido',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (_showCodigoReferido) ...[
+                      const SizedBox(height: 8),
+                      _DarkField(
+                        controller: _codigoReferidoCtrl,
+                        hintText: 'Código de tu amiga',
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Sumás 15 créditos con tu primera compra.',
+                        style: TextStyle(
+                            color: Color(0xFF5F5953), fontSize: 12),
                       ),
                     ],
                     const SizedBox(height: 20),

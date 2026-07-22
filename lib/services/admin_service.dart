@@ -394,6 +394,31 @@ class AdminService {
 
   /// Solo los nombres. `soloActivas` es el default porque los selectores
   /// (estudio y backoffice) no deben ofrecer categorías dadas de baja.
+  /// Estado del flag de créditos de bienvenida: {activa, monto}.
+  Future<Map<String, dynamic>> getBienvenidaConfig() async {
+    final activa = await getConfigGlobal('bienvenida_activa');
+    final monto = await getConfigGlobal('bienvenida_monto');
+    return {
+      'activa': (activa ?? 'false').trim().toLowerCase() == 'true',
+      'monto': int.tryParse((monto ?? '10').trim()) ?? 10,
+    };
+  }
+
+  /// Enciende la bienvenida y acredita a todos los ya registrados.
+  /// Devuelve cuántas se otorgaron.
+  Future<int> encenderBienvenida({int? monto}) async {
+    final res = await _client.rpc(
+      'admin_encender_bienvenida',
+      params: {'p_monto': monto},
+    );
+    final map = res is Map ? Map<String, dynamic>.from(res) : {};
+    return (map['otorgadas'] as num?)?.toInt() ?? 0;
+  }
+
+  Future<void> apagarBienvenida() async {
+    await _client.rpc('admin_apagar_bienvenida');
+  }
+
   Future<List<String>> listStudyCategories({bool soloActivas = true}) async {
     final res = await _client.rpc('admin_list_studio_categories');
     return (res as List)

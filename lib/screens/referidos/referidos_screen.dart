@@ -73,7 +73,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
 
     setState(() => _applying = true);
     try {
-      await _service.aplicarCodigo(
+      final mensaje = await _service.aplicarCodigo(
         usuarioId: appProvider.userId,
         codigo: code,
       );
@@ -81,10 +81,8 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
       if (!mounted) return;
       setState(() => _codigoUsado = code);
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Código aplicado. Se acreditaron 15 créditos para vos y 20 para quien te invitó.',
-          ),
+        SnackBar(
+          content: Text(mensaje),
           backgroundColor: AppColors.success,
         ),
       );
@@ -146,7 +144,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'Quien refiere gana 20 créditos y el nuevo usuario gana 15 al aplicar el código por primera vez.',
+                          'Quien refiere gana 20 créditos y el nuevo usuario gana 15. Se acreditan cuando el referido hace su primera compra (pack o plan).',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white70,

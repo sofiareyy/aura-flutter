@@ -240,26 +240,9 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
             mensaje.trim().isEmpty ? null : mensaje.trim(),
       });
 
-      // Check if recipient has an account
-      final usuario = await Supabase.instance.client
-          .from('usuarios')
-          .select('id, creditos')
-          .eq('email', email.toLowerCase().trim())
-          .maybeSingle();
-
-      if (usuario != null) {
-        final newCreditos =
-            ((usuario['creditos'] as num?)?.toInt() ?? 0) +
-                (pack['creditos'] as num).toInt();
-        await Supabase.instance.client
-            .from('usuarios')
-            .update({'creditos': newCreditos})
-            .eq('id', usuario['id']);
-        await Supabase.instance.client
-            .from('regalos')
-            .update({'usado': true})
-            .eq('codigo', codigo);
-      }
+      // El destinatario canjea el regalo cuando quiera (canjear_regalo), tenga
+      // o no cuenta ya. Antes se auto-acreditaba pisando usuarios.creditos, que
+      // el trigger de D1 bloquea y además saltaba el canje explícito.
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
