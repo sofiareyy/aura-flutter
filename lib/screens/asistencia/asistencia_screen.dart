@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -710,6 +710,9 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
   // ── Debug panel (QR scan diagnostics) ─────────────────────────────────────
 
   Widget _buildDebugQrPanel() {
+    // Solo visible en builds de debug local. En producción NUNCA se muestra:
+    // una dueña de estudio no puede ver un panel de debug sobre el escáner.
+    if (!kDebugMode) return const SizedBox.shrink();
     if (_debugRaw == null && _debugNormalized == null && _debugResult == null) {
       return const SizedBox.shrink();
     }
