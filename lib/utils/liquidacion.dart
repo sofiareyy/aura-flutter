@@ -67,6 +67,21 @@ class Liquidacion {
   ) =>
       reservas.fold<int>(0, (acc, r) => acc + netoReserva(r, estudio));
 
+  /// Pesos que recibiría el estudio por una clase de `creditos` créditos.
+  /// Respeta el período de gracia (`fecha_inicio_cobro`): dentro de la gracia
+  /// Aura no cobra comisión y el estudio recibe el 100%. Sirve para mostrar
+  /// "vos recibís $X" en el form, con la misma fórmula que la liquidación real.
+  static int netoDeCreditos(
+    int creditos,
+    Map<String, dynamic>? estudio, {
+    bool esWorkshop = false,
+  }) {
+    if (creditos <= 0) return 0;
+    final valor = ValorCredito.deEstudio(estudio);
+    final pct = cobraComision(estudio) ? comision(estudio, esWorkshop: esWorkshop) : 0.0;
+    return (creditos * valor * ((100 - pct) / 100)).round();
+  }
+
   // ── Workshops: precio en pesos que el estudio quiere RECIBIR ─────────────
   //
   // El estudio ingresa cuánta plata quiere recibir. El precio al usuario es
