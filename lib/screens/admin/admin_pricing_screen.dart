@@ -44,10 +44,14 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
   String? _error;
 
   String _tipoEstudio = 'fitness'; // 'fitness' | 'experiencia'
+  // Modo de precio del estudio: 'fijo' (un único valor) o 'rango' (pico/valle
+  // por horario). Es lo que decide qué hace la base en calcular_precio_clase.
+  String _modo = 'fijo';
   int _valorCredito = 1000;
   double _comisionAura = 30;
 
-  // fitness: un solo rango por estudio
+  // fijo   -> _minCtrl es el valor único.
+  // rango  -> _minCtrl es el valle y _maxCtrl el pico.
   final _minCtrl = TextEditingController();
   final _maxCtrl = TextEditingController();
   // experiencia: precio fijo (legacy, ya no se muestra)
@@ -85,7 +89,8 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       final row = await _client
           .from('estudios')
           .select(
-              'id, nombre, tipo_estudio, precio_config, horarios_config, comision_workshop, comision_aura')
+              'id, nombre, tipo_estudio, tipo_precio, creditos_min, creditos_max, '
+              'precio_config, horarios_config, comision_workshop, comision_aura')
           .eq('id', widget.estudioId)
           .maybeSingle();
       _valorCredito = await _pricingService.getValorCreditoArs();
@@ -102,13 +107,17 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
           (row['tipo_estudio']?.toString() ?? 'fitness').toLowerCase();
       _comisionAura = (row['comision_aura'] as num?)?.toDouble() ?? 30;
 
-      // precio_config = {"min": 10, "max": 18, "pico_multiplier": 1.0}
+      _modo = (row['tipo_precio']?.toString() ?? 'fijo');
+      if (_modo != 'fijo' && _modo != 'rango') _modo = 'fijo';
+
+      // Fuente de verdad: creditos_min / creditos_max. precio_config quedó
+      // deprecado y solo se lee como fallback para estudios sin migrar.
       final config = row['precio_config'];
-      int? min;
-      int? max;
+      int? min = _asInt(row['creditos_min']);
+      int? max = _asInt(row['creditos_max']);
       if (config is Map) {
-        min = _asInt(config['min']);
-        max = _asInt(config['max']);
+        min ??= _asInt(config['min']);
+        max ??= _asInt(config['max']);
       }
       _minCtrl.text = min?.toString() ?? '';
       _maxCtrl.text = max?.toString() ?? '';
@@ -177,22 +186,26 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       return;
     }
 
-    final Map<String, dynamic> precioConfig;
-    Map<String, dynamic> horariosConfig = {'pico': [], 'valle': []};
+    final min = int.tryParse(_minCtrl.text.trim());
+    if (min == null || min <= 0) {
+      _snack(_modo == 'fijo'
+          ? 'Completá los créditos por clase.'
+          : 'Completá el precio mínimo.');
+      return;
+    }
 
-    {
-      final min = int.tryParse(_minCtrl.text.trim());
-      final max = int.tryParse(_maxCtrl.text.trim());
-      if (min == null || max == null) {
-        _snack('Completá el precio mínimo y máximo.');
+    int? max;
+    Map<String, dynamic>? horariosConfig;
+    if (_modo == 'rango') {
+      max = int.tryParse(_maxCtrl.text.trim());
+      if (max == null) {
+        _snack('Completá el precio máximo.');
         return;
       }
       if (max < min) {
         _snack('El precio máximo no puede ser menor al mínimo.');
         return;
       }
-      precioConfig = {'min': min, 'max': max, 'pico_multiplier': 1.0};
-
       final pico = <Map<String, dynamic>>[];
       final valle = <Map<String, dynamic>>[];
       _clasificacion.forEach((key, tipo) {
@@ -208,24 +221,43 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
 
     setState(() => _saving = true);
     try {
+      // tipo_estudio se puede escribir directo; el modo, los créditos y la
+      // grilla NO (el trigger estudios_bloquear_columnas_aura los protege),
+      // así que van por RPC security definer.
       await _client.from('estudios').update({
         'tipo_estudio': _tipoEstudio,
-        'precio_config': precioConfig,
-        'horarios_config': horariosConfig,
       }).eq('id', widget.estudioId);
 
+      await _client.rpc('admin_set_pricing_estudio', params: {
+        'p_estudio_id': widget.estudioId,
+        'p_tipo_precio': _modo,
+        'p_creditos_min': min,
+        'p_creditos_max': _modo == 'fijo' ? min : max,
+        'p_horarios_config': horariosConfig,
+      });
+
+      // Recalcula TODAS las clases del estudio (pasadas incluidas) para que no
+      // queden precios viejos mezclados.
+      int recalculadas = 0;
       try {
-        await _client.rpc(
-          'aplicar_pricing_a_clases_futuras',
-          params: {'p_estudio_id': widget.estudioId},
+        final res = await _client.rpc(
+          'admin_recalcular_precios_estudio',
+          params: {
+            'p_estudio_id': widget.estudioId,
+            'p_incluir_pasadas': true,
+          },
         );
+        recalculadas = (res as num?)?.toInt() ?? 0;
       } catch (_) {}
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'Configuración guardada. Precios aplicados a clases futuras.'),
+        SnackBar(
+          content: Text(recalculadas > 0
+              ? 'Configuración guardada. $recalculadas clase'
+                  '${recalculadas == 1 ? '' : 's'} actualizada'
+                  '${recalculadas == 1 ? '' : 's'}.'
+              : 'Configuración guardada.'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -266,9 +298,13 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
                       _buildToggleTipo(),
                       const SizedBox(height: 20),
                       if (_tipoEstudio == 'fitness') ...[
+                        _buildToggleModo(),
+                        const SizedBox(height: 20),
                         _buildRangoFitness(),
-                        const SizedBox(height: 24),
-                        _buildHorarios(),
+                        if (_modo == 'rango') ...[
+                          const SizedBox(height: 24),
+                          _buildHorarios(),
+                        ],
                       ] else
                         _buildPrecioExperiencia(),
                       const SizedBox(height: 28),
@@ -355,57 +391,140 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
     );
   }
 
-  Widget _buildRangoFitness() {
+  /// Selector del modo de precio. Es lo que decide si el estudio cobra un
+  /// único valor o si el precio sale del horario (pico/valle).
+  Widget _buildToggleModo() {
+    Widget option(String value, String label) {
+      final selected = _modo == value;
+      return Expanded(
+        child: GestureDetector(
+          onTap: widget.readOnly ? null : () => setState(() => _modo = value),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: selected ? AppColors.primary : AppColors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected ? AppColors.primary : const Color(0xFFEDE7E1),
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppColors.white : AppColors.black,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Rango de precio del estudio',
+          'Modo de precio',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
             color: AppColors.black,
           ),
         ),
-        const SizedBox(height: 6),
-        const Text(
-          'Tu rango negociado en créditos. En horario pico la clase cuesta el '
-          'máximo; en normal, el mínimo; en valle, el mínimo con 10% de '
-          'descuento.',
-          style: TextStyle(color: AppColors.grey, fontSize: 13, height: 1.4),
-        ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(
-              child: TextField(
-                controller: _minCtrl,
-                enabled: !widget.readOnly,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Precio mínimo',
-                  suffixText: 'cr',
-                  isDense: true,
-                  prefixIcon: Icon(Icons.south, color: _valleColor, size: 18),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: _maxCtrl,
-                enabled: !widget.readOnly,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Precio máximo',
-                  suffixText: 'cr',
-                  isDense: true,
-                  prefixIcon: Icon(Icons.bolt, color: _picoColor, size: 18),
-                ),
-              ),
-            ),
+            option('fijo', 'Precio fijo'),
+            const SizedBox(width: 10),
+            option('rango', 'Precio por rango'),
           ],
         ),
+        const SizedBox(height: 6),
+        Text(
+          _modo == 'fijo'
+              ? 'Todas las clases del estudio valen lo mismo, sin importar el '
+                  'día ni la hora.'
+              : 'El precio sale del horario: pico = máximo, valle = mínimo, '
+                  'sin marcar = promedio.',
+          style: const TextStyle(
+              color: AppColors.grey, fontSize: 12, height: 1.35),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRangoFitness() {
+    final esFijo = _modo == 'fijo';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          esFijo ? 'Precio del estudio' : 'Rango de precio del estudio',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: AppColors.black,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          esFijo
+              ? 'Créditos que cuesta cada clase de este estudio. El estudio no '
+                  'lo puede editar.'
+              : 'Rango negociado en créditos. En horario pico la clase cuesta '
+                  'el máximo; en valle, el mínimo; en los horarios sin marcar, '
+                  'el promedio entre los dos.',
+          style: const TextStyle(
+              color: AppColors.grey, fontSize: 13, height: 1.4),
+        ),
+        const SizedBox(height: 14),
+        if (esFijo)
+          TextField(
+            controller: _minCtrl,
+            enabled: !widget.readOnly,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Créditos por clase',
+              suffixText: 'cr',
+              isDense: true,
+              prefixIcon:
+                  Icon(Icons.local_activity_outlined, color: AppColors.primary, size: 18),
+            ),
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _minCtrl,
+                  enabled: !widget.readOnly,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Mínimo (valle)',
+                    suffixText: 'cr',
+                    isDense: true,
+                    prefixIcon: Icon(Icons.south, color: _valleColor, size: 18),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _maxCtrl,
+                  enabled: !widget.readOnly,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Máximo (pico)',
+                    suffixText: 'cr',
+                    isDense: true,
+                    prefixIcon: Icon(Icons.bolt, color: _picoColor, size: 18),
+                  ),
+                ),
+              ),
+            ],
+          ),
         const SizedBox(height: 12),
         _buildPreviewIngreso(),
       ],
@@ -414,10 +533,13 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
 
   Widget _buildPreviewIngreso() {
     final min = int.tryParse(_minCtrl.text.trim());
-    final max = int.tryParse(_maxCtrl.text.trim());
+    // En modo fijo el techo es el mismo valor: no hay rango que mostrar.
+    final max = _modo == 'fijo' ? min : int.tryParse(_maxCtrl.text.trim());
     final String texto;
     if (min == null && max == null) {
-      texto = 'Completá el rango para ver cuánto recibe el estudio por clase.';
+      texto = _modo == 'fijo'
+          ? 'Completá el precio para ver cuánto recibe el estudio por clase.'
+          : 'Completá el rango para ver cuánto recibe el estudio por clase.';
     } else {
       final lo = min ?? max!;
       final hi = max ?? min!;
@@ -471,8 +593,9 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Tocá un bloque para clasificarlo. 1 toque = ⚡ pico, 2 toques = '
-          '🌙 valle, 3 toques = normal. Los bloques sin marcar son normales.',
+          'Tocá un bloque para clasificarlo. 1 toque = ⚡ pico (precio máximo), '
+          '2 toques = 🌙 valle (precio mínimo), 3 toques = sin marcar. Los '
+          'bloques sin marcar cobran el promedio entre mínimo y máximo.',
           style: TextStyle(color: AppColors.grey, fontSize: 13, height: 1.4),
         ),
         const SizedBox(height: 14),

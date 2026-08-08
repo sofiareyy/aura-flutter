@@ -1,25 +1,64 @@
-// Pricing v3: precio por ESTUDIO (no por categoria).
+// Precio por clase: DOS MODOS por estudio. Espejo exacto de
+// `calcular_precio_clase` (migración 20260807120000_precio_dos_modos.sql).
 //
-// fitness:
-//   precio_config   = {"min": 10, "max": 18, "pico_multiplier": 1.0}
-//   horarios_config = {"pico":  [{"dia": 1, "rango": "tarde_noche"}],
-//                      "valle": [{"dia": 2, "rango": "mediodia"}]}
-//   - dia: isodow (1 = lunes ... 7 = domingo)
-//   - rango: nombre del bloque horario en el que cae la hora_inicio.
-//   - clase en pico  -> creditos = round(max * pico_multiplier)
-//   - clase en valle -> creditos = round(min * 0.9)   (incentivo -10%)
-//   - clase normal   -> creditos = min
+// Si tocás las fórmulas de acá, tocá también las de la base o el estudio ve un
+// número y se guarda otro.
 //
-// experiencia:
-//   precio_config = {"min": 50, "max": 50, "pico_multiplier": 1.0}
-//   precio fijo (= min) sin importar dia/hora.
+//   estudios.tipo_precio = 'fijo'  -> todas las clases valen creditos_min.
+//   estudios.tipo_precio = 'rango' -> el precio sale del horario:
+//        franja marcada pico  -> creditos_max
+//        franja marcada valle -> creditos_min
+//        sin marcar (normal)  -> round((min + max) / 2)
+//
+// La grilla vive en estudios.horarios_config:
+//   {"pico": [{"dia": 1, "rango": "tarde_noche"}], "valle": [...]}
+//   dia = isodow (1 = lunes ... 7 = domingo)
+//
+// `precio_config` quedó DEPRECADO: solo se lee como fallback para estudios que
+// todavía no tengan creditos_min/creditos_max cargados.
 
-enum TipoPrecio { pico, normal, valle, experiencia }
+enum TipoPrecio { fijo, pico, valle, normal, experiencia }
 
 class PricingResult {
-  final int creditos;
+  /// null = el estudio no tiene precio configurado todavía.
+  final int? creditos;
   final TipoPrecio tipo;
+
   const PricingResult({required this.creditos, required this.tipo});
+
+  bool get configurado => creditos != null;
+
+  /// Etiqueta que explica de dónde salió el precio, para el campo read-only
+  /// del panel del estudio.
+  String get badge {
+    switch (tipo) {
+      case TipoPrecio.fijo:
+        return 'Precio del estudio';
+      case TipoPrecio.pico:
+        return '⚡ Horario pico';
+      case TipoPrecio.valle:
+        return '🌙 Horario valle';
+      case TipoPrecio.normal:
+        return '🏷️ Horario normal';
+      case TipoPrecio.experiencia:
+        return 'Precio fijo';
+    }
+  }
+
+  /// Aclaración de una línea debajo del campo.
+  String get detalle {
+    switch (tipo) {
+      case TipoPrecio.fijo:
+      case TipoPrecio.experiencia:
+        return 'Todas las clases del estudio valen lo mismo. Lo define Aura.';
+      case TipoPrecio.pico:
+        return 'Este día y horario están marcados como pico.';
+      case TipoPrecio.valle:
+        return 'Este día y horario están marcados como valle.';
+      case TipoPrecio.normal:
+        return 'Horario sin marcar: se cobra el promedio del rango.';
+    }
+  }
 }
 
 /// Bloque horario con nombre. `desde` inclusive, `hasta` exclusivo (en horas).
@@ -33,7 +72,8 @@ class RangoHorario {
 
 /// Rangos que se muestran como chips en el backoffice.
 /// `madrugada` (0-6) existe en [PricingCalculator.rangoDeHora] para clasificar
-/// clases muy temprano, pero no se ofrece como chip seleccionable.
+/// clases muy temprano, pero no se ofrece como chip seleccionable: una clase a
+/// las 5 AM cae siempre en "normal".
 const List<RangoHorario> kRangosHorarios = [
   RangoHorario('manana_temprano', '6 - 9hs', 6, 9),
   RangoHorario('manana', '9 - 12hs', 9, 12),
@@ -43,40 +83,92 @@ const List<RangoHorario> kRangosHorarios = [
   RangoHorario('noche', '21 - 23hs', 21, 24),
 ];
 
+/// Config de precio de un estudio, ya normalizada.
+class PricingConfig {
+  final String modo; // 'fijo' | 'rango'
+  final int? min;
+  final int? max;
+  final bool esExperiencia;
+
+  const PricingConfig({
+    required this.modo,
+    required this.min,
+    required this.max,
+    required this.esExperiencia,
+  });
+
+  bool get configurado => min != null;
+  bool get esRango => modo == 'rango';
+}
+
 class PricingCalculator {
-  /// estudio: row de `estudios` con tipo_estudio, precio_config, horarios_config.
+  /// Lee la config de precio de un row de `estudios`, con fallback a la
+  /// `precio_config` vieja.
+  static PricingConfig configDe(Map<String, dynamic>? estudio) {
+    if (estudio == null) {
+      return const PricingConfig(
+          modo: 'fijo', min: null, max: null, esExperiencia: false);
+    }
+    var modo = estudio['tipo_precio']?.toString() ?? 'fijo';
+    if (modo != 'fijo' && modo != 'rango') modo = 'fijo';
+
+    final config = estudio['precio_config'];
+    int? min = _asInt(estudio['creditos_min']) ?? _readInt(config, 'min');
+    int? max = _asInt(estudio['creditos_max']) ?? _readInt(config, 'max') ?? min;
+    if (min != null && max != null && max < min) max = min;
+
+    final esExperiencia =
+        (estudio['tipo_estudio']?.toString() ?? 'fitness').toLowerCase() ==
+            'experiencia';
+
+    return PricingConfig(
+      modo: modo,
+      min: min,
+      max: max,
+      esExperiencia: esExperiencia,
+    );
+  }
+
+  /// estudio: row de `estudios`.
   /// hora: 'HH:mm' en formato 24h.
   /// dia: isodow (1 = lunes ... 7 = domingo).
-  /// categoria: ignorado en v3 (el precio es por estudio); se mantiene por compat.
+  /// categoria: ignorado (el precio es por estudio); se mantiene por compat.
   static PricingResult calcular({
-    required Map<String, dynamic> estudio,
+    required Map<String, dynamic>? estudio,
     required String hora,
     required int dia,
     String? categoria,
   }) {
-    final tipoStr =
-        (estudio['tipo_estudio']?.toString() ?? 'fitness').toLowerCase();
-    final config = estudio['precio_config'];
-    final min = _readNum(config, 'min') ?? 10;
-    final max = _readNum(config, 'max') ?? min;
-    final mult = _readNum(config, 'pico_multiplier') ?? 1.0;
+    final cfg = configDe(estudio);
+    final min = cfg.min;
+    if (min == null) {
+      return const PricingResult(creditos: null, tipo: TipoPrecio.fijo);
+    }
+    final max = cfg.max ?? min;
 
-    if (tipoStr == 'experiencia') {
-      return PricingResult(creditos: min.round(), tipo: TipoPrecio.experiencia);
+    if (cfg.esExperiencia) {
+      return PricingResult(creditos: min, tipo: TipoPrecio.experiencia);
     }
 
+    // MODO FIJO: un único precio, sin importar el horario.
+    if (!cfg.esRango) {
+      return PricingResult(creditos: min, tipo: TipoPrecio.fijo);
+    }
+
+    // MODO RANGO: el precio sale de la franja horaria.
     final rango = rangoDeHora(hora);
-    final horarios = estudio['horarios_config'];
-    final esPico = _coincide(horarios, 'pico', dia, rango);
-    final esValle = !esPico && _coincide(horarios, 'valle', dia, rango);
-
-    if (esPico) {
-      return PricingResult(creditos: (max * mult).round(), tipo: TipoPrecio.pico);
+    final horarios = estudio?['horarios_config'];
+    if (_coincide(horarios, 'pico', dia, rango)) {
+      return PricingResult(creditos: max, tipo: TipoPrecio.pico);
     }
-    if (esValle) {
-      return PricingResult(creditos: (min * 0.9).round(), tipo: TipoPrecio.valle);
+    if (_coincide(horarios, 'valle', dia, rango)) {
+      return PricingResult(creditos: min, tipo: TipoPrecio.valle);
     }
-    return PricingResult(creditos: min.round(), tipo: TipoPrecio.normal);
+    // Sin marcar — incluye el caso "modo rango sin grilla cargada todavía".
+    return PricingResult(
+      creditos: ((min + max) / 2).round(),
+      tipo: TipoPrecio.normal,
+    );
   }
 
   /// Devuelve el `key` del rango horario en el que cae [hora] ('HH:mm').
@@ -92,30 +184,28 @@ class PricingCalculator {
   }
 
   /// Busca en horarios_config[key] una entrada que matchee (dia, rango).
-  static bool _coincide(
-      dynamic horarios, String key, int dia, String rango) {
+  static bool _coincide(dynamic horarios, String key, int dia, String rango) {
     if (horarios is! Map) return false;
     final arr = horarios[key];
     if (arr is! List) return false;
     for (final e in arr) {
       if (e is! Map) continue;
-      final d = (e['dia'] is num)
-          ? (e['dia'] as num).toInt()
-          : int.tryParse('${e['dia']}');
+      final d = _asInt(e['dia']);
       if (d == dia && e['rango']?.toString() == rango) return true;
     }
     return false;
   }
 
-  static double? _readNum(dynamic m, String key) {
+  static int? _readInt(dynamic m, String key) {
     if (m is! Map) return null;
-    final v = m[key];
-    if (v is num) return v.toDouble();
-    if (v is String) {
-      final s = v.trim();
-      if (s.isEmpty) return null;
-      return double.tryParse(s);
-    }
-    return null;
+    return _asInt(m[key]);
+  }
+
+  static int? _asInt(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toInt();
+    final s = v.toString().trim();
+    if (s.isEmpty) return null;
+    return int.tryParse(s) ?? double.tryParse(s)?.round();
   }
 }

@@ -441,9 +441,10 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                   // ── SECCIÓN 5 — PRECIO POR CLASE ────────────────────────
                   const _FormSectionHeader('PRECIO POR CLASE'),
                   const Text(
-                    'Cómo se cobran las clases del estudio. En modo fijo el '
-                    'estudio solo ve el valor; en modo rango elige dentro del '
-                    'rango que definís acá.',
+                    'Cómo se cobran las clases del estudio. El estudio nunca '
+                    'edita los créditos: en modo fijo todas las clases valen '
+                    'el mismo valor; en modo rango el precio sale del horario '
+                    '(pico = máximo, valle = mínimo, sin marcar = promedio).',
                     style: TextStyle(
                       color: AppColors.grey,
                       fontSize: 12,
@@ -526,6 +527,32 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                         ),
                       ],
                     ),
+                  if (tipoPrecio == 'rango' && estudio?['id'] != null) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        // Se abre encima del diálogo para no perder lo que
+                        // haya tipeado acá.
+                        onPressed: () => _abrirPricing(estudio!),
+                        icon: const Icon(Icons.grid_view_rounded, size: 18),
+                        label: const Text('Marcar horarios pico y valle'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ),
+                    const Text(
+                      'Sin horarios marcados, todas las clases cobran el '
+                      'promedio entre mínimo y máximo.',
+                      style: TextStyle(
+                        color: AppColors.grey,
+                        fontSize: 11,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 20),
 
                   // ── SECCIÓN 6 — ESTADO ──────────────────────────────────
@@ -596,17 +623,15 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
         nuevoMin != origMin ||
         nuevoMax != origMax;
     if (estudioId != null && precioCambio && nuevoMin != null) {
-      await _ofrecerActualizarClasesFuturas(estudioId, nuevoMin);
+      await _ofrecerActualizarClasesFuturas(estudioId);
     }
 
     await _load();
   }
 
-  /// Pregunta si propagar el nuevo precio a las clases futuras del estudio.
-  Future<void> _ofrecerActualizarClasesFuturas(
-    int estudioId,
-    int creditos,
-  ) async {
+  /// Pregunta si propagar el nuevo precio a las clases del estudio. El precio
+  /// no se pasa: lo recalcula la base según el modo (fijo o rango pico/valle).
+  Future<void> _ofrecerActualizarClasesFuturas(int estudioId) async {
     int cantidad;
     try {
       cantidad = await _service.contarClasesFuturas(estudioId);
@@ -618,10 +643,11 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     final actualizar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Actualizar clases futuras'),
+        title: const Text('Actualizar clases con el nuevo precio'),
         content: Text(
-          '¿Actualizar también las $cantidad clase${cantidad == 1 ? '' : 's'} '
-          'futura${cantidad == 1 ? '' : 's'} con el nuevo precio?',
+          'Hay $cantidad clase${cantidad == 1 ? '' : 's'} '
+          'futura${cantidad == 1 ? '' : 's'}. ¿Recalcular los créditos de las '
+          'clases del estudio con esta configuración?',
         ),
         actions: [
           TextButton(
@@ -643,9 +669,8 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     if (actualizar != true) return;
 
     try {
-      final n = await _service.actualizarPrecioClasesFuturas(
+      final n = await _service.recalcularPreciosEstudio(
         estudioId: estudioId,
-        creditos: creditos,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

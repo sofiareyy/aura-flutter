@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../services/valor_credito.dart';
 import '../../utils/liquidacion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
@@ -56,6 +55,19 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   bool _seleccionMultiple = false;
   final Set<int> _seleccionadas = {};
   bool _cancelandoLote = false;
+  /// Ventana de días que se muestra en "Próximas". null = todo lo cargado.
+  /// La grilla publica ~3 meses, así que sin esto la lista es inmanejable,
+  /// pero acotarla por defecto era lo que hacía "desaparecer" clases.
+  int? _rangoDias = 30;
+
+  // ── Historial (solapa "Pasadas") ──────────────────────────────────────────
+  // Las clases pasadas NO se borran ni se archivan con un flag: se filtran por
+  // fecha. Pero la carga principal solo trae 30 días para atrás, así que el
+  // historial se pide aparte, mes a mes y bajo demanda. Así el estudio llega a
+  // cualquier mes sin traerse años de datos a memoria.
+  DateTime _mesHistorial = DateTime(DateTime.now().year, DateTime.now().month);
+  List<Map<String, dynamic>> _clasesHistorial = [];
+  bool _cargandoHistorial = false;
   Map<String, dynamic>? _estudio;
   String? _error;
   String? _estudioNombre;
@@ -84,43 +96,42 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       _miNombre.isNotEmpty &&
       _normNombre(instructor) == _normNombre(_miNombre);
 
-  /// Config de precio del estudio para el form de clase. `modo` es 'fijo' o
-  /// 'rango'. Cae al min/max de precio_config si las columnas nuevas son null.
-  ({String modo, int min, int max}) _studioPricing() {
-    final e = _estudio;
-    var modo = e?['tipo_precio']?.toString() ?? 'rango';
-    if (modo != 'fijo' && modo != 'rango') modo = 'rango';
-    int? cfgMin, cfgMax;
-    final config = e?['precio_config'];
-    if (config is Map) {
-      cfgMin = (config['min'] as num?)?.toInt() ??
-          int.tryParse('${config['min']}');
-      cfgMax = (config['max'] as num?)?.toInt() ??
-          int.tryParse('${config['max']}');
-    }
-    final min = (e?['creditos_min'] as num?)?.toInt() ?? cfgMin ?? 10;
-    var max = (e?['creditos_max'] as num?)?.toInt() ?? cfgMax ?? min;
-    if (max < min) max = min;
-    return (modo: modo, min: min, max: max);
-  }
+  /// 'HH:mm' para pasarle la hora a [PricingCalculator].
+  static String _hhmm(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  /// Precio calculado para un día (isodow) y hora concretos, según la config
+  /// del estudio. El estudio NO elige este número: lo define Aura desde el
+  /// backoffice (modo fijo o rango con grilla pico/valle).
+  PricingResult _precioDe(int dia, TimeOfDay hora) =>
+      PricingCalculator.calcular(
+        estudio: _estudio,
+        hora: _hhmm(hora),
+        dia: dia,
+      );
 
   /// Créditos finales a guardar.
   ///
   ///  - workshop: el controller trae PESOS que el estudio quiere recibir; los
   ///    créditos los deriva Aura. Ver [creditosDeWorkshop].
-  ///  - fijo: el valor único del estudio, se ignora lo tipeado.
-  ///  - rango: lo que puso el estudio, clampeado a [min, max].
+  ///  - clase normal: los fija la config del estudio según el horario. Si el
+  ///    estudio todavía no tiene precio configurado caemos a lo que haya en el
+  ///    controller (valor guardado o el default), para no dejar la clase en 0.
+  ///
+  /// La base vuelve a fijar el precio igual con `trg_clases_fija_precio`; esto
+  /// es solo para que el payload viaje coherente y la UI no parpadee.
   int _creditosFinal(
     TextEditingController ctrl,
-    String tipo,
-    ({String modo, int min, int max}) pricing,
-  ) {
+    String tipo, {
+    required int dia,
+    required TimeOfDay hora,
+  }) {
     if (tipo == 'workshop') {
       return Liquidacion.creditosDeWorkshop(_montoWorkshop(ctrl), _estudio);
     }
-    final parsed = int.tryParse(ctrl.text.trim());
-    if (pricing.modo == 'fijo') return pricing.min;
-    return (parsed ?? pricing.min).clamp(pricing.min, pricing.max);
+    final calculado = _precioDe(dia, hora).creditos;
+    if (calculado != null) return calculado;
+    return int.tryParse(ctrl.text.trim()) ?? 10;
   }
 
   /// Pesos tipeados en el campo de workshop, tolerando puntos y comas de miles.
@@ -143,6 +154,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           _gridView = grid;
           _showPast = past;
         });
+        // Si la preferencia guardada abre directo en el historial, hay que
+        // pedirlo: la carga principal solo trae 30 días para atrás.
+        if (past) _cargarHistorial(_mesHistorial);
       }
     } catch (_) {}
   }
@@ -221,7 +235,14 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   ///
   /// `_studio` se sigue usando para decidir qué datos cargar y cómo
   /// mostrarlos: la profe sí tiene que ver las clases del estudio.
+  /// Acciones exclusivas de admin/dueña: borrar clases, workshops, grillas,
+  /// avisos, datos bancarios, gestión de accesos, precio libre.
   bool get _puedeEditar => _studio && !_esProfe;
+
+  /// Opción A: crear y editar clases individuales. Lo puede hacer cualquiera
+  /// del panel del estudio, incluida la profe. El backend (RLS + trigger)
+  /// impide igual que la profe borre o cree workshops.
+  bool get _puedeGestionarClases => _studio;
 
   /// Configuración acotada para la profe: hoy solo expone "Salir del estudio".
   Future<void> _mostrarConfiguracionProfe() async {
@@ -415,6 +436,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _ClaseDetalleSheet(
         clase: clase,
+        puedeEditar: _puedeEditar,
         onEdit: () async {
           Navigator.pop(context);
           await _editClaseDialog(clase);
@@ -423,10 +445,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           Navigator.pop(context);
           await _confirmarCancelacion(clase);
         },
-        onAvisar: () async {
-          Navigator.pop(context);
-          await _mostrarAvisoSheet(clase);
-        },
+        onAvisar: _puedeEditar
+            ? () async {
+                Navigator.pop(context);
+                await _mostrarAvisoSheet(clase);
+              }
+            : null,
       ),
     );
   }
@@ -437,7 +461,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   /// nadie lo buscaba. Ahora vive al lado de "nueva clase", que es el lugar
   /// al que el estudio va cuando quiere hacer algo.
   Future<void> _abrirMenuCrear() async {
-    if (!_puedeEditar) return;
+    if (!_puedeGestionarClases) return;
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.white,
@@ -466,22 +490,34 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                 _openForm();
               },
             ),
-            _OpcionTile(
-              icon: Icons.grid_view_rounded,
-              label: 'Crear grilla',
-              onTap: () {
-                Navigator.pop(ctx);
-                _openGridForm();
-              },
-            ),
-            _OpcionTile(
-              icon: Icons.campaign_outlined,
-              label: 'Mandar aviso',
-              onTap: () {
-                Navigator.pop(ctx);
-                _abrirFlujoAviso();
-              },
-            ),
+            // Workshops, grillas y avisos son solo de admin/dueña. La profe
+            // (Opción A) solo carga clases individuales.
+            if (_puedeEditar) ...[
+              _OpcionTile(
+                icon: Icons.celebration_outlined,
+                label: 'Nuevo workshop / experiencia',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openForm(null, 'workshop');
+                },
+              ),
+              _OpcionTile(
+                icon: Icons.grid_view_rounded,
+                label: 'Crear grilla',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openGridForm();
+                },
+              ),
+              _OpcionTile(
+                icon: Icons.campaign_outlined,
+                label: 'Mandar aviso',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _abrirFlujoAviso();
+                },
+              ),
+            ],
             const SizedBox(height: 10),
           ],
         ),
@@ -559,10 +595,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
   Future<void> _editClaseDialog(Map<String, dynamic> clase) async {
-    // Guarda de permiso: la profe no crea, edita, borra ni avisa.
-    // Va acá y no solo en la UI para cubrir cualquier camino de
-    // navegación que no haya quedado gateado.
-    if (!_puedeEditar) return;
+    // Opción A: editar clase individual lo puede hacer la profe. El borrado y
+    // los workshops quedan bloqueados por el backend.
+    if (!_puedeGestionarClases) return;
     final claseId = (clase['id'] as num?)?.toInt();
     if (claseId == null) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -587,8 +622,6 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final cupos = TextEditingController(text: ((clase['lugares_total'] as num?)?.toInt() ?? 12).toString());
     final cred = TextEditingController(text: ((clase['creditos'] as num?)?.toInt() ?? 10).toString());
     final tipoClase = clase['tipo']?.toString() ?? 'clase';
-    // Precio del estudio (fijo/rango) para el campo créditos.
-    final pricing = _studioPricing();
     if (tipoClase == 'workshop') {
       // El campo de workshop se edita en PESOS, no en créditos: convertimos
       // el precio guardado de vuelta al monto que recibe el estudio.
@@ -596,16 +629,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           Liquidacion.montoEstudioDeWorkshop(
               (clase['creditos'] as num?)?.toInt() ?? 0, _estudio)
               .toString();
-    } else {
-      final actual = int.tryParse(cred.text.trim());
-      if (pricing.modo == 'fijo') {
-        cred.text = pricing.min.toString();
-      } else if (actual != null) {
-        cred.text = actual.clamp(pricing.min, pricing.max).toString();
-      } else {
-        cred.text = pricing.min.toString();
-      }
     }
+    // Las clases normales ya no precargan el campo: el precio lo calcula
+    // _PrecioCalculadoField a partir de la fecha/hora elegida.
     // null = hereda el default del estudio (no forzamos 0).
     int? cierreReserva = (clase['reserva_cierre_minutos'] as num?)?.toInt();
     // Una clase puede tener varias categorías (máx 5). Son etiquetas
@@ -788,7 +814,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: const Text(
-                                    'Primero creá categorías desde Admin Aura > Config.',
+                                    'Todavía no hay categorías disponibles. Escribinos y las '
+                                    'configuramos para tu estudio.',
                                     style: TextStyle(
                                         color: AppColors.primary,
                                         fontSize: 13),
@@ -820,11 +847,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   onChanged: () => setD(() {}),
                                 )
                               else
-                                _StudioCreditsField(
-                                  modo: pricing.modo,
-                                  min: pricing.min,
-                                  max: pricing.max,
-                                  controller: cred,
+                                _PrecioCalculadoField(
+                                  estudio: _estudio,
+                                  dia: fechaSel.weekday,
+                                  hora: horaSel,
                                 ),
                             ],
                           ),
@@ -846,7 +872,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               const SizedBox(height: 12),
                               _AuraTextField(
                                 controller: incluye,
-                                label: 'Qué incluye la clase',
+                                label: 'Descripción de la clase',
                                 hint: 'Mat, agua, vestuario',
                                 maxLines: 2,
                               ),
@@ -962,7 +988,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         // que el flujo de reservar la rechace (sino quedaba el viejo valor
         // de disponibles y la clase aparecia reservable).
         if (lugaresTotal == 0) 'lugares_disponibles': 0,
-        'creditos': _creditosFinal(cred, tipoClase, pricing),
+        'creditos': _creditosFinal(cred, tipoClase,
+            dia: fechaSel.weekday, hora: horaSel),
         // Solo incluir categoria si tiene valor — evita pisar con null si la
         // columna tiene constraint NOT NULL o si el dropdown quedo vacio.
         'categorias': cats,
@@ -1146,10 +1173,14 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     try {
       final now = DateTime.now().toUtc().subtract(const Duration(hours: 3));
       final results = await Future.wait([
+        // La grilla genera kGrillaSemanas semanas hacia adelante. Antes acá
+        // pedíamos 14 días con tope de 200 filas, así que ~7 semanas de clases
+        // existían pero eran invisibles en el panel. Traemos el rango completo
+        // (+1 semana de margen) y 30 días para atrás para la solapa "Pasadas".
         _service.getClasesDeEstudio(
-          from: now.subtract(const Duration(days: 1)),
-          to: now.add(const Duration(days: 14)),
-          limit: 200,
+          from: now.subtract(const Duration(days: 30)),
+          to: now.add(const Duration(days: (kGrillaSemanas + 1) * 7)),
+          limit: 3000,
         ),
         _service.getHorariosFijosDeEstudio(),
         _adminService.listStudyCategories(),
@@ -1194,6 +1225,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         _tablaOk = true;
         _error = null;
       });
+      // El historial vive en su propia lista (se pide por mes), así que un
+      // refresco general no lo actualiza solo. Si el estudio está parado ahí
+      // —por ejemplo, después de borrar clases— lo volvemos a pedir.
+      if (_showPast) await _cargarHistorial(_mesHistorial);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -1205,11 +1240,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
 
-  Future<void> _openForm([Map<String, dynamic>? item]) async {
-    // Guarda de permiso: la profe no crea, edita, borra ni avisa.
-    // Va acá y no solo en la UI para cubrir cualquier camino de
-    // navegación que no haya quedado gateado.
-    if (!_puedeEditar) return;
+  Future<void> _openForm(
+      [Map<String, dynamic>? item, String? initialTipo]) async {
+    // Opción A: crear/editar clase individual lo puede hacer la profe también.
+    // Borrar / workshops los frena el backend (RLS + trigger).
+    if (!_puedeGestionarClases) return;
     final edit = item != null;
     final messenger = ScaffoldMessenger.of(context);
     final categoriasDisponibles = await _loadCategoriasDisponibles(
@@ -1255,26 +1290,19 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         : _parseCategorias(item);
     // Tipo de clase: 'clase' normal o 'workshop' (evento). Solo elegible al
     // crear una clase individual (no en horarios fijos ni edición).
-    String tipo = item?['tipo']?.toString() ?? 'clase';
-    // Precio del estudio (fijo/rango). Precarga el campo créditos de clases
-    // normales: fijo -> valor único; rango -> precargado con el mínimo (o el
-    // valor guardado, clampeado al rango si es edición).
-    final pricing = _studioPricing();
+    String tipo = item?['tipo']?.toString() ?? initialTipo ?? 'clase';
     if (tipo == 'workshop') {
       cr.text =
           Liquidacion.montoEstudioDeWorkshop(
               (item?['creditos'] as num?)?.toInt() ?? 0, _estudio)
               .toString();
-    } else {
-      final actual = int.tryParse(cr.text.trim());
-      if (pricing.modo == 'fijo') {
-        cr.text = pricing.min.toString();
-      } else if (edit && actual != null) {
-        cr.text = actual.clamp(pricing.min, pricing.max).toString();
-      } else {
-        cr.text = pricing.min.toString();
-      }
     }
+    // Las clases normales no precargan el campo: el precio lo calcula
+    // _PrecioCalculadoField según el día y la hora elegidos.
+    //
+    // Editando un horario fijo el día es `d`; creando una clase individual
+    // sale de la fecha concreta del evento.
+    int diaPrecio() => edit ? d : fecha.weekday;
     // Organizadores del workshop: filas de {nombre, instagram}.
     final orgNombreCtrls = <TextEditingController>[];
     final orgInstaCtrls = <TextEditingController>[];
@@ -1414,9 +1442,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   // comisión: la maneja Aura desde el
                                   // backoffice y el estudio solo carga precio.
                                   const Text(
-                                    'Ponés el precio en créditos que quieras, '
-                                    'sin restricción. Va a aparecer en la '
-                                    'sección Experiencias, no entre las clases.',
+                                    'Ponés en pesos cuánto querés recibir por el '
+                                    'workshop, sin restricción. Va a aparecer en '
+                                    'la sección Experiencias, no entre las clases.',
                                     style: TextStyle(
                                       color: AppColors.grey,
                                       fontSize: 12,
@@ -1550,7 +1578,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: const Text(
-                                    'Primero creá categorías desde Admin Aura > Config.',
+                                    'Todavía no hay categorías disponibles. Escribinos y las '
+                                    'configuramos para tu estudio.',
                                     style: TextStyle(
                                         color: AppColors.primary,
                                         fontSize: 13),
@@ -1582,11 +1611,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   onChanged: () => setD(() {}),
                                 )
                               else
-                                _StudioCreditsField(
-                                  modo: pricing.modo,
-                                  min: pricing.min,
-                                  max: pricing.max,
-                                  controller: cr,
+                                _PrecioCalculadoField(
+                                  estudio: _estudio,
+                                  dia: diaPrecio(),
+                                  hora: t,
                                 ),
                             ],
                           ),
@@ -1765,7 +1793,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               const SizedBox(height: 12),
                               _AuraTextField(
                                 controller: incluye,
-                                label: 'Qué incluye la clase',
+                                label: 'Descripción de la clase',
                                 hint: 'Mat, agua, vestuario',
                                 maxLines: 2,
                               ),
@@ -1887,7 +1915,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       'hora_inicio': '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
       'duracion_min': dur,
       'lugares_total': int.tryParse(c.text.trim()) ?? 12,
-      'creditos': _creditosFinal(cr, tipo, pricing),
+      'creditos': _creditosFinal(cr, tipo, dia: diaPrecio(), hora: t),
       'reserva_cierre_minutos': cierreReserva,
       'instructor': i.text.trim().isEmpty ? null : i.text.trim(),
       'instructor_descripcion':
@@ -1975,9 +2003,6 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final s = TextEditingController();
     final c = TextEditingController(text: '12');
     final cr = TextEditingController(text: '10');
-    // Precio del estudio (fijo/rango): precarga los créditos de la grilla.
-    final pricing = _studioPricing();
-    cr.text = pricing.min.toString();
     int? cierreReserva; // null = hereda el default del estudio.
     int dur = 60;
     final cats = <String>[];
@@ -2237,7 +2262,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                         BorderRadius.circular(12),
                                   ),
                                   child: const Text(
-                                    'Primero creá categorías desde Admin Aura > Config.',
+                                    'Todavía no hay categorías disponibles. Escribinos y las '
+                                    'configuramos para tu estudio.',
                                     style: TextStyle(
                                         color: AppColors.primary,
                                         fontSize: 13),
@@ -2262,11 +2288,17 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   }),
                                 ),
                               const SizedBox(height: 12),
-                              _StudioCreditsField(
-                                modo: pricing.modo,
-                                min: pricing.min,
-                                max: pricing.max,
-                                controller: cr,
+                              // La grilla genera clases en varios días y
+                              // horarios: en modo rango cada una toma el precio
+                              // de su propia franja, así que mostramos la regla
+                              // en vez de un número único.
+                              _PrecioCalculadoField(
+                                estudio: _estudio,
+                                dia: diasSeleccionados.isEmpty
+                                    ? 1
+                                    : (diasSeleccionados.toList()..sort()).first,
+                                hora: horaInicio,
+                                porHorario: true,
                               ),
                             ],
                           ),
@@ -2288,7 +2320,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               const SizedBox(height: 12),
                               _AuraTextField(
                                 controller: incluye,
-                                label: 'Qué incluye la clase',
+                                label: 'Descripción de la clase',
                                 hint: 'Mat, agua, vestuario',
                                 maxLines: 2,
                               ),
@@ -2418,7 +2450,17 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final payloadBase = {
       'nombre': n.text.trim(),
       'lugares_total': int.tryParse(c.text.trim()) ?? 12,
-      'creditos': _creditosFinal(cr, 'clase', pricing),
+      // Valor de arranque nomás: cada horario fijo que genera la grilla cae en
+      // un día y una franja distintos, y el trigger trg_horarios_fijos_fija_precio
+      // le pone a cada uno el precio que le corresponde.
+      'creditos': _creditosFinal(
+        cr,
+        'clase',
+        dia: diasSeleccionados.isEmpty
+            ? 1
+            : (diasSeleccionados.toList()..sort()).first,
+        hora: horaInicio,
+      ),
       'reserva_cierre_minutos': cierreReserva,
       'instructor': i.text.trim().isEmpty ? null : i.text.trim(),
       'instructor_descripcion':
@@ -2431,6 +2473,28 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       'activo': true,
       'categorias': cats,
     };
+
+    // Resumen ANTES de crear nada. Una grilla de 5 días x 6 franjas publica
+    // 270 clases de una: el estudio tiene que ver el número antes, no
+    // enterarse después por el snackbar.
+    final confirmado = await _confirmarGeneracionGrilla(
+      diasSemana: diasSeleccionados.toList(),
+      horaInicio: horaInicio,
+      horaFin: horaFin,
+      duracionMin: dur,
+    );
+    if (confirmado != true || !mounted) {
+      n.dispose();
+      i.dispose();
+      iDesc.dispose();
+      incluye.dispose();
+      imagenUrl.dispose();
+      galeria.dispose();
+      s.dispose();
+      c.dispose();
+      cr.dispose();
+      return;
+    }
 
     try {
       final creados = await _service.crearHorariosFijosEnGrilla(
@@ -2477,6 +2541,119 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     }
   }
 
+  /// Resumen previo a crear una grilla: cuántas clases va a publicar y en qué
+  /// rango de fechas. Replica el cálculo de `crearHorariosFijosEnGrilla`
+  /// (franjas de `duracionMin` entre inicio y fin, por cada día elegido) y lo
+  /// multiplica por las semanas que publica `generarProximasSemanasDesdeHorarios`.
+  ///
+  /// El número es un techo: la generación saltea las clases que ya existen.
+  Future<bool?> _confirmarGeneracionGrilla({
+    required List<int> diasSemana,
+    required TimeOfDay horaInicio,
+    required TimeOfDay horaFin,
+    required int duracionMin,
+  }) async {
+    final dias = diasSemana.toSet().where((d) => d >= 1 && d <= 7).toList()
+      ..sort();
+    final inicio = horaInicio.hour * 60 + horaInicio.minute;
+    final fin = horaFin.hour * 60 + horaFin.minute;
+
+    if (dias.isEmpty) {
+      _snack('Elegí al menos un día.');
+      return false;
+    }
+    if (duracionMin <= 0) {
+      _snack('La duración tiene que ser mayor a 0.');
+      return false;
+    }
+    if (fin <= inicio) {
+      _snack('La hora de fin tiene que ser posterior a la de inicio.');
+      return false;
+    }
+
+    // Franjas por día: mismo bucle que usa el servicio.
+    var franjasPorDia = 0;
+    for (var t = inicio; t + duracionMin <= fin; t += duracionMin) {
+      franjasPorDia++;
+    }
+    if (franjasPorDia == 0) {
+      _snack('Con esa duración no entra ninguna clase en el rango horario.');
+      return false;
+    }
+
+    final horarios = franjasPorDia * dias.length;
+    final totalClases = horarios * kGrillaSemanas;
+
+    final desde = _ahoraAr();
+    final hasta = desde.add(const Duration(days: kGrillaSemanas * 7));
+    final f = DateFormat("d 'de' MMMM", 'es');
+    final nombresDias = dias.map(_dayName).join(', ');
+
+    if (!mounted) return false;
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Revisá antes de generar'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Vas a generar $totalClases clase${totalClases != 1 ? 's' : ''}.',
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: AppColors.black,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _FilaResumenGrilla(
+              icono: Icons.calendar_today_outlined,
+              texto: 'Desde el ${f.format(desde)} hasta el ${f.format(hasta)}',
+            ),
+            _FilaResumenGrilla(
+              icono: Icons.event_repeat_rounded,
+              texto: nombresDias,
+            ),
+            _FilaResumenGrilla(
+              icono: Icons.schedule_rounded,
+              texto: '$franjasPorDia clase${franjasPorDia != 1 ? 's' : ''} por '
+                  'día de ${_durLabel(duracionMin)}, '
+                  'entre ${_hhmm(horaInicio)} y ${_hhmm(horaFin)}',
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Si ya había clases en esos horarios no se duplican, así que el '
+              'número final puede ser menor.',
+              style: TextStyle(
+                  color: AppColors.grey, fontSize: 12, height: 1.35),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            style: TextButton.styleFrom(foregroundColor: AppColors.grey),
+            child: const Text('Volver'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.white,
+            ),
+            child: Text('Generar $totalClases'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   void _sortFixed() {
     _horarios.sort((a, b) {
       final da = (a['dia_semana'] as num?)?.toInt() ?? 1;
@@ -2486,13 +2663,77 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     });
   }
 
+  /// Borra un horario fijo Y las clases que generó.
+  ///
+  /// Antes esto solo borraba la fila de `horarios_fijos`: las clases ya
+  /// publicadas quedaban dando vueltas sin horario padre, imposibles de sacar
+  /// salvo una por una. Ahora se limpian juntas, devolviendo créditos.
   Future<void> _deleteFixed(int id) async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    List<Map<String, dynamic>> futuras = const [];
     try {
+      futuras = await _service.listarClasesFuturasDeHorario(id);
+    } catch (_) {}
+    if (!mounted) return;
+
+    final ids = futuras
+        .map((c) => (c['id'] as num?)?.toInt())
+        .whereType<int>()
+        .toList();
+    final alumnos = ids.isEmpty
+        ? 0
+        : await _avisoService.contarAlumnosDeClases(ids);
+    if (!mounted) return;
+
+    final ok = await _confirmDialog(
+      titulo: '¿Eliminar este horario?',
+      mensaje: [
+        if (ids.isEmpty)
+          'No tiene clases futuras publicadas.'
+        else
+          'Se eliminan también sus ${ids.length} clase'
+              '${ids.length != 1 ? 's' : ''} futura'
+              '${ids.length != 1 ? 's' : ''}.',
+        if (alumnos > 0)
+          'Ojo: hay $alumnos alumno${alumnos != 1 ? 's' : ''} con reserva. '
+              'Se les devuelven los créditos automáticamente, pero se quedan '
+              'sin la clase.',
+      ].join('\n\n'),
+      confirmar: 'Sí, eliminar',
+    );
+    if (ok != true || !mounted) return;
+
+    int devueltos = 0;
+    try {
+      for (final c in futuras) {
+        final cid = (c['id'] as num?)?.toInt();
+        if (cid == null) continue;
+        final nom = c['nombre']?.toString() ?? 'la clase';
+        try {
+          devueltos += await _reservasService.cancelarClaseConDevolucion(cid, nom);
+        } catch (_) {}
+        try {
+          await _service.eliminarClaseRow(cid);
+        } catch (_) {}
+      }
       await _service.eliminarHorarioFijo(id);
+      await _loadStudio();
       if (!mounted) return;
-      setState(() => _horarios.removeWhere((h) => (h['id'] as num?)?.toInt() == id));
-    } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo eliminar el horario.')));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Horario eliminado'
+            '${ids.isNotEmpty ? ' junto con ${ids.length} clase${ids.length != 1 ? 's' : ''}' : ''}'
+            '${devueltos > 0 ? '. Devolvimos créditos a $devueltos alumno${devueltos != 1 ? 's' : ''}' : ''}.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudo eliminar el horario: $e')),
+      );
     }
   }
 
@@ -2564,18 +2805,19 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
               ),
             ),
             const Spacer(),
-            if (_puedeEditar) ...[
-              IconButton(
-                onPressed: _openGridForm,
-                icon: const Icon(Icons.grid_view_rounded),
-                color: AppColors.primary,
-                tooltip: 'Crear grilla',
-              ),
+            if (_puedeGestionarClases) ...[
+              if (_puedeEditar)
+                IconButton(
+                  onPressed: _openGridForm,
+                  icon: const Icon(Icons.grid_view_rounded),
+                  color: AppColors.primary,
+                  tooltip: 'Crear grilla',
+                ),
               IconButton(
                 onPressed: _abrirMenuCrear,
                 icon: const Icon(Icons.add),
                 color: AppColors.primary,
-                tooltip: 'Nueva clase o aviso',
+                tooltip: 'Nueva clase',
               ),
             ],
           ],
@@ -3018,7 +3260,18 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
                   children: [
                     Row(children: [
-                      const Expanded(child: Text('Mis clases', style: TextStyle(color: AppColors.black, fontSize: 22, fontWeight: FontWeight.w700))),
+                      const Expanded(
+                        child: Text(
+                          'Mis clases',
+                          // En modo selección la fila suma tres controles;
+                          // sin esto el título desbordaba en pantallas chicas.
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: AppColors.black,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700),
+                        ),
+                      ),
                       // La profe tiene un panel acotado (Clases + Asistencia) sin
                       // solapa de Perfil, así que su única puerta a "Salir del
                       // estudio" es este engranaje de configuración.
@@ -3029,8 +3282,23 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                           color: AppColors.grey,
                           tooltip: 'Configuración',
                         ),
-                      if (_puedeEditar) ...[
-                        if (!_showFixed && _seleccionMultiple)
+                      if (_puedeGestionarClases) ...[
+                        if (_puedeEditar && !_showFixed && _seleccionMultiple) ...[
+                          IconButton(
+                            onPressed: _seleccionarPorHorario,
+                            icon: const Icon(Icons.event_repeat_rounded),
+                            color: AppColors.primary,
+                            tooltip: 'Seleccionar por horario',
+                          ),
+                          TextButton(
+                            onPressed: _toggleSeleccionarTodas,
+                            child: Text(
+                              _todasSeleccionadas ? 'Ninguna' : 'Todas',
+                              style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700),
+                            ),
+                          ),
                           TextButton(
                             onPressed: () => setState(() {
                               _seleccionMultiple = false;
@@ -3038,9 +3306,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                             }),
                             child: const Text('Cancelar',
                                 style: TextStyle(color: AppColors.grey)),
-                          )
+                          ),
+                        ]
                         else ...[
-                          if (!_showFixed)
+                          // Selección múltiple y grilla: solo admin/dueña.
+                          if (_puedeEditar && !_showFixed)
                             IconButton(
                               onPressed: () =>
                                   setState(() => _seleccionMultiple = true),
@@ -3048,17 +3318,19 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               color: AppColors.primary,
                               tooltip: 'Seleccionar',
                             ),
-                          IconButton(
-                            onPressed: _openGridForm,
-                            icon: const Icon(Icons.grid_view_rounded),
-                            color: AppColors.primary,
-                            tooltip: 'Crear grilla',
-                          ),
+                          if (_puedeEditar)
+                            IconButton(
+                              onPressed: _openGridForm,
+                              icon: const Icon(Icons.grid_view_rounded),
+                              color: AppColors.primary,
+                              tooltip: 'Crear grilla',
+                            ),
+                          // Nueva clase: admin y profe (Opción A).
                           IconButton(
                             onPressed: _abrirMenuCrear,
                             icon: const Icon(Icons.add),
                             color: AppColors.primary,
-                            tooltip: 'Nueva clase o aviso',
+                            tooltip: 'Nueva clase',
                           ),
                         ],
                       ]
@@ -3607,7 +3879,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   // Pasadas y toggle Lista / Grilla. Reemplaza la vista de calendario
   // semanal cuando estamos en _showFixed = false.
 
-  List<Map<String, dynamic>> _clasesProximas() {
+  /// Próximas SIN aplicar la ventana de [_rangoDias]. Es el universo real de
+  /// clases futuras cargadas: lo usamos para el contador "X de Y".
+  List<Map<String, dynamic>> _clasesProximasTodas() {
     final ahora = _ahoraAr();
     return _clases.where((c) {
       final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
@@ -3619,9 +3893,22 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           .compareTo(b['fecha']?.toString() ?? ''));
   }
 
+  List<Map<String, dynamic>> _clasesProximas() {
+    final todas = _clasesProximasTodas();
+    final dias = _rangoDias;
+    if (dias == null) return todas;
+    final limite = _ahoraAr().add(Duration(days: dias));
+    return todas.where((c) {
+      final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
+      return dt != null && !dt.isAfter(limite);
+    }).toList();
+  }
+
+  /// Clases ya dictadas del mes que se está mirando en el historial.
+  /// Nunca se borran: solo salen de la vista activa.
   List<Map<String, dynamic>> _clasesPasadas() {
     final ahora = _ahoraAr();
-    return _clases.where((c) {
+    return _clasesHistorial.where((c) {
       final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
       if (dt == null) return false;
       return dt.isBefore(ahora) &&
@@ -3630,6 +3917,46 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       // Mas reciente primero — al estudio le interesa lo recien pasado.
       ..sort((a, b) => (b['fecha']?.toString() ?? '')
           .compareTo(a['fecha']?.toString() ?? ''));
+  }
+
+  /// Trae del servidor las clases del mes [mes]. Se llama al abrir "Pasadas" y
+  /// al navegar entre meses.
+  Future<void> _cargarHistorial(DateTime mes) async {
+    if (!mounted) return;
+    setState(() {
+      _mesHistorial = DateTime(mes.year, mes.month);
+      _cargandoHistorial = true;
+    });
+    try {
+      final desde = DateTime(mes.year, mes.month);
+      // Día 0 del mes siguiente = último día de este mes.
+      final hasta = DateTime(mes.year, mes.month + 1, 0, 23, 59, 59);
+      final data = await _service.getClasesDeEstudio(
+        from: desde,
+        to: hasta,
+        limit: 3000,
+      );
+      if (!mounted) return;
+      setState(() {
+        _clasesHistorial = data;
+        _cargandoHistorial = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _clasesHistorial = [];
+        _cargandoHistorial = false;
+      });
+    }
+  }
+
+  void _irAMesHistorial(int delta) {
+    final destino =
+        DateTime(_mesHistorial.year, _mesHistorial.month + delta);
+    // No dejamos navegar al futuro: para eso está la solapa "Próximas".
+    final ahora = _ahoraAr();
+    if (destino.isAfter(DateTime(ahora.year, ahora.month))) return;
+    _cargarHistorial(destino);
   }
 
   List<Widget> _buildClasesLoadedSection() {
@@ -3660,11 +3987,18 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                 ),
                 Expanded(
                   child: _SegmentButton(
-                    label: 'Pasadas',
+                    label: 'Historial',
                     selected: _showPast,
                     onTap: () {
-                      setState(() => _showPast = true);
+                      setState(() {
+                        _showPast = true;
+                        _seleccionMultiple = false;
+                        _seleccionadas.clear();
+                      });
                       _guardarPreferenciaPasadas(true);
+                      // El historial se pide bajo demanda: la carga principal
+                      // solo trae 30 días para atrás.
+                      _cargarHistorial(_mesHistorial);
                     },
                   ),
                 ),
@@ -3681,14 +4015,30 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           ),
         ],
       ),
+      // Ventana de fechas: sin esto el estudio solo veía las clases de los
+      // próximos días aunque la grilla hubiera publicado 3 meses.
+      if (!_showPast) ...[
+        const SizedBox(height: 12),
+        _buildSelectorRango(),
+      ] else ...[
+        const SizedBox(height: 12),
+        _buildNavegadorMes(),
+      ],
       const SizedBox(height: 14),
-      if (clases.isEmpty)
+      if (_showPast && _cargandoHistorial)
+        const Padding(
+          padding: EdgeInsets.only(top: 40),
+          child: Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
+        )
+      else if (clases.isEmpty)
         Padding(
           padding: const EdgeInsets.only(top: 40),
           child: Center(
             child: Text(
               _showPast
-                  ? 'No hay clases pasadas para mostrar.'
+                  ? 'No hubo clases en este mes.'
                   : 'No hay clases próximas cargadas. Generá la grilla desde los horarios fijos.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Color(0xFF8F877F)),
@@ -3700,6 +4050,280 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       else
         _buildClasesList(clases),
     ];
+  }
+
+  /// Navegador de meses del historial, con un resumen de lo que dio ese mes.
+  /// Las clases pasadas quedan guardadas para siempre: esto es la puerta de
+  /// entrada a esa información.
+  Widget _buildNavegadorMes() {
+    final ahora = _ahoraAr();
+    final esMesActual = _mesHistorial.year == ahora.year &&
+        _mesHistorial.month == ahora.month;
+    final clases = _clasesPasadas();
+    final asistentes = clases.fold<int>(
+      0,
+      (s, c) => s + ((c['lugares_total'] as num?)?.toInt() ?? 0) -
+          ((c['lugares_disponibles'] as num?)?.toInt() ?? 0),
+    );
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => _irAMesHistorial(-1),
+                icon: const Icon(Icons.chevron_left_rounded),
+                color: AppColors.primary,
+                tooltip: 'Mes anterior',
+              ),
+              Expanded(
+                child: Text(
+                  DateFormat('MMMM yyyy', 'es').format(_mesHistorial),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.black,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              IconButton(
+                // Al futuro no se navega: para eso está "Próximas".
+                onPressed: esMesActual ? null : () => _irAMesHistorial(1),
+                icon: const Icon(Icons.chevron_right_rounded),
+                color: esMesActual ? const Color(0xFFD1CAC3) : AppColors.primary,
+                tooltip: 'Mes siguiente',
+              ),
+            ],
+          ),
+        ),
+        if (!_cargandoHistorial && clases.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.insights_outlined,
+                  size: 15, color: AppColors.grey),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '${clases.length} clase${clases.length != 1 ? 's' : ''} '
+                  'dictada${clases.length != 1 ? 's' : ''}'
+                  '${asistentes > 0 ? ' · $asistentes lugar${asistentes != 1 ? 'es' : ''} ocupado${asistentes != 1 ? 's' : ''}' : ''}',
+                  style: const TextStyle(color: AppColors.grey, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Chips de rango + contador. El contador es lo que evita que una clase
+  /// exista pero parezca no existir: si el filtro esconde algo, se dice.
+  Widget _buildSelectorRango() {
+    final todas = _clasesProximasTodas();
+    final visibles = _clasesProximas();
+    final ocultas = todas.length - visibles.length;
+
+    Widget chip(String label, int? dias) {
+      final sel = _rangoDias == dias;
+      return Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: GestureDetector(
+          onTap: () => setState(() => _rangoDias = dias),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: sel ? AppColors.primary : AppColors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: sel ? AppColors.primary : const Color(0xFFEDE7E1),
+              ),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: sel ? AppColors.white : AppColors.black,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    String rangoTexto() {
+      if (visibles.isEmpty) return 'No hay clases en este rango.';
+      final primera = DateTime.tryParse(visibles.first['fecha']?.toString() ?? '');
+      final ultima = DateTime.tryParse(visibles.last['fecha']?.toString() ?? '');
+      if (primera == null || ultima == null) return '';
+      final f = DateFormat('d MMM', 'es');
+      return '${visibles.length} clase${visibles.length != 1 ? 's' : ''} · '
+          '${f.format(primera)} a ${f.format(ultima)}';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              chip('7 días', 7),
+              chip('30 días', 30),
+              chip('90 días', 90),
+              chip('Todas', null),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            const Icon(Icons.event_note_outlined,
+                size: 15, color: AppColors.grey),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                rangoTexto(),
+                style: const TextStyle(color: AppColors.grey, fontSize: 12),
+              ),
+            ),
+            if (ocultas > 0)
+              GestureDetector(
+                onTap: () => setState(() => _rangoDias = null),
+                child: Text(
+                  '+$ocultas más',
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Ids visibles ahora mismo en la lista (respeta rango y filtro de profe).
+  List<int> _idsVisibles() =>
+      (_showPast ? _clasesPasadas() : _clasesProximas())
+          .map((c) => (c['id'] as num?)?.toInt())
+          .whereType<int>()
+          .toList();
+
+  bool get _todasSeleccionadas {
+    final visibles = _idsVisibles();
+    return visibles.isNotEmpty && _seleccionadas.containsAll(visibles);
+  }
+
+  void _toggleSeleccionarTodas() {
+    final visibles = _idsVisibles();
+    setState(() {
+      if (_seleccionadas.containsAll(visibles)) {
+        _seleccionadas.removeAll(visibles);
+      } else {
+        _seleccionadas.addAll(visibles);
+      }
+    });
+  }
+
+  /// Selecciona de una todas las clases de un horario recurrente
+  /// ("todos los lunes 8:00"), que es el caso real: el estudio cargó una
+  /// grilla y quiere sacar una franja entera sin tildar 30 tarjetas.
+  Future<void> _seleccionarPorHorario() async {
+    final visibles = _showPast ? _clasesPasadas() : _clasesProximas();
+    if (visibles.isEmpty) return;
+
+    // Agrupamos por (día de semana, hora de inicio).
+    final grupos = <String, List<Map<String, dynamic>>>{};
+    for (final c in visibles) {
+      final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
+      if (dt == null) continue;
+      final key = '${dt.weekday}|'
+          '${dt.hour.toString().padLeft(2, '0')}:'
+          '${dt.minute.toString().padLeft(2, '0')}';
+      grupos.putIfAbsent(key, () => []).add(c);
+    }
+    if (grupos.isEmpty) return;
+
+    final claves = grupos.keys.toList()
+      ..sort((a, b) {
+        final pa = a.split('|');
+        final pb = b.split('|');
+        final da = int.tryParse(pa.first) ?? 0;
+        final db = int.tryParse(pb.first) ?? 0;
+        if (da != db) return da.compareTo(db);
+        return pa.last.compareTo(pb.last);
+      });
+
+    final elegido = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 6),
+              child: Text(
+                'Seleccionar por horario',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.black),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Text(
+                'Elegí una franja y se marcan todas sus clases del rango que '
+                'estás viendo.',
+                style: TextStyle(color: AppColors.grey, fontSize: 13),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: claves.map((k) {
+                  final partes = k.split('|');
+                  final dia = int.tryParse(partes.first) ?? 1;
+                  final hora = partes.last;
+                  final cant = grupos[k]!.length;
+                  return ListTile(
+                    leading: const Icon(Icons.event_repeat_rounded,
+                        color: AppColors.primary),
+                    title: Text('${_dayName(dia)} $hora'),
+                    subtitle: Text(
+                        '$cant clase${cant != 1 ? 's' : ''} en este rango'),
+                    onTap: () => Navigator.pop(ctx, k),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (elegido == null || !mounted) return;
+    final ids = grupos[elegido]!
+        .map((c) => (c['id'] as num?)?.toInt())
+        .whereType<int>();
+    setState(() => _seleccionadas.addAll(ids));
   }
 
   void _toggleSeleccion(int? id) {
@@ -3763,7 +4387,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                       onMore:
                           _puedeEditar ? () => _mostrarMenuClase(c) : null,
                       onEdit:
-                          _puedeEditar ? () => _editClaseDialog(c) : null,
+                          _puedeGestionarClases ? () => _editClaseDialog(c) : null,
                     ),
                   ),
           ),
@@ -3829,10 +4453,13 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   /// Bottom sheet de opciones cuando el estudio hace long-press o tap
   /// en los 3 puntitos de una card de clase.
   Future<void> _mostrarMenuClase(Map<String, dynamic> clase) async {
-    // Guarda de permiso: la profe no crea, edita, borra ni avisa.
-    // Va acá y no solo en la UI para cubrir cualquier camino de
-    // navegación que no haya quedado gateado.
-    if (!_puedeEditar) return;
+    // La profe no tiene el menú admin (eliminar clase/grilla), pero sí puede
+    // ver el detalle y editar: caemos a la hoja de detalle, que ya muestra solo
+    // lo que le corresponde (Editar, sin Cancelar ni Avisar).
+    if (!_puedeEditar) {
+      await _showClaseSheet(clase);
+      return;
+    }
     final horarioFijoId = (clase['horario_fijo_id'] as num?)?.toInt();
     await showModalBottomSheet<void>(
       context: context,
@@ -3942,18 +4569,41 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final horarioFijoId = (clase['horario_fijo_id'] as num?)?.toInt();
     if (horarioFijoId == null) return;
 
+    // Contamos primero para que la confirmación diga cuántas clases y cuántos
+    // alumnos se ven afectados, en vez de un aviso genérico.
+    List<Map<String, dynamic>> futuras = const [];
+    try {
+      futuras = await _service.listarClasesFuturasDeHorario(horarioFijoId);
+    } catch (_) {}
+    if (!mounted) return;
+
+    final idsFuturas = futuras
+        .map((c) => (c['id'] as num?)?.toInt())
+        .whereType<int>()
+        .toList();
+    final alumnos = idsFuturas.isEmpty
+        ? 0
+        : await _avisoService.contarAlumnosDeClases(idsFuturas);
+    if (!mounted) return;
+
     final ok = await _confirmDialog(
-      titulo: '¿Eliminar este horario fijo?',
-      mensaje:
-          'Se eliminan todas las clases futuras de este horario. '
-          'Los alumnos con reservas reciben sus créditos de vuelta.',
+      titulo: '¿Eliminar todo este horario?',
+      mensaje: [
+        'Se eliminan ${idsFuturas.length} clase'
+            '${idsFuturas.length != 1 ? 's' : ''} futura'
+            '${idsFuturas.length != 1 ? 's' : ''} de este horario.',
+        if (alumnos > 0)
+          'Ojo: hay $alumnos alumno${alumnos != 1 ? 's' : ''} con reserva. '
+              'Se les devuelven los créditos automáticamente, pero se quedan '
+              'sin la clase.'
+        else
+          'Ninguna tiene reservas, así que no afecta a ningún alumno.',
+      ].join('\n\n'),
       confirmar: 'Sí, eliminar',
     );
     if (ok != true || !mounted) return;
 
     try {
-      // 1) Listar todas las clases futuras del horario.
-      final futuras = await _service.listarClasesFuturasDeHorario(horarioFijoId);
 
       // 2) Para cada una: devolver creditos + eliminar la fila.
       int totalDevueltos = 0;
@@ -4032,11 +4682,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                       strokeWidth: 2,
                     ),
                   )
-                : const Icon(Icons.cancel_outlined),
+                : const Icon(Icons.delete_outline_rounded),
             label: Text(
               _cancelandoLote
-                  ? 'Cancelando…'
-                  : 'Cancelar seleccionadas ($n)',
+                  ? 'Eliminando…'
+                  : 'Eliminar seleccionadas ($n)',
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
@@ -4053,12 +4703,20 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     if (ids.isEmpty) return;
     final n = ids.length;
 
+    // Antes de borrar, cuántos alumnos reales tienen reserva activa. Si hay
+    // gente anotada el estudio tiene que enterarse ANTES, no por el snackbar
+    // de después.
+    final alumnos = await _avisoService.contarAlumnosDeClases(ids);
+    if (!mounted) return;
+
     final ok = await _confirmDialog(
-      titulo: '¿Cancelar $n clase${n != 1 ? 's' : ''}?',
-      mensaje:
-          'Los alumnos que reservaron reciben sus créditos de vuelta '
-          'automáticamente.',
-      confirmar: 'Sí, cancelar',
+      titulo: '¿Eliminar $n clase${n != 1 ? 's' : ''}?',
+      mensaje: alumnos > 0
+          ? 'Ojo: hay $alumnos alumno${alumnos != 1 ? 's' : ''} con reserva '
+              'en estas clases. Se les devuelven los créditos '
+              'automáticamente, pero se quedan sin la clase.'
+          : 'Ninguna tiene reservas, así que no afecta a ningún alumno.',
+      confirmar: 'Sí, eliminar',
     );
     if (ok != true || !mounted) return;
 
@@ -4095,7 +4753,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       SnackBar(
         content: Text(
           '$canceladas clase${canceladas != 1 ? 's' : ''} '
-          'cancelada${canceladas != 1 ? 's' : ''}'
+          'eliminada${canceladas != 1 ? 's' : ''}'
           '${totalDevueltos > 0 ? ', $totalDevueltos alumno${totalDevueltos != 1 ? 's' : ''} con créditos devueltos' : ''}.',
         ),
       ),
@@ -4514,7 +5172,7 @@ class _AvisoSheetState extends State<_AvisoSheet> {
     'Gracias por venir hoy. ¡Las esperamos la próxima!',
     'Este mes tenemos novedades. ¡Entrá a la app para ver!',
     '¿Traés una amiga? Compartí Aura y sumamos más clases juntas.',
-    'Recordá que podés cancelar hasta 12hs antes sin perder créditos.',
+    'Recordá cancelar con tiempo para no perder tus créditos.',
     'Nuevo horario disponible. Reservá tu lugar antes de que se llene.',
   ];
 
@@ -5136,7 +5794,9 @@ class _ClaseDetalleSheet extends StatelessWidget {
   final Map<String, dynamic> clase;
   final VoidCallback onEdit, onCancel;
   final VoidCallback? onAvisar;
-  const _ClaseDetalleSheet({required this.clase, required this.onEdit, required this.onCancel, this.onAvisar});
+  // false para la profe: solo edita, no puede cancelar (borrar) la clase.
+  final bool puedeEditar;
+  const _ClaseDetalleSheet({required this.clase, required this.onEdit, required this.onCancel, this.onAvisar, this.puedeEditar = true});
 
   @override
   Widget build(BuildContext context) {
@@ -5197,15 +5857,18 @@ class _ClaseDetalleSheet extends StatelessWidget {
               style: OutlinedButton.styleFrom(foregroundColor: AppColors.primary, side: const BorderSide(color: AppColors.primary), padding: const EdgeInsets.symmetric(vertical: 14)),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: onCancel,
-              icon: const Icon(Icons.cancel_outlined, size: 16),
-              label: const Text('Cancelar clase'),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF44336), foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 14)),
+          // Cancelar (borrar) la clase es solo de admin/dueña.
+          if (puedeEditar) ...[
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: onCancel,
+                icon: const Icon(Icons.cancel_outlined, size: 16),
+                label: const Text('Cancelar clase'),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF44336), foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 14)),
+              ),
             ),
-          ),
+          ],
         ]),
       ]),
     );
@@ -5688,64 +6351,209 @@ class _AuraReadOnlyField extends StatelessWidget {
   }
 }
 
-/// Muestra los creditos calculados automaticamente segun pricing dinamico
-/// del estudio (pico/valle/normal). Tambien muestra cuanto paga el usuario
-/// y cuanto recibe el estudio (en pesos).
-/// Campo de créditos por clase para el estudio, según el tipo de precio.
-/// fijo  -> bloqueado y precargado con el valor único del estudio.
-/// rango -> editable, con ayuda "Entre X e Y créditos" (se clampea al guardar).
-class _StudioCreditsField extends StatelessWidget {
-  final String modo; // 'fijo' | 'rango'
-  final int min;
-  final int max;
-  final TextEditingController controller;
-  const _StudioCreditsField({
-    required this.modo,
-    required this.min,
-    required this.max,
-    required this.controller,
+/// Fila de icono + texto del resumen previo a generar la grilla.
+class _FilaResumenGrilla extends StatelessWidget {
+  final IconData icono;
+  final String texto;
+  const _FilaResumenGrilla({required this.icono, required this.texto});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icono, size: 16, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              texto,
+              style: const TextStyle(
+                  color: AppColors.black, fontSize: 13, height: 1.35),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Formatea pesos con separador de miles: 12345 -> "$12.345".
+String _fmtPesosCr(int v) {
+  final s = v.abs().toString();
+  final buf = StringBuffer();
+  for (int i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
+    buf.write(s[i]);
+  }
+  return '${v < 0 ? '-' : ''}\$$buf';
+}
+
+/// Campo de créditos por clase en el panel del estudio: SIEMPRE de solo
+/// lectura. El precio lo define Aura desde el backoffice y lo calcula la base
+/// (`calcular_precio_clase`); acá solo lo mostramos junto con el motivo.
+///
+///   modo fijo  -> "Precio del estudio · 11 créditos"
+///   modo rango -> "⚡ Horario pico · 16 créditos"
+///
+/// [porHorario] es para el form de grilla, donde se generan clases en varios
+/// días y franjas: ahí no hay un número único que mostrar, así que explicamos
+/// la regla.
+class _PrecioCalculadoField extends StatelessWidget {
+  final Map<String, dynamic>? estudio;
+  final int dia; // isodow 1=lunes..7=domingo
+  final TimeOfDay hora;
+  final bool porHorario;
+
+  const _PrecioCalculadoField({
+    required this.estudio,
+    required this.dia,
+    required this.hora,
+    this.porHorario = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (modo == 'fijo') {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: controller,
-            enabled: false,
-            keyboardType: TextInputType.number,
-            style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 15),
-            decoration: _formInputDecoration(label: 'Créditos por clase')
-                .copyWith(suffixText: 'cr'),
-          ),
-          const Padding(
-            padding: EdgeInsets.only(top: 6, left: 4),
-            child: Text(
-              'Precio fijo del estudio (se configura desde el backoffice).',
-              style:
-                  TextStyle(color: AppColors.grey, fontSize: 12, height: 1.35),
-            ),
-          ),
-        ],
+    if (estudio == null) {
+      return const _AuraReadOnlyField(
+        label: 'Créditos por clase',
+        value: '—',
+        caption: 'Cargando la configuración de precios…',
       );
     }
+
+    final cfg = PricingCalculator.configDe(estudio);
+    if (!cfg.configurado) {
+      return const _AuraReadOnlyField(
+        label: 'Créditos por clase',
+        value: 'Sin configurar',
+        caption: 'Aura todavía no definió el precio de este estudio. '
+            'Escribinos para activarlo.',
+      );
+    }
+
+    final horaTxt =
+        '${hora.hour.toString().padLeft(2, '0')}:${hora.minute.toString().padLeft(2, '0')}';
+    final res = PricingCalculator.calcular(
+      estudio: estudio,
+      hora: horaTxt,
+      dia: dia,
+    );
+    final creditos = res.creditos ?? 0;
+
+    // Grilla en modo rango: cada clase generada toma el precio de su franja.
+    final variaPorHorario = porHorario && cfg.esRango;
+
+    final Color badgeColor;
+    switch (res.tipo) {
+      case TipoPrecio.pico:
+        badgeColor = const Color(0xFFE8763A);
+        break;
+      case TipoPrecio.valle:
+        badgeColor = const Color(0xFF4CAF50);
+        break;
+      default:
+        badgeColor = AppColors.primary;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _AuraTextField(
-          controller: controller,
-          label: 'Créditos por clase',
-          hint: '$min',
-          keyboardType: TextInputType.number,
-        ),
-        Padding(
-          padding: const EdgeInsets.only(top: 6, left: 4),
-          child: Text(
-            'Entre $min y $max créditos.',
-            style: const TextStyle(
-                color: AppColors.grey, fontSize: 12, height: 1.35),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFEDE7E1)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Créditos por clase',
+                style: TextStyle(
+                  color: AppColors.grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (variaPorHorario)
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: const Text(
+                        'Según el horario',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${cfg.min} a ${cfg.max} cr.',
+                      style: const TextStyle(
+                        color: AppColors.black,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: badgeColor,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: Text(
+                        res.badge,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '$creditos créditos',
+                      style: const TextStyle(
+                        color: AppColors.black,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 10),
+              Text(
+                variaPorHorario
+                    ? 'Cada clase de la grilla toma el precio de su día y '
+                        'horario (pico, valle o promedio).'
+                    : res.detalle,
+                style: const TextStyle(
+                    color: AppColors.grey, fontSize: 12, height: 1.35),
+              ),
+              if (!variaPorHorario) ...[
+                const SizedBox(height: 8),
+                _VosRecibis(creditos: creditos, estudio: estudio),
+              ],
+            ],
           ),
         ),
       ],
@@ -5753,148 +6561,35 @@ class _StudioCreditsField extends StatelessWidget {
   }
 }
 
-class _PricingPreview extends StatelessWidget {
+/// "Vos recibís: $X" con la fórmula real de liquidación (valor_credito del
+/// estudio, comisión real y período de gracia por fecha_inicio_cobro).
+class _VosRecibis extends StatelessWidget {
+  final int creditos;
   final Map<String, dynamic>? estudio;
-  final String hora;
-  final int dia; // isodow 1=lunes..7=domingo
-  final String? categoria;
-  final void Function(int creditos) onComputed;
-
-  const _PricingPreview({
-    required this.estudio,
-    required this.hora,
-    required this.dia,
-    required this.categoria,
-    required this.onComputed,
-  });
+  const _VosRecibis({required this.creditos, required this.estudio});
 
   @override
   Widget build(BuildContext context) {
-    if (estudio == null) {
-      return Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF1E8),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Text(
-          'Cargando configuración de precios…',
-          style: TextStyle(color: AppColors.primary, fontSize: 13),
-        ),
-      );
-    }
-    final pricing = PricingCalculator.calcular(
-      estudio: estudio!,
-      categoria: categoria,
-      hora: hora,
-      dia: dia,
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) => onComputed(pricing.creditos));
-
-    // Usa Liquidacion para que "vos recibís" coincida con lo que muestra
-    // Cobros/Liquidaciones: respeta valor_credito del estudio, la comisión
-    // configurada y fecha_inicio_cobro (en período de gracia, recibe el 100%).
-    final precioBruto = pricing.creditos * ValorCredito.deEstudio(estudio);
-    final comisionAura = Liquidacion.comision(estudio, esWorkshop: false);
-    final estudioRecibe = (precioBruto * (100 - comisionAura) / 100).round();
-
-    Color badgeColor;
-    String badgeText;
-    bool mostrarBadge = true;
-    switch (pricing.tipo) {
-      case TipoPrecio.pico:
-        badgeColor = const Color(0xFFE8763A);
-        badgeText = '⚡ Horario pico';
-        break;
-      case TipoPrecio.normal:
-        badgeColor = const Color(0xFF4CAF50);
-        badgeText = '🏷️ Precio reducido';
-        break;
-      case TipoPrecio.valle:
-        badgeColor = const Color(0xFF4CAF50);
-        badgeText = '🌙 Precio valle';
-        break;
-      case TipoPrecio.experiencia:
-        badgeColor = const Color(0xFF8F877F);
-        badgeText = '📅 Precio fijo';
-        mostrarBadge = false; // las experiencias no usan badge "popular/reducido"
-        break;
-    }
-
-    String fmtPesos(int v) {
-      final s = v.toString();
-      final buf = StringBuffer();
-      for (int i = 0; i < s.length; i++) {
-        if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
-        buf.write(s[i]);
-      }
-      return '\$$buf';
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFEDE7E1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              if (mostrarBadge)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: badgeColor,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: Text(
-                    badgeText,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                )
-              else
-                Text(
-                  badgeText,
-                  style: const TextStyle(
-                    color: AppColors.grey,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              const Spacer(),
-              Text(
-                '${pricing.creditos} créditos',
-                style: const TextStyle(
-                  color: AppColors.black,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'El usuario paga: ${fmtPesos(precioBruto)}',
-            style: const TextStyle(color: AppColors.grey, fontSize: 13),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'Vos recibís: ${fmtPesos(estudioRecibe)} (${(100 - comisionAura).toStringAsFixed(0)}%)',
+    if (creditos <= 0) return const SizedBox.shrink();
+    final neto = Liquidacion.netoDeCreditos(creditos, estudio);
+    final enGracia = !Liquidacion.cobraComision(estudio);
+    return Row(
+      children: [
+        const Icon(Icons.account_balance_wallet_outlined,
+            size: 15, color: AppColors.primary),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            enGracia
+                ? 'Vos recibís: ${_fmtPesosCr(neto)} (sin comisión por ahora)'
+                : 'Vos recibís: ${_fmtPesosCr(neto)}',
             style: const TextStyle(
-              color: AppColors.black,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
+                color: AppColors.primary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

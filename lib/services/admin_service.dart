@@ -535,13 +535,22 @@ class AdminService {
 
   /// Actualiza los créditos de las clases futuras (no workshops) del estudio
   /// y sincroniza sus horarios fijos. Devuelve cuántas clases se actualizaron.
-  Future<int> actualizarPrecioClasesFuturas({
+  /// Recalcula los créditos de las clases del estudio según su config actual
+  /// (modo fijo o rango con grilla pico/valle). No recibe un precio: lo deriva
+  /// la base con `calcular_precio_clase`, así que sirve para los dos modos.
+  ///
+  /// [incluirPasadas] reescribe también las clases que ya pasaron. No afecta
+  /// la plata: liquidaciones y consumo salen de `reservas.creditos_usados`.
+  Future<int> recalcularPreciosEstudio({
     required int estudioId,
-    required int creditos,
+    bool incluirPasadas = true,
   }) async {
     final res = await _client.rpc(
-      'admin_set_precio_clases_futuras',
-      params: {'p_estudio_id': estudioId, 'p_creditos': creditos},
+      'admin_recalcular_precios_estudio',
+      params: {
+        'p_estudio_id': estudioId,
+        'p_incluir_pasadas': incluirPasadas,
+      },
     );
     return (res as num?)?.toInt() ?? 0;
   }
