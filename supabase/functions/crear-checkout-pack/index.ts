@@ -33,11 +33,21 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json().catch(() => null)
-    const { pack_nombre, creditos, amount, vigencia_dias, platform } = body ?? {}
+    const { pack_nombre, creditos, amount, vigencia_dias, platform, gift_email, gift_mensaje } = body ?? {}
 
     if (!pack_nombre || typeof creditos !== 'number' || typeof amount !== 'number') {
       return json({ error: 'Faltan campos: pack_nombre, creditos, amount' }, 400)
     }
+
+    // Gift card: mismo flujo que un pack, pero con destinatario. El pago lo hace
+    // el comprador; al aprobarse, en vez de acreditarle créditos, se crea el
+    // regalo y se mailea al destinatario.
+    const giftEmail = typeof gift_email === 'string' ? gift_email.trim().toLowerCase() : ''
+    const isGift = giftEmail.length > 0
+    if (isGift && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(giftEmail)) {
+      return json({ error: 'Email de destinatario inválido' }, 400)
+    }
+    const giftMensaje = typeof gift_mensaje === 'string' ? gift_mensaje.trim() : ''
     const packConfig = await resolvePackConfig(adminSupabase, pack_nombre, creditos, amount, vigencia_dias)
     const payerEmail = user.email ?? ''
     if (!payerEmail) {
@@ -59,11 +69,13 @@ Deno.serve(async (req: Request) => {
       .from('pagos')
       .insert({
         user_id: user.id,
-        type: 'pack',
+        type: isGift ? 'gift' : 'pack',
         status: 'pending',
         amount: Math.round(packConfig.amount),
         creditos: packConfig.creditos,
         pack_nombre: packConfig.nombre,
+        gift_email: isGift ? giftEmail : null,
+        gift_mensaje: isGift && giftMensaje ? giftMensaje : null,
       })
       .select('id')
       .single()
@@ -81,7 +93,7 @@ Deno.serve(async (req: Request) => {
     const fallbackBaseUrl = requestOrigin || refererOrigin || 'http://localhost:3000'
     const appBaseUrl = ((configuredBaseUrl && !configuredBaseUrl.includes('example.com')) ? configuredBaseUrl : fallbackBaseUrl).replace(/\/$/, '')
     const webhookUrl = `${supabaseUrl}/functions/v1/mp-webhook`
-    const externalRef = `user_id=${user.id}|type=pack|pack=${encodeURIComponent(packConfig.nombre)}|creditos=${packConfig.creditos}|vigencia=${packConfig.vigenciaDias}|pago_id=${pago.id}`
+    const externalRef = `user_id=${user.id}|type=${isGift ? 'gift' : 'pack'}|pack=${encodeURIComponent(packConfig.nombre)}|creditos=${packConfig.creditos}|vigencia=${packConfig.vigenciaDias}|pago_id=${pago.id}`
     const isMobile = platform === 'mobile'
     const backUrlBase = isMobile ? 'aura://payment-result' : `${appBaseUrl}/payment-result`
     const backUrls = {
@@ -93,9 +105,13 @@ Deno.serve(async (req: Request) => {
     const mpPayload = {
       items: [
         {
-          id: `pack_${packConfig.nombre.toLowerCase().replace(/\s+/g, '_')}`,
-          title: `${packConfig.nombre} - ${packConfig.creditos} créditos Aura`,
-          description: `Pack de créditos Aura - ${packConfig.nombre}`,
+          id: `${isGift ? 'gift' : 'pack'}_${packConfig.nombre.toLowerCase().replace(/\s+/g, '_')}`,
+          title: isGift
+            ? `Gift card Aura - ${packConfig.creditos} créditos`
+            : `${packConfig.nombre} - ${packConfig.creditos} créditos Aura`,
+          description: isGift
+            ? `Gift card de créditos Aura para regalar`
+            : `Pack de créditos Aura - ${packConfig.nombre}`,
           category_id: 'services',
           quantity: 1,
           unit_price: Math.round(packConfig.amount),

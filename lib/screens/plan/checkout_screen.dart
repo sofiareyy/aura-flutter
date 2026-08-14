@@ -95,6 +95,8 @@ class _CheckoutScreenState extends State<CheckoutScreen>
               creditos: creditos,
               amount: precio,
               vigenciaDias: vigenciaDias,
+              giftEmail: purchase['gift_email'] as String?,
+              giftMensaje: purchase['gift_mensaje'] as String?,
             );
 
       final initPoint = result['init_point'] as String?;
@@ -208,11 +210,16 @@ class _CheckoutScreenState extends State<CheckoutScreen>
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
     final isPlan = widget.purchase['type'] == 'plan';
+    final isGift = widget.purchase['type'] == 'gift';
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(isPlan ? 'Suscripción' : 'Comprar créditos'),
+        title: Text(isPlan
+            ? 'Suscripción'
+            : isGift
+                ? 'Regalar créditos'
+                : 'Comprar créditos'),
         leading: _state == _PaymentState.waiting
             ? null
             : IconButton(
@@ -224,6 +231,8 @@ class _CheckoutScreenState extends State<CheckoutScreen>
       body: switch (_state) {
         _PaymentState.approved => _ApprovedView(
             isPlan: isPlan,
+            isGift: isGift,
+            giftEmail: widget.purchase['gift_email'] as String?,
             onContinue: () => context.go('/home'),
           ),
         _PaymentState.rejected => _RejectedView(
@@ -275,6 +284,7 @@ class _IdleView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isGift = purchase['type'] == 'gift';
     final nombre = (purchase['nombre'] ?? '').toString();
     final creditos = (purchase['creditos'] as num?)?.toInt() ?? 0;
     final precio = (purchase['precio'] as num?)?.toInt() ?? 0;
@@ -298,7 +308,11 @@ class _IdleView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isPlan ? 'Suscripción mensual' : 'Pack de créditos',
+                      isPlan
+                          ? 'Suscripción mensual'
+                          : isGift
+                              ? 'Gift card para regalar'
+                              : 'Pack de créditos',
                       style: const TextStyle(color: Colors.white60, fontSize: 13),
                     ),
                     const SizedBox(height: 10),
@@ -566,11 +580,15 @@ class _WaitingView extends StatelessWidget {
 
 class _ApprovedView extends StatelessWidget {
   final bool isPlan;
+  final bool isGift;
+  final String? giftEmail;
   final VoidCallback onContinue;
 
   const _ApprovedView({
     required this.isPlan,
     required this.onContinue,
+    this.isGift = false,
+    this.giftEmail,
   });
 
   @override
@@ -592,7 +610,11 @@ class _ApprovedView extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              isPlan ? '¡Suscripción activada!' : '¡Créditos acreditados!',
+              isGift
+                  ? '¡Regalo enviado!'
+                  : isPlan
+                      ? '¡Suscripción activada!'
+                      : '¡Créditos acreditados!',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -600,9 +622,13 @@ class _ApprovedView extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              isPlan
-                  ? 'Tu plan quedó activo. La acreditación automática puede tardar unos instantes en reflejarse por completo.'
-                  : 'Tus créditos ya están disponibles en tu saldo.',
+              isGift
+                  ? (giftEmail != null && giftEmail!.isNotEmpty
+                      ? 'Le enviamos el código por mail a $giftEmail para que canjee sus créditos.'
+                      : 'Le enviamos el código por mail al destinatario para que canjee sus créditos.')
+                  : isPlan
+                      ? 'Tu plan quedó activo. La acreditación automática puede tardar unos instantes en reflejarse por completo.'
+                      : 'Tus créditos ya están disponibles en tu saldo.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.grey,
                     height: 1.55,

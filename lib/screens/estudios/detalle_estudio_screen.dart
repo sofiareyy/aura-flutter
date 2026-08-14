@@ -31,12 +31,26 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
   static const int _reviewsPreview = 2;
 
   List<Map<String, dynamic>> _clases = [];
+  /// Experiencias / workshops. Van en su propia sección: mezcladas con las
+  /// clases quedaban detrás del preview de 5 y no se veían nunca.
+  List<Map<String, dynamic>> _experiencias = [];
   List<Map<String, dynamic>> _reviews = [];
   bool _loading = true;
   bool _esFavorito = false;
   bool _canReview = false;
   bool _verTodasLasClases = false;
   bool _verTodasLasReviews = false;
+
+  /// ¿Se muestra el bloque "CLASES DISPONIBLES"?
+  ///
+  /// Sí cuando hay clases. Y también cuando no hay NADA, para que el estudio
+  /// vacío avise que no tiene nada.
+  ///
+  /// No cuando hay solo experiencias: ahí el título y el "no hay clases
+  /// disponibles" quedaban como un cartel negativo al lado de las
+  /// experiencias que el estudio sí publicó.
+  bool get _mostrarBloqueClases =>
+      _clases.isNotEmpty || _experiencias.isEmpty;
 
   @override
   void initState() {
@@ -63,6 +77,9 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
     final clasesRaw = estudio != null && estudio.id != null
         ? await _service.getClasesDeEstudio(estudio.id!)
         : <Map<String, dynamic>>[];
+    final experienciasRaw = estudio != null && estudio.id != null
+        ? await _service.getExperienciasDeEstudio(estudio.id!)
+        : <Map<String, dynamic>>[];
 
     // Adjuntar datos del estudio a cada clase para que ClaseCard muestre imagen
     final estudioMap = estudio != null
@@ -77,6 +94,9 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
     final clases = estudioMap != null
         ? clasesRaw.map((c) => {...c, 'estudios': estudioMap}).toList()
         : clasesRaw;
+    final experiencias = estudioMap != null
+        ? experienciasRaw.map((c) => {...c, 'estudios': estudioMap}).toList()
+        : experienciasRaw;
     final esFavorito = estudio?.id != null && userId.isNotEmpty
         ? await _favoritosService.esFavorito(userId, estudio!.id!)
         : false;
@@ -91,6 +111,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
       setState(() {
         _estudio = estudio;
         _clases = clases;
+        _experiencias = experiencias;
         _esFavorito = esFavorito;
         _reviews = reviews;
         _canReview = canReview;
@@ -291,58 +312,96 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                   ),
                 ],
 
-                // Encabezado clases + Ver más
-                const SizedBox(height: 28),
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'CLASES DISPONIBLES',
-                        style: TextStyle(
-                          color: Color(0xFF8F877F),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1,
-                        ),
+                // ── Experiencias / eventos ──────────────────────────────
+                // Sección propia, ANTES de las clases: son pocas, puntuales y
+                // se publican con anticipación. Mezcladas con la grilla
+                // semanal quedaban detrás del preview y no se veían.
+                if (_experiencias.isNotEmpty) ...[
+                  const SizedBox(height: 28),
+                  const Text(
+                    'EXPERIENCIAS',
+                    style: TextStyle(
+                      color: Color(0xFF8F877F),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ..._experiencias.map(
+                    (exp) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: ClaseCard(
+                        clase: exp,
+                        showEstudio: false,
+                        onTap: () => context.push('/clase/${exp['id']}'),
                       ),
                     ),
-                    if (_clases.length > _clasesPreview)
-                      GestureDetector(
-                        onTap: () => setState(
-                          () => _verTodasLasClases = !_verTodasLasClases,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          child: Text(
-                            _verTodasLasClases ? 'Ver menos' : 'Ver más',
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
+                  ),
+                ],
+
+                // Encabezado clases + Ver más.
+                // Si el estudio no tiene clases regulares pero sí experiencias,
+                // no mostramos ni el título ni el "no hay clases": quedaba un
+                // cartel negativo justo al lado de las experiencias que sí
+                // tiene. El vacío real (ni clases ni experiencias) sí se avisa.
+                if (_mostrarBloqueClases) ...[
+                  const SizedBox(height: 28),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'CLASES DISPONIBLES',
+                          style: TextStyle(
+                            color: Color(0xFF8F877F),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
                           ),
                         ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                      if (_clases.length > _clasesPreview)
+                        GestureDetector(
+                          onTap: () => setState(
+                            () => _verTodasLasClases = !_verTodasLasClases,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            child: Text(
+                              _verTodasLasClases ? 'Ver menos' : 'Ver más',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
               ],
             ),
           ),
         ),
 
-        // Cards de clases (preview o todas)
+        // Cards de clases (preview o todas). El mensaje de vacío solo sale
+        // cuando el estudio no tiene NADA que mostrar; si tiene experiencias,
+        // el bloque entero se oculta (ver _mostrarBloqueClases).
         if (_clases.isEmpty)
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'No hay clases disponibles por ahora.',
-                style: TextStyle(color: AppColors.grey, fontSize: 14),
-              ),
-            ),
-          )
+          _mostrarBloqueClases
+              ? const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      'No hay clases disponibles por ahora.',
+                      style: TextStyle(color: AppColors.grey, fontSize: 14),
+                    ),
+                  ),
+                )
+              : const SliverToBoxAdapter(child: SizedBox.shrink())
         else
           SliverList(
             delegate: SliverChildBuilderDelegate(

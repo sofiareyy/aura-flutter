@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/aura_gestion_service.dart';
@@ -13,6 +15,7 @@ import '../../services/reservas_service.dart';
 import '../../services/reviews_service.dart';
 import '../../services/waitlist_service.dart';
 import '../../utils/cierre_minutos.dart';
+import '../../widgets/organizadores_links.dart';
 import '../../widgets/study_review_sheet.dart';
 
 class DetalleClaseScreen extends StatefulWidget {
@@ -40,7 +43,6 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
   bool _enListaEspera = false;
   bool _togglingWaitlist = false;
   int _waitlistCount = 0;
-  int _invitadasCount = 0;
   List<Map<String, dynamic>> _reviews = [];
 
   // Lista de espera promovida -> pre_confirmada del usuario en esta clase.
@@ -217,19 +219,6 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
       final enListaEspera = futures[1] as bool;
       final waitlistCount = futures[2] as int;
 
-      // Count "amigas que van" (invitaciones no canceladas)
-      int invitadasCount = 0;
-      try {
-        final invCount = await Supabase.instance.client
-            .from('invitaciones_grupo')
-            .select('id')
-            .eq('clase_id', widget.claseId)
-            .neq('estado', 'cancelado');
-        invitadasCount = (invCount as List).length;
-      } catch (_) {
-        // Non-critical
-      }
-
       // Buscar pre_confirmada activa del usuario para esta clase
       Map<String, dynamic>? preReserva;
       DateTime? expiresAt;
@@ -261,7 +250,6 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
         _esGratuita = esGratuita;
         _enListaEspera = enListaEspera;
         _waitlistCount = waitlistCount;
-        _invitadasCount = invitadasCount;
         _preReserva = preReserva;
         _preReservaExpiresAt = expiresAt;
         _loading = false;
@@ -447,215 +435,30 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     }
   }
 
-  /// Despacha una invitacion a cada email:
-  ///   1) inserta la fila en `invitaciones_grupo` (estado pendiente)
-  ///   2) si el email pertenece a un usuario de Aura, inserta una
-  ///      notificacion en `notificaciones_usuario` para que le aparezca
-  ///      en la campanita
-  ///   3) dispara la Edge Function `email-invitacion-clase` para mandar
-  ///      el mail via Resend (se hace en background — el envio del mail
-  ///      no debe bloquear ni romper la operacion si Resend esta caido)
-  Future<void> _despacharInvitaciones({
-    required List<String> emails,
-    required int claseId,
-    required String claseNombre,
-    required Map<String, dynamic> clase,
-  }) async {
-    final supabase = Supabase.instance.client;
-    final provider = context.read<AppProvider>();
-    final uid = provider.userId;
-    final invitadorNombre =
-        provider.usuario?.nombre.trim() ?? 'Una amiga';
-
-    final estudio = clase['estudios'] as Map<String, dynamic>?;
-    final estudioNombre = estudio?['nombre']?.toString();
-    final direccion = estudio?['direccion']?.toString();
-    final fechaIso = clase['fecha']?.toString();
-
-    for (final raw in emails) {
-      final email = raw.toLowerCase().trim();
-      if (email.isEmpty) continue;
-
-      // 1) persistir la invitacion
-      await supabase.from('invitaciones_grupo').insert({
-        'invitador_id': uid,
-        'clase_id': claseId,
-        'invitado_email': email,
-        'estado': 'pendiente',
-      });
-
-      // 2) si el invitado ya tiene cuenta, dejarle una notificacion
-      try {
-        final invitado = await supabase
-            .from('usuarios')
-            .select('id')
-            .eq('email', email)
-            .maybeSingle();
-        final invitadoId = invitado?['id']?.toString();
-        if (invitadoId != null && invitadoId.isNotEmpty) {
-          await supabase.from('notificaciones_usuario').insert({
-            'usuario_id': invitadoId,
-            'titulo': '$invitadorNombre te invitó a una clase 👯',
-            'mensaje':
-                '$claseNombre${estudioNombre != null ? ' en $estudioNombre' : ''}. Tocá para ver y reservar.',
-            'tipo': 'invitacion_clase',
-            'leida': false,
-          });
-        }
-      } catch (_) {
-        // No es critico: si la consulta a usuarios falla, igual mandamos
-        // el email.
-      }
-
-      // 3) email via Resend (fire-and-forget — no rompemos el flujo si
-      // la Edge Function devuelve error; ya quedo persistida la invitacion
-      // y la notificacion in-app)
-      supabase.functions.invoke(
-        'email-invitacion-clase',
-        headers: {
-          'x-aura-auth':
-              supabase.auth.currentSession?.accessToken ?? '',
-        },
-        body: {
-          'invitado_email': email,
-          'invitador_nombre': invitadorNombre,
-          'clase_nombre': claseNombre,
-          'estudio_nombre': estudioNombre,
-          'fecha_iso': fechaIso,
-          'direccion': direccion,
-        },
-      ).then((_) {}, onError: (_) {
-        // Silencioso: el log queda en la Edge Function.
-      });
-    }
-  }
-
-  Future<void> _mostrarInvitarAmigas() async {
+  /// Comparte la clase con el link a su página web.
+  ///
+  /// Reemplaza al "invitar amigas" por mail, que pedía escribir la dirección
+  /// de la otra persona: nadie se la sabe de memoria y era uno a uno. Esto
+  /// abre el compartir nativo del teléfono, así el link se puede pegar en una
+  /// historia, un grupo de WhatsApp o donde sea.
+  Future<void> _compartirClase() async {
     final clase = _clase;
     if (clase == null) return;
-    final claseId = widget.claseId;
-    final claseNombre = clase['nombre']?.toString() ?? 'Clase';
 
-    final List<TextEditingController> emailControllers = [
-      TextEditingController(),
+    final nombre = clase['nombre']?.toString().trim() ?? 'una clase';
+    final estudio =
+        (clase['estudios'] as Map<String, dynamic>?)?['nombre']?.toString().trim();
+    final fecha = DateTime.tryParse(clase['fecha']?.toString() ?? '');
+
+    final partes = <String>[
+      estudio != null && estudio.isNotEmpty ? '$nombre en $estudio' : nombre,
+      if (fecha != null)
+        DateFormat("EEEE d 'de' MMMM 'a las' HH:mm", 'es').format(fecha),
+      'Reservá en Aura 🧡',
+      AppConstants.linkDeClase(widget.claseId),
     ];
 
-    await showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: StatefulBuilder(
-          builder: (ctx2, setSheetState) => Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFFF7F5F2),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            padding: EdgeInsets.fromLTRB(
-                20, 16, 20, MediaQuery.of(ctx).padding.bottom + 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFCCC5BD),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                  ),
-                ),
-                const Text(
-                  'Ir juntas 👯',
-                  style: TextStyle(
-                    color: AppColors.black,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Cada una paga sus propios créditos al confirmar',
-                  style: TextStyle(color: AppColors.grey, fontSize: 13),
-                ),
-                const SizedBox(height: 16),
-                ...emailControllers.asMap().entries.map((entry) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: TextField(
-                        controller: entry.value,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: InputDecoration(
-                          labelText: 'Email de tu amiga',
-                          border: const OutlineInputBorder(),
-                          suffixIcon: entry.key == emailControllers.length - 1 &&
-                                  emailControllers.length < 3
-                              ? IconButton(
-                                  icon: const Icon(Icons.add_circle_outline,
-                                      color: AppColors.primary),
-                                  onPressed: () {
-                                    setSheetState(() {
-                                      emailControllers
-                                          .add(TextEditingController());
-                                    });
-                                  },
-                                )
-                              : null,
-                        ),
-                      ),
-                    )),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final emails = emailControllers
-                          .map((c) => c.text.trim())
-                          .where((e) => e.isNotEmpty)
-                          .toList();
-                      if (emails.isEmpty) return;
-                      Navigator.pop(ctx);
-                      try {
-                        await _despacharInvitaciones(
-                          emails: emails,
-                          claseId: claseId,
-                          claseNombre: claseNombre,
-                          clase: clase,
-                        );
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                  '✓ Invitaciones enviadas a $claseNombre'),
-                              backgroundColor: AppColors.blackSoft,
-                            ),
-                          );
-                          await _cargar();
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('No se pudieron enviar: $e'),
-                              backgroundColor: AppColors.error,
-                            ),
-                          );
-                        }
-                      }
-                    },
-                    child: const Text('Enviar invitación'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+    await Share.share(partes.join('\n'));
   }
 
   @override
@@ -1117,6 +920,25 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                             const SizedBox(height: 18),
                           ],
                         ),
+                      // Organizadores de la experiencia, con su @ clickeable.
+                      // Home y explorar ya los mostraban; acá faltaban, así que
+                      // al abrir el detalle desaparecían los créditos de quien
+                      // la daba. Mismo widget, mismo comportamiento.
+                      if (((clase['organizadores'] as List?) ?? const [])
+                          .isNotEmpty)
+                        Column(
+                          children: [
+                            _SectionBlock(
+                              title: 'Quién la da',
+                              child: OrganizadoresLinks(
+                                organizadores:
+                                    (clase['organizadores'] as List?) ??
+                                        const [],
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                          ],
+                        ),
                       if ((clase['direccion']?.toString().trim() ?? '')
                           .isNotEmpty)
                         Column(
@@ -1254,9 +1076,9 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                       ),
                       const SizedBox(height: 8),
                       OutlinedButton.icon(
-                        onPressed: _mostrarInvitarAmigas,
-                        icon: const Text('👯', style: TextStyle(fontSize: 16)),
-                        label: const Text('Invitá amigas a esta clase'),
+                        onPressed: _compartirClase,
+                        icon: const Icon(Icons.ios_share_rounded, size: 18),
+                        label: const Text('Compartir esta clase'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primary,
                           side: const BorderSide(color: AppColors.primary),
@@ -1265,25 +1087,6 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                               borderRadius: BorderRadius.circular(14)),
                         ),
                       ),
-                      if (_invitadasCount > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryLight,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '$_invitadasCount amiga${_invitadasCount > 1 ? 's van' : ' va'} a esta clase',
-                              style: const TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ),
                       const SizedBox(height: 18),
                       _SectionBlock(
                         title: 'Reservas',
@@ -1585,78 +1388,6 @@ class _InfoChipCard extends StatelessWidget {
   }
 }
 
-class _MetricPanel extends StatelessWidget {
-  final String value;
-  final String caption;
-  final Color accent;
-
-  const _MetricPanel({
-    required this.value,
-    required this.caption,
-    required this.accent,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isPrimary = accent == AppColors.primary;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isPrimary
-            ? Colors.white.withOpacity(0.03)
-            : Colors.white.withOpacity(0.02),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isPrimary
-              ? Colors.white.withOpacity(0.05)
-              : Colors.white.withOpacity(0.03),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!isPrimary)
-            Text(
-              caption == 'Tu saldo actual' ? 'Tu saldo' : caption,
-              style: const TextStyle(
-                color: Color(0xFFA7A09A),
-                fontSize: 13,
-              ),
-            ),
-          if (!isPrimary) const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              color: accent,
-              fontSize: isPrimary ? 22 : 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          if (isPrimary) ...[
-            const SizedBox(height: 6),
-            Text(
-              caption,
-              style: const TextStyle(
-                color: Color(0xFFA7A09A),
-                fontSize: 13,
-              ),
-            ),
-          ] else ...[
-            const SizedBox(height: 6),
-            const Text(
-              'Quedan disponibles tras reservar',
-              style: TextStyle(
-                color: Color(0xFFA7A09A),
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 class _SectionBlock extends StatelessWidget {
   final String title;
   final Widget child;
@@ -1696,44 +1427,6 @@ class _SectionBlock extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           child,
-        ],
-      ),
-    );
-  }
-}
-
-class _CheckItem extends StatelessWidget {
-  final String text;
-
-  const _CheckItem(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 18,
-            height: 18,
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.check, size: 13, color: AppColors.white),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                color: Color(0xFF625C57),
-                fontSize: 15,
-                height: 1.35,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -2084,6 +1777,4 @@ class _PolicyItem extends StatelessWidget {
     );
   }
 }
-
-
 

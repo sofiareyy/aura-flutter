@@ -74,7 +74,7 @@ async function findPackPago(
       .maybeSingle<PackPagoRow>()
     if (error) throw error
     if (data) {
-      if (data.user_id !== userId || data.type !== 'pack') {
+      if (data.user_id !== userId || (data.type !== 'pack' && data.type !== 'gift')) {
         throw new Error('El pago interno no coincide con el usuario o el tipo del pago de Mercado Pago')
       }
       return data
@@ -129,7 +129,7 @@ async function processPackPayment(
       .from('pagos')
       .insert({
         user_id: userId,
-        type: 'pack',
+        type: params['type'] === 'gift' ? 'gift' : 'pack',
         mp_payment_id: mpPaymentId,
         mp_preference_id: preferenceId || null,
         status: safeInitialStatus,
@@ -145,7 +145,7 @@ async function processPackPayment(
     pago = inserted
   }
 
-  if (pago.user_id !== userId || pago.type !== 'pack') {
+  if (pago.user_id !== userId || (pago.type !== 'pack' && pago.type !== 'gift')) {
     throw new Error('El pago localizado no coincide con el usuario o el tipo esperado')
   }
 
@@ -189,6 +189,39 @@ async function processPackPayment(
     mpPaymentId,
     result,
   })
+
+  // Gift card: mandar el mail al destinatario. El RPC es idempotente y solo
+  // devuelve el código en el PRIMER procesamiento (already_processed=false), así
+  // que un reintento del webhook no genera un segundo mail. Best-effort: si el
+  // mail falla, el regalo ya quedó creado y se puede reenviar a mano.
+  const r = result as Record<string, unknown> | null
+  if (r && r.is_gift === true && r.already_processed === false && r.gift_codigo) {
+    await sendGiftEmail(r)
+  }
+}
+
+async function sendGiftEmail(r: Record<string, unknown>) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/email-regalo`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        destinatario_email: r.gift_email,
+        codigo: r.gift_codigo,
+        creditos: r.gift_creditos,
+        remitente_nombre: r.remitente_nombre,
+        mensaje: r.gift_mensaje,
+      }),
+    })
+    if (!res.ok) {
+      console.error('mp-webhook: email-regalo falló:', await res.text())
+    }
+  } catch (e) {
+    console.error('mp-webhook: excepción enviando email-regalo:', e)
+  }
 }
 
 async function isValidSignature(req: Request, rawBody: string): Promise<boolean> {
@@ -287,7 +320,7 @@ async function procesarPago(paymentId: string, eventType = 'payment') {
   const packNombre = params['pack'] ?? ''
   const planNombre = params['plan'] ?? ''
 
-  if (type !== 'pack' && type !== 'plan') {
+  if (type !== 'pack' && type !== 'gift' && type !== 'plan') {
     console.log('mp-webhook: notificación ignorada, tipo no soportado', { paymentId, type })
     return
   }
@@ -297,7 +330,7 @@ async function procesarPago(paymentId: string, eventType = 'payment') {
     return
   }
 
-  if (type === 'pack') {
+  if (type === 'pack' || type === 'gift') {
     await processPackPayment(supabase, payment, params)
     return
   }

@@ -52,6 +52,16 @@
                 <data android:scheme="aura" android:host="login-callback"/>
             </intent-filter>
 
+            <!-- Custom scheme: aura://reset-password (retorno del mail de
+                 "olvidé mi contraseña"). El SDK de Supabase procesa el token
+                 y dispara passwordRecovery. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="aura" android:host="reset-password"/>
+            </intent-filter>
+
             <!-- App Links (HTTPS): https://somosauraar.netlify.app/payment-result?... -->
             <!-- Requiere build/web/.well-known/assetlinks.json con SHA-256 del keystore -->
             <intent-filter android:autoVerify="true">

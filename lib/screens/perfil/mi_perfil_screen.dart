@@ -14,6 +14,7 @@ import '../../providers/app_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/estudio_admin_service.dart';
 import '../../services/favoritos_service.dart';
+import '../../services/referidos_service.dart';
 import '../../services/usuarios_service.dart';
 
 class MiPerfilScreen extends StatefulWidget {
@@ -51,6 +52,90 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
   void dispose() {
     _nombreController.dispose();
     super.dispose();
+  }
+
+  /// Canjear una gift card por código. Mismo RPC atómico que Mis Créditos
+  /// (canjear_regalo): no se puede canjear dos veces y acredita al ledger.
+  Future<void> _canjearRegalo() async {
+    final ctrl = TextEditingController();
+    var enviando = false;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Canjear regalo'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Ingresá el código de tu gift card.',
+                style: TextStyle(color: AppColors.grey, fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                autofocus: true,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  hintText: 'GIFT-XXXXXXXX',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: enviando ? null : () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar',
+                  style: TextStyle(color: AppColors.grey)),
+            ),
+            TextButton(
+              onPressed: enviando
+                  ? null
+                  : () async {
+                      final code = ctrl.text.trim();
+                      if (code.isEmpty) return;
+                      setD(() => enviando = true);
+                      try {
+                        final creditos =
+                            await ReferidosService().canjearRegalo(code);
+                        if (!ctx.mounted) return;
+                        Navigator.of(ctx).pop();
+                        if (!mounted) return;
+                        await context.read<AppProvider>().refrescarUsuario();
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content:
+                                Text('🎁 ¡Canjeaste $creditos créditos!'),
+                            backgroundColor: AppColors.success,
+                          ),
+                        );
+                      } catch (e) {
+                        setD(() => enviando = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text(e
+                                  .toString()
+                                  .replaceFirst('Exception: ', '')),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: const Text('Canjear',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _cargarVersion() async {
@@ -285,6 +370,19 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                         label: 'Comprar créditos',
                         subtitle: 'Cargá packs cuando quieras',
                         onTap: () => context.push('/comprar-creditos'),
+                      ),
+                      _MenuItem(
+                        icon: Icons.card_giftcard_rounded,
+                        label: 'Regalar créditos',
+                        subtitle: 'Enviá una gift card a quien quieras',
+                        onTap: () =>
+                            context.push('/comprar-creditos?tab=gift'),
+                      ),
+                      _MenuItem(
+                        icon: Icons.redeem_rounded,
+                        label: 'Canjear regalo',
+                        subtitle: 'Tenés un código de gift card',
+                        onTap: _canjearRegalo,
                       ),
                       _MenuItem(
                         icon: Icons.workspace_premium_rounded,

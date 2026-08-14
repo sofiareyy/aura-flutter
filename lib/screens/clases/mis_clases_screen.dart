@@ -6544,7 +6544,7 @@ class _PrecioCalculadoField extends StatelessWidget {
               Text(
                 variaPorHorario
                     ? 'Cada clase de la grilla toma el precio de su día y '
-                        'horario (pico, valle o promedio).'
+                        'horario: valle en los flojos, pico en el resto.'
                     : res.detalle,
                 style: const TextStyle(
                     color: AppColors.grey, fontSize: 12, height: 1.35),

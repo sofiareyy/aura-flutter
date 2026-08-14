@@ -183,7 +183,7 @@ Deno.serve(async (req: Request) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'Aura <hola@somosaura.app>',
+          from: Deno.env.get('AURA_FROM_EMAIL') ?? 'Aura <hola@somosaurapass.com>',
           to: [adminEmail],
           subject: 'Mañana recibís tu pago de Aura 🧡',
           html,
@@ -281,7 +281,7 @@ function buildEmailHtml(params: {
 
     <p style="color:#9A928B;font-size:13px;line-height:1.7;text-align:center;margin:0;">
       Cualquier consulta escribinos a
-      <a href="mailto:hola@somosaura.app" style="color:#E8763A;text-decoration:none;">hola@somosaura.app</a><br>
+      <a href="mailto:hola@somosaurapass.com" style="color:#E8763A;text-decoration:none;">hola@somosaurapass.com</a><br>
       <strong style="color:#1A1A1A;">El equipo de Aura 🧡</strong>
     </p>
   </div>

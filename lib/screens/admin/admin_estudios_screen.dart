@@ -443,8 +443,8 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                   const Text(
                     'Cómo se cobran las clases del estudio. El estudio nunca '
                     'edita los créditos: en modo fijo todas las clases valen '
-                    'el mismo valor; en modo rango el precio sale del horario '
-                    '(pico = máximo, valle = mínimo, sin marcar = promedio).',
+                    'el mismo valor; en modo rango marcás los horarios flojos '
+                    'como valle (mínimo) y el resto cobra el máximo.',
                     style: TextStyle(
                       color: AppColors.grey,
                       fontSize: 12,
@@ -545,7 +545,7 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                     ),
                     const Text(
                       'Sin horarios marcados, todas las clases cobran el '
-                      'promedio entre mínimo y máximo.',
+                      'máximo. Marcá los flojos para que cobren el mínimo.',
                       style: TextStyle(
                         color: AppColors.grey,
                         fontSize: 11,

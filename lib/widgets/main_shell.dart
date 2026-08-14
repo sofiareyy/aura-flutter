@@ -39,7 +39,8 @@ class _MainShellState extends State<MainShell> {
   int _selectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     if (location.startsWith('/explorar')) return 1;
-    if (location.startsWith('/mis-clases')) return 2;
+    if (location.startsWith('/mis-reservas') ||
+        location.startsWith('/mis-clases')) return 2;
     if (location.startsWith('/perfil')) return 3;
     return 0;
   }
@@ -106,8 +107,9 @@ class _MainShellState extends State<MainShell> {
                 context.go('/explorar');
                 break;
               case 2:
-                context.go('/mis-clases');
-                // Al entrar a la pestania, refrescar inmediatamente.
+                // "Reservas" abre la gestión real (Cancelar, QR, lista de
+                // espera), no el calendario de descubrimiento (/mis-clases).
+                context.go('/mis-reservas');
                 _refrescarBadge();
                 break;
               case 3:

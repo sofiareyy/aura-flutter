@@ -7,6 +7,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/auth_service.dart';
@@ -48,6 +49,104 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  String _friendlyLoginError(Object error) {
+    final text = error.toString().toLowerCase();
+    if (text.contains('invalid login credentials') ||
+        text.contains('invalid_credentials')) {
+      return 'Email o contraseña incorrectos. Revisá los datos e intentá de nuevo.';
+    }
+    if (text.contains('email not confirmed')) {
+      return 'Todavía no validaste tu email. Revisá tu casilla (o spam).';
+    }
+    if (text.contains('rate limit')) {
+      return 'Demasiados intentos. Esperá un momento y volvé a probar.';
+    }
+    return 'No pudimos iniciar sesión. Revisá tu conexión e intentá de nuevo.';
+  }
+
+  Future<void> _recuperarContrasena() async {
+    final ctrl = TextEditingController(text: _emailCtrl.text.trim());
+    final email = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Recuperar contraseña'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Te mandamos un mail con un enlace para crear una nueva '
+              'contraseña.',
+              style: TextStyle(color: AppColors.grey, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                hintText: 'tu@email.com',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar',
+                style: TextStyle(color: AppColors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()),
+            child: const Text('Enviar',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+
+    if (email == null || email.isEmpty) return;
+    if (!email.contains('@') || !email.contains('.')) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ingresá un email válido.')),
+      );
+      return;
+    }
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        email,
+        // En mobile, el mail abre la app vía deep link y main.dart escucha el
+        // evento passwordRecovery para llevar a la pantalla de nueva clave.
+        // En web usa el Site URL por defecto.
+        redirectTo: kIsWeb ? null : 'aura://reset-password',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Te enviamos un mail a $email para recuperar tu contraseña. '
+              'Revisá tu casilla o spam.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      // No revelamos si el email existe o no (seguridad): mensaje neutro.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Si ese email tiene una cuenta, te va a llegar el enlace de '
+              'recuperación.'),
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -61,7 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final launched = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: kIsWeb
-            ? 'https://sofiareyy.github.io/aura-flutter'
+            ? AppConstants.auraWebUrl
             : 'aura://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
@@ -111,7 +210,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final launched = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.apple,
         redirectTo: kIsWeb
-            ? 'https://sofiareyy.github.io/aura-flutter'
+            ? AppConstants.auraWebUrl
             : 'aura://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
@@ -179,15 +278,86 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) context.go(destino);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      // Caso especial: cuenta sin confirmar. Va un diálogo con explicación
+      // clara (el remitente puede figurar como "Supabase") + reenviar.
+      if (e.toString().toLowerCase().contains('email not confirmed')) {
+        await _mostrarDialogoSinConfirmar();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_friendlyLoginError(e)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// Diálogo cuando el login falla porque la cuenta no está validada. Explica
+  /// que el mail puede venir a nombre de "Supabase" y ofrece reenviarlo.
+  Future<void> _mostrarDialogoSinConfirmar() async {
+    var reenviando = false;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Validá tu cuenta'),
+          content: const Text(
+            'Todavía no validaste tu cuenta. Te mandamos un mail para '
+            'confirmarla — puede figurar como remitente "Supabase" y estar en '
+            'spam. Buscalo, abrilo y hacé clic en el link.\n\n'
+            'Si no lo encontrás, reenvialo acá abajo.',
+            style: TextStyle(color: AppColors.black, fontSize: 14, height: 1.45),
+          ),
+          actions: [
+            TextButton(
+              onPressed: reenviando ? null : () => Navigator.of(ctx).pop(),
+              child: const Text('Cerrar',
+                  style: TextStyle(color: AppColors.grey)),
+            ),
+            TextButton(
+              onPressed: reenviando
+                  ? null
+                  : () async {
+                      final email = _emailCtrl.text.trim();
+                      if (email.isEmpty) return;
+                      setD(() => reenviando = true);
+                      try {
+                        await _authService.reenviarConfirmacion(email);
+                        if (!ctx.mounted) return;
+                        Navigator.of(ctx).pop();
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                'Te reenviamos el mail a $email. Revisá tu casilla y spam.'),
+                            backgroundColor: AppColors.success,
+                          ),
+                        );
+                      } catch (err) {
+                        setD(() => reenviando = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text(err.toString().contains('rate')
+                                  ? 'Esperá un momento antes de reenviar de nuevo.'
+                                  : 'No pudimos reenviar el mail. Probá en un momento.'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: Text(reenviando ? 'Reenviando…' : 'Reenviar mail',
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -357,7 +527,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: GestureDetector(
-                        onTap: () {},
+                        onTap: _recuperarContrasena,
                         child: const Text(
                           '¿Olvidaste tu contraseña?',
                           style: TextStyle(

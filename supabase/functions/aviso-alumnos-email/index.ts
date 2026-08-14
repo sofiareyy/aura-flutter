@@ -27,7 +27,7 @@ const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 const FROM_EMAIL = Deno.env.get('AURA_FROM_EMAIL') ??
-  'Aura <hola@somosauraar.com>'
+  'Aura <hola@somosaurapass.com>'
 const APP_URL = Deno.env.get('AURA_APP_URL') ??
   'https://sofiareyy.github.io/aura-flutter'
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/auth_flow_state.dart';
 import '../../services/auth_service.dart';
 import 'onboarding_screen.dart';
 
@@ -34,6 +35,18 @@ class _AuthSplashScreenState extends State<AuthSplashScreen>
     await Future<void>.delayed(const Duration(milliseconds: kIsWeb ? 800 : 2200));
     if (!mounted || _navigating) return;
     _navigating = true;
+
+    // Deep link de "olvidé mi contraseña" en cold start: el handler de
+    // passwordRecovery ya marcó el flag. Como la sesión de recovery hace que
+    // `currentUser` no sea null, sin este chequeo el splash mandaría a /home y
+    // pisaría la pantalla de nueva contraseña. Va PRIMERO, antes del redirect
+    // normal. Es un simple read: si el flag no está, seguimos de largo sin
+    // esperar nada (el splash nunca se cuelga por esto).
+    if (AuthFlowState.pendingPasswordRecovery) {
+      AuthFlowState.pendingPasswordRecovery = false;
+      if (mounted) context.go('/reset-password');
+      return;
+    }
 
     // Si el usuario ya tiene sesión activa, redirigir según su rol
     final user = Supabase.instance.client.auth.currentUser;

@@ -309,18 +309,21 @@ class _CambiarPlanScreenState extends State<CambiarPlanScreen> {
     );
   }
 
+  /// Texto de uso del plan. NO promete cantidades de clases: cada estudio
+  /// negocia su propio precio en créditos y, en modo rango, además varía por
+  /// horario. Un "4 pilates + 1 yoga" era falso para casi todos los estudios.
   String _ejemploPlan(Map<String, dynamic> plan) {
     final nombre = (plan['nombre'] ?? '').toString().toLowerCase();
     if (nombre.contains('starter')) {
-      return 'Ejemplo: 4 pilates + 1 yoga por mes';
+      return 'Para arrancar con un ritmo tranquilo';
     }
     if (nombre.contains('explorer')) {
-      return 'Ejemplo: 6 pilates + 1 yoga por mes';
+      return 'Para entrenar seguido y variar de estudio';
     }
     if (nombre.contains('unlimited')) {
-      return 'Ejemplo: pensado para usarlo todas las semanas';
+      return 'Pensado para usarlo todas las semanas';
     }
-    return 'Ejemplo: combiná tus créditos como prefieras';
+    return 'Combiná tus créditos como prefieras';
   }
 
   Future<void> _omitir(AppProvider provider) async {

@@ -7,6 +7,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/referidos_service.dart';
@@ -51,7 +52,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final launched = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: kIsWeb
-            ? 'https://sofiareyy.github.io/aura-flutter'
+            ? AppConstants.auraWebUrl
             : 'aura://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
@@ -99,7 +100,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final launched = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.apple,
         redirectTo: kIsWeb
-            ? 'https://sofiareyy.github.io/aura-flutter'
+            ? AppConstants.auraWebUrl
             : 'aura://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
@@ -151,14 +152,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
 
       if (response.session == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Te enviamos un mail para validar tu cuenta. Revisá tu inbox o spam y después iniciá sesión.',
+        // Diálogo (no snackbar) porque navegamos a /login enseguida y el aviso
+        // es clave: la persona tiene que encontrar el mail para validar.
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Revisá tu mail 🧡'),
+            content: const Text(
+              'Te enviamos un mail para validar tu cuenta. Puede figurar como '
+              'remitente "Supabase" y estar en spam: buscalo, abrilo y tocá el '
+              'link. Después iniciá sesión.',
+              style:
+                  TextStyle(color: AppColors.black, fontSize: 14, height: 1.45),
             ),
-            backgroundColor: Colors.green,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Entendido',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ],
           ),
         );
+        if (!mounted) return;
         context.go('/login');
         return;
       }
@@ -500,7 +518,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   children: [
                     GestureDetector(
                       onTap: () => _abrirUrl(
-                          'https://sofiareyy.github.io/aura-flutter/terms.html'),
+                          '${AppConstants.auraWebUrl}terms.html'),
                       child: const Text(
                         'Términos y condiciones',
                         style: TextStyle(
@@ -520,7 +538,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     GestureDetector(
                       onTap: () => _abrirUrl(
-                          'https://sofiareyy.github.io/aura-flutter/privacy.html'),
+                          '${AppConstants.auraWebUrl}privacy.html'),
                       child: const Text(
                         'Política de privacidad',
                         style: TextStyle(

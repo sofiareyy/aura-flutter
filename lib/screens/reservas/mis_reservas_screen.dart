@@ -41,6 +41,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
   String _categoriaSeleccionada = 'Todos';
   String? _diaSeleccionadoKey;
   bool _loading = true;
+  String? _error;
   bool _loadingMoreHistorial = false;
   bool _hasMoreHistorial = true;
   int _historialOffset = 0;
@@ -62,21 +63,58 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
     if (mounted) {
       setState(() {
         _loading = true;
+        _error = null;
         _historialOffset = 0;
         _hasMoreHistorial = true;
       });
     }
 
-    await context.read<AppProvider>().refrescarUsuario();
+    // Refrescar el usuario NO debe bloquear la carga de reservas si falla.
+    try {
+      await context.read<AppProvider>().refrescarUsuario();
+    } catch (e) {
+      debugPrint('[mis-reservas] refrescarUsuario falló: $e');
+    }
 
-    final results = await Future.wait([
-      _reservasService.getReservasUsuario(uid),
-      _reservasService.getHistorialReservas(uid,
-          limit: _historialPageSize, offset: 0),
-      _clasesService.getProximasClases(limit: 200, offset: 0),
-      _reservasService.getListaEsperaUsuario(uid),
-      _reservasService.getPreReservasUsuario(uid),
-    ]);
+    // Cada query se protege por separado: si una falla (red, RLS, schema), cae
+    // a lista vacía y las demás igual cargan. Antes, una sola excepción dejaba
+    // la pantalla cargando para siempre (no había try/catch y _loading nunca
+    // volvía a false).
+    Future<List<Map<String, dynamic>>> guard(
+      Future<List<Map<String, dynamic>>> f,
+      String label,
+    ) async {
+      try {
+        return await f;
+      } catch (e) {
+        debugPrint('[mis-reservas] query "$label" falló: $e');
+        return <Map<String, dynamic>>[];
+      }
+    }
+
+    List<List<Map<String, dynamic>>> results;
+    try {
+      results = await Future.wait([
+        guard(_reservasService.getReservasUsuario(uid), 'reservas'),
+        guard(
+            _reservasService.getHistorialReservas(uid,
+                limit: _historialPageSize, offset: 0),
+            'historial'),
+        guard(_clasesService.getProximasClases(limit: 200, offset: 0),
+            'proximas'),
+        guard(_reservasService.getListaEsperaUsuario(uid), 'espera'),
+        guard(_reservasService.getPreReservasUsuario(uid), 'preReservas'),
+      ]);
+    } catch (e) {
+      debugPrint('[mis-reservas] _cargar falló: $e');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error =
+            'No pudimos cargar tus reservas. Revisá tu conexión e intentá de nuevo.';
+      });
+      return;
+    }
     if (!mounted) return;
 
     final proximas = results[0].toList()..sort(_compareByReservaFecha);
@@ -287,14 +325,35 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
   Future<void> _cancelar(Map<String, dynamic> reserva) async {
     if (!_puedeCancelar(reserva)) {
       final cierreMin = _cierreMinutosDe(reserva);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'No podés cancelar — faltan menos de '
-            '${_formatDuracion(cierreMin)} para la clase.',
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          backgroundColor: AppColors.error,
-          duration: const Duration(seconds: 4),
+          title: const Text(
+            'Ya no se puede cancelar',
+            style: TextStyle(
+                color: AppColors.black,
+                fontSize: 16,
+                fontWeight: FontWeight.w700),
+          ),
+          content: Text(
+            'La ventana para cancelar cerró ${_formatDuracion(cierreMin)} antes '
+            'de la clase, así que esta reserva ya no se puede cancelar.\n\n'
+            'Si no asistís, se descuentan los créditos: el estudio ya te '
+            'guardó el lugar y no puede ofrecérselo a otra persona.',
+            style: const TextStyle(
+                color: AppColors.black, fontSize: 14, height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Entendido',
+                  style: TextStyle(
+                      color: AppColors.primary, fontWeight: FontWeight.w700)),
+            ),
+          ],
         ),
       );
       return;
@@ -477,7 +536,34 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
             ? const Center(
                 child: CircularProgressIndicator(color: AppColors.primary),
               )
-            : ListView(
+            : _error != null
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
+                        child: Column(
+                          children: [
+                            const Icon(Icons.cloud_off_rounded,
+                                size: 48, color: AppColors.grey),
+                            const SizedBox(height: 16),
+                            Text(
+                              _error!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  color: AppColors.grey, height: 1.4),
+                            ),
+                            const SizedBox(height: 20),
+                            ElevatedButton(
+                              onPressed: _cargar,
+                              child: const Text('Reintentar'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                : ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.only(top: 16, bottom: 32),
                 children: [

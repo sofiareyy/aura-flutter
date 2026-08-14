@@ -26,10 +26,12 @@ class CierreMinutos {
     return _leer(clase?['estudios'] as Map?, columna);
   }
 
-  /// Minutos antes del inicio en que cierra la reserva. Default 0: se puede
-  /// reservar hasta que la clase arranca, salvo que el estudio lo cambie.
+  /// Minutos antes del inicio en que cierra la reserva. Default 1 h: por
+  /// default no se puede reservar en la última hora, salvo que la clase o el
+  /// estudio configuren otro valor (incluido 0 = hasta que arranca).
   static int reserva(Map? clase) =>
-      _resolver(clase, 'reserva_cierre_minutos') ?? 0;
+      _resolver(clase, 'reserva_cierre_minutos') ??
+      AppConstants.reservaCierreMinutosDefault;
 
   /// Minutos antes del inicio en que cierra la cancelacion. Default 720
   /// (12 hs): cancelar mas tarde consume los creditos.

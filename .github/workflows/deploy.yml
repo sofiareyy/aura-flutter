@@ -11,8 +11,17 @@ jobs:
         with:
           flutter-version: '3.41.8'
       - run: flutter pub get
-      - run: flutter build web --release --base-href /aura-flutter/
+      # La web vive en la RAÍZ de somosaurapass.com, no en un subdirectorio.
+      # Con el dominio propio, --base-href /aura-flutter/ haría que todos los
+      # assets se busquen en somosaurapass.com/aura-flutter/... y den 404.
+      - run: flutter build web --release --base-href /
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build/web
+          # SIN esto el dominio propio se rompe en el segundo deploy.
+          # Configurar el custom domain en Settings → Pages crea un archivo
+          # CNAME en la rama gh-pages, pero esta action REEMPLAZA la rama
+          # entera en cada push y se lo lleva puesto. Con `cname` lo vuelve a
+          # escribir siempre.
+          cname: somosaurapass.com

@@ -22,8 +22,7 @@ class PricingService {
       multiplicador: 1.10,
       vigenciaDias: 30,
       badge: null,
-      descripcion: 'Ideal para probar Aura',
-      equivalencia: '1 pilates + 1 yoga',
+      descripcion: 'Ideal para conocer Aura · vence en 30 días',
     ),
     _PackBase(
       nombre: 'Pack Esencial',
@@ -31,8 +30,7 @@ class PricingService {
       multiplicador: 1.00,
       vigenciaDias: 60,
       badge: 'MÁS POPULAR',
-      descripcion: 'El pack base para usar durante el bimestre',
-      equivalencia: '3 pilates + 1 yoga',
+      descripcion: 'Para sumar clases al mes · vence en 60 días',
     ),
     _PackBase(
       nombre: 'Pack Popular',
@@ -40,8 +38,7 @@ class PricingService {
       multiplicador: 0.95,
       vigenciaDias: 60,
       badge: 'MEJOR VALOR',
-      descripcion: 'El más elegido para entrenar con frecuencia',
-      equivalencia: '7 pilates + 1 cerámica',
+      descripcion: 'Para entrenar seguido y variar · vence en 60 días',
     ),
     _PackBase(
       nombre: 'Pack Full',
@@ -49,8 +46,7 @@ class PricingService {
       multiplicador: 0.90,
       vigenciaDias: 60,
       badge: null,
-      descripcion: 'La opción más conveniente para cargar saldo',
-      equivalencia: 'todo lo anterior x2',
+      descripcion: 'Máxima libertad para explorar · vence en 60 días',
     ),
   ];
 
@@ -113,7 +109,6 @@ class _PackBase {
   final int vigenciaDias;
   final String? badge;
   final String descripcion;
-  final String equivalencia;
 
   const _PackBase({
     required this.nombre,
@@ -122,7 +117,6 @@ class _PackBase {
     required this.vigenciaDias,
     required this.badge,
     required this.descripcion,
-    required this.equivalencia,
   });
 
   Map<String, dynamic> toMap(int valorCredito) => {
@@ -134,7 +128,6 @@ class _PackBase {
         // popular se mantiene por compat con codigo existente que lo lee
         'popular': badge != null,
         'descripcion': descripcion,
-        'equivalencia': equivalencia,
         'multiplicador': multiplicador,
       };
 }

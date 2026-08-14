@@ -15,6 +15,7 @@ import '../../services/clases_service.dart';
 import '../../services/estudios_service.dart';
 import '../../services/location_service.dart';
 import '../../services/notificaciones_service.dart';
+import '../../services/reservas_service.dart';
 import '../../services/studio_geo_service.dart';
 import '../../widgets/organizadores_links.dart';
 
@@ -34,6 +35,9 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _proximasClases = [];
   List<Map<String, dynamic>> _experiencias = [];
   List<Map<String, dynamic>> _sugerencias = [];
+  final _reservasService = ReservasService();
+  // Próxima reserva del usuario dentro de las próximas 24 h (para el QR de hoy).
+  Map<String, dynamic>? _proximaReserva;
   List<Estudio> _estudios = [];
   List<String> _categorias = const ['Todos'];
   final _avisoService = AvisoAlumnosService();
@@ -149,6 +153,35 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Busca la reserva activa más próxima y, si cae dentro de las próximas
+  /// 24 h, la deja lista para la tarjeta "Tu QR de hoy". getReservasUsuario ya
+  /// devuelve solo reservas activas y futuras, ordenadas por fecha.
+  Future<void> _cargarProximaReserva() async {
+    try {
+      final reservas = await _reservasService.getReservasUsuario();
+      const argOffset = Duration(hours: -3);
+      final ahora = DateTime.now().toUtc().add(argOffset);
+      final limite = ahora.add(const Duration(hours: 24));
+      Map<String, dynamic>? mejor;
+      DateTime? mejorFecha;
+      for (final r in reservas) {
+        final fechaStr = (r['clases'] as Map?)?['fecha']?.toString() ?? '';
+        final parsed = DateTime.tryParse(fechaStr);
+        if (parsed == null) continue;
+        final fecha = parsed.isUtc ? parsed.add(argOffset) : parsed;
+        if (fecha.isAfter(limite)) continue; // más allá de 24 h
+        if ((r['codigo_qr']?.toString() ?? '').isEmpty) continue;
+        if (mejorFecha == null || fecha.isBefore(mejorFecha)) {
+          mejor = r;
+          mejorFecha = fecha;
+        }
+      }
+      if (mounted) setState(() => _proximaReserva = mejor);
+    } catch (_) {
+      // Sin QR destacado si falla.
+    }
+  }
+
   Future<void> _cargar() async {
     if (mounted) setState(() => _loading = true);
 
@@ -222,6 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
       _cargarSugerencias().ignore();
+      _cargarProximaReserva().ignore();
     } catch (_) {
       // Dejamos UI vacia si falla la carga.
     } finally {
@@ -411,10 +445,28 @@ class _HomeScreenState extends State<HomeScreen> {
                               )
                             : _SinCreditosCard(
                                 onComprar: () => context.push('/comprar-creditos'),
-                                onVerReservas: () => context.push('/mis-clases'),
+                                onVerReservas: () => context.go('/mis-reservas'),
                               ),
                   ),
                 ),
+                // ── Tu QR de hoy (reserva dentro de las próximas 24 h) ──────
+                if (_proximaReserva != null)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                      child: _ProximaReservaCard(
+                        reserva: _proximaReserva!,
+                        onVerQr: () {
+                          final qr =
+                              _proximaReserva!['codigo_qr']?.toString() ?? '';
+                          if (qr.isNotEmpty) {
+                            context.push(
+                                '/reserva-confirmada/${Uri.encodeComponent(qr)}');
+                          }
+                        },
+                      ),
+                    ),
+                  ),
                 // ── Credits expiry banner ─────────────────────────────
                 if (!_bannerDismissed && usuario != null) ...[
                   SliverToBoxAdapter(
@@ -877,6 +929,108 @@ class _HomeScreenState extends State<HomeScreen> {
     final limpio = nombre.trim();
     if (limpio.isEmpty) return 'A';
     return limpio.substring(0, 1).toUpperCase();
+  }
+}
+
+// ─── Próxima reserva / Tu QR de hoy ───────────────────────────────────────────
+
+class _ProximaReservaCard extends StatelessWidget {
+  final Map<String, dynamic> reserva;
+  final VoidCallback onVerQr;
+  const _ProximaReservaCard({required this.reserva, required this.onVerQr});
+
+  @override
+  Widget build(BuildContext context) {
+    final clase = reserva['clases'] as Map<String, dynamic>?;
+    final estudio = clase?['estudios'] as Map<String, dynamic>?;
+    final nombre = clase?['nombre']?.toString() ?? 'Tu clase';
+    final estudioNombre = estudio?['nombre']?.toString() ?? '';
+    final fecha = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
+    final cuando = fecha != null ? _cuando(fecha) : '';
+
+    return GestureDetector(
+      onTap: onVerQr,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.qr_code_2_rounded,
+                  color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Tu próxima clase',
+                    style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    nombre,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    [
+                      if (cuando.isNotEmpty) cuando,
+                      if (estudioNombre.isNotEmpty) estudioNombre,
+                    ].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              children: const [
+                Icon(Icons.chevron_right_rounded, color: Colors.white),
+                Text('Ver QR',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _cuando(DateTime fecha) {
+    const argOffset = Duration(hours: -3);
+    final ahora = DateTime.now().toUtc().add(argOffset);
+    final hoy = DateTime(ahora.year, ahora.month, ahora.day);
+    final dia = DateTime(fecha.year, fecha.month, fecha.day);
+    final diff = dia.difference(hoy).inDays;
+    final hh = fecha.hour.toString().padLeft(2, '0');
+    final mm = fecha.minute.toString().padLeft(2, '0');
+    if (diff == 0) return 'Hoy $hh:$mm';
+    if (diff == 1) return 'Mañana $hh:$mm';
+    return '${fecha.day}/${fecha.month} $hh:$mm';
   }
 }
 

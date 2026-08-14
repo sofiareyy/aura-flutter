@@ -9,6 +9,7 @@ import '../../screens/auth/onboarding_screen.dart';
 import '../../screens/auth/landing_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
+import '../../screens/auth/reset_password_screen.dart';
 import '../../screens/auth/seleccionar_acceso_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/explorar/explorar_screen.dart';
@@ -76,6 +77,7 @@ final appRouter = GoRouter(
       '/landing',
       '/login',
       '/register',
+      '/reset-password',
       '/onboarding',
       '/creditos-onboarding',
     };
@@ -117,6 +119,10 @@ final appRouter = GoRouter(
       builder: (context, state) => const RegisterScreen(),
     ),
     GoRoute(
+      path: '/reset-password',
+      builder: (context, state) => const ResetPasswordScreen(),
+    ),
+    GoRoute(
       path: '/creditos-onboarding',
       builder: (context, state) => const CreditosOnboardingScreen(),
     ),
@@ -135,6 +141,10 @@ final appRouter = GoRouter(
         GoRoute(
           path: '/explorar',
           builder: (context, state) => const ExplorarScreen(),
+        ),
+        GoRoute(
+          path: '/mis-reservas',
+          builder: (context, state) => const MisReservasScreen(),
         ),
         GoRoute(
           path: '/mis-clases',
@@ -350,10 +360,6 @@ final appRouter = GoRouter(
       ),
     ),
     GoRoute(
-      path: '/mis-reservas',
-      builder: (context, state) => const MisReservasScreen(),
-    ),
-    GoRoute(
       path: '/configuracion',
       builder: (context, state) => const ConfiguracionScreen(),
     ),
@@ -387,7 +393,18 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/comprar-creditos',
-      builder: (context, state) => const ComprarCreditosScreen(),
+      builder: (context, state) {
+        // ?tab=gift abre directo la pestaña Regalar (para el acceso desde el
+        // perfil). Sin el query, arranca en Packs como siempre.
+        final tab = state.uri.queryParameters['tab'];
+        return ComprarCreditosScreen(
+          initialTab: tab == 'gift'
+              ? 2
+              : tab == 'plan'
+                  ? 1
+                  : 0,
+        );
+      },
     ),
     GoRoute(
       path: '/historial-creditos',

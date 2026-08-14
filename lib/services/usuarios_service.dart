@@ -91,6 +91,10 @@ class UsuariosService {
     required int creditos,
     required int amount,
     int? vigenciaDias,
+    // Gift card: si vienen, el pago se marca type='gift' y al aprobarse se crea
+    // el regalo y se mailea al destinatario en vez de acreditar al comprador.
+    String? giftEmail,
+    String? giftMensaje,
   }) async {
     final res = await _supabase.functions.invoke(
       'crear-checkout-pack',
@@ -101,6 +105,10 @@ class UsuariosService {
         'amount': amount,
         'vigencia_dias': vigenciaDias,
         'platform': kIsWeb ? 'web' : 'mobile',
+        if (giftEmail != null && giftEmail.trim().isNotEmpty)
+          'gift_email': giftEmail.trim(),
+        if (giftMensaje != null && giftMensaje.trim().isNotEmpty)
+          'gift_mensaje': giftMensaje.trim(),
       },
     );
     if (res.status != 200) {

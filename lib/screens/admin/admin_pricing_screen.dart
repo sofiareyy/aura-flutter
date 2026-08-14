@@ -60,7 +60,8 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
   // cada workshop, no acá.
   final _comisionWorkshopCtrl = TextEditingController();
 
-  // horarios: clave "dia|rango" -> 'pico' | 'valle'
+  // Franjas marcadas como valle: clave "dia|hora" (hora en punto, 0..23).
+  // Solo se guardan las de valle; lo que no está acá es pico.
   final Map<String, String> _clasificacion = {};
 
   @override
@@ -126,12 +127,12 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       _comisionWorkshopCtrl.text =
           (_asInt(row['comision_workshop']) ?? 15).toString();
 
-      // horarios_config = {"pico": [{"dia":1,"rango":"tarde_noche"}], "valle": [...]}
+      // horarios_config = {"valle": [{"dia":1,"hora":8}, ...]}
+      // Solo valle: lo que no está marcado es pico.
       _clasificacion.clear();
       final horarios = row['horarios_config'];
       if (horarios is Map) {
-        _cargarClasificacion(horarios['pico'], 'pico');
-        _cargarClasificacion(horarios['valle'], 'valle');
+        _cargarClasificacion(horarios['valle']);
       }
 
       setState(() {
@@ -146,14 +147,14 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
     }
   }
 
-  void _cargarClasificacion(dynamic arr, String tipo) {
+  void _cargarClasificacion(dynamic arr) {
     if (arr is! List) return;
     for (final e in arr) {
       if (e is! Map) continue;
       final dia = _asInt(e['dia']);
-      final rango = e['rango']?.toString();
-      if (dia != null && rango != null && rango.isNotEmpty) {
-        _clasificacion['$dia|$rango'] = tipo;
+      final hora = _asInt(e['hora']);
+      if (dia != null && hora != null && dia >= 1 && dia <= 7) {
+        _clasificacion['$dia|$hora'] = 'valle';
       }
     }
   }
@@ -206,17 +207,19 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
         _snack('El precio máximo no puede ser menor al mínimo.');
         return;
       }
-      final pico = <Map<String, dynamic>>[];
+      // Solo se persiste `valle`. Guardar también `pico` sería estado
+      // duplicado: si no está en valle, es pico.
       final valle = <Map<String, dynamic>>[];
       _clasificacion.forEach((key, tipo) {
+        if (tipo != 'valle') return;
         final parts = key.split('|');
         if (parts.length != 2) return;
         final dia = int.tryParse(parts[0]);
-        if (dia == null) return;
-        final entry = {'dia': dia, 'rango': parts[1]};
-        (tipo == 'pico' ? pico : valle).add(entry);
+        final hora = int.tryParse(parts[1]);
+        if (dia == null || hora == null) return;
+        valle.add({'dia': dia, 'hora': hora});
       });
-      horariosConfig = {'pico': pico, 'valle': valle};
+      horariosConfig = {'valle': valle};
     }
 
     setState(() => _saving = true);
@@ -446,8 +449,8 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
           _modo == 'fijo'
               ? 'Todas las clases del estudio valen lo mismo, sin importar el '
                   'día ni la hora.'
-              : 'El precio sale del horario: pico = máximo, valle = mínimo, '
-                  'sin marcar = promedio.',
+              : 'El precio sale del horario: marcás los flojos como valle '
+                  '(mínimo) y el resto es pico (máximo).',
           style: const TextStyle(
               color: AppColors.grey, fontSize: 12, height: 1.35),
         ),
@@ -473,9 +476,9 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
           esFijo
               ? 'Créditos que cuesta cada clase de este estudio. El estudio no '
                   'lo puede editar.'
-              : 'Rango negociado en créditos. En horario pico la clase cuesta '
-                  'el máximo; en valle, el mínimo; en los horarios sin marcar, '
-                  'el promedio entre los dos.',
+              : 'Rango negociado en créditos. En los horarios que marques como '
+                  'valle la clase cuesta el mínimo; en todos los demás, el '
+                  'máximo.',
           style: const TextStyle(
               color: AppColors.grey, fontSize: 13, height: 1.4),
         ),
@@ -593,10 +596,21 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Tocá un bloque para clasificarlo. 1 toque = ⚡ pico (precio máximo), '
-          '2 toques = 🌙 valle (precio mínimo), 3 toques = sin marcar. Los '
-          'bloques sin marcar cobran el promedio entre mínimo y máximo.',
+          'Marcá los horarios FLOJOS: esos cobran el mínimo. Todo lo que dejes '
+          'sin marcar es horario pico y cobra el máximo. Cada franja es de una '
+          'hora y se marca por separado.',
           style: TextStyle(color: AppColors.grey, fontSize: 13, height: 1.4),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            _LeyendaFranja(color: _valleColor, texto: '🌙 Valle (mínimo)'),
+            const SizedBox(width: 14),
+            _LeyendaFranja(
+                color: AppColors.white,
+                texto: '⚡ Pico (máximo)',
+                borde: true),
+          ],
         ),
         const SizedBox(height: 14),
         for (int dia = 1; dia <= 7; dia++) _buildDiaRow(dia),
@@ -606,57 +620,60 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
 
   Widget _buildDiaRow(int dia) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _diasSemana[dia],
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.black,
-            ),
+          Row(
+            children: [
+              Text(
+                _diasSemana[dia],
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.black,
+                ),
+              ),
+              const Spacer(),
+              // Atajos por día: marcar todo el día como valle o limpiarlo.
+              // Con 18 franjas por día, hacerlo chip por chip es tedioso.
+              if (!widget.readOnly) ...[
+                _AccionDia(
+                  texto: 'Todo valle',
+                  onTap: () => _marcarDia(dia, true),
+                ),
+                const SizedBox(width: 10),
+                _AccionDia(
+                  texto: 'Limpiar',
+                  onTap: () => _marcarDia(dia, false),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 8),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: kRangosHorarios.map((r) {
-              final key = '$dia|${r.key}';
-              final estado = _clasificacion[key]; // null | 'pico' | 'valle'
-              final Color bg;
-              final Color fg;
-              final String prefix;
-              if (estado == 'pico') {
-                bg = _picoColor;
-                fg = AppColors.white;
-                prefix = '⚡ ';
-              } else if (estado == 'valle') {
-                bg = _valleColor;
-                fg = AppColors.white;
-                prefix = '🌙 ';
-              } else {
-                bg = AppColors.white;
-                fg = AppColors.black;
-                prefix = '';
-              }
+            spacing: 6,
+            runSpacing: 6,
+            children: kHorasGrilla.map((hora) {
+              final key = '$dia|$hora';
+              final esValle = _clasificacion[key] == 'valle';
               return GestureDetector(
-                onTap: widget.readOnly ? null : () => _ciclarEstado(key),
+                onTap: widget.readOnly ? null : () => _toggleValle(key),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  width: 62,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: bg,
-                    borderRadius: BorderRadius.circular(20),
+                    color: esValle ? _valleColor : AppColors.white,
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: estado == null ? const Color(0xFFEDE7E1) : bg,
+                      color: esValle ? _valleColor : const Color(0xFFEDE7E1),
                     ),
                   ),
                   child: Text(
-                    '$prefix${r.label}',
+                    horaLabel(hora),
                     style: TextStyle(
-                      color: fg,
+                      color: esValle ? AppColors.white : AppColors.black,
                       fontWeight: FontWeight.w600,
                       fontSize: 12,
                     ),
@@ -670,15 +687,26 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
     );
   }
 
-  void _ciclarEstado(String key) {
+  /// Dos estados nomás: valle o pico. Tocar alterna; lo no marcado es pico.
+  void _toggleValle(String key) {
     setState(() {
-      final actual = _clasificacion[key];
-      if (actual == null) {
-        _clasificacion[key] = 'pico';
-      } else if (actual == 'pico') {
-        _clasificacion[key] = 'valle';
-      } else {
+      if (_clasificacion[key] == 'valle') {
         _clasificacion.remove(key);
+      } else {
+        _clasificacion[key] = 'valle';
+      }
+    });
+  }
+
+  void _marcarDia(int dia, bool valle) {
+    setState(() {
+      for (final hora in kHorasGrilla) {
+        final key = '$dia|$hora';
+        if (valle) {
+          _clasificacion[key] = 'valle';
+        } else {
+          _clasificacion.remove(key);
+        }
       }
     });
   }
@@ -730,5 +758,65 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       buf.write(s[i]);
     }
     return '\$$buf';
+  }
+}
+
+/// Cuadradito de color + texto, para la referencia de la grilla.
+class _LeyendaFranja extends StatelessWidget {
+  final Color color;
+  final String texto;
+  final bool borde;
+  const _LeyendaFranja({
+    required this.color,
+    required this.texto,
+    this.borde = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(4),
+            border: borde
+                ? Border.all(color: const Color(0xFFEDE7E1))
+                : null,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          texto,
+          style: const TextStyle(color: AppColors.grey, fontSize: 12),
+        ),
+      ],
+    );
+  }
+}
+
+/// Atajo de texto al lado del nombre del día ("Todo valle" / "Limpiar").
+/// Con 18 franjas por día, marcarlas de a una es tedioso.
+class _AccionDia extends StatelessWidget {
+  final String texto;
+  final VoidCallback onTap;
+  const _AccionDia({required this.texto, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Text(
+        texto,
+        style: const TextStyle(
+          color: AppColors.primary,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
   }
 }

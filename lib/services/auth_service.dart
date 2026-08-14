@@ -7,10 +7,16 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/constants/app_constants.dart';
 import 'estudio_admin_service.dart';
 
 class AuthService {
   final _supabase = Supabase.instance.client;
+
+  /// A dónde manda Supabase después de confirmar el mail. Apunta a la web
+  /// (GitHub Pages) para que el link NO caiga en localhost. Tiene que estar en
+  /// Redirect URLs del dashboard.
+  static const String _emailConfirmRedirect = AppConstants.auraWebUrl;
 
   User? get currentUser => _supabase.auth.currentUser;
   bool get isLoggedIn => currentUser != null;
@@ -29,6 +35,18 @@ class AuthService {
       data: {
         'nombre': nombre,
       },
+      // El link de confirmación cae en la web (no en localhost).
+      emailRedirectTo: _emailConfirmRedirect,
+    );
+  }
+
+  /// Reenvía el mail de confirmación de cuenta (signup). Para el botón
+  /// "Reenviar" del login cuando el usuario dice que no le llegó / no lo validó.
+  Future<void> reenviarConfirmacion(String email) async {
+    await _supabase.auth.resend(
+      type: OtpType.signup,
+      email: email.trim(),
+      emailRedirectTo: _emailConfirmRedirect,
     );
   }
 
@@ -54,7 +72,7 @@ class AuthService {
     return _supabase.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: kIsWeb
-          ? 'https://sofiareyy.github.io/aura-flutter'
+          ? AppConstants.auraWebUrl
           : 'aura://login-callback',
       authScreenLaunchMode: kIsWeb
           ? LaunchMode.platformDefault
@@ -70,7 +88,7 @@ class AuthService {
     return _supabase.auth.signInWithOAuth(
       OAuthProvider.apple,
       redirectTo: kIsWeb
-          ? 'https://sofiareyy.github.io/aura-flutter'
+          ? AppConstants.auraWebUrl
           : 'aura://login-callback',
       authScreenLaunchMode: kIsWeb
           ? LaunchMode.platformDefault

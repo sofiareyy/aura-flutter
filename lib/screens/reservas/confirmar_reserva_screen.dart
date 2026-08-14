@@ -103,15 +103,51 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al reservar: ${e.toString()}'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(_friendlyReservaError(e)),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Reintentar',
+              textColor: Colors.white,
+              onPressed: _confirmar,
+            ),
+          ),
+        );
     } finally {
       if (mounted) setState(() => _reservando = false);
     }
+  }
+
+  /// Traduce el error técnico de la reserva a un mensaje claro en español.
+  String _friendlyReservaError(Object error) {
+    final msg = error.toString().toLowerCase();
+    if (msg.contains('socketexception') ||
+        msg.contains('failed host lookup') ||
+        msg.contains('connection') ||
+        msg.contains('timeout') ||
+        msg.contains('network')) {
+      return 'No pudimos conectar. Revisá tu conexión y probá de nuevo.';
+    }
+    if (msg.contains('suficientes') || msg.contains('creditos')) {
+      return 'No te alcanzan los créditos para esta clase.';
+    }
+    if (msg.contains('completo') ||
+        msg.contains('cupo') ||
+        msg.contains('full') ||
+        msg.contains('sin lugar')) {
+      return 'La clase se llenó. Probá con otro horario o sumate a la lista de espera.';
+    }
+    if (msg.contains('ya reserv') || msg.contains('duplicate')) {
+      return 'Ya tenés una reserva para esta clase.';
+    }
+    if (msg.contains('cerrada') || msg.contains('cerro') || msg.contains('cierre')) {
+      return 'Las reservas para esta clase ya cerraron.';
+    }
+    return 'No pudimos confirmar tu reserva. Probá de nuevo en un momento.';
   }
 
   @override

@@ -1817,7 +1817,7 @@ class _TutorialSheetState extends State<_TutorialSheet> {
     _PasoData(
       icono: Icons.calendar_month_rounded,
       titulo: 'Cargá tu primera clase',
-      cuerpo: 'Andá a Mis Clases → Nueva clase.\nElegí el horario, los cupos y listo.\nTus clases aparecen para todos los usuarios de Aura en Buenos Aires.',
+      cuerpo: 'Tocá el botón "+" y elegí "Nueva clase" (o "Nuevo workshop").\nElegí el horario, los cupos y listo.\nTus clases aparecen para todos los usuarios de Aura en Buenos Aires.',
       boton: 'Entendido →',
     ),
     _PasoData(

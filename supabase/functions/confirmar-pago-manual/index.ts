@@ -9,7 +9,7 @@ const MP_PACKS_ACCESS_TOKEN = Deno.env.get('MP_PACKS_ACCESS_TOKEN')!
 type PagoRow = {
   id: string
   user_id: string
-  type: 'pack' | 'plan'
+  type: 'pack' | 'plan' | 'gift'
   status: string
   creditos: number
   pack_nombre: string | null
@@ -104,8 +104,8 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'No autorizado para este pago' }, 403)
     }
 
-    if (pago.type !== 'pack') {
-      return json({ error: 'Solo se admiten packs de creditos.' }, 400)
+    if (pago.type !== 'pack' && pago.type !== 'gift') {
+      return json({ error: 'Solo se admiten packs de creditos o gift cards.' }, 400)
     }
 
     if (pago.credits_granted_at != null) {
@@ -124,8 +124,11 @@ Deno.serve(async (req: Request) => {
     if (paymentRef['user_id'] && paymentRef['user_id'] !== user.id) {
       return json({ error: 'El pago de Mercado Pago corresponde a otro usuario' }, 403)
     }
-    if (paymentRef['type'] && paymentRef['type'] !== 'pack') {
-      return json({ error: 'El pago de Mercado Pago no corresponde a un pack' }, 400)
+    if (paymentRef['type'] && paymentRef['type'] !== 'pack' && paymentRef['type'] !== 'gift') {
+      return json({ error: 'El pago de Mercado Pago no corresponde a un pack ni a una gift card' }, 400)
+    }
+    if (paymentRef['type'] && paymentRef['type'] !== pago.type) {
+      return json({ error: 'El tipo del pago no coincide con la compra iniciada' }, 409)
     }
     if (paymentRef['pago_id'] && paymentRef['pago_id'] !== pago.id) {
       return json({ error: 'El pago no coincide con la compra iniciada' }, 409)
@@ -160,7 +163,7 @@ async function reconcilePack(
   }
 
   const expiryStr = expirationDate(validityForPack(pago.pack_nombre, pago.creditos ?? 0))
-  const { error } = await adminSupabase.rpc('process_approved_pack_payment', {
+  const { data: result, error } = await adminSupabase.rpc('process_approved_pack_payment', {
     p_pago_id: pago.id,
     p_mp_payment_id: String(payment.id),
     p_expires_at: expiryStr,
@@ -170,7 +173,39 @@ async function reconcilePack(
     throw error
   }
 
+  // Gift card: mandar el mail al destinatario solo en el primer procesamiento
+  // (idempotente vía already_processed). Si el webhook ya lo procesó, este RPC
+  // devuelve already_processed=true y no se manda un segundo mail.
+  const r = result as Record<string, unknown> | null
+  if (r && r.is_gift === true && r.already_processed === false && r.gift_codigo) {
+    await sendGiftEmail(r)
+  }
+
   return 'approved'
+}
+
+async function sendGiftEmail(r: Record<string, unknown>) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/email-regalo`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        destinatario_email: r.gift_email,
+        codigo: r.gift_codigo,
+        creditos: r.gift_creditos,
+        remitente_nombre: r.remitente_nombre,
+        mensaje: r.gift_mensaje,
+      }),
+    })
+    if (!res.ok) {
+      console.error('confirmar-pago-manual: email-regalo falló:', await res.text())
+    }
+  } catch (e) {
+    console.error('confirmar-pago-manual: excepción enviando email-regalo:', e)
+  }
 }
 
 function json(body: unknown, status = 200) {

@@ -29,6 +29,7 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
   bool _uploadingPhoto = false;
   bool _uploadingGaleria = false;
   bool _guardandoCierres = false;
+  bool _guardandoDescripcion = false;
   /// Las acciones destructivas arrancan colapsadas (FIX 4).
   bool _avanzadasAbiertas = false;
   String? _error;
@@ -733,11 +734,112 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
   /// FIX 3 — Las dos ventanas de tiempo del estudio. Son reglas distintas y
   /// se guardan por separado: cerrar reservas 2 hs antes no obliga a cerrar
   /// las cancelaciones 2 hs antes.
+  /// Editar la descripción del estudio (lo que ven los alumnos en el perfil).
+  /// La columna `descripcion` no está bloqueada por el trigger de columnas de
+  /// Aura, así que se puede guardar con un update directo del cliente.
+  Future<void> _editarDescripcion() async {
+    final estudioId = (_estudio?['id'] as num?)?.toInt();
+    if (estudioId == null) return;
+    final ctrl =
+        TextEditingController(text: _estudio?['descripcion']?.toString() ?? '');
+
+    final guardar = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.fromLTRB(
+              20, 20, 20, MediaQuery.of(ctx).padding.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Descripción del estudio',
+                style: TextStyle(
+                    color: AppColors.black,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Contá de qué se trata tu estudio. Es lo que ven tus alumnos en '
+                'el perfil.',
+                style: TextStyle(color: AppColors.grey, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: ctrl,
+                maxLines: 5,
+                maxLength: 600,
+                decoration: InputDecoration(
+                  hintText:
+                      'Ej: Estudio de pilates y yoga en Palermo, con clases '
+                      'para todos los niveles…',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text('Guardar'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final texto = ctrl.text.trim();
+    ctrl.dispose();
+    if (guardar != true || !mounted) return;
+
+    setState(() => _guardandoDescripcion = true);
+    try {
+      await Supabase.instance.client.from('estudios').update({
+        'descripcion': texto.isEmpty ? null : texto,
+      }).eq('id', estudioId);
+      await _cargar();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Descripción actualizada.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo guardar la descripción: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _guardandoDescripcion = false);
+    }
+  }
+
   Future<void> _editarCierres() async {
     final estudioId = (_estudio?['id'] as num?)?.toInt();
     if (estudioId == null) return;
 
-    int reservaHoras = _horasDe('reserva_cierre_minutos', 0);
+    // Default 1 h (coincide con AppConstants.reservaCierreMinutosDefault): si el
+    // estudio nunca lo tocó, mostramos 1 h en vez de 0.
+    int reservaHoras = _horasDe('reserva_cierre_minutos', 1);
     // Clamp al tope: si en la base quedó un valor viejo por encima de 12 hs,
     // el stepper lo baja al máximo en vez de mostrar algo que ya no se puede
     // guardar (el RPC y la constraint también lo rechazan).
@@ -1619,6 +1721,12 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                       onEdit: _editarCierres,
                     ),
                     const SizedBox(height: 16),
+                    _DescripcionCard(
+                      descripcion: _estudio?['descripcion']?.toString(),
+                      guardando: _guardandoDescripcion,
+                      onEdit: _editarDescripcion,
+                    ),
+                    const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
@@ -2003,7 +2111,7 @@ class _CierresCard extends StatelessWidget {
         children: [
           _CierreRow(
             label: 'Cierre de reservas',
-            value: _texto(reservaMinutos, 0),
+            value: _texto(reservaMinutos, 1),
           ),
           const SizedBox(height: 12),
           _CierreRow(
@@ -2037,6 +2145,74 @@ class _CierresCard extends StatelessWidget {
                       ),
                     )
                   : const Text('Editar'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DescripcionCard extends StatelessWidget {
+  final String? descripcion;
+  final bool guardando;
+  final VoidCallback onEdit;
+
+  const _DescripcionCard({
+    required this.descripcion,
+    required this.guardando,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tiene = (descripcion?.trim().isNotEmpty ?? false);
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEDE7E1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Descripción del estudio',
+            style: TextStyle(
+                color: AppColors.black,
+                fontSize: 15,
+                fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            tiene
+                ? descripcion!.trim()
+                : 'Todavía no cargaste una descripción. Es lo que ven tus '
+                    'alumnos en el perfil del estudio.',
+            style: TextStyle(
+              color: tiene ? const Color(0xFF4A4A4A) : const Color(0xFF8F877F),
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: guardando ? null : onEdit,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(guardando
+                  ? 'Guardando…'
+                  : tiene
+                      ? 'Editar descripción'
+                      : 'Agregar descripción'),
             ),
           ),
         ],

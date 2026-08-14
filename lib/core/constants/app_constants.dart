@@ -4,6 +4,27 @@ class AppConstants {
 
   static const String supabaseUrl =
       'https://hvgqpzvornlnxmsbqnwg.supabase.co';
+
+  /// Dominio propio de Aura, sin barra final. La web vive acá (GitHub Pages
+  /// con custom domain) y es el dominio de los mails (Resend).
+  static const String auraDominio = 'https://somosaurapass.com';
+
+  /// URL de la web. Es a donde vuelven el login con Google/Apple
+  /// (`redirectTo`) y el link de confirmación de mail (`emailRedirectTo`),
+  /// así que **tiene que estar en Redirect URLs del dashboard de Supabase**.
+  ///
+  /// Termina en '/' a propósito: Supabase le agrega el `?code=...` y así queda
+  /// limpio. Como la web usa hash routing, la raíz sin '#' evita que el
+  /// fragmento se ensucie.
+  ///
+  /// ⚠️ NO hardcodear esta URL en las pantallas. Antes login y registro la
+  /// tenían escrita a mano y SIN la barra final, así que no matcheaba la
+  /// allowlist de Supabase y el redirect de Google se cortaba.
+  static const String auraWebUrl = '$auraDominio/';
+
+  /// Link público a una clase, para compartir por WhatsApp, historias, etc.
+  /// La web usa hash routing, de ahí el '#'.
+  static String linkDeClase(int claseId) => '$auraDominio/#/clase/$claseId';
   static const String supabaseAnonKey =
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z3FwenZvcm5sbnhtc2JxbndnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNzcxMjIsImV4cCI6MjA5MDY1MzEyMn0.G5AKWyFGoL8j6IfAZV40U6TceaoQc0oVPYpepiIyDlk';
 
@@ -57,4 +78,9 @@ class AppConstants {
   /// Minutos antes del inicio en que cierra la cancelacion, si el estudio no
   /// configuro `cancelacion_cierre_minutos`. 720 min = 12 hs.
   static const int cancelacionCierreMinutosDefault = 720;
+
+  /// Minutos antes del inicio en que cierra la RESERVA, si ni la clase ni el
+  /// estudio configuraron `reserva_cierre_minutos`. 60 min = 1 h: por default
+  /// no se puede reservar en la última hora, salvo que el estudio lo cambie.
+  static const int reservaCierreMinutosDefault = 60;
 }

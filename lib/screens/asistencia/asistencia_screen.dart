@@ -9,6 +9,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
+import '../../services/estudio_admin_service.dart';
 
 class AsistenciaScreen extends StatefulWidget {
   const AsistenciaScreen({super.key});
@@ -18,6 +19,7 @@ class AsistenciaScreen extends StatefulWidget {
 }
 
 class _AsistenciaScreenState extends State<AsistenciaScreen> {
+  final _estudioService = EstudioAdminService();
   List<Map<String, dynamic>> _clases = [];
   List<Map<String, dynamic>> _asistentes = [];
   Map<String, dynamic>? _claseSeleccionada;
@@ -81,14 +83,23 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
 
   Future<void> _cargar() async {
     final now = DateTime.now();
-    final clases = await Supabase.instance.client
-        .from('clases')
-        .select()
-        .gte('fecha', DateTime(now.year, now.month, now.day).toIso8601String())
-        .order('fecha', ascending: true)
-        .limit(50);
+    // IMPORTANTE: solo clases del estudio ACTIVO. getClasesDeEstudio scopea por
+    // usuarios.estudio_id (el estudio en el que estás parada en el panel). Antes
+    // esto era un `from('clases')` sin filtro y traía clases de TODO el
+    // marketplace, así que aparecían estudios ajenos para marcar asistencia.
+    final clases = await _estudioService.getClasesDeEstudio(
+      from: DateTime(now.year, now.month, now.day),
+      limit: 50,
+    );
 
-    final mapped = List<Map<String, dynamic>>.from(clases as List);
+    // "Clases activas" = las de HOY del estudio activo. Si no hay ninguna hoy,
+    // _claseSeleccionada queda null y la UI muestra "Sin clases activas": no
+    // auto-seleccionamos una clase de otro día (ni de otro estudio).
+    final hoyDia = DateTime(now.year, now.month, now.day);
+    final mapped = List<Map<String, dynamic>>.from(clases).where((c) {
+      final f = DateTime.tryParse(c['fecha']?.toString() ?? '');
+      return f != null && DateTime(f.year, f.month, f.day) == hoyDia;
+    }).toList();
     final selected = _autoSeleccionarClase(mapped, now);
     final attendees = await _cargarAsistentes(selected);
 
@@ -99,6 +110,11 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       _asistentes = attendees;
       _loading = false;
     });
+
+    // El scanner (cámara) queda SIEMPRE visible, aunque no haya clase activa:
+    // si desaparece, el estudio piensa que algo se rompió. En modo cámara nos
+    // aseguramos de que esté prendida.
+    if (_usarCamara) _cameraController?.start();
   }
 
   // ── Buckets AHORA / HOY / PROXIMAS ────────────────────────────────────────
@@ -1190,13 +1206,28 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    _claseSeleccionada?['nombre']?.toString() ?? 'Sin clase',
-                                    style: const TextStyle(
-                                      color: AppColors.black,
+                                    _claseSeleccionada?['nombre']?.toString() ??
+                                        'Sin clase activa ahora',
+                                    style: TextStyle(
+                                      color: _claseSeleccionada == null
+                                          ? const Color(0xFF8F877F)
+                                          : AppColors.black,
                                       fontSize: 18,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
+                                  if (_claseSeleccionada == null) ...[
+                                    const SizedBox(height: 4),
+                                    const Text(
+                                      'No tenés clases hoy. Podés escanear igual: '
+                                      'registramos la asistencia en la reserva.',
+                                      style: TextStyle(
+                                        color: Color(0xFFB0A8A0),
+                                        fontSize: 12,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),

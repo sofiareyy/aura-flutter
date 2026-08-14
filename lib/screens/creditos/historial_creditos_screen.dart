@@ -151,8 +151,15 @@ class _HistorialCreditosScreenState extends State<HistorialCreditosScreen> {
       });
     } catch (e) {
       if (!mounted) return;
+      final msg = e.toString().toLowerCase();
       setState(() {
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = (msg.contains('socket') ||
+                msg.contains('connection') ||
+                msg.contains('failed host') ||
+                msg.contains('timeout') ||
+                msg.contains('network'))
+            ? 'No pudimos conectar. Revisá tu conexión e intentá de nuevo.'
+            : 'No pudimos cargar tu historial. Intentá de nuevo en un momento.';
         _loading = false;
       });
     }
@@ -179,11 +186,24 @@ class _HistorialCreditosScreenState extends State<HistorialCreditosScreen> {
                   _SaldoHeader(saldo: _saldoActual),
                   const SizedBox(height: 20),
                   if (_error != null)
-                    Center(
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(color: AppColors.grey),
-                        textAlign: TextAlign.center,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 40),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.cloud_off_rounded,
+                              size: 44, color: AppColors.grey),
+                          const SizedBox(height: 14),
+                          Text(
+                            _error!,
+                            style: const TextStyle(color: AppColors.grey),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 18),
+                          ElevatedButton(
+                            onPressed: _cargar,
+                            child: const Text('Reintentar'),
+                          ),
+                        ],
                       ),
                     )
                   else if (_movimientos.isEmpty)

@@ -1,20 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/pricing_service.dart';
 
-// Vigencia por defecto cuando la fila no trae el dato (por creditos del pack).
-int _packVigenciaDias(Map<String, dynamic> pack) {
-  final v = (pack['vigencia_dias'] as num?)?.toInt();
-  if (v != null && v > 0) return v;
-  final creditos = (pack['creditos'] as num?)?.toInt() ?? 0;
-  return creditos <= 20 ? 30 : 60;
-}
-
 class ComprarCreditosScreen extends StatefulWidget {
-  const ComprarCreditosScreen({super.key});
+  /// Pestaña inicial: 0 = Packs, 1 = Suscripciones, 2 = Regalar.
+  final int initialTab;
+  const ComprarCreditosScreen({super.key, this.initialTab = 0});
 
   @override
   State<ComprarCreditosScreen> createState() => _ComprarCreditosScreenState();
@@ -36,7 +29,11 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialTab.clamp(0, 2),
+    );
     _tabController.addListener(() => setState(() {}));
     _loadPacks();
     _loadPlanes();
@@ -209,9 +206,9 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
                           return;
                         }
                         Navigator.pop(ctx);
-                        _enviarRegalo(email, mensajeCtrl.text);
+                        _irACheckoutRegalo(email, mensajeCtrl.text);
                       },
-                      child: const Text('Continuar →'),
+                      child: const Text('Continuar al pago →'),
                     ),
                   );
                 },
@@ -223,45 +220,25 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
     );
   }
 
-  Future<void> _enviarRegalo(String email, String mensaje) async {
-    try {
-      final uid = Supabase.instance.client.auth.currentUser?.id;
-      final pack = _packs[_selectedPackGift!];
-      final codigo =
-          'GIFT-${DateTime.now().millisecondsSinceEpoch.toRadixString(16).toUpperCase().substring(0, 8)}';
-
-      await Supabase.instance.client.from('regalos').insert({
-        'remitente_id': uid,
-        'destinatario_email': email.toLowerCase().trim(),
-        'creditos': (pack['creditos'] as num).toInt(),
-        'codigo': codigo,
-        'usado': false,
-        'mensaje':
-            mensaje.trim().isEmpty ? null : mensaje.trim(),
-      });
-
-      // El destinatario canjea el regalo cuando quiera (canjear_regalo), tenga
-      // o no cuenta ya. Antes se auto-acreditaba pisando usuarios.creditos, que
-      // el trigger de D1 bloquea y además saltaba el canje explícito.
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              '¡Regalo enviado! $email recibirá un código para canjear sus créditos 🧡'),
-          backgroundColor: AppColors.blackSoft,
-          duration: const Duration(seconds: 5),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No se pudo enviar el regalo: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
+  /// Regalar = comprar un pack con destinatario. Va al MISMO checkout de packs
+  /// (Mercado Pago) con type='gift'. Recién cuando el pago se aprueba, el
+  /// webhook crea el regalo y le manda el código por mail al destinatario. Ya
+  /// no se insertan regalos gratis desde el cliente.
+  void _irACheckoutRegalo(String email, String mensaje) {
+    if (_selectedPackGift == null) return;
+    final pack = _packs[_selectedPackGift!];
+    final creditos = (pack['creditos'] as num).toInt();
+    context.push('/checkout', extra: {
+      'type': 'gift',
+      'nombre': pack['nombre'],
+      'creditos': creditos,
+      'precio': (pack['precio'] as num).toInt(),
+      'vigencia_dias': (pack['vigencia_dias'] as num?)?.toInt() ??
+          _vigenciaDiasPorCreditos(creditos),
+      'descripcion': pack['descripcion']?.toString() ?? '',
+      'gift_email': email.trim().toLowerCase(),
+      'gift_mensaje': mensaje.trim(),
+    });
   }
 
   @override
@@ -440,7 +417,6 @@ class _PacksTab extends StatelessWidget {
           final i = entry.key;
           final pack = entry.value;
           final selected = selectedIndex == i;
-          final vigencia = _packVigenciaDias(pack);
           return GestureDetector(
             onTap: () => onSelect(i),
             child: AnimatedContainer(
@@ -501,26 +477,6 @@ class _PacksTab extends StatelessWidget {
                             fontSize: 13,
                           ),
                         ),
-                        if ((pack['equivalencia']?.toString() ?? '').isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            'Ejemplo: ${pack['equivalencia']}',
-                            style: TextStyle(
-                              color: selected ? Colors.white : AppColors.primary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 8),
-                        Text(
-                          'Vence a los $vigencia días',
-                          style: TextStyle(
-                            color: selected ? Colors.white70 : AppColors.grey,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
                         const SizedBox(height: 10),
                         Text(
                           '\$${_fmt((pack['precio'] as num).toInt())}',
@@ -578,11 +534,14 @@ class _SuscripcionesTab extends StatelessWidget {
     return null;
   }
 
+  /// Texto de uso del plan. Sin cantidades de clases: cada estudio negocia su
+  /// propio precio en créditos y en modo rango además varía por horario, así
+  /// que un "~5 clases" no se puede sostener.
   String? _subtitulo(String nombre) {
     final n = nombre.toLowerCase();
-    if (n.contains('starter')) return '~2 clases de pilates + 1 yoga';
-    if (n.contains('explorer')) return '~5 clases de pilates o 1 cerámica + yoga';
-    if (n.contains('unlimited')) return '~10 clases o combinación libre';
+    if (n.contains('starter')) return 'Para arrancar con un ritmo tranquilo';
+    if (n.contains('explorer')) return 'Para entrenar seguido y variar de estudio';
+    if (n.contains('unlimited')) return 'Pensado para usarlo todas las semanas';
     return null;
   }
 
@@ -796,7 +755,6 @@ class _RegalarTab extends StatelessWidget {
           final i = entry.key;
           final pack = entry.value;
           final selected = selectedIndex == i;
-          final vigencia = _packVigenciaDias(pack);
           return GestureDetector(
             onTap: () => onSelect(i),
             child: AnimatedContainer(
@@ -833,28 +791,6 @@ class _RegalarTab extends StatelessWidget {
                               style: TextStyle(
                                 color: selected ? Colors.white70 : Colors.white54,
                                 fontSize: 13,
-                              ),
-                            ),
-                            if ((pack['equivalencia']?.toString() ?? '').isNotEmpty) ...[
-                              const SizedBox(height: 6),
-                              Text(
-                                'Ejemplo: ${pack['equivalencia']}',
-                                style: TextStyle(
-                                  color: selected
-                                      ? Colors.white
-                                      : AppColors.primary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 8),
-                            Text(
-                              'Vence a los $vigencia días',
-                              style: TextStyle(
-                                color: selected ? Colors.white70 : Colors.white54,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(height: 10),

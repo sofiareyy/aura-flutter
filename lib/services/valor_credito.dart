@@ -21,11 +21,28 @@ class ValorCredito {
 
   static int _cache = fallback;
 
+  /// Momento de la última lectura exitosa. Sirve para el throttle del refresh
+  /// por foreground: no reconsultamos si ya lo hicimos hace poco.
+  static DateTime? _ultimaCarga;
+
+  /// Ventana del throttle: si se pide un refresh dentro de este lapso desde la
+  /// última carga exitosa, se devuelve el cache sin ir a la base.
+  static const Duration _ttl = Duration(minutes: 5);
+
   /// Último valor conocido. Nunca devuelve null: si no se cargó, `fallback`.
   static int get actual => _cache;
 
-  /// Relee la config y actualiza el cache. Idempotente y barato.
-  static Future<int> cargar() async {
+  /// Relee la config y actualiza el cache. Idempotente y barato (una fila).
+  ///
+  /// Con `forzar: false` respeta el throttle de [_ttl]: si ya se leyó hace
+  /// menos de 5 min, no vuelve a consultar (para el refresh por foreground,
+  /// que puede dispararse seguido). El arranque de la app usa `forzar: true`.
+  static Future<int> cargar({bool forzar = true}) async {
+    if (!forzar &&
+        _ultimaCarga != null &&
+        DateTime.now().difference(_ultimaCarga!) < _ttl) {
+      return _cache;
+    }
     try {
       final res = await Supabase.instance.client
           .from('configuracion_global')
@@ -34,6 +51,9 @@ class ValorCredito {
           .maybeSingle();
       final parsed = int.tryParse(res?['valor']?.toString().trim() ?? '');
       if (parsed != null && parsed > 0) _cache = parsed;
+      // Marca la lectura como exitosa aunque el valor no haya cambiado; si la
+      // query falla (catch), no se marca y se reintenta en el próximo foreground.
+      _ultimaCarga = DateTime.now();
     } catch (_) {
       // Se mantiene el último valor conocido.
     }

@@ -102,6 +102,12 @@ class EstudiosService {
     return Estudio.fromMap(data);
   }
 
+  /// Clases regulares del estudio (sin experiencias) para los próximos 30 días.
+  ///
+  /// Los workshops quedan afuera a propósito: se listan aparte con
+  /// [getExperienciasDeEstudio]. Antes venían mezclados y, como el perfil
+  /// muestra solo las primeras clases por fecha, una experiencia con muchas
+  /// clases semanales por delante quedaba enterrada e invisible.
   Future<List<Map<String, dynamic>>> getClasesDeEstudio(int estudioId) async {
     final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
     final semanasAdelante = ahora.add(const Duration(days: 30));
@@ -109,11 +115,40 @@ class EstudiosService {
         .from(AppConstants.tableClases)
         .select()
         .eq('estudio_id', estudioId)
+        .neq('tipo', 'workshop')
         .gte('fecha', _toSupaDate(ahora))
         .lte('fecha', _toSupaDate(semanasAdelante))
         .order('fecha', ascending: true);
 
-    final clases = List<Map<String, dynamic>>.from(data as List);
+    return _conOcupacion(List<Map<String, dynamic>>.from(data as List));
+  }
+
+  /// Experiencias / workshops del estudio, hasta 90 días adelante.
+  ///
+  /// La ventana es más amplia que la de las clases porque un evento se publica
+  /// con meses de anticipación. Es la misma que usa el home
+  /// (`ClasesService.getProximasExperiencias`), así que lo que aparece en el
+  /// inicio ahora también aparece en el perfil del estudio.
+  Future<List<Map<String, dynamic>>> getExperienciasDeEstudio(
+      int estudioId) async {
+    final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
+    final hasta = ahora.add(const Duration(days: 90));
+    final data = await _supabase
+        .from(AppConstants.tableClases)
+        .select()
+        .eq('estudio_id', estudioId)
+        .eq('tipo', 'workshop')
+        .gte('fecha', _toSupaDate(ahora))
+        .lte('fecha', _toSupaDate(hasta))
+        .order('fecha', ascending: true);
+
+    return _conOcupacion(List<Map<String, dynamic>>.from(data as List));
+  }
+
+  /// Completa `lugares_disponibles` con las reservas reales. Se comparte entre
+  /// clases y experiencias para no duplicar la lógica.
+  Future<List<Map<String, dynamic>>> _conOcupacion(
+      List<Map<String, dynamic>> clases) async {
     if (clases.isEmpty) return clases;
 
     final classIds = clases

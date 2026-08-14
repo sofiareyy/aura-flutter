@@ -61,7 +61,7 @@ class _CobrosScreenState extends State<CobrosScreen> {
           children: [
             _MetricTile(
               value: _moneyCompact(_montoCobrado),
-              label: 'cobrado',
+              label: 'Generado (total)',
               color: const Color(0xFFE3F3E5),
               valueColor: const Color(0xFF2FAD5B),
             ),
@@ -340,7 +340,7 @@ class _CobrosScreenState extends State<CobrosScreen> {
                         children: [
                           _MetricTile(
                             value: _moneyCompact(_montoCobrado),
-                            label: 'cobrado',
+                            label: 'Generado (total)',
                             color: const Color(0xFFE3F3E5),
                             valueColor: const Color(0xFF2FAD5B),
                           ),

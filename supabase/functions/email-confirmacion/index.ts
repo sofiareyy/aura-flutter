@@ -7,7 +7,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 const FROM_EMAIL =
-  Deno.env.get('AURA_FROM_EMAIL') ?? 'Aura <hola@somosauraar.com>'
+  Deno.env.get('AURA_FROM_EMAIL') ?? 'Aura <hola@somosaurapass.com>'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {

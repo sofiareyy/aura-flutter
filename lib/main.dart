@@ -8,6 +8,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/auth_flow_state.dart';
 import 'core/constants/app_constants.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -77,7 +78,7 @@ class AuraApp extends StatefulWidget {
   State<AuraApp> createState() => _AuraAppState();
 }
 
-class _AuraAppState extends State<AuraApp> {
+class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
   StreamSubscription<Uri>? _linkSub;
   StreamSubscription<AuthState>? _authSub;
   final _authService = AuthService();
@@ -85,11 +86,25 @@ class _AuraAppState extends State<AuraApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initAuthListener();
     if (!kIsWeb) {
       _initDeepLinks();
       _initNotificationHandlers();
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Al volver la app al foreground, releemos el valor del crédito por si el
+    // admin lo cambió desde el backoffice mientras la sesión estaba abierta.
+    // `forzar: false` respeta el throttle de 5 min de ValorCredito, así que si
+    // el usuario entra y sale seguido no se repite la query. Es una sola fila,
+    // async y no bloquea la UI.
+    if (state == AppLifecycleState.resumed) {
+      ValorCredito.cargar(forzar: false).ignore();
+    }
+    super.didChangeAppLifecycleState(state);
   }
 
   /// Garantiza que la fila en `usuarios` exista después de CUALQUIER inicio
@@ -100,6 +115,21 @@ class _AuraAppState extends State<AuraApp> {
     _authSub = Supabase.instance.client.auth.onAuthStateChange.listen(
       (data) async {
         final event = data.event;
+        // Recuperación de contraseña: el SDK ya estableció la sesión temporal
+        // al procesar el deep link aura://reset-password. Llevamos a la pantalla
+        // para elegir la clave nueva.
+        if (event == AuthChangeEvent.passwordRecovery) {
+          // Marca el flag para que el splash (en cold start) no pise esta
+          // navegación con su redirect normal a /home. En warm start el splash
+          // no corre y basta con el go() de acá.
+          AuthFlowState.pendingPasswordRecovery = true;
+          Future.delayed(const Duration(milliseconds: 200), () {
+            try {
+              appRouter.go('/reset-password');
+            } catch (_) {}
+          });
+          return;
+        }
         if (event == AuthChangeEvent.signedIn ||
             event == AuthChangeEvent.userUpdated ||
             event == AuthChangeEvent.initialSession) {
@@ -213,6 +243,14 @@ class _AuraAppState extends State<AuraApp> {
       return;
     }
 
+    // Recuperación de contraseña: el SDK procesa el token de este mismo deep
+    // link y dispara passwordRecovery, que es quien navega a /reset-password
+    // (recién cuando la sesión temporal ya está lista). No navegamos acá para
+    // no llegar a la pantalla antes de tener sesión.
+    if (path == '/reset-password') {
+      return;
+    }
+
     final query = uri.query.isNotEmpty ? '?${uri.query}' : '';
     final fullPath = '$path$query';
 
@@ -282,6 +320,7 @@ class _AuraAppState extends State<AuraApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _authSub?.cancel();
     _linkSub?.cancel();
     super.dispose();
