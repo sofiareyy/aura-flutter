@@ -40,10 +40,32 @@ function expirationDate(validDays: number) {
   return expiry.toISOString().split('T')[0]
 }
 
-function validityForPack(packName: string | null, creditos: number) {
-  const normalized = (packName ?? '').trim().toLowerCase()
-  if (normalized === 'pack prueba' || creditos === 20) return 30
-  return 60
+// Mismo criterio que packValidityDays en mp-webhook: primero el `vigencia`
+// que crear-checkout-pack dejó en el external_reference (el vencimiento que
+// se le prometió a la persona al comprar), y si no está, la tabla canónica.
+//
+// Antes esta función ignoraba el external_reference y usaba 30/60 fijos, así
+// que un pack acreditado por acá podía vencer en otra fecha que el mismo pack
+// acreditado por el webhook.
+function validityForPack(
+  params: Record<string, string>,
+  packName: string | null,
+  creditos: number,
+) {
+  const explicit = parseInt(params['vigencia'] ?? '0', 10)
+  if (explicit > 0 && explicit <= 365) return explicit
+  return canonicalPackValidity(packName, creditos)
+}
+
+// Espejo de `vigenciaDias` en lib/services/pricing_service.dart y de
+// pricing_credit_packs.vencimiento_dias. Si cambiás uno, cambiá los tres.
+function canonicalPackValidity(packName: string | null, creditos: number) {
+  const n = (packName ?? '').trim().toLowerCase()
+  if (n === 'pack prueba' || creditos === 20) return 30
+  if (n === 'pack esencial' || creditos === 50) return 45
+  if (n === 'pack popular' || creditos === 100) return 45
+  if (n === 'pack full' || creditos === 200) return 60
+  return 60 // desconocido (ej. gift cards): se mantiene el valor histórico
 }
 
 Deno.serve(async (req: Request) => {
@@ -162,7 +184,10 @@ async function reconcilePack(
     return status
   }
 
-  const expiryStr = expirationDate(validityForPack(pago.pack_nombre, pago.creditos ?? 0))
+  const refParams = parseRef(payment.external_reference ?? '')
+  const expiryStr = expirationDate(
+    validityForPack(refParams, pago.pack_nombre, pago.creditos ?? 0),
+  )
   const { data: result, error } = await adminSupabase.rpc('process_approved_pack_payment', {
     p_pago_id: pago.id,
     p_mp_payment_id: String(payment.id),

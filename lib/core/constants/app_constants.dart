@@ -34,27 +34,30 @@ class AppConstants {
   static const String tableReservas = 'reservas';
   static const String tableNotificacionesEstudio = 'notificaciones_estudio';
 
+  /// Fallback si `pricing_planes` no responde. Tiene que reflejar la tabla:
+  /// si cambiás precios allá, actualizá acá o la app puede llegar a mostrar
+  /// un precio viejo cuando falla la lectura.
   static const List<Map<String, dynamic>> planes = [
     {
-      'nombre': 'Starter',
-      'creditos': 30,
-      'precio': 28000,
-      'descripcion': 'Un plan simple para empezar cada mes',
+      'nombre': 'Semanal',
+      'creditos': 70,
+      'precio': 70000,
+      'descripcion': 'Para ir una vez por semana',
       'orden': 1,
     },
     {
-      'nombre': 'Explorer',
-      'creditos': 60,
-      'precio': 52000,
-      'descripcion': 'Más clases y más flexibilidad durante el mes',
+      'nombre': 'Frecuente',
+      'creditos': 120,
+      'precio': 108000,
+      'descripcion': 'Para entrenar seguido y variar de estudio',
       'destacado': true,
       'orden': 2,
     },
     {
-      'nombre': 'Unlimited',
-      'creditos': 120,
-      'precio': 96000,
-      'descripcion': 'Pensado para usar Aura todas las semanas',
+      'nombre': 'Libre',
+      'creditos': 160,
+      'precio': 139200,
+      'descripcion': 'Para quienes no paran',
       'orden': 3,
     },
   ];

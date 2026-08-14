@@ -527,22 +527,19 @@ class _SuscripcionesTab extends StatelessWidget {
     required this.onSelect,
   });
 
-  String? _badge(String nombre) {
-    final n = nombre.toLowerCase();
-    if (n.contains('explorer')) return 'MÁS POPULAR';
-    if (n.contains('unlimited')) return 'MEJOR VALOR';
-    return null;
-  }
+  /// Sale de `pricing_planes.destacado`, no del nombre. Antes se buscaba
+  /// 'explorer'/'unlimited' a mano, así que al renombrar los planes el badge
+  /// desaparecía sin que nadie se enterara.
+  String? _badge(Map<String, dynamic> plan) =>
+      plan['destacado'] == true ? 'MÁS POPULAR' : null;
 
-  /// Texto de uso del plan. Sin cantidades de clases: cada estudio negocia su
-  /// propio precio en créditos y en modo rango además varía por horario, así
-  /// que un "~5 clases" no se puede sostener.
-  String? _subtitulo(String nombre) {
-    final n = nombre.toLowerCase();
-    if (n.contains('starter')) return 'Para arrancar con un ritmo tranquilo';
-    if (n.contains('explorer')) return 'Para entrenar seguido y variar de estudio';
-    if (n.contains('unlimited')) return 'Pensado para usarlo todas las semanas';
-    return null;
+  /// Texto de uso del plan, tomado de `pricing_planes.descripcion`. Sin
+  /// cantidades de clases: cada estudio negocia su propio precio en créditos
+  /// y en modo rango además varía por horario, así que un "~5 clases" no se
+  /// puede sostener.
+  String? _subtitulo(Map<String, dynamic> plan) {
+    final d = plan['descripcion']?.toString().trim() ?? '';
+    return d.isEmpty ? null : d;
   }
 
   @override
@@ -582,8 +579,8 @@ class _SuscripcionesTab extends StatelessWidget {
           final plan = entry.value;
           final selected = selectedIndex == i;
           final nombre = plan['nombre']?.toString() ?? '';
-          final badge = _badge(nombre);
-          final subtitulo = _subtitulo(nombre);
+          final badge = _badge(plan);
+          final subtitulo = _subtitulo(plan);
           return GestureDetector(
             onTap: () => onSelect(i),
             child: AnimatedContainer(

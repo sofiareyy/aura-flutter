@@ -8,9 +8,13 @@ import '../core/constants/app_constants.dart';
 /// en `configuracion_global`. Todos los packs se calculan automaticamente:
 ///
 ///   Pack Prueba    : 20 cr  x valor x 1.10
-///   Pack Esencial  : 50 cr  x valor x 1.00
-///   Pack Popular   : 100 cr x valor x 0.95
-///   Pack Full      : 200 cr x valor x 0.90
+///   Pack Esencial  : 50 cr  x valor x 1.05
+///   Pack Popular   : 100 cr x valor x 1.00
+///   Pack Full      : 200 cr x valor x 0.95
+///
+/// OJO: `vigenciaDias` de acá es solo para mostrar. El vencimiento real lo
+/// decide el servidor en `validityForPack` (mp-webhook y confirmar-pago-manual).
+/// Si cambiás uno, cambiá el otro o el texto miente.
 class PricingService {
   final _client = Supabase.instance.client;
 
@@ -27,23 +31,23 @@ class PricingService {
     _PackBase(
       nombre: 'Pack Esencial',
       creditos: 50,
-      multiplicador: 1.00,
-      vigenciaDias: 60,
+      multiplicador: 1.05,
+      vigenciaDias: 45,
       badge: 'MÁS POPULAR',
-      descripcion: 'Para sumar clases al mes · vence en 60 días',
+      descripcion: 'Para sumar clases al mes · vence en 45 días',
     ),
     _PackBase(
       nombre: 'Pack Popular',
       creditos: 100,
-      multiplicador: 0.95,
-      vigenciaDias: 60,
+      multiplicador: 1.00,
+      vigenciaDias: 45,
       badge: 'MEJOR VALOR',
-      descripcion: 'Para entrenar seguido y variar · vence en 60 días',
+      descripcion: 'Para entrenar seguido y variar · vence en 45 días',
     ),
     _PackBase(
       nombre: 'Pack Full',
       creditos: 200,
-      multiplicador: 0.90,
+      multiplicador: 0.95,
       vigenciaDias: 60,
       badge: null,
       descripcion: 'Máxima libertad para explorar · vence en 60 días',

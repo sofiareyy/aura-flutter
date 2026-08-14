@@ -29,13 +29,27 @@ function parseRef(ref: string): Record<string, string> {
   return params
 }
 
+// El `vigencia` del external_reference lo arma crear-checkout-pack desde
+// pricing_credit_packs; el cliente no lo puede tocar. Es el vencimiento que
+// se le prometió a la persona al comprar, así que se respeta aunque después
+// cambien los valores de la tabla.
+//
+// canonicalPackValidity es el respaldo para pagos viejos sin ese dato.
 function packValidityDays(params: Record<string, string>, packName: string, creditos: number) {
   const explicit = parseInt(params['vigencia'] ?? '0', 10)
-  if (explicit > 0) return explicit
+  if (explicit > 0 && explicit <= 365) return explicit
+  return canonicalPackValidity(packName, creditos)
+}
 
-  const normalized = packName.trim().toLowerCase()
-  if (normalized === 'pack prueba' || creditos === 20) return 30
-  return 60
+// Espejo de `vigenciaDias` en lib/services/pricing_service.dart y de
+// pricing_credit_packs.vencimiento_dias. Si cambiás uno, cambiá los tres.
+function canonicalPackValidity(packName: string | null, creditos: number) {
+  const n = (packName ?? '').trim().toLowerCase()
+  if (n === 'pack prueba' || creditos === 20) return 30
+  if (n === 'pack esencial' || creditos === 50) return 45
+  if (n === 'pack popular' || creditos === 100) return 45
+  if (n === 'pack full' || creditos === 200) return 60
+  return 60 // desconocido (ej. gift cards): se mantiene el valor histórico
 }
 
 function expirationDate(validDays: number) {
@@ -403,8 +417,11 @@ async function procesarPago(paymentId: string, eventType = 'payment') {
   }
 
   if (type === 'plan') {
-    // Suscripción mensual: otorgar créditos con vencimiento de 30 días
-    const expiryStr = expirationDate(30)
+    // Suscripción mensual: los créditos vencen a los 60 días, no a los 30.
+    // Con 30 vencían justo al renovarse, así que lo que no usabas ese mes se
+    // perdía siempre. A 60 días se acumulan: grant_user_credits inserta un
+    // movimiento nuevo por mes, no reemplaza el saldo.
+    const expiryStr = expirationDate(60)
     const { error: rpcErr } = await supabase.rpc('grant_user_credits', {
       p_user_id: userId,
       p_amount: creditos,

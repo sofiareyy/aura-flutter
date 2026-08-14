@@ -37,8 +37,35 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'No encontramos un email válido para la suscripción.' }, 400)
     }
 
-    // Leer config desde pricing_planes (fallback a valores del body)
-    const planConfig = await resolvePlanConfig(adminSupabase, plan_nombre, plan_creditos, plan_precio)
+    // El precio SIEMPRE sale de pricing_planes. Si el plan no está en la
+    // tabla, se rechaza: antes se caía a los valores del body, así que
+    // cualquiera podía suscribirse al precio que quisiera mandando
+    // plan_precio, y una app vieja con un plan renombrado cobraba el precio
+    // viejo sin que nadie lo notara.
+    const planConfig = await resolvePlanConfig(adminSupabase, plan_nombre, plan_creditos)
+    if (!planConfig) {
+      return json(
+        { error: 'Ese plan ya no está disponible. Actualizá la app y probá de nuevo.' },
+        409,
+      )
+    }
+
+    // Igual que en los packs: si la app muestra un precio distinto al de la
+    // tabla, está desactualizada. Se frena antes de armar la suscripción, para
+    // no dejarle un débito mensual por un monto que nunca vio.
+    if (Math.round(plan_precio) !== Math.round(planConfig.precio)) {
+      console.warn(
+        `crear-checkout-plan: precio desactualizado en el cliente. ` +
+          `plan=${planConfig.nombre} cliente=${plan_precio} tabla=${planConfig.precio}`,
+      )
+      return json(
+        {
+          error: 'Los precios cambiaron. Actualizá la app para ver los valores nuevos.',
+          codigo: 'precio_desactualizado',
+        },
+        409,
+      )
+    }
 
     const { data: pago, error: pagoErr } = await adminSupabase
       .from('pagos')
@@ -127,20 +154,37 @@ Deno.serve(async (req: Request) => {
   }
 })
 
+/// Busca el plan en `pricing_planes`. Devuelve null si no existe o si falla
+/// la lectura: sin plan confirmado no se crea ninguna suscripción.
+///
+/// El precio del body se ignora por completo — solo se usa para comparar y
+/// dejar registro si difiere.
 async function resolvePlanConfig(
   // deno-lint-ignore no-explicit-any
   adminSupabase: any,
   planNombre: string,
   creditos: number,
-  precio: number,
-): Promise<{ nombre: string; creditos: number; precio: number }> {
+): Promise<{ nombre: string; creditos: number; precio: number } | null> {
+  const nombre = (planNombre ?? '').trim()
   try {
-    const { data } = await adminSupabase
+    // Primero por nombre exacto. El match por créditos queda como respaldo
+    // aparte: con `.or()` en una sola consulta, dos planes podían matchear y
+    // maybeSingle() devolvía null (o el equivocado).
+    const { data: porNombre } = await adminSupabase
       .from('pricing_planes')
       .select('nombre, creditos, precio')
       .eq('activo', true)
-      .or(`nombre.ilike.${planNombre.trim()},creditos.eq.${creditos}`)
+      .ilike('nombre', nombre)
       .maybeSingle()
+
+    const data = porNombre ?? (
+      await adminSupabase
+        .from('pricing_planes')
+        .select('nombre, creditos, precio')
+        .eq('activo', true)
+        .eq('creditos', creditos)
+        .maybeSingle()
+    ).data
 
     if (data) {
       return {
@@ -150,10 +194,10 @@ async function resolvePlanConfig(
       }
     }
   } catch (e) {
-    console.warn('resolvePlanConfig: error leyendo pricing_planes, usando fallback:', e)
+    console.error('resolvePlanConfig: error leyendo pricing_planes:', e)
   }
 
-  return { nombre: planNombre, creditos, precio }
+  return null
 }
 
 function json(body: unknown, status = 200) {

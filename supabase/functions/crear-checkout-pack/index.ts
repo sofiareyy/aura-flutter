@@ -33,7 +33,9 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json().catch(() => null)
-    const { pack_nombre, creditos, amount, vigencia_dias, platform, gift_email, gift_mensaje } = body ?? {}
+    // `vigencia_dias` ya no se lee del body: el vencimiento lo decide
+    // pricing_credit_packs.vencimiento_dias.
+    const { pack_nombre, creditos, amount, platform, gift_email, gift_mensaje } = body ?? {}
 
     if (!pack_nombre || typeof creditos !== 'number' || typeof amount !== 'number') {
       return json({ error: 'Faltan campos: pack_nombre, creditos, amount' }, 400)
@@ -48,7 +50,33 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'Email de destinatario inválido' }, 400)
     }
     const giftMensaje = typeof gift_mensaje === 'string' ? gift_mensaje.trim() : ''
-    const packConfig = await resolvePackConfig(adminSupabase, pack_nombre, creditos, amount, vigencia_dias)
+    // El precio SIEMPRE sale de pricing_credit_packs. Si el pack no está en
+    // la tabla, se rechaza en vez de confiar en el `amount` del cliente.
+    const packConfig = await resolvePackConfig(adminSupabase, pack_nombre, creditos)
+    if (!packConfig) {
+      return json(
+        { error: 'Ese pack ya no está disponible. Actualizá la app y probá de nuevo.' },
+        409,
+      )
+    }
+
+    // El `amount` del cliente no fija el precio, pero sirve para detectar que
+    // la app está desactualizada: si muestra un precio y la tabla tiene otro,
+    // se le cobraría algo distinto de lo que vio. Mejor frenar y pedirle que
+    // actualice que cobrarle de más en silencio.
+    if (Math.round(amount) !== Math.round(packConfig.amount)) {
+      console.warn(
+        `crear-checkout-pack: precio desactualizado en el cliente. ` +
+          `pack=${packConfig.nombre} cliente=${amount} tabla=${packConfig.amount}`,
+      )
+      return json(
+        {
+          error: 'Los precios cambiaron. Actualizá la app para ver los valores nuevos.',
+          codigo: 'precio_desactualizado',
+        },
+        409,
+      )
+    }
     const payerEmail = user.email ?? ''
     if (!payerEmail) {
       return json({ error: 'No encontramos un email válido para el pago.' }, 400)
@@ -171,50 +199,60 @@ Deno.serve(async (req: Request) => {
 })
 
 // Lee el pack desde pricing_credit_packs en Supabase.
-// Si no lo encuentra, usa los valores del body como fallback.
+/// Busca el pack en `pricing_credit_packs`. Devuelve null si no existe o si
+/// falla la lectura.
+///
+/// El precio del body se ignora por completo. Antes, si no encontraba el
+/// pack, cobraba el `amount` que mandaba el cliente: cualquiera podía comprar
+/// 200 créditos por $1 armando el request a mano, y una app vieja con precios
+/// desactualizados cobraba el precio viejo sin que se notara.
+///
+/// Las gift cards pasan por acá también, pero siempre con uno de los 4 packs
+/// canónicos, así que no las afecta.
 async function resolvePackConfig(
   // deno-lint-ignore no-explicit-any
   adminSupabase: any,
   packNombre: string,
   creditos: number,
-  amount: number,
-  vigenciaDias?: number,
-) {
+): Promise<
+  { nombre: string; creditos: number; amount: number; vigenciaDias: number } | null
+> {
+  const nombre = (packNombre ?? '').trim()
+  const cols = 'nombre, creditos, precio, vencimiento_dias'
   try {
-    const { data } = await adminSupabase
+    // Por nombre exacto primero. El match por créditos va como respaldo en
+    // una consulta aparte: con `.or()` podían matchear dos filas y
+    // maybeSingle() devolvía null, cayendo al fallback inseguro.
+    const { data: porNombre } = await adminSupabase
       .from('pricing_credit_packs')
-      .select('nombre, creditos, precio, vencimiento_dias')
+      .select(cols)
       .eq('activo', true)
-      .or(`nombre.ilike.${packNombre.trim()},creditos.eq.${creditos}`)
+      .ilike('nombre', nombre)
       .maybeSingle()
 
+    const data = porNombre ?? (
+      await adminSupabase
+        .from('pricing_credit_packs')
+        .select(cols)
+        .eq('activo', true)
+        .eq('creditos', creditos)
+        .maybeSingle()
+    ).data
+
     if (data) {
+      const dias = data.vencimiento_dias as number | null
       return {
         nombre: data.nombre as string,
         creditos: data.creditos as number,
         amount: data.precio as number,
-        vigenciaDias: (data.vencimiento_dias as number) ??
-          defaultVigenciaDias(data.creditos as number),
+        vigenciaDias: dias != null && dias > 0 ? dias : 60,
       }
     }
   } catch (e) {
-    console.warn('resolvePackConfig: error leyendo pricing_credit_packs, usando fallback:', e)
+    console.error('resolvePackConfig: error leyendo pricing_credit_packs:', e)
   }
 
-  // Fallback: valores enviados desde Flutter
-  return {
-    nombre: packNombre,
-    creditos,
-    amount,
-    vigenciaDias: typeof vigenciaDias === 'number' && vigenciaDias > 0
-      ? vigenciaDias
-      : defaultVigenciaDias(creditos),
-  }
-}
-
-// Pack Prueba (20 cr): 30 dias. Esencial / Popular / Full: 60 dias.
-function defaultVigenciaDias(creditos: number): number {
-  return creditos <= 20 ? 30 : 60
+  return null
 }
 
 function json(body: unknown, status = 200) {

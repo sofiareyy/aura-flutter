@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/admin_service.dart';
+import '../../services/pricing_service.dart';
 import 'admin_export_helper.dart';
 
 class AdminUsuariosScreen extends StatefulWidget {
@@ -14,11 +16,19 @@ class AdminUsuariosScreen extends StatefulWidget {
 
 class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
   final _service = AdminService();
+  final _pricing = PricingService();
   final _searchCtrl = TextEditingController();
 
   bool _loading = true;
   String? _error;
   List<Map<String, dynamic>> _users = [];
+
+  /// Nombres de plan reales, leídos de `pricing_planes`. Antes era una lista
+  /// fija que mezclaba planes con nombres de packs ('Essential', 'Popular',
+  /// 'Full') y quedaba desactualizada cada vez que se renombraba un plan.
+  List<String> _planesDisponibles = const [];
+
+  List<String> get _planOptions => ['Sin plan', ..._planesDisponibles];
 
   @override
   void initState() {
@@ -39,9 +49,11 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
     });
     try {
       final users = await _service.listUsuarios(search: _searchCtrl.text);
+      final planes = await _cargarNombresDePlan();
       if (!mounted) return;
       setState(() {
         _users = users;
+        _planesDisponibles = planes;
         _loading = false;
       });
     } catch (e) {
@@ -51,6 +63,24 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
         _loading = false;
       });
     }
+  }
+
+  /// Si `pricing_planes` falla, cae al fallback de AppConstants en vez de
+  /// dejar el desplegable vacío.
+  Future<List<String>> _cargarNombresDePlan() async {
+    try {
+      final planes = await _pricing.getPlanes();
+      final nombres = planes
+          .map((p) => p['nombre']?.toString().trim() ?? '')
+          .where((n) => n.isNotEmpty)
+          .toList();
+      if (nombres.isNotEmpty) return nombres;
+    } catch (_) {
+      // Cae al fallback de abajo.
+    }
+    return AppConstants.planes
+        .map((p) => p['nombre'].toString())
+        .toList();
   }
 
   Future<void> _confirmarEliminarUsuario(Map<String, dynamic> user) async {
@@ -194,14 +224,6 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
     await _service.adjustCreditos(userId: user['id'].toString(), delta: delta);
     await _load();
   }
-
-  static const List<String> _planOptions = [
-    'Sin plan',
-    'Explorer',
-    'Essential',
-    'Popular',
-    'Full',
-  ];
 
   Future<void> _editarUsuario(Map<String, dynamic> user) async {
     final nombreCtrl =
