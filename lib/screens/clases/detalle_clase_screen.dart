@@ -1078,7 +1078,13 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                       OutlinedButton.icon(
                         onPressed: _compartirClase,
                         icon: const Icon(Icons.ios_share_rounded, size: 18),
-                        label: const Text('Compartir esta clase'),
+                        // Las experiencias (workshops) no son "clases": el
+                        // botón las nombra como lo que son.
+                        label: Text(
+                          clase['tipo']?.toString() == 'workshop'
+                              ? 'Compartir esta experiencia'
+                              : 'Compartir esta clase',
+                        ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primary,
                           side: const BorderSide(color: AppColors.primary),
