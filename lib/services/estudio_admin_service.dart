@@ -589,13 +589,49 @@ final query = _client.from('clases').select().eq('estudio_id', studioId);
     await _client.from('clases').delete().eq('id', id);
   }
 
+  /// Columnas que existen de verdad en `horarios_fijos`.
+  ///
+  /// El formulario de la grilla arma un payload compartido entre "clase
+  /// individual" (va a `clases`) y "horario fijo" (va acá), y `clases` tiene
+  /// columnas que `horarios_fijos` no: `tipo`, `organizadores`, `descripcion`
+  /// y `direccion`. Mandarlas hacía que PostgREST rechazara el PATCH entero
+  /// con `PGRST204 Could not find the 'tipo' column`, asi que editar un
+  /// horario fijo no guardaba NADA (ningun campo, no solo el cierre).
+  static const _columnasHorarioFijo = <String>{
+    'nombre',
+    'instructor',
+    'instructor_descripcion',
+    'incluye',
+    'sala',
+    'dia_semana',
+    'hora_inicio',
+    'duracion_min',
+    'lugares_total',
+    'creditos',
+    'imagen_url',
+    'imagen_ajuste',
+    'galeria_urls',
+    'categoria',
+    'categorias',
+    'reserva_cierre_minutos',
+    'cancelacion_cierre_minutos',
+    'activo',
+  };
+
   Future<Map<String, dynamic>> actualizarHorarioFijo(
     int id,
     Map<String, dynamic> payload,
   ) async {
+    // Filtramos acá y no en la pantalla para cubrir cualquier caller, y para
+    // que agregar un campo nuevo al diálogo no vuelva a romper el guardado.
+    final limpio = <String, dynamic>{
+      for (final e in payload.entries)
+        if (_columnasHorarioFijo.contains(e.key)) e.key: e.value,
+    };
+
     final updated = await _client
         .from('horarios_fijos')
-        .update(payload)
+        .update(limpio)
         .eq('id', id)
         .select()
         .single();

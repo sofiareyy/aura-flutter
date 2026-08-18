@@ -1971,11 +1971,21 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         }
       }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('No se pudo guardar: ${e.toString()}')));
-      setState(() {
-        _tablaOk = false;
-        _error = e.toString();
-      });
+      // El cartel muestra algo accionable, no el PostgrestException crudo. El
+      // detalle tecnico va a debugPrint para poder diagnosticar sin que el
+      // estudio lea "Could not find the 'tipo' column of 'horarios_fijos'".
+      debugPrint('Error guardando ${edit ? 'horario fijo' : 'clase individual'}: $e');
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(edit
+              ? 'No se pudo guardar el horario. Intentá de nuevo.'
+              : 'No se pudo crear la clase. Intentá de nuevo.'),
+        ),
+      );
+      // Ojo: no tocamos `_tablaOk`. Que falle un guardado no significa que la
+      // tabla no se pueda leer, y ponerlo en false reemplazaba toda la lista
+      // por el panel "No se pudieron cargar los horarios fijos" con el texto
+      // crudo del error adentro.
     } finally {
       disposeAll();
     }
