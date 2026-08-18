@@ -125,6 +125,8 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
   /// Traduce el error técnico de la reserva a un mensaje claro en español.
   String _friendlyReservaError(Object error) {
     final msg = error.toString().toLowerCase();
+    // La red primero: aplica incluso a un ReservaException si el mensaje
+    // hablara de conexión.
     if (msg.contains('socketexception') ||
         msg.contains('failed host lookup') ||
         msg.contains('connection') ||
@@ -132,6 +134,11 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
         msg.contains('network')) {
       return 'No pudimos conectar. Revisá tu conexión y probá de nuevo.';
     }
+    // ReservasService ya tradujo el código de la RPC a un mensaje accionable.
+    // Volver a adivinar por substring sobre ese texto lo mandaba al cartel
+    // genérico (los mensajes lindos no dicen "creditos" sin tilde ni
+    // "ya reserv"). Lo mostramos tal cual.
+    if (error is ReservaException) return error.mensaje;
     if (msg.contains('suficientes') || msg.contains('creditos')) {
       return 'No te alcanzan los créditos para esta clase.';
     }

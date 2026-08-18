@@ -203,8 +203,12 @@ class _HomeScreenState extends State<HomeScreen> {
           try {
             final historial = await Supabase.instance.client
                 .from('creditos_movimientos')
+                // La columna es `user_id`, no `usuario_id`. Con el nombre
+                // viejo esto tiraba 42703, caia en el catch de abajo (que
+                // asume "tiene historial") y el usuario nuevo nunca veia el
+                // estado de bienvenida en el home.
                 .select('id')
-                .eq('usuario_id', uid)
+                .eq('user_id', uid)
                 .limit(1);
             if (mounted) {
               setState(() => _tieneHistorialCreditos = (historial as List).isNotEmpty);

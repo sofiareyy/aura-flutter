@@ -6,6 +6,23 @@ import '../utils/cierre_minutos.dart';
 import 'notificaciones_estudio_service.dart';
 import 'notificaciones_service.dart';
 
+/// Error de reserva cuyo mensaje YA está listo para mostrarle a la persona.
+///
+/// Existía un problema de doble traducción: el servicio traducía el código de
+/// la RPC a un mensaje en castellano, y despues la pantalla volvía a adivinar
+/// por substring sobre ese mensaje ya traducido. Como los mensajes lindos no
+/// contienen las palabras que la pantalla busca (`creditos` sin tilde,
+/// `ya reserv`...), todo terminaba en el cartel generico. Marcando el error
+/// con su propio tipo, la pantalla lo muestra tal cual y solo cae al generico
+/// ante errores realmente tecnicos.
+class ReservaException implements Exception {
+  final String mensaje;
+  ReservaException(this.mensaje);
+
+  @override
+  String toString() => mensaje;
+}
+
 class ReservasService {
   final _supabase = Supabase.instance.client;
 
@@ -131,14 +148,14 @@ class ReservasService {
         .maybeSingle();
 
     if (clase == null) {
-      throw Exception('No encontramos la clase.');
+      throw ReservaException('No encontramos la clase.');
     }
 
     final fechaClase = DateTime.tryParse(clase['fecha']?.toString() ?? '');
     // Cascada clase -> estudio -> 0 (se reserva hasta que arranca la clase).
     final cierreMinutos = CierreMinutos.reserva(clase);
     if (fechaClase != null && reservaCerrada(fechaClase, cierreMinutos)) {
-      throw Exception(_mensajeCierreReserva(cierreMinutos));
+      throw ReservaException(_mensajeCierreReserva(cierreMinutos));
     }
 
     // 0 cupos disponibles = clase visible pero no reservable. Cortamos
@@ -153,7 +170,7 @@ class ReservasService {
     final disponibles =
         (clase['lugares_disponibles'] as num?)?.toInt() ?? total;
     if (disponibles <= 0) {
-      throw Exception('Esta clase no acepta reservas en este momento.');
+      throw ReservaException('Esta clase no acepta reservas en este momento.');
     }
 
     // El descuento de créditos y la gratuidad (alumno directo de un estudio en
@@ -181,7 +198,7 @@ class ReservasService {
         final msg = e.message.toLowerCase();
         if (msg.contains('reservar_clase') &&
             (msg.contains('does not exist') || msg.contains('not found'))) {
-          throw Exception(
+          throw ReservaException(
               'Sistema temporalmente no disponible. Probá de nuevo en unos minutos.');
         }
         throw Exception('No se pudo crear la reserva: ${e.message}');
@@ -190,12 +207,12 @@ class ReservasService {
       final ok = res is Map && res['ok'] == true;
       if (!ok) {
         final errorCode = (res is Map ? res['error'] : null)?.toString();
-        throw Exception(_mensajeReservaError(errorCode));
+        throw ReservaException(_mensajeReservaError(errorCode));
       }
 
       final reservaMap = res['reserva'];
       if (reservaMap is! Map) {
-        throw Exception('Respuesta inesperada al crear la reserva.');
+        throw ReservaException('Respuesta inesperada al crear la reserva.');
       }
       final data = Map<String, dynamic>.from(reservaMap);
 
@@ -643,8 +660,18 @@ class ReservasService {
     switch (code) {
       case 'sin_lugares':
         return 'Se acaba de llenar esta clase. No quedan lugares disponibles.';
+      // `reservar_clase` devuelve 'ya_reservada' y `apply_reservation`
+      // 'ya_reservaste'. Mapeamos los dos: hasta ahora el primero caia al
+      // mensaje generico.
       case 'ya_reservaste':
+      case 'ya_reservada':
         return 'Ya tenés una reserva activa para esta clase.';
+      case 'reserva_cerrada':
+        return 'Las reservas para esta clase ya cerraron.';
+      case 'sin_creditos':
+        return 'No te alcanzan los créditos para esta clase.';
+      case 'no_auth':
+        return 'Tu sesión expiró. Volvé a iniciar sesión y probá de nuevo.';
       case 'clase_no_encontrada':
         return 'No encontramos la clase.';
       case 'clase_cancelada':

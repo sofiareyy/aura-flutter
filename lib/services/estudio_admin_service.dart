@@ -274,13 +274,20 @@ class EstudioAdminService {
     final studioId = await getCurrentStudioId();
     if (studioId == null) return [];
 
-final query = _client.from('clases').select().eq('estudio_id', studioId);
+    // OJO: los filtros de postgrest NO mutan el builder, devuelven uno nuevo
+    // (`gte()` hace `return copyWithUrl(...)`). Antes esto era
+    // `query.gte(...)` sin reasignar, asi que `from`/`to` se descartaban en
+    // silencio y la query traia TODAS las clases del estudio ordenadas por
+    // fecha asc. Con `limit` eso devolvia las mas VIEJAS: la pantalla de
+    // asistencia pedia las de hoy, recibia las de hace dos meses y mostraba
+    // "Sin clase activa ahora" con el estudio lleno de clases.
+    var query = _client.from('clases').select().eq('estudio_id', studioId);
 
     if (from != null) {
-      query.gte('fecha', _toSupaDate(from));
+      query = query.gte('fecha', _toSupaDate(from));
     }
     if (to != null) {
-      query.lte('fecha', _toSupaDate(to));
+      query = query.lte('fecha', _toSupaDate(to));
     }
 
     final data = await (limit != null
