@@ -3,9 +3,9 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.aura.aura_app",
+      "package_name": "app.somosaura.aura",
       "sha256_cert_fingerprints": [
-        "REEMPLAZAR_CON_SHA256_DEL_KEYSTORE"
+        "1A:70:15:2B:1E:A2:08:C3:44:4F:91:56:47:83:E4:B8:D3:14:20:4A:FD:69:73:97:01:8B:2E:FB:D5:12:13:89"
       ]
     }
   }
