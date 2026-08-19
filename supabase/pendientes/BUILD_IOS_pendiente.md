@@ -1,12 +1,21 @@
-# Pendiente para el próximo build de iOS
-
-Todo esto **ya está en `main` y vivo en la web** (GitHub Pages deploya solo al
-pushear). Lo que falta es que salga en la **app nativa**, que necesita build y
-revisión de Apple. Hasta entonces, en iOS/Android estos bugs siguen presentes.
+# Registro de builds de iOS
 
 Última actualización: 2026-08-18.
 
-## Se acumula para el build
+## Historial de versiones publicadas
+
+| Versión | Qué llevó | Estado |
+|---------|-----------|--------|
+| `1.0.5+21` | Precios nuevos de packs y planes, precio decidido en el servidor (`c8c7497`) | compilado; no se pudo confirmar si se subió |
+| `1.0.6+23` | Se compiló el 2026-08-14 con los precios. **No quedó registrado si se subió** — por eso se saltó al 24 | ⚠️ número consumido |
+| **`1.0.6+24`** | Precios + los 5 fixes de Dart de abajo + `MinimumOSVersion 15` | **subido a App Store Connect el 2026-08-18** ✅ |
+
+> Regla para la próxima: commitear `pubspec.yaml` **junto con** el build que se
+> sube. El lío del 23 fue exactamente esto — el número se consumió en un binario
+> pero el repo nunca lo registró, así que después no había forma de saber si ese
+> número estaba quemado o libre.
+
+## Salió en 1.0.6+24 — los 5 fixes de Dart
 
 | # | Fix | Archivo | Qué arregla en la app |
 |---|-----|---------|-----------------------|
@@ -16,9 +25,13 @@ revisión de Apple. Hasta entonces, en iOS/Android estos bugs siguen presentes.
 | 4 | `user_id` en vez de `usuario_id` | `screens/home/home_screen.dart` | La consulta a `creditos_movimientos` daba `42703`, caía en el catch y el usuario nuevo nunca veía el estado de bienvenida |
 | 5 | Códigos de error de reserva + `ReservaException` | `services/reservas_service.dart`, `screens/reservas/confirmar_reserva_screen.dart` | `ya_reservada`, `reserva_cerrada`, `sin_creditos` y `no_auth` caían al cartel genérico. Además había doble traducción: la pantalla re-adivinaba por substring sobre un mensaje ya traducido |
 
+Todos estos ya estaban en `main` y vivos en la web desde el 2026-08-18, y
+ahora también viajan en la app nativa a partir del build 24.
+
 ## Ya resuelto server-side — NO necesita build
 
-Estos salieron en la base y valen para web y app al instante:
+Estos salieron en la base y valen para web y app al instante, en cualquier
+versión instalada:
 
 - **FK `clases` → `estudios`** (`clases_estudio_id_fkey`, sin CASCADE). Sin
   ella, el embed `estudios(...)` daba `400 PGRST200` y **ninguna reserva podía
@@ -35,8 +48,16 @@ Estos salieron en la base y valen para web y app al instante:
 ## Todavía sin resolver
 
 - **Lista de espera:** `lista_espera.posicion` no existe y el cliente la pide
-  (`reservas_service.dart`, `getListaEspera`). La pantalla está rota. Hay que
-  decidir si se agrega la columna o se calcula el puesto por `created_at`.
+  (`reservas_service.dart`, `getListaEspera`). La pantalla está rota.
+
+  **DECIDIDO (2026-08-18): se calcula el puesto por `created_at`, NO se agrega
+  la columna `posicion`.** Es más barato y no se puede desincronizar: la
+  posición sale del orden de llegada dentro de cada `clase_id`, así que no hay
+  que renumerar a nadie cuando alguien se baja de la lista.
+
+  Al implementarlo: sacar `posicion` del `.select()` del cliente y derivar el
+  puesto con un `row_number() over (partition by clase_id order by created_at)`
+  —vía vista o RPC— o bien calcularlo en Dart sobre la lista ya ordenada.
 - **Créditos de bienvenida:** los RPC no existen. Es a propósito — ver
   `supabase/pendiente_bienvenida/LEEME.md`. No tocar el toggle de Admin → Config
   hasta aplicar esa migración.
