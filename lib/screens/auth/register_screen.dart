@@ -56,7 +56,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             : 'aura://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
-            : LaunchMode.inAppWebView,
+            : LaunchMode.externalApplication,
         queryParams: const {
           'prompt': 'select_account',
           'access_type': 'offline',
@@ -104,7 +104,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             : 'aura://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
-            : LaunchMode.inAppWebView,
+            : LaunchMode.externalApplication,
       );
       if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

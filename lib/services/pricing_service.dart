@@ -78,10 +78,54 @@ class PricingService {
   int montoEstudioPorClase(int valorCredito, int creditos, double comisionPct) =>
       (valorCredito * creditos * (100 - comisionPct) / 100).round();
 
-  /// Devuelve los 4 packs canonicos con precio calculado.
+  /// Lee los packs desde `pricing_credit_packs`, la MISMA tabla que usa
+  /// `crear-checkout-pack` para cobrar. Así lo que muestra la app y lo que
+  /// cobra Mercado Pago salen de la misma fuente: podés subir precios por
+  /// inflación editando la tabla, sin recompilar la app ni romper compras.
+  ///
+  /// Si la tabla no responde o viene vacía, cae a los packs calculados desde
+  /// `valor_credito` (igual que getPlanes cae a AppConstants.planes).
   Future<List<Map<String, dynamic>>> getPacks() async {
+    try {
+      final data = await _client
+          .from('pricing_credit_packs')
+          .select()
+          .eq('activo', true)
+          .order('orden');
+      final rows = List<Map<String, dynamic>>.from(data as List);
+      if (rows.isEmpty) return _packsCalculados();
+      return rows.map(_packDesdeFila).toList();
+    } catch (_) {
+      return _packsCalculados();
+    }
+  }
+
+  /// Fallback: los 4 packs canónicos calculados desde `valor_credito`.
+  Future<List<Map<String, dynamic>>> _packsCalculados() async {
     final valor = await getValorCreditoArs();
     return _packsBase.map((p) => p.toMap(valor)).toList();
+  }
+
+  /// Normaliza una fila de `pricing_credit_packs` a la forma que espera la UI.
+  /// El vencimiento real es `vencimiento_dias` (el que lee el server); la
+  /// columna `vigencia_dias` de la tabla quedó duplicada y no la usa nadie.
+  ///
+  /// El badge sale de `popular` (bool) -> 'MÁS POPULAR'. El 'MEJOR VALOR' del
+  /// Pack Popular se pierde por ahora: la tabla no tiene columna de texto para
+  /// el badge. Pendiente: agregar columna `badge` cuando se linkee el CLI.
+  Map<String, dynamic> _packDesdeFila(Map<String, dynamic> row) {
+    final esPopular = row['popular'] == true;
+    return {
+      'nombre': row['nombre']?.toString() ?? '',
+      'creditos': (row['creditos'] as num?)?.toInt() ?? 0,
+      'precio': (row['precio'] as num?)?.toInt() ?? 0,
+      'vigencia_dias': (row['vencimiento_dias'] as num?)?.toInt(),
+      'descripcion': row['descripcion']?.toString() ?? '',
+      'badge': esPopular ? 'MÁS POPULAR' : null,
+      // se mantiene por compat con codigo que lo lee
+      'popular': esPopular,
+      'orden': (row['orden'] as num?)?.toInt() ?? 999,
+    };
   }
 
   /// Calcula los packs sin ir al server (usando el valor pasado).
