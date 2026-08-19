@@ -229,7 +229,7 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
     // Soporta:
     //   aura://payment-result?status=success&pago_id=X  (custom scheme)
     //   aura://login-callback  (OAuth Google callback en mobile)
-    //   https://somosauraar.netlify.app/payment-result?... (App Links)
+    //   https://somosaurapass.com/payment-result?... (App Links)
     final String path;
     if (uri.scheme == 'aura') {
       path = uri.host.isNotEmpty ? '/${uri.host}' : uri.path;

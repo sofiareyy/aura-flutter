@@ -62,15 +62,26 @@
                 <data android:scheme="aura" android:host="reset-password"/>
             </intent-filter>
 
-            <!-- App Links (HTTPS): https://somosauraar.netlify.app/payment-result?... -->
-            <!-- Requiere build/web/.well-known/assetlinks.json con SHA-256 del keystore -->
+            <!-- App Links (HTTPS): https://somosaurapass.com/payment-result?... -->
+            <!--
+                El dominio es somosaurapass.com (GitHub Pages). Antes apuntaba a
+                somosauraar.netlify.app, que quedo de un deploy viejo: los links
+                del dominio real no abrian la app.
+
+                Para que `autoVerify` funcione, https://somosaurapass.com/.well-known/assetlinks.json
+                tiene que declarar este applicationId y el SHA-256 de la clave
+                con la que se firman los APKs que instala la gente. Con Play App
+                Signing esa clave es la de Google, NO la de subida: el
+                fingerprint hay que copiarlo de Play Console despues del primer
+                envio. Ver web/.well-known/LEEME.md.
+            -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data
                     android:scheme="https"
-                    android:host="somosauraar.netlify.app"
+                    android:host="somosaurapass.com"
                     android:pathPrefix="/payment-result"/>
             </intent-filter>
         </activity>
