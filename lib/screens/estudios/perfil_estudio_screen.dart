@@ -8,6 +8,7 @@ import '../../models/estudio.dart';
 import '../../services/estudio_admin_service.dart';
 import '../../services/estudios_service.dart';
 import '../../services/media_upload_service.dart';
+import '../../utils/datos_cobro.dart';
 import '../../widgets/categorias_checklist.dart';
 import '../../widgets/eliminar_cuenta_helper.dart';
 
@@ -99,11 +100,16 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
         return;
       }
 
-      final estudio = await Supabase.instance.client
+      // Con los datos de cobro embebidos y aplanados: esta pantalla muestra y
+      // edita CBU/alias/banco/titular, que ya no viven en `estudios`.
+      final estudioRow = await Supabase.instance.client
           .from('estudios')
-          .select()
+          .select(DatosCobro.embedTodo)
           .eq('id', estudioId)
           .maybeSingle();
+      final estudio = estudioRow == null
+          ? null
+          : DatosCobro.aplanar(Map<String, dynamic>.from(estudioRow));
 
       // Lista de admins del estudio: usa la tabla estudio_admins (M:N), via
       // service. Necesita el SQL supabase/MULTI_ESTUDIO_ADMINS.sql aplicado.
@@ -1061,12 +1067,18 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
     if (saved != true || _estudio == null) return;
 
     try {
-      await Supabase.instance.client.from('estudios').update({
+      final datos = {
         'titular': titular.isEmpty ? null : titular,
         'banco': banco.isEmpty ? null : banco,
         'alias': alias.isEmpty ? null : alias,
         'cbu': cbu.isEmpty ? null : cbu,
-      }).eq('id', _estudio!['id']);
+      };
+      // Los datos bancarios viven solo en estudios_datos_cobro: `estudios` es
+      // el catálogo público y ya no tiene esas columnas.
+      await Supabase.instance.client
+          .from('estudios_datos_cobro')
+          .upsert({'estudio_id': _estudio!['id'], ...datos},
+              onConflict: 'estudio_id');
 
       await _cargar();
       if (mounted) {

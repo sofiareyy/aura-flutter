@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/datos_cobro.dart';
 
 /// Formatea un DateTime a "yyyy-MM-dd HH:mm:ss" sin timezone,
 /// consistente con el formato que usa la tabla clases en Supabase.
@@ -95,9 +96,16 @@ class EstudioAdminService {
     final studioId = await getCurrentStudioId();
     if (studioId == null) return null;
 
-    final rows = await _client.from('estudios').select().eq('id', studioId).limit(1);
+    // Trae tambien los datos de cobro (CBU, comisiones, valor_credito), que
+    // viven en estudios_datos_cobro. Se aplanan para que las pantallas del
+    // panel sigan leyendo estudio['cbu'] igual que antes. Ver DatosCobro.
+    final rows = await _client
+        .from('estudios')
+        .select(DatosCobro.embedTodo)
+        .eq('id', studioId)
+        .limit(1);
     if (rows.isNotEmpty) {
-      return Map<String, dynamic>.from(rows.first);
+      return DatosCobro.aplanar(Map<String, dynamic>.from(rows.first));
     }
     return null;
   }

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/pricing_service.dart';
 import '../../utils/pricing.dart';
+import '../../utils/datos_cobro.dart';
 
 class AdminPricingScreen extends StatefulWidget {
   final int estudioId;
@@ -87,13 +88,19 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
 
   Future<void> _cargar() async {
     try {
-      final row = await _client
+      // Las comisiones salen de estudios_datos_cobro (ver DatosCobro); el resto
+      // del pricing (precio_config/horarios_config/creditos_*) sigue en estudios.
+      final rowRaw = await _client
           .from('estudios')
           .select(
               'id, nombre, tipo_estudio, tipo_precio, creditos_min, creditos_max, '
-              'precio_config, horarios_config, comision_workshop, comision_aura')
+              'precio_config, horarios_config, '
+              'estudios_datos_cobro(comision_workshop, comision_aura)')
           .eq('id', widget.estudioId)
           .maybeSingle();
+      final row = rowRaw == null
+          ? null
+          : DatosCobro.aplanar(Map<String, dynamic>.from(rowRaw));
       _valorCredito = await _pricingService.getValorCreditoArs();
 
       if (row == null) {
@@ -170,8 +177,14 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       try {
         await _client.from('estudios').update({
           'tipo_estudio': 'experiencia',
-          'comision_workshop': comision,
         }).eq('id', widget.estudioId);
+        // comision_workshop vive ahora en estudios_datos_cobro y el trigger de
+        // bloqueo no deja que un cliente la escriba directo: va por RPC
+        // security definer, igual que admin_set_pricing_estudio.
+        await _client.rpc('admin_set_comision_workshop', params: {
+          'p_estudio_id': widget.estudioId,
+          'p_comision': comision,
+        });
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

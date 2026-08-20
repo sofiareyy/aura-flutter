@@ -74,13 +74,31 @@ Deno.serve(async (req: Request) => {
   const finMesDosAtras = new Date(yearDosAtras, mesDosAtrasNum + 1, 0, 23, 59, 59).toISOString()
 
   // ── Obtener estudios activos ──────────────────────────────────────────────
-  const { data: estudios, error: estudiosErr } = await adminSupabase
+  // Los datos de cobro (comisiones + valor_credito) viven en la tabla aparte
+  // `estudios_datos_cobro`: se separaron de `estudios` para que el CBU y el
+  // margen no viajen en el catálogo, que es público. `fecha_inicio_cobro` SI
+  // sigue en `estudios`. Se aplana abajo para que _shared/liquidacion.ts reciba
+  // exactamente la misma forma de objeto que antes.
+  const { data: estudiosRaw, error: estudiosErr } = await adminSupabase
     .from('estudios')
-    .select('id, nombre, comision_aura, comision_workshop, valor_credito, fecha_inicio_cobro')
+    .select('id, nombre, fecha_inicio_cobro, estudios_datos_cobro(comision_aura, comision_workshop, valor_credito)')
     .eq('activo', true)
     .order('nombre')
 
-  if (estudiosErr || !estudios?.length) {
+  const estudios = (estudiosRaw ?? []).map((e: Record<string, unknown>) => {
+    const raw = e.estudios_datos_cobro
+    const dc = (Array.isArray(raw) ? raw[0] : raw) as Record<string, unknown> | null | undefined
+    return {
+      id: e.id,
+      nombre: e.nombre,
+      fecha_inicio_cobro: e.fecha_inicio_cobro,
+      comision_aura: dc?.comision_aura ?? null,
+      comision_workshop: dc?.comision_workshop ?? null,
+      valor_credito: dc?.valor_credito ?? null,
+    }
+  })
+
+  if (estudiosErr || !estudios.length) {
     console.error('reporte-mensual-estudios: error obteniendo estudios:', estudiosErr?.message)
     return json({ error: 'Error obteniendo estudios', detail: estudiosErr?.message }, 500)
   }

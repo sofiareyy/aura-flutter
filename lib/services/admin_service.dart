@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/datos_cobro.dart';
 
 class AdminService {
   final _client = Supabase.instance.client;
@@ -179,17 +180,22 @@ class AdminService {
       );
       return List<Map<String, dynamic>>.from(res as List);
     } catch (_) {
-      final query = _client.from('estudios').select().order('nombre');
+      // Embebe los datos de cobro: el CBU y las comisiones ya no son columnas
+      // de `estudios` y el form de edicion del backoffice los necesita.
+      final query = _client
+          .from('estudios')
+          .select(DatosCobro.embedTodo)
+          .order('nombre');
       final rows = await (search == null || search.trim().isEmpty
           ? query
           : _client
               .from('estudios')
-              .select()
+              .select(DatosCobro.embedTodo)
               .or(
                 'nombre.ilike.%${search.trim()}%,barrio.ilike.%${search.trim()}%,categoria.ilike.%${search.trim()}%',
               )
               .order('nombre'));
-      final studios = List<Map<String, dynamic>>.from(rows as List).map((e) {
+      final studios = DatosCobro.aplanarLista(rows as List).map((e) {
         final row = Map<String, dynamic>.from(e);
         row['activo'] = row['activo'] ?? true;
         return row;

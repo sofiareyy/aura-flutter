@@ -6,6 +6,7 @@ import '../../services/valor_credito.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../utils/liquidacion.dart';
+import '../../utils/datos_cobro.dart';
 import '../../services/admin_service.dart';
 
 class AdminLiquidacionesScreen extends StatefulWidget {
@@ -94,12 +95,16 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
           .lte('created_at', fin);
 
       // 2. Traer todos los estudios activos (con comisión + fecha inicio cobro)
-      final estudiosData = await _client
+      // comision_aura / comision_workshop / valor_credito viven en
+      // estudios_datos_cobro; fecha_inicio_cobro sigue en estudios.
+      // Se aplanan para que Liquidacion.* reciba la misma forma de mapa.
+      final estudiosRaw = await _client
           .from('estudios')
-          .select('id, nombre, comision_aura, comision_workshop, '
-              'fecha_inicio_cobro, valor_credito')
+          .select('id, nombre, fecha_inicio_cobro, '
+              'estudios_datos_cobro(comision_aura, comision_workshop, valor_credito)')
           .eq('activo', true)
           .order('nombre');
+      final estudiosData = DatosCobro.aplanarLista(estudiosRaw as List);
 
       // 3. Traer liquidaciones ya registradas para este mes
       final liquidaciones = await _client
