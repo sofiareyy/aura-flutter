@@ -417,55 +417,29 @@ async function procesarPago(paymentId: string, eventType = 'payment') {
   }
 
   if (type === 'plan') {
-    // Suscripción mensual: los créditos vencen a los 60 días, no a los 30.
-    // Con 30 vencían justo al renovarse, así que lo que no usabas ese mes se
-    // perdía siempre. A 60 días se acumulan: grant_user_credits inserta un
-    // movimiento nuevo por mes, no reemplaza el saldo.
-    const expiryStr = expirationDate(60)
-    const { error: rpcErr } = await supabase.rpc('grant_user_credits', {
-      p_user_id: userId,
-      p_amount: creditos,
-      p_source: 'plan',
-      p_expires_at: expiryStr,
+    // Idempotente vía process_approved_plan_payment (gemelo del de packs):
+    // `for update` + `credits_granted_at`. Una reentrega del MISMO mp_payment_id
+    // cae en la MISMA fila (índice único) → already_processed → NO acredita de
+    // nuevo. Una renovación mensual es un mp_payment_id nuevo → fila nueva →
+    // acredita. El RPC también actualiza el estado del plan y dispara el referido.
+    if (!targetPagoId) {
+      console.warn('mp-webhook: plan sin pago_id (posible reentrega concurrente), ignorando')
+      return
+    }
+    const { data: planRes, error: planErr } = await supabase.rpc('process_approved_plan_payment', {
+      p_pago_id: targetPagoId,
+      p_mp_payment_id: mpPaymentId,
+      p_plan_nombre: planNombre || '',
+      p_expires_at: expirationDate(60),
     })
-
-    if (rpcErr) {
-      console.warn('mp-webhook: grant_user_credits fallo (plan), usando fallback:', rpcErr.message)
-      const { data: userRow } = await supabase
-        .from('usuarios')
-        .select('creditos')
-        .eq('id', userId)
-        .single()
-      if (userRow) {
-        await supabase
-          .from('usuarios')
-          .update({ creditos: (userRow.creditos ?? 0) + creditos, creditos_vencimiento: expiryStr })
-          .eq('id', userId)
-      }
+    if (planErr) {
+      console.error('mp-webhook: process_approved_plan_payment falló:', planErr.message)
+      return
     }
-
-    // Actualizar estado del plan en el usuario
-    const nextRenewal = new Date()
-    nextRenewal.setDate(nextRenewal.getDate() + 30)
-    await supabase
-      .from('usuarios')
-      .update({
-        plan: planNombre || null,
-        subscription_status: 'active',
-        renewal_date: nextRenewal.toISOString().split('T')[0],
-      })
-      .eq('id', userId)
-
-    // Primera compra real → activa el referido pendiente si lo hay.
-    // No rompe el pago si falla (el RPC atrapa sus propios errores).
-    const { error: refErr } = await supabase.rpc(
-      'activar_referido_por_compra',
-      { p_user_id: userId },
-    )
-    if (refErr) {
-      console.warn('mp-webhook: activar_referido_por_compra (plan) falló:', refErr.message)
+    if ((planRes as { already_processed?: boolean } | null)?.already_processed) {
+      console.log(`mp-webhook: plan ${mpPaymentId} ya acreditado (reentrega), ignorando`)
+      return
     }
-
     console.log(`mp-webhook: acreditados ${creditos} créditos plan (${planNombre}) al usuario ${userId}`)
   }
 
