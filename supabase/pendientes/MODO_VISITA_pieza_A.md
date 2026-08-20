@@ -1,7 +1,11 @@
-# Modo visita — Pieza A (abrir el gate + browse null-safe)
+# Modo visita — Piezas A y B
 
-Fecha: 2026-08-20. **Estado: EN PROGRESO, sin commitear** (los cambios están en el
-working tree, en disco — no se pierden al abrir sesión nueva).
+Fecha: 2026-08-20. **Estado: A y B COMPLETADAS, commiteadas y en producción.**
+Falta la Pieza C (continuidad post-registro). Ver el detalle al final.
+
+- Pieza A (gate del router + browse null-safe) → commit `19bd79f`
+- Pieza B (muro cerrable + nav de invitado + home público) → probada en Chrome
+  con los 9 puntos de la checklist, sin regresiones en el camino logueado.
 
 Contexto: modo visita = un invitado (sin cuenta) puede navegar el marketplace de
 SOLO LECTURA; para reservar/comprar tiene que registrarse. La seguridad ya está
@@ -32,7 +36,62 @@ Pieza A es puro front (router + condicionar UI). Es CÓDIGO DE APP → va a un b
 
 Patrón en todo: `if (currentUser != null) { <UI de hoy exacta> } else { <invitado> }` → **el branch logueado no cambió una línea de comportamiento.**
 
-## ⏳ Falta (retomar acá)
+## ✅ Pieza B — COMPLETADA (muro cerrable + nav + home público)
+
+Resuelve los 3 problemas que salieron de la prueba real (ver sección de feedback).
+
+1. **`lib/widgets/registro_muro.dart` (NUEVO)** — `RegistroMuro.mostrar(context,
+   motivo:)` con `enum MuroMotivo { reservar, listaEspera, favorito, reservas,
+   perfil }`. Es un `showDialog` (card centrada, máx 420) con **✕**, cerrable
+   también tocando afuera y con el botón atrás.
+   - **La raíz del bug**: antes era `context.go('/register')`, y `go` REEMPLAZA
+     la ubicación → no quedaba nada a lo que volver y el invitado terminaba en
+     el onboarding eligiendo "estudio o usuario". El muro **no navega**: se abre
+     encima y al cerrarlo el invitado sigue donde estaba, con su scroll.
+   - Los CTA usan `push` (no `go`) para que "atrás" desde el registro vuelva a
+     la clase.
+2. **Disparadores — solo ACCIONES, nunca navegación:**
+   - `detalle_clase_screen`: reservar → muro `reservar`. Si la clase está llena,
+     el botón dice "Registrate para anotarte" y abre el muro `listaEspera`
+     (antes decía "reservar" aunque no hubiera lugar).
+   - `detalle_estudio_screen`: el corazón **ahora SE MUESTRA al invitado**
+     (antes estaba oculto, no sabía que la función existía) y abre el muro
+     `favorito`.
+3. **Nav de invitado (`main_shell.dart`)**: Reservas y Perfil abren el muro
+   **sin navegar**. Inicio y Explorar libres. Navegar entre pestañas nunca
+   expulsa a /login.
+   - **Bug arreglado de paso**: `_selectedIndex` no conocía `/mapa` y caía al
+     `return 0`, así que en el Mapa quedaba iluminado "Inicio". Ahora marca
+     Explorar (el mapa es una vista de Explorar, se llega desde su toggle).
+4. **Home público (opción A)**: `/home` entró a `_esBrowsePublica`. El invitado
+   ve clases de la semana, Experiencias y estudios cerca. Cambios en
+   `home_screen.dart`: card de créditos → `_InvitadoCard` ("Estás explorando
+   como invitada / Creá tu cuenta"), campana de notificaciones oculta, avatar
+   abre el muro. El QR de hoy y el banner de vencimiento ya se ocultaban solos.
+   - Home resultó casi guest-safe de fábrica: todas las cargas cortan con
+     `uid.isEmpty` (`_cargarSugerencias`, `getClasesSugeridas`, historial de
+     créditos). Solo faltaba la UI.
+
+**Camino logueado: sin cambios.** Todo dentro de guards de invitado. `flutter
+analyze` 0 errores, 8 warnings (baseline), y 83 issues en vez de 84 (se fue el
+lint `curly_braces` de main_shell, que estaba en el bloque reescrito).
+
+## ⏳ Falta — Pieza C: continuidad post-registro
+
+**Lo único pendiente del modo visita.** Cerrar el muro devuelve al invitado
+donde estaba ✅, pero si **completa** el registro, el flujo lo lleva a
+`/creditos-onboarding` como siempre, no de vuelta a la clase que estaba mirando.
+
+Idea: guardar la intención (ruta + acción) antes de abrir el registro y
+retomarla al terminar — que despues de crear la cuenta caiga en la clase y, si
+se puede, con el flujo de reserva ya abierto.
+
+Piezas menores que quedaron fuera:
+- **Comprar créditos**: no es alcanzable desde el browse de invitado todavía, así
+  que no hay dónde poner el muro.
+- **Dejar reseña**: ya oculto por `canReview` (requiere reserva previa).
+
+## ⏳ Notas viejas de la Pieza A (ya resueltas, se dejan por contexto)
 
 1. **MainShell** (`lib/widgets/main_shell.dart`) — la nav inferior. Condicionar las
    pestañas **Perfil** (y **Home** si aplica) para invitado: que manden a `/register`
@@ -47,7 +106,7 @@ Patrón en todo: `if (currentUser != null) { <UI de hoy exacta> } else { <invita
      home, perfil, créditos, botón de reservar, saldo, corazón, todo.
 3. **`flutter analyze` full + `flutter build web`** al terminar MainShell.
 
-## Feedback de la prueba real en Chrome (2026-08-20, la usuaria)
+## Feedback de la prueba real en Chrome (2026-08-20) — TODO RESUELTO en la Pieza B
 
 Probado con la Pieza A a medias (MainShell sin hacer) y ANTES del paso 7 de
 `SEPARAR_DATOS_COBRO.md` (o sea, con `anon` todavía sin poder leer `estudios`):

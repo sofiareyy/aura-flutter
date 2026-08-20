@@ -68,7 +68,10 @@ bool _rutaPermitidaProfe(String loc) =>
 /// de solo lectura. El resto sigue protegido (perfil, créditos, reservas,
 /// checkout, panel de estudio/admin) — sin sesión caen a /login.
 bool _esBrowsePublica(String loc) {
-  if (loc == '/explorar' || loc == '/mapa') return true;
+  // /home entra: para el invitado muestra el catálogo (clases de la semana,
+  // experiencias, estudios cerca) con las cards personales reemplazadas por
+  // un CTA de registro. Ver home_screen.
+  if (loc == '/home' || loc == '/explorar' || loc == '/mapa') return true;
   if (loc.startsWith('/clase/')) return true;
   return _esEstudioDetalle(loc);
 }

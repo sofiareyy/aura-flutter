@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/theme/app_theme.dart';
+import 'registro_muro.dart';
 
 class MainShell extends StatefulWidget {
   final Widget child;
@@ -36,11 +37,22 @@ class _MainShellState extends State<MainShell> {
     super.dispose();
   }
 
+  /// El invitado (sin sesión) navega libre por el browse; las pestañas
+  /// personales le abren el muro en vez de echarlo a /login.
+  bool get _esInvitado => Supabase.instance.client.auth.currentUser == null;
+
   int _selectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith('/explorar')) return 1;
+    // El mapa es una vista de Explorar (se llega desde su toggle), así que
+    // marca esa pestaña. Sin esto caía al `return 0` y quedaba iluminado
+    // "Inicio" mientras mirabas el mapa.
+    if (location.startsWith('/explorar') || location.startsWith('/mapa')) {
+      return 1;
+    }
     if (location.startsWith('/mis-reservas') ||
-        location.startsWith('/mis-clases')) return 2;
+        location.startsWith('/mis-clases')) {
+      return 2;
+    }
     if (location.startsWith('/perfil')) return 3;
     return 0;
   }
@@ -99,6 +111,16 @@ class _MainShellState extends State<MainShell> {
           ),
           unselectedLabelStyle: const TextStyle(fontSize: 11),
           onTap: (index) {
+            // Invitado: Inicio y Explorar son browse libre. Reservas y Perfil
+            // son personales -> muro cerrable, SIN navegar (se queda donde
+            // está). Navegar entre pestañas nunca debe expulsarlo a /login.
+            if (_esInvitado && (index == 2 || index == 3)) {
+              RegistroMuro.mostrar(
+                context,
+                motivo: index == 2 ? MuroMotivo.reservas : MuroMotivo.perfil,
+              );
+              return;
+            }
             switch (index) {
               case 0:
                 context.go('/home');

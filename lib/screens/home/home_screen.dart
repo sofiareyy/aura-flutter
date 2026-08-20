@@ -18,6 +18,7 @@ import '../../services/notificaciones_service.dart';
 import '../../services/reservas_service.dart';
 import '../../services/studio_geo_service.dart';
 import '../../widgets/organizadores_links.dart';
+import '../../widgets/registro_muro.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,6 +32,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final _estudiosService = EstudiosService();
   final _locationService = LocationService();
   final _studioGeoService = StudioGeoService();
+
+  /// Invitado del modo visita: ve el catálogo del home (clases de la semana,
+  /// experiencias, estudios cerca) pero no las cards personales. Todas las
+  /// cargas de datos ya cortan solas con `uid.isEmpty`.
+  bool get esInvitado => Supabase.instance.client.auth.currentUser == null;
 
   List<Map<String, dynamic>> _proximasClases = [];
   List<Map<String, dynamic>> _experiencias = [];
@@ -387,34 +393,42 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                           ),
-                          Stack(
-                            alignment: Alignment.topRight,
-                            children: [
-                              IconButton(
-                                onPressed: _mostrarNotificaciones,
-                                icon: const Icon(
-                                  Icons.notifications_outlined,
-                                  color: AppColors.black,
-                                ),
-                              ),
-                              if (_unreadNotifs > 0)
-                                Positioned(
-                                  top: 8,
-                                  right: 8,
-                                  child: Container(
-                                    width: 9,
-                                    height: 9,
-                                    decoration: const BoxDecoration(
-                                      color: AppColors.primary,
-                                      shape: BoxShape.circle,
-                                    ),
+                          // El invitado no tiene notificaciones: se oculta la
+                          // campana en vez de abrirle un panel vacío.
+                          if (!esInvitado)
+                            Stack(
+                              alignment: Alignment.topRight,
+                              children: [
+                                IconButton(
+                                  onPressed: _mostrarNotificaciones,
+                                  icon: const Icon(
+                                    Icons.notifications_outlined,
+                                    color: AppColors.black,
                                   ),
                                 ),
-                            ],
-                          ),
+                                if (_unreadNotifs > 0)
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: Container(
+                                      width: 9,
+                                      height: 9,
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.primary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           const SizedBox(width: 4),
                           GestureDetector(
-                            onTap: () => context.go('/perfil'),
+                            // Invitado: el avatar abre el muro cerrable, no lo
+                            // manda a /login.
+                            onTap: () => esInvitado
+                                ? RegistroMuro.mostrar(context,
+                                    motivo: MuroMotivo.perfil)
+                                : context.go('/perfil'),
                             child: Container(
                             width: 44,
                             height: 44,
@@ -441,16 +455,27 @@ class _HomeScreenState extends State<HomeScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-                    child: usuario == null || (usuario.creditos) > 0
-                        ? _PlanCard(usuario: usuario)
-                        : !_tieneHistorialCreditos
-                            ? _NuevoUsuarioCard(
-                                onVerPacks: () => context.push('/comprar-creditos'),
-                              )
-                            : _SinCreditosCard(
-                                onComprar: () => context.push('/comprar-creditos'),
-                                onVerReservas: () => context.go('/mis-reservas'),
-                              ),
+                    // Invitado: donde va la card de créditos (que no tiene) va
+                    // la invitación a crear cuenta. El resto del home —clases
+                    // de la semana, experiencias, estudios cerca— lo ve igual.
+                    child: esInvitado
+                        ? _InvitadoCard(
+                            onCrearCuenta: () => context.push('/register'),
+                            onIngresar: () => context.push('/login'),
+                          )
+                        : usuario == null || (usuario.creditos) > 0
+                            ? _PlanCard(usuario: usuario)
+                            : !_tieneHistorialCreditos
+                                ? _NuevoUsuarioCard(
+                                    onVerPacks: () =>
+                                        context.push('/comprar-creditos'),
+                                  )
+                                : _SinCreditosCard(
+                                    onComprar: () =>
+                                        context.push('/comprar-creditos'),
+                                    onVerReservas: () =>
+                                        context.go('/mis-reservas'),
+                                  ),
                   ),
                 ),
                 // ── Tu QR de hoy (reserva dentro de las próximas 24 h) ──────
@@ -1134,6 +1159,81 @@ class _CreditosExpiryBanner extends StatelessWidget {
 }
 
 // ─── Plan card ────────────────────────────────────────────────────────────────
+
+/// Reemplaza a [_PlanCard] cuando no hay sesión: en el lugar donde el usuario
+/// logueado ve sus créditos, el invitado ve la invitación a crear cuenta.
+/// Mismo formato (negra, radius 24, padding 22) para que el home no se
+/// desarme visualmente.
+class _InvitadoCard extends StatelessWidget {
+  final VoidCallback onCrearCuenta;
+  final VoidCallback onIngresar;
+
+  const _InvitadoCard({required this.onCrearCuenta, required this.onIngresar});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: AppColors.black,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Estás explorando como invitada',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Creá tu cuenta\ny reservá tu primera clase',
+            style: TextStyle(
+              color: AppColors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: onCrearCuenta,
+                    child: const Text('Crear cuenta'),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                height: 48,
+                child: TextButton(
+                  onPressed: onIngresar,
+                  child: const Text(
+                    'Ingresar',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _PlanCard extends StatelessWidget {
   final dynamic usuario;

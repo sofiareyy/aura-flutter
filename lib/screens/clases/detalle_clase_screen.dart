@@ -14,6 +14,7 @@ import '../../services/clases_service.dart';
 import '../../services/reservas_service.dart';
 import '../../services/reviews_service.dart';
 import '../../services/waitlist_service.dart';
+import '../../widgets/registro_muro.dart';
 import '../../utils/cierre_minutos.dart';
 import '../../widgets/organizadores_links.dart';
 import '../../widgets/study_review_sheet.dart';
@@ -1142,13 +1143,21 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     required int creditos,
   }) {
     // Invitado: no puede reservar ni anotarse a lista de espera sin cuenta.
-    // CTA claro al registro; el precio se ve igual en la card de arriba.
+    // El muro es un pop-up cerrable (no navega): si lo cierra, sigue viendo
+    // esta misma clase. El precio se ve igual en la card de arriba.
     if (Supabase.instance.client.auth.currentUser == null) {
+      // Sin lugares -> el CTA honesto es la lista de espera, no "reservar".
+      final esWaitlist = lugaresDisp <= 0 && !reservaCerrada;
       return SizedBox(
         height: 56,
         child: ElevatedButton(
-          onPressed: () => context.go('/register'),
-          child: const Text('Registrate para reservar'),
+          onPressed: () => RegistroMuro.mostrar(
+            context,
+            motivo: esWaitlist ? MuroMotivo.listaEspera : MuroMotivo.reservar,
+          ),
+          child: Text(
+            esWaitlist ? 'Registrate para anotarte' : 'Registrate para reservar',
+          ),
         ),
       );
     }
