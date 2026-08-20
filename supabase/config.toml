@@ -427,3 +427,10 @@ entrypoint = "./functions/acreditar-creditos-corporativos/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/mp-webhook/index.ts"
+
+# Email al estudio en cada reserva (la dispara un trigger en `reservas` via
+# pg_net; autoriza por NOTIF_TRIGGER_SECRET en el header x-notif-secret).
+[functions.nueva-reserva-estudio-email]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/nueva-reserva-estudio-email/index.ts"
