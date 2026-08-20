@@ -555,24 +555,26 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
             ),
           ),
 
-          // Favorito (arriba derecha)
-          Positioned(
-            top: 0,
-            right: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 10, right: 16),
-                child: _EstudioCircleAction(
-                  icon: _esFavorito
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  onTap: _toggleFavorito,
-                  iconColor:
-                      _esFavorito ? AppColors.primary : Colors.white,
+          // Favorito (arriba derecha) — solo para logueado. El invitado no
+          // puede guardar favoritos sin cuenta (Pieza B: muro "registrate").
+          if (Supabase.instance.client.auth.currentUser != null)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10, right: 16),
+                  child: _EstudioCircleAction(
+                    icon: _esFavorito
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    onTap: _toggleFavorito,
+                    iconColor:
+                        _esFavorito ? AppColors.primary : Colors.white,
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

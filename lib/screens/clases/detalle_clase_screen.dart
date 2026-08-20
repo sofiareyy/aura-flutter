@@ -816,45 +816,50 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                 ],
                               ),
                             ),
-                            Container(
-                              width: 1,
-                              height: 54,
-                              margin: const EdgeInsets.symmetric(horizontal: 16),
-                              color: const Color(0x26FFFFFF),
-                            ),
-                            Expanded(
-                              flex: 4,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Tu saldo',
-                                    style: TextStyle(
-                                      color: Color(0xFFA7A09A),
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    '$creditosSaldo créditos',
-                                    style: const TextStyle(
-                                      color: AppColors.white,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Quedan ${creditosSaldo - creditos} tras reservar',
-                                    style: const TextStyle(
-                                      color: Color(0xFFA7A09A),
-                                      fontSize: 12,
-                                      height: 1.35,
-                                    ),
-                                  ),
-                                ],
+                            // "Tu saldo" — solo logueado. El invitado ve el
+                            // precio (izquierda) pero no tiene saldo.
+                            if (Supabase.instance.client.auth.currentUser != null) ...[
+                              Container(
+                                width: 1,
+                                height: 54,
+                                margin:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                color: const Color(0x26FFFFFF),
                               ),
-                            ),
+                              Expanded(
+                                flex: 4,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Tu saldo',
+                                      style: TextStyle(
+                                        color: Color(0xFFA7A09A),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      '$creditosSaldo créditos',
+                                      style: const TextStyle(
+                                        color: AppColors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Quedan ${creditosSaldo - creditos} tras reservar',
+                                      style: const TextStyle(
+                                        color: Color(0xFFA7A09A),
+                                        fontSize: 12,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -1136,6 +1141,18 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     required bool disponible,
     required int creditos,
   }) {
+    // Invitado: no puede reservar ni anotarse a lista de espera sin cuenta.
+    // CTA claro al registro; el precio se ve igual en la card de arriba.
+    if (Supabase.instance.client.auth.currentUser == null) {
+      return SizedBox(
+        height: 56,
+        child: ElevatedButton(
+          onPressed: () => context.go('/register'),
+          child: const Text('Registrate para reservar'),
+        ),
+      );
+    }
+
     // 1) Pre-confirmada activa -> card de confirmacion con countdown.
     if (_preReserva != null && _preReservaRemaining.inSeconds > 0) {
       return _PreReservaConfirmCard(

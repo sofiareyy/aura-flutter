@@ -64,6 +64,23 @@ const _rutasProfe = ['/estudio/clases', '/estudio/asistencia'];
 bool _rutaPermitidaProfe(String loc) =>
     _rutasProfe.any((p) => loc.startsWith(p));
 
+/// Rutas de "browse" que un invitado (sin sesión) puede ver: el marketplace
+/// de solo lectura. El resto sigue protegido (perfil, créditos, reservas,
+/// checkout, panel de estudio/admin) — sin sesión caen a /login.
+bool _esBrowsePublica(String loc) {
+  if (loc == '/explorar' || loc == '/mapa') return true;
+  if (loc.startsWith('/clase/')) return true;
+  return _esEstudioDetalle(loc);
+}
+
+/// `/estudio/<id numérico>` = detalle público del estudio (invitado lo ve).
+/// `/estudio/dashboard|clases|...` = panel privado → NO es browse, queda protegido.
+bool _esEstudioDetalle(String loc) {
+  if (!loc.startsWith('/estudio/')) return false;
+  final resto = loc.substring('/estudio/'.length);
+  return int.tryParse(resto) != null;
+}
+
 final appRouter = GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: '/splash',
@@ -83,8 +100,11 @@ final appRouter = GoRouter(
     };
     if (publicRoutes.contains(loc)) return null;
 
-    // Si no está logueado, redirigir a login
-    if (!isLoggedIn) return '/login';
+    // Sin sesión: un invitado puede ver el browse (marketplace de solo lectura);
+    // cualquier otra ruta (cuenta, checkout, panel) lo manda a login.
+    if (!isLoggedIn) {
+      return _esBrowsePublica(loc) ? null : '/login';
+    }
 
     // Una profe solo accede a Mis Clases y Asistencia. El gate va acá, en el
     // redirect global, y no en el builder del shell: el builder corre DESPUES

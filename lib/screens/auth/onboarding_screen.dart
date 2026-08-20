@@ -115,6 +115,18 @@ class _AuthOnboardingScreenState extends State<AuthOnboardingScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 14),
+                  GestureDetector(
+                    onTap: () => context.go('/explorar'),
+                    child: const Text(
+                      'Explorar sin cuenta',
+                      style: TextStyle(
+                        color: Color(0xFF9A928B),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

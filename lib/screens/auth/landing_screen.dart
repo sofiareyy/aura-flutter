@@ -125,7 +125,19 @@ class LandingScreen extends StatelessWidget {
                       child: const Text('Quiero reservar'),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
+                  GestureDetector(
+                    onTap: () => context.go('/explorar'),
+                    child: const Text(
+                      'Explorar sin cuenta',
+                      style: TextStyle(
+                        color: Color(0xFFF5F0E8),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
                   GestureDetector(
                     onTap: () => context.go('/login'),
                     child: const Text(
