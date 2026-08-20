@@ -681,3 +681,166 @@ alter table public.estudios
 -- PASO C: abrir el catálogo a invitados (modo visita)
 -- ---------------------------------------------------------------------------
 alter policy "todos pueden ver estudios" on public.estudios to anon, authenticated;
+
+
+-- ---------------------------------------------------------------------------
+-- FIX POSTERIOR (2026-08-20): valor_credito default 6000 + fila de cobro auto
+-- ---------------------------------------------------------------------------
+-- ===========================================================================
+-- FIX: valor_credito default 6000 + fila de cobro para todo estudio nuevo
+-- ===========================================================================
+-- El DEFAULT 6000 venía de cuando un crédito valía 6000 ARS. Hoy el valor real
+-- es `configuracion_global.valor_credito_ars` = 1000, pero el default de la
+-- columna nunca se actualizó. Un estudio creado hoy nacía en 6000 y su panel
+-- mostraba/liquidaba montos 6x. Los 9 estudios existentes están en 1000, así
+-- que el bug nunca llegó a dispararse: esto es preventivo.
+-- ===========================================================================
+
+-- ── 1. valor_credito pasa a ser un OVERRIDE opcional, no una copia del global.
+-- NULL (y no 1000) a propósito: `ValorCredito.deEstudio()` en Dart y
+-- `valorCredito()` en _shared/liquidacion.ts YA interpretan null/0 como "usá el
+-- global". Con NULL el valor sale siempre fresco de configuracion_global y no
+-- se puede volver a desactualizar, porque no hay nada que actualizar. Un
+-- DEFAULT fijo (1000) o calculado al INSERT congelaría el número otra vez.
+alter table public.estudios_datos_cobro
+  alter column valor_credito drop default;
+
+
+-- ── 2. Helper: el valor global, con fallback duro 1000.
+create or replace function public.valor_credito_global()
+returns integer
+language plpgsql
+stable
+set search_path to 'public'
+as $fn$
+declare
+  v text;
+  n integer;
+begin
+  select valor into v from public.configuracion_global
+   where clave = 'valor_credito_ars';
+  n := nullif(trim(coalesce(v, '')), '')::integer;
+  if n is null or n <= 0 then
+    return 1000;
+  end if;
+  return n;
+exception when others then
+  return 1000;
+end
+$fn$;
+
+grant execute on function public.valor_credito_global() to authenticated, service_role;
+
+
+-- ── 3. Trigger: toda fila de `estudios` nace con su fila de cobro.
+-- Hay dos caminos de creación y uno no la creaba: el backoffice "solo estudio"
+-- va por `admin_upsert_estudio` (que sí la crea), pero "con cuenta" va por la
+-- edge function `admin-crear-estudio`, que hace un INSERT directo sobre
+-- `estudios` y no sabe que la tabla de cobro existe. Un trigger cubre TODOS los
+-- caminos, los de hoy y los que se agreguen, sin redeployar nada.
+-- `on conflict do nothing` para no pisar a admin_upsert_estudio, que después
+-- hace su propio upsert con cbu/comisiones.
+create or replace function public.crear_datos_cobro_estudio()
+returns trigger
+language plpgsql
+security definer
+set search_path to 'public'
+as $fn$
+begin
+  insert into public.estudios_datos_cobro (estudio_id)
+  values (new.id)
+  on conflict (estudio_id) do nothing;
+  return new;
+end
+$fn$;
+
+drop trigger if exists trg_estudios_datos_cobro on public.estudios;
+create trigger trg_estudios_datos_cobro
+  after insert on public.estudios
+  for each row execute function public.crear_datos_cobro_estudio();
+
+
+-- ── 4. Sacar el 6000 hardcodeado de las dos funciones que quedaban.
+create or replace function public.admin_dashboard_metrics(
+  p_from timestamp with time zone default null,
+  p_to timestamp with time zone default null)
+returns table(usuarios_total bigint, usuarios_activos bigint, estudios_total bigint,
+  estudios_activos bigint, reservas_total bigint, reservas_hoy bigint,
+  reservas_mes bigint, creditos_consumidos bigint, ingresos_estimados bigint,
+  ocupacion_promedio integer, top_estudio text, top_clase text, top_categoria text,
+  actividad_reciente text)
+language plpgsql security definer set search_path to 'public'
+as $function$
+declare
+  v_from timestamptz := coalesce(p_from, date_trunc('month', now()));
+  v_to   timestamptz := coalesce(p_to, now());
+begin
+  if not public.is_admin() then
+    raise exception 'No autorizado';
+  end if;
+
+  return query
+  with reservas_periodo as (
+    select r.*, c.nombre as clase_nombre, e.nombre as estudio_nombre, e.categoria,
+           coalesce(dc.valor_credito, public.valor_credito_global()) as valor_credito
+    from public.reservas r
+    left join public.clases c on c.id = r.clase_id
+    left join public.estudios e on e.id = c.estudio_id
+    left join public.estudios_datos_cobro dc on dc.estudio_id = c.estudio_id
+    where r.estado <> 'cancelada'
+      and r.created_at >= v_from
+      and r.created_at < (v_to + interval '1 day')
+  ),
+  resumen as (
+    select
+      (select count(*) from public.usuarios) as usuarios_total,
+      (select count(distinct rp.usuario_id) from reservas_periodo rp) as usuarios_activos,
+      (select count(*) from public.estudios) as estudios_total,
+      (select count(*) from public.estudios where coalesce(activo, true) = true) as estudios_activos,
+      (select count(*) from public.reservas) as reservas_total,
+      (select count(*) from public.reservas where created_at::date = current_date) as reservas_hoy,
+      (select count(*) from reservas_periodo) as reservas_mes,
+      (select coalesce(sum(rp.creditos_usados), 0)::bigint from reservas_periodo rp) as creditos_consumidos,
+      (select coalesce(sum((rp.creditos_usados * rp.valor_credito)::bigint), 0)::bigint from reservas_periodo rp) as ingresos_estimados
+  )
+  select
+    r.usuarios_total, r.usuarios_activos, r.estudios_total, r.estudios_activos,
+    r.reservas_total, r.reservas_hoy, r.reservas_mes, r.creditos_consumidos,
+    r.ingresos_estimados,
+    coalesce((
+      select round(avg(case
+        when coalesce(c.lugares_total, 0) > 0 then
+          ((coalesce(c.lugares_total, 0) - coalesce(c.lugares_disponibles, coalesce(c.lugares_total, 0)))::numeric / c.lugares_total::numeric) * 100
+        else 0 end))::int
+      from public.clases c
+      where c.fecha >= v_from and c.fecha < (v_to + interval '1 day')
+    ), 0) as ocupacion_promedio,
+    coalesce((select rp.estudio_nombre from reservas_periodo rp group by rp.estudio_nombre order by count(*) desc limit 1), 'Sin datos') as top_estudio,
+    coalesce((select rp.clase_nombre from reservas_periodo rp group by rp.clase_nombre order by count(*) desc limit 1), 'Sin datos') as top_clase,
+    coalesce((select rp.categoria from reservas_periodo rp group by rp.categoria order by count(*) desc limit 1), 'Sin datos') as top_categoria,
+    coalesce((select 'Última reserva del período: ' || coalesce(rp.estudio_nombre, 'estudio') from reservas_periodo rp order by rp.created_at desc limit 1), 'Todavía no hay actividad registrada') as actividad_reciente
+  from resumen r;
+end;
+$function$;
+
+
+create or replace function public.admin_pricing_snapshot()
+returns table(planes_text text, packs_text text, valor_credito integer)
+language plpgsql security definer set search_path to 'public'
+as $function$
+begin
+  if not public.is_admin() then
+    raise exception 'No autorizado';
+  end if;
+
+  return query
+  select
+    coalesce((select string_agg(pp.nombre || ': ' || pp.creditos || ' cr - $' || pp.precio, E'\n')
+      from public.pricing_planes pp where coalesce(pp.activo, true) = true), 'Sin planes configurados'),
+    coalesce((select string_agg(pc.nombre || ': ' || pc.creditos || ' cr - $' || pc.precio, E'\n')
+      from public.pricing_credit_packs pc where coalesce(pc.activo, true) = true), 'Sin packs configurados'),
+    coalesce((select round(avg(d.valor_credito))::int
+      from public.estudios_datos_cobro d where d.valor_credito is not null),
+      public.valor_credito_global());
+end;
+$function$;

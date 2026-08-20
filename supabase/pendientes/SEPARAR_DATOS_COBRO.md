@@ -354,15 +354,50 @@ Integridad post-pruebas: 0 filas divergentes (nada quedó modificado).
    `admin_service.listEstudios` (el fallback del punto 1) y el helper nuevo
    `lib/utils/datos_cobro.dart`.
 
+## ✅ Fix posterior (2026-08-20): valor_credito 6000 + fila de cobro automática
+
+Dos cosas sobre que **un estudio nuevo nazca bien**. Solo base, sin build ni deploy.
+
+**1. `valor_credito` DEFAULT 6000 → DEFAULT NULL.** El 6000 era de cuando un
+crédito valía eso; hoy `configuracion_global.valor_credito_ars` = 1000. Un
+estudio creado hoy nacía en 6000 y liquidaba 6x.
+
+NULL y **no** 1000 a propósito: `ValorCredito.deEstudio()` (Dart) y
+`valorCredito()` (`_shared/liquidacion.ts`) ya interpretan null/0 como "usá el
+global". Con NULL la columna pasa a significar lo que debía —**override por
+estudio**— y el valor sale siempre fresco del global. Un DEFAULT fijo, o uno
+calculado al INSERT, congelaría el número y se volvería a desactualizar: es el
+mismo bug con otra cara.
+
+**2. Helper `valor_credito_global()`** (lee `configuracion_global`, fallback
+duro 1000). Reemplaza los dos últimos `6000` hardcodeados, que estaban en
+`admin_dashboard_metrics` y `admin_pricing_snapshot`. El código de la app ya
+estaba limpio desde que se creó `valor_credito.dart`.
+
+**3. Trigger `trg_estudios_datos_cobro` (AFTER INSERT ON estudios).** Había dos
+caminos de creación y uno quedó cojo tras esta migración: el backoffice "solo
+estudio" va por `admin_upsert_estudio` (que sí crea la fila de cobro), pero
+"con cuenta" va por la edge `admin-crear-estudio`, que hace un INSERT directo
+sobre `estudios` (línea 84) y no sabe que la tabla existe. El trigger cubre
+**todos** los caminos, presentes y futuros, sin redeployar la edge function.
+Usa `on conflict do nothing` para no pisar el upsert de `admin_upsert_estudio`.
+
+### Verificación (todo en transacción + rollback)
+
+| Prueba | Resultado |
+|---|---|
+| Camino 1 (RPC `admin_upsert_estudio`) | fila de cobro creada, `valor_credito = NULL`, com 30 / ws 15 / dia 5 |
+| Camino 2 (INSERT directo, como la edge) | fila de cobro creada, `valor_credito = NULL`, com 30 / ws 15 / dia 5 |
+| Cuánto liquida el estudio nuevo | propio=NULL → **efectivo 1000** → 10 créditos = 10.000 ARS (no 60.000) |
+| Los 9 existentes | **sin tocar**: los 9 siguen en 1000, 0 en 6000, 0 nulos |
+| `admin_pricing_snapshot` | 1000 = baseline |
+| `admin_dashboard_metrics` | usuarios=74, estudios=9/9, reservas=5, créditos=30, ingresos=30000, ocup=1, top=Hot Clic — **idéntico al baseline** |
+| Estudios de prueba dejados | 0 (9 estudios, 9 filas de cobro) |
+| `6000` restante en alguna función | ninguna |
+
 ## Hallazgos colaterales (NO son parte de este plan)
 
-- 🟠 **`estudios.valor_credito` tiene default 6000, pero el valor global real es
-  1000.** Un estudio creado hoy nace con 6000 → `ValorCredito.deEstudio()` lo
-  toma (pasa el guard `> 0`) → el panel de ese estudio muestra y liquida montos
-  **6x** más altos. Es exactamente el bug que `valor_credito.dart` documenta,
-  pero el guard no lo agarra porque el valor no es null. Los 9 estudios actuales
-  están en 1000, así que hoy no afecta a nadie. El default se espejó tal cual en
-  la tabla nueva para no cambiar comportamiento. **Arreglar aparte.**
+- ✅ **`valor_credito` default 6000 — ARREGLADO 2026-08-20** (ver abajo).
 
 - 🟠 `lista_espera` tiene policy `waitlist_count_public` con `USING true` y
   `roles={public}` → cualquiera, `anon` incluido, puede leer todas las filas **con
