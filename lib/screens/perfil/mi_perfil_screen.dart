@@ -15,6 +15,7 @@ import '../../services/auth_service.dart';
 import '../../services/estudio_admin_service.dart';
 import '../../services/favoritos_service.dart';
 import '../../services/referidos_service.dart';
+import '../../services/reservas_service.dart';
 import '../../services/usuarios_service.dart';
 
 class MiPerfilScreen extends StatefulWidget {
@@ -29,9 +30,11 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
   final _favoritosService = FavoritosService();
   final _usuariosService = UsuariosService();
   final _estudioAdminService = EstudioAdminService();
+  final _reservasService = ReservasService();
 
   bool _loadingFavoritos = true;
   bool _uploadingAvatar = false;
+  int _clasesTomadas = 0;
   List<Estudio> _favoritos = const [];
   List<Map<String, dynamic>> _misEstudios = const [];
   String? _appVersion;
@@ -156,6 +159,8 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
       _misEstudios = const [];
     }
     await _cargarFavoritos();
+    _clasesTomadas =
+        await _reservasService.contarClasesTomadas(uid.isEmpty ? null : uid);
     if (mounted) setState(() {});
   }
 
@@ -350,6 +355,8 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                     ),
                     const SizedBox(height: 16),
                   ],
+                  _ProgresoCard(clasesTomadas: _clasesTomadas),
+                  const SizedBox(height: 16),
                   _MenuSection(
                     title: 'Mi cuenta',
                     items: [
@@ -1031,6 +1038,99 @@ class _StatBox extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ProgresoCard extends StatelessWidget {
+  final int clasesTomadas;
+  const _ProgresoCard({required this.clasesTomadas});
+
+  static const int _meta = 50;
+
+  @override
+  Widget build(BuildContext context) {
+    final n = clasesTomadas;
+    final progreso = (n / _meta).clamp(0.0, 1.0);
+    final alcanzado = n >= _meta;
+    final faltan = _meta - n;
+
+    final String mensaje;
+    if (n == 0) {
+      mensaje = 'Todavía no tomaste clases — ¡reservá la primera! 🧡';
+    } else if (alcanzado) {
+      mensaje = '¡Ganaste tu 10% off en una experiencia! 🎉';
+    } else {
+      mensaje =
+          'Te faltan $faltan ${faltan == 1 ? 'clase' : 'clases'} para tu 10% off en una experiencia 🎁';
+    }
+
+    // Mismo patrón que _MenuSection: título de sección gris ARRIBA + card
+    // blanca radius 16, padding 16. Tokens de AppColors, sin valores nuevos.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'Tu progreso en Aura',
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(color: AppColors.grey),
+          ),
+        ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text('$n',
+                      style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
+                          height: 1)),
+                  const SizedBox(width: 6),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 3),
+                    child: Text('de $_meta clases',
+                        style: TextStyle(
+                            color: AppColors.black,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: progreso,
+                  minHeight: 12,
+                  backgroundColor: AppColors.lightGrey,
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                mensaje,
+                style: const TextStyle(color: AppColors.grey, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

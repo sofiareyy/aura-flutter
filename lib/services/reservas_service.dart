@@ -26,6 +26,19 @@ class ReservaException implements Exception {
 class ReservasService {
   final _supabase = Supabase.instance.client;
 
+  /// Cantidad de clases que el usuario efectivamente tomó (presente/completada).
+  /// Fase A del progreso en el Perfil. Lee las propias reservas (RLS lo permite).
+  Future<int> contarClasesTomadas([String? userId]) async {
+    final uid = userId ?? _supabase.auth.currentUser?.id;
+    if (uid == null) return 0;
+    final rows = await _supabase
+        .from('reservas')
+        .select('id')
+        .eq('usuario_id', uid)
+        .inFilter('estado', const ['presente', 'completada']);
+    return (rows as List).length;
+  }
+
   Future<List<Map<String, dynamic>>> getReservasUsuario([String? userId]) async {
     final effectiveUserId = userId ?? _supabase.auth.currentUser?.id ?? '';
     if (effectiveUserId.isEmpty) return [];
