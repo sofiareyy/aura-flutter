@@ -253,14 +253,28 @@ Deno.serve(async (req: Request) => {
             `referrer_user_id.eq.${uid},referred_user_id.eq.${uid}`,
           )
         } else if (t === 'regalos') {
-          await admin.from(t).delete().or(
-            `remitente_id.eq.${uid},destinatario_id.eq.${uid}`,
-          )
+          // Solo por `remitente_id`: la tabla NO tiene `destinatario_id` (el
+          // destinatario se guarda como `destinatario_email`). Filtrar por una
+          // columna inexistente hacia fallar la query ENTERA con 42703, el
+          // catch de abajo se lo tragaba, el regalo sobrevivia y el DELETE de
+          // `usuarios` rebotaba contra regalos_remitente_id_fkey (que no tiene
+          // ON DELETE CASCADE). Resultado: quien habia enviado una gift card
+          // NO podia borrar su cuenta.
+          // Las gift cards RECIBIDAS no se tocan: las pago otra persona.
+          await admin.from(t).delete().eq('remitente_id', uid)
+        } else if (t === 'creditos_movimientos') {
+          // La columna es `user_id`, no `usuario_id`. Con el nombre viejo la
+          // query fallaba en silencio; no bloqueaba el borrado porque la FK
+          // tiene ON DELETE CASCADE, pero la limpieza explicita no corria.
+          await admin.from(t).delete().eq('user_id', uid)
         } else {
           await admin.from(t).delete().eq('usuario_id', uid)
         }
-      } catch (_) {
-        // Non-critical: la app no romperia por una tabla extra
+      } catch (e) {
+        // Non-critical para el flujo, pero se LOGUEA: tragarse este error en
+        // silencio es exactamente lo que escondio los bugs de columna de
+        // arriba durante meses.
+        console.error(`delete-account: fallo la limpieza de ${t}:`, e)
       }
     }
 
