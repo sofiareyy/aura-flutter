@@ -115,6 +115,40 @@ el trigger fija el precio (creditos=10).
 `prosecdef` del trigger. Si es `false`, el rol que hace el INSERT necesita el
 grant.
 
+### ✅ Guards de cuerpo — CERRADOS (SQL: `supabase/FIX_GUARDS_CUERPO.sql`)
+
+Los 5 aplicados de a uno, con `pg_get_functiondef` completo a la vista y las dos
+puntas verificadas midiendo efecto. Backup de las 5 definiciones tomado antes.
+
+| # | Función | Guard | Legítima | Exploit |
+|---|---|---|---|---|
+| 1 | `notify_profes_nueva_reserva` | uid = reservante **y** tener reserva en la clase | notifica (**devolvió 1**) | suplantar / sin reserva / sin sesión → 0 |
+| 2 | `ensure_referral_code` | `p_user_id = auth.uid()` | devuelve su código | ajeno y sin sesión → `No autorizado`; **el código de la víctima no cambió** |
+| 3 | `avisos_generales_restantes` | `is_admin() or es_miembro_de_estudio()` | dueña ve su cuota; admin ve cualquiera | usuaria ajena **y dueña espiando otro estudio** → rechazadas |
+| 4 | `admin_list_studio_categories` | `is_admin()` | **11 categorías** | usuaria común y dueña de estudio → rechazadas |
+| 5 | `refresh_user_credit_balance` | **al revés**: bloquea solo si HAY sesión y el uid no coincide (y no es admin) | **pago MP acredita 25** ✅ | saldo ajeno → rechazada, **saldo de la víctima intacto (0→0)** |
+
+**El caso 5 es el delicado**: si el guard hubiera exigido `auth.uid() is not null`,
+habría roto la acreditación de pagos, porque el webhook de Mercado Pago llega
+como `service_role` **sin uid** y `grant_user_credits` llama a esta función por
+dentro. Verificado explícitamente el flujo completo: `grant_user_credits` en
+contexto service_role sin sesión → **saldo 0 → 25** y el movimiento queda en el
+ledger. Más el admin ajustando créditos (+10) y refrescando saldos ajenos.
+
+**Nota**: `ensure_referral_code` sigue **sin `SET search_path`** (así estaba). Se
+preservó para que el cambio fuera solo el guard. Hardening pendiente aparte,
+junto con el mismo caso en `admin_upsert_pricing_pack`.
+
+**Trampa nueva registrada**: el primer test del guard 1 daba "todo OK" pero era
+inválido — el caso legítimo devolvía `0`, **igual que los exploits**, porque la
+clase de prueba no tenía profe asignada. No discriminaba nada. Hubo que montar
+una profe real para que el legítimo diera `1`. *Un test donde el caso bueno y el
+malo devuelven lo mismo no prueba nada.*
+
+Y en el guard 4, al pasar de `LANGUAGE sql` a `plpgsql` para poder hacer el
+`raise`, se pusieron **casts explícitos** (`::bigint`, `::text`, `::boolean`)
+para no repetir el 42804 que tenía `admin_list_studios` rota hacía meses.
+
 ### ⏳ Lo que queda pendiente de las 🟡
 
 Se aplicó **la capa de grants** (que corta a `anon`, el hallazgo original).
