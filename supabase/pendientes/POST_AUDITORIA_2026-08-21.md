@@ -117,3 +117,30 @@ Como `ValorCredito` lee la config global, cualquier estudio nuevo (que nace con
 `admin_set_valor_credito_ars` (desde `admin_config_screen.dart:103`);
 `updateGlobalCreditValue` no la invoca ninguna pantalla. Conviene borrar el RPC
 y el método muerto para que nadie lo llame por error.
+
+---
+
+## ✅ Cerrado el 2026-08-21: vencimiento de packs
+
+`admin_upsert_pricing_pack` tenía `p_vencimiento_dias integer DEFAULT 90` y el
+UPDATE lo escribía sin condición, así que editar un pack le reseteaba el
+vencimiento a 90 días (los reales son 30/45/45/60). Medido: Esencial 45 → 90.
+
+Arreglado del lado servidor (`supabase/FIX_VENCIMIENTO_PACKS_2026-08-21.sql`):
+default a `null` y `coalesce(p_vencimiento_dias, vencimiento_dias)` en el
+UPDATE — "si no me decís nada, no cambies". Aplica a todos los llamadores sin
+build nuevo. Packs nuevos sin el parámetro: 60 días. Verificado 6/6.
+
+De paso se le agregó el `SET search_path` que le faltaba.
+
+### Lo que quedó pendiente de esto
+
+1. **Dart**: `AdminService.upsertPricingPack()` sigue sin exponer
+   `p_vencimiento_dias`. Hoy da igual — el método es **código muerto** (0
+   llamadores) y no existe pantalla para editar packs. **Cuando se arme esa
+   pantalla, hay que agregarle el parámetro**, o el vencimiento no va a ser
+   editable desde la UI (se va a preservar siempre, que es el comportamiento
+   seguro, pero no configurable).
+2. **`ensure_referral_code` sigue sin `SET search_path`.** Es el último
+   SECURITY DEFINER del proyecto que le falta. Al escribir el plan se dijo que
+   `admin_upsert_pricing_pack` era la única; eran dos.
