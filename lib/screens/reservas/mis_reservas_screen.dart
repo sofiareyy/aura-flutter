@@ -172,8 +172,8 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
           .delete()
           .eq('clase_id', claseId)
           .eq('usuario_id', uid);
-      // Reordenar posiciones de los que estaban despues.
-      // No es estricto a nivel datos, pero mantiene la lista limpia.
+      // No hay nada que renumerar: la posición no es una columna, se deriva
+      // del orden de llegada (created_at) en waitlist_mis_posiciones().
       await _cargar();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -419,7 +419,9 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
       final devueltos = await _reservasService.cancelarReserva(
         reserva['codigo_qr']?.toString() ?? '',
       );
-      _notificarListaEspera(reserva).ignore();
+      // El aviso a quien sigue en la lista de espera lo hace el SERVIDOR:
+      // cancelarReserva() dispara waitlist_promote_next, que promueve, crea la
+      // campanita y (via el trigger de notificaciones_usuario) manda el push.
       await provider.refrescarUsuario();
       await _cargar();
       if (!mounted) return;
@@ -442,39 +444,6 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
           backgroundColor: AppColors.error,
         ),
       );
-    }
-  }
-
-  Future<void> _notificarListaEspera(Map<String, dynamic> reserva) async {
-    try {
-      final claseId = reserva['clases']?['id'] ?? reserva['clase_id'];
-      if (claseId == null) return;
-      final claseNombre =
-          reserva['clases']?['nombre']?.toString() ?? 'la clase';
-      final espera = await Supabase.instance.client
-          .from('lista_espera')
-          .select('usuario_id, posicion')
-          .eq('clase_id', claseId)
-          .order('posicion')
-          .limit(1);
-      final lista = espera as List;
-      if (lista.isNotEmpty) {
-        final nextUserId = lista.first['usuario_id']?.toString();
-        if (nextUserId != null) {
-          await Supabase.instance.client
-              .from('notificaciones_usuario')
-              .insert({
-            'usuario_id': nextUserId,
-            'titulo': '¡Se liberó un lugar! ⚡',
-            'mensaje':
-                'Tenés un lugar disponible en $claseNombre. Reservá antes de que se llene.',
-            'tipo': 'lista_espera',
-            'leida': false,
-          });
-        }
-      }
-    } catch (_) {
-      // Non-critical
     }
   }
 

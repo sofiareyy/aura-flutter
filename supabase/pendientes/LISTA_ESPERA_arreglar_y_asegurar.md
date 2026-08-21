@@ -74,7 +74,62 @@ reales, sin identidades.
 
 ---
 
-## ⏳ TANDA 2 (cliente / Dart) — PENDIENTE
+## ✅ TANDA 2 (cliente / Dart) — COMPLETADA 2026-08-21
+
+Probada en Chrome con un escenario real (clase llena + 2 personas en la fila):
+contador **2 → 3** al anotarse, **"Posición #3"** visible en Mis Reservas, y al
+salir vuelve a 2. `flutter analyze` 0 errores / 83 issues = baseline;
+`flutter build web` OK.
+
+Al mirarlos de cerca, los "6 usos de `posicion`" eran solo **2 sitios reales**:
+
+1. **`reservas_service.getListaEsperaUsuario()`** — pedía `posicion` en el
+   `select` y en el `order` ⇒ **HTTP 400**, y la sección "En espera" quedaba
+   vacía. Ahora ordena por `created_at` y hace **UNA** llamada a
+   `waitlist_mis_posiciones()` para mergear posición y total (sin N+1).
+2. **`waitlist_service.getCount()`** — contaba filas del lado cliente, cosa que
+   dependía de la policy `waitlist_count_public` que cerramos ⇒ devolvía
+   **siempre 0**. Ahora usa el RPC `waitlist_count`.
+3. **`mis_reservas_screen._notificarListaEspera()` — BORRADA entera.** Estaba
+   rota por tres motivos independientes (pedía `posicion` → 400; leía filas de
+   OTRAS personas de `lista_espera` → RLS; insertaba en `notificaciones_usuario`
+   con el `usuario_id` de otro → RLS) **y además era redundante**: se llamaba
+   justo después de `cancelarReserva()`, que ya dispara la promoción
+   server-side. Mismo patrón que el `showImmediate`.
+4. Un **comentario** que decía "reordenar posiciones" (no existen).
+5. `mis_reservas_screen:600` y `_EsperaCard` **no se tocaron**: ya tenían
+   fallback `?? idx + 1` y ahora reciben el número real.
+
+### Verificado: los datos de prueba NO generan plata
+
+Se confirmó contra el código antes de revertir el escenario: **ninguna vía de
+liquidación lee `lista_espera`**. `admin_liquidaciones_screen`, la edge
+`reporte-mensual-estudios` y `cobros_screen` leen **`reservas`**, y
+`Liquidacion.netoReserva` devuelve 0 salvo que el `estado` esté en
+`AppConstants.estadosLiquidables`. Estar en lista de espera **no es** una
+reserva. Medido además en la base: la clase de prueba tenía **0 reservas** y el
+estudio **0 liquidaciones**. Escenario revertido: cupo 4/4, 0 en espera.
+
+## 🎨 Pendientes de UI encontrados al probar (no urgentes)
+
+1. **El cartel tapa contenido.** El aviso *"No se te cobran créditos hasta que
+   confirmes tu lugar"* (en `detalle_clase_screen`, el bloque de lista de
+   espera) **tapa la información de abajo**. Hay que rever cómo se muestra
+   (¿altura fija? ¿el `Stack` mal armado? ¿le falta espacio al contenido
+   siguiente?) para que no la oculte.
+
+2. **Decisión de producto a evaluar: ¿mostrar la posición exacta?**
+   Hoy se muestra **"Posición #3"**. La alternativa es decir solo *"estás en
+   lista de espera"* sin número, como hacen varios estudios de Pilates.
+   - A favor del número: es transparente y da expectativa concreta.
+   - En contra: si estás #8 puede desalentar, y la posición **se mueve** (si
+     alguien de adelante se va, subís; el número puede confundir).
+   - **Por ahora se deja con el número** (ya está probado y funcionando). Queda
+     anotado para repensar, no es un bug.
+
+---
+
+## Notas de la Tanda 2 (histórico, ya resuelto)
 
 **Necesita build + prueba en Chrome + push (que deploya a producción).**
 El cliente ya está roto hoy, así que dejarlo no empeora nada.

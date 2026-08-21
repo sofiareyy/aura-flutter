@@ -443,12 +443,40 @@ class ReservasService {
       [String? userId]) async {
     final uid = userId ?? _supabase.auth.currentUser?.id ?? '';
     if (uid.isEmpty) return [];
+    // `posicion` NO existe como columna en lista_espera — pedirla daba HTTP
+    // 400 y esta sección quedaba vacía. El orden es por LLEGADA (created_at) y
+    // el puesto se deriva server-side con row_number() en
+    // waitlist_mis_posiciones(), que además devuelve cuántos hay en total.
     final rows = await _supabase
         .from('lista_espera')
-        .select('clase_id, posicion, clases(id, nombre, fecha, estudio_id, estudios(nombre, foto_url, direccion))')
+        .select(
+            'clase_id, created_at, clases(id, nombre, fecha, estudio_id, estudios(nombre, foto_url, direccion))')
         .eq('usuario_id', uid)
-        .order('posicion', ascending: true);
-    return List<Map<String, dynamic>>.from(rows as List);
+        .order('created_at', ascending: true);
+
+    final entradas = List<Map<String, dynamic>>.from(rows as List);
+    if (entradas.isEmpty) return entradas;
+
+    // UNA sola llamada para todas las clases del usuario (nada de N+1).
+    try {
+      final pos = await _supabase.rpc('waitlist_mis_posiciones');
+      final porClase = <int, Map<String, dynamic>>{
+        for (final p in (pos as List))
+          if ((p as Map)['clase_id'] != null)
+            (p['clase_id'] as num).toInt(): Map<String, dynamic>.from(p),
+      };
+      for (final e in entradas) {
+        final claseId = (e['clase_id'] as num?)?.toInt();
+        final info = claseId == null ? null : porClase[claseId];
+        if (info != null) {
+          e['posicion'] = info['posicion'];
+          e['total_en_espera'] = info['total'];
+        }
+      }
+    } catch (_) {
+      // Si la RPC falla, la UI cae al índice de la lista (idx + 1).
+    }
+    return entradas;
   }
 
   /// Confirma una pre_confirmada: descuenta creditos, cambia estado a
