@@ -1,6 +1,6 @@
 # Registro de builds de iOS
 
-Última actualización: 2026-08-18.
+Última actualización: 2026-08-21.
 
 ## Historial de versiones publicadas
 
@@ -8,7 +8,26 @@
 |---------|-----------|--------|
 | `1.0.5+21` | Precios nuevos de packs y planes, precio decidido en el servidor (`c8c7497`) | compilado; no se pudo confirmar si se subió |
 | `1.0.6+23` | Se compiló el 2026-08-14 con los precios. **No quedó registrado si se subió** — por eso se saltó al 24 | ⚠️ número consumido |
-| **`1.0.6+24`** | Precios + los 5 fixes de Dart de abajo + `MinimumOSVersion 15` | **subido a App Store Connect el 2026-08-18** ✅ |
+| `1.0.6+24` | Precios + los 5 fixes de Dart de abajo + `MinimumOSVersion 15` | subido a App Store Connect el 2026-08-18 ✅ |
+| **`1.0.6+25`** | Push (FCM) en Android e iOS · force-update · modo visita · lista de espera · fixes de seguridad de base | 🔨 **en preparación** — número reservado el 2026-08-21 |
+
+### Notas del 1.0.6+25 (2026-08-21)
+
+- Se mantiene la versión visible `1.0.6`: los cambios son por atrás (push,
+  force-update, seguridad de base), no hay features nuevas de cara al usuario.
+- **Push iOS**: `GoogleService-Info.plist` agregado al target Runner y a Copy
+  Bundle Resources (`dbfb2f0`). Verificado que viaja dentro del `.app`.
+  El App ID `app.somosaura.aura` ya tiene la capability Push habilitada —
+  confirmado leyendo el provisioning profile de desarrollo, que trae
+  `aps-environment`.
+- **Push Android**: `google-services.json` en `android/app/`. AAB de release
+  compilado y firmado con `aura-upload`; la huella coincide con la publicada en
+  `web/.well-known/assetlinks.json`.
+- ⚠️ El **perfil de App Store** (`iOS Team Store Provisioning Profile`) es del
+  18/08 y **no** trae `aps-environment`. Xcode lo regenera solo al archivar con
+  firma automática. Si el archive falla por provisioning, es por esto.
+- ⚠️ Los dos archivos de Firebase están gitignoreados: hay que copiarlos a mano
+  en cada máquina donde se compile.
 
 > Regla para la próxima: commitear `pubspec.yaml` **junto con** el build que se
 > sube. El lío del 23 fue exactamente esto — el número se consumió en un binario
