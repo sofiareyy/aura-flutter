@@ -59,3 +59,43 @@ python3 -m venv /tmp/venv && /tmp/venv/bin/pip install Pillow
 ### Si cambia el logo o el claim
 
 Editar el script y volver a correrlo. Mantener 1024×500 exacto y opaco.
+
+## `play/screenshots/`
+
+Capturas para la ficha de Google Play. **Cinco**, a resolución nativa de
+iPhone 15 Pro Max (1290×2796), sin reescalar y sin canal alfa.
+
+| Archivo | Pantalla |
+|---|---|
+| `01-inicio-creditos.png` | Home: saldo de créditos, categorías, mapa |
+| `02-detalle-clase.png` | Detalle de clase con precio y botón de reserva |
+| `03-reserva-confirmada.png` | Reserva confirmada con el QR |
+| `04-comprar-creditos.png` | Compra de packs de créditos |
+| `05-bienvenida.png` | Onboarding |
+
+Origen: `~/Downloads/IMG_2718..2722.PNG`, del 2026-06-05.
+
+### Por qué NO se usaron las de `~/Downloads/Captura de pantalla *.png`
+
+Miden ~283×606. Play pide mínimo 320 px de lado, así que ni siquiera llegan; y
+llevarlas a 1080 sería un escalado de 3,8× que las dejaría irreconocibles. Para
+reemplazarlas hay que sacar capturas nuevas, no reescalar esas.
+
+### Cosas a revisar antes de publicar
+
+- **`04-comprar-creditos.png`**: los precios coinciden con la base ($22.000 /
+  $50.000 / $95.000), pero dice *"Vence a los 60 días"* para Esencial y Popular
+  y hoy `pricing_credit_packs.vencimiento_dias` dice **45**. Sacar una captura
+  nueva o no usar esta.
+- **`01-inicio-creditos.png`**: el usuario se llama **"Test"**. Se nota que es
+  una cuenta de prueba.
+- **`02-detalle-clase.png`**: dice *"Quedan -1 tras reservar"* (saldo negativo).
+- **`05-bienvenida.png`**: es un splash casi vacío, poco atractivo para la
+  ficha. Es la más prescindible.
+
+### Proporción
+
+1290×2796 es 1:2,167, más alto que el 9:16 clásico (1:1,778). Las medidas están
+dentro del rango de Play (320–3840 px por lado), pero si Play objetara la
+proporción, la salida es agregar barras laterales del color de fondo hasta
+1398×2796 (exactamente 2:1), sin recortar contenido.
