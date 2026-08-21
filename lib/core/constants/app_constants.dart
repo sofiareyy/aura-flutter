@@ -25,6 +25,15 @@ class AppConstants {
   /// Link público a una clase, para compartir por WhatsApp, historias, etc.
   /// La web usa hash routing, de ahí el '#'.
   static String linkDeClase(int claseId) => '$auraDominio/#/clase/$claseId';
+
+  /// Ficha de la app en las tiendas, para el botón "Actualizar" del
+  /// force-update. iOS: App Store id verificado (app "Aura Pass", SOFIA REY).
+  /// Android: URL determinística por applicationId (app.somosaura.aura);
+  /// funciona recién cuando la app esté publicada en Play.
+  static const String appStoreUrl =
+      'https://apps.apple.com/app/id6764207399';
+  static const String playStoreUrl =
+      'https://play.google.com/store/apps/details?id=app.somosaura.aura';
   static const String supabaseAnonKey =
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z3FwenZvcm5sbnhtc2JxbndnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNzcxMjIsImV4cCI6MjA5MDY1MzEyMn0.G5AKWyFGoL8j6IfAZV40U6TceaoQc0oVPYpepiIyDlk';
 

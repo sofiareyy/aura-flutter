@@ -11,6 +11,7 @@ import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
 import '../../screens/auth/reset_password_screen.dart';
 import '../../screens/auth/seleccionar_acceso_screen.dart';
+import '../../screens/actualizar/actualizar_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/explorar/explorar_screen.dart';
 import '../../screens/estudios/detalle_estudio_screen.dart';
@@ -100,6 +101,7 @@ final appRouter = GoRouter(
       '/reset-password',
       '/onboarding',
       '/creditos-onboarding',
+      '/actualizar',
     };
     if (publicRoutes.contains(loc)) return null;
 
@@ -124,6 +126,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/splash',
       builder: (context, state) => const AuthSplashScreen(),
+    ),
+    GoRoute(
+      path: '/actualizar',
+      builder: (context, state) => const ActualizarScreen(),
     ),
     GoRoute(
       path: '/landing',

@@ -17,6 +17,7 @@ import 'providers/app_provider.dart';
 import 'services/auth_service.dart';
 import 'services/notificaciones_service.dart';
 import 'services/valor_credito.dart';
+import 'services/version_gate.dart';
 import 'widgets/connectivity_banner.dart';
 
 /// Key global del ScaffoldMessenger para poder mostrar SnackBars desde fuera
@@ -120,6 +121,16 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
     // async y no bloquea la UI.
     if (state == AppLifecycleState.resumed) {
       ValorCredito.cargar(forzar: false).ignore();
+
+      // Re-chequeo del force-update al volver del background: si mientras la
+      // app estaba abierta se subió la versión mínima, o si alguien intentó
+      // saltear la pantalla con un deep link, acá queda atrapado. Fail-open
+      // (VersionGate nunca bloquea ante error), y no aplica en web.
+      if (!kIsWeb) {
+        VersionGate.hayQueActualizar().then((hay) {
+          if (hay) appRouter.go('/actualizar');
+        }).ignore();
+      }
     }
     super.didChangeAppLifecycleState(state);
   }

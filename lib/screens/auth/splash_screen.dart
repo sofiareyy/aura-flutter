@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/auth_flow_state.dart';
 import '../../services/auth_service.dart';
+import '../../services/version_gate.dart';
 import 'onboarding_screen.dart';
 
 class AuthSplashScreen extends StatefulWidget {
@@ -35,6 +36,16 @@ class _AuthSplashScreenState extends State<AuthSplashScreen>
     await Future<void>.delayed(const Duration(milliseconds: kIsWeb ? 800 : 2200));
     if (!mounted || _navigating) return;
     _navigating = true;
+
+    // Force-update: si el build quedó por debajo del mínimo del servidor, va a
+    // la pantalla bloqueante y no sigue. Fail-open: si el chequeo no puede
+    // confirmar que hay que actualizar (web, red caída, dato ilegible), sigue
+    // de largo. No aplica en web. Va PRIMERO, antes de resolver sesión/destino.
+    if (!kIsWeb && await VersionGate.hayQueActualizar()) {
+      if (mounted) context.go('/actualizar');
+      return;
+    }
+    if (!mounted) return;
 
     // Deep link de "olvidé mi contraseña" en cold start: el handler de
     // passwordRecovery ya marcó el flag. Como la sesión de recovery hace que
