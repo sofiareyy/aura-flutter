@@ -74,6 +74,62 @@ el service_role en el header (fail-closed) y crea su cliente con
 
 ---
 
+## ✅ 🟡 CERRADAS — 2026-08-20 (SQL: `supabase/FIX_AMARILLAS_AUDITORIA.sql`)
+
+**Solo permisos: no se tocó ningún cuerpo de función.** Sin Dart ⇒ sin deploy.
+Barrido final: de las 15 revisadas, **`anon` quedó cortado en todas**. Las 3 que
+siguen alcanzables por `anon` son seguras a propósito (ver 🟢 abajo).
+
+| Grupo | Funciones | Resultado |
+|---|---|---|
+| 🟣 service_role | `aviso_destinatarios_email`, `completar_reservas_vencidas` | anon y usuaria ajena → `permission denied`; service_role obtiene los 3 emails de prueba ✅ |
+| 🔵 revoke PUBLIC (internas) | `recalc_pack_prices`, `refresh_estudio_rating`, `vincular_usuario_a_empresa`, `decrementar_lugares` | sin llamador externo; caminos internos intactos ✅ |
+| 🟠 backoffice | `admin_list_studio_categories` | admin → 11 categorías ✅ / anon → denied |
+| 🟡 panel estudio | `avisos_generales_restantes` | anon → denied |
+| 🔶 dueño | `refresh_user_credit_balance`, `ensure_referral_code`, `notify_profes_nueva_reserva` | usuaria → saldo OK ✅ / anon → denied |
+
+### 🟢 Falsos positivos de esta misma auditoría (NO se tocaron)
+- `admin_list_studio_accesses` → wrapper de `admin_list_studio_members`, que **sí**
+  valida (`auth.uid()` + superadmin de Aura o admin real del estudio).
+- `aplicar_pricing_a_clases_futuras` → wrapper de `admin_recalcular_precios_estudio`,
+  que arranca con `if not is_admin() then raise`.
+- `waitlist_count` → pública a propósito: devuelve un `integer`, nunca identidades.
+
+Mi regex de "¿tiene guard?" miraba el cuerpo del wrapper, no el de la función
+envuelta. **Lección: un wrapper de una línea hereda el guard de lo que envuelve.**
+
+### 🔴 Un cambio mío rompió algo y lo detecté al medir
+
+Al revocar `calcular_precio_clase` **se rompió la creación de clases**:
+```
+ERROR 42501: permission denied for function calcular_precio_clase
+CONTEXT: PL/pgSQL function clases_fija_precio() line 23
+```
+`clases_fija_precio` y `horarios_fijos_fija_precio` son triggers **NO
+SECURITY DEFINER** (`prosecdef=false`) ⇒ corren como el **usuario invocante**
+(`authenticated`) y necesitan EXECUTE. Se restauró `authenticated`; `anon` queda
+cortado igual, que era el hallazgo real. Verificado después: la clase se crea y
+el trigger fija el precio (creditos=10).
+
+**Regla nueva**: antes de revocar una función llamada por un trigger, chequear
+`prosecdef` del trigger. Si es `false`, el rol que hace el INSERT necesita el
+grant.
+
+### ⏳ Lo que queda pendiente de las 🟡
+
+Se aplicó **la capa de grants** (que corta a `anon`, el hallazgo original).
+Faltan los **guards de cuerpo**, que requieren reescribir las funciones y por
+eso quedaron para una tanda aparte. Riesgo residual: **una usuaria autenticada**
+(ya no un anónimo) podría:
+
+| Función | Guard que falta | Abuso residual |
+|---|---|---|
+| `notify_profes_nueva_reserva` | `p_reservante_id = auth.uid()` + tener reserva en la clase | spam a profes de cualquier clase |
+| `ensure_referral_code` | `p_user_id = auth.uid()` | generarle código de referido a otra |
+| `refresh_user_credit_balance` | `p_user_id = auth.uid() or is_admin()`, **permitiendo uid null** (el webhook de MP llega como service_role sin uid) | recalcular el saldo de otra (idempotente, no mintea) |
+| `avisos_generales_restantes` | `is_admin() or es_miembro_de_estudio()` | ver la cuota de avisos de otro estudio |
+| `admin_list_studio_categories` | `is_admin()` | listar categorías + conteo de estudios |
+
 ## 🟡 ABIERTOS — para la próxima sesión
 
 `SECURITY DEFINER`, alcanzables por `anon`, **sin ningún guard interno**
