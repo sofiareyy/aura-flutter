@@ -73,3 +73,9 @@ flutter_*.log
 # Supabase CLI cache (genera en cada deploy de Edge Functions)
 supabase/.temp/
 supabase/.branches/
+
+# Credenciales de Firebase: el service account NUNCA va al repo.
+# (google-services.json y GoogleService-Info.plist SI van: son config de cliente)
+*firebase-adminsdk*.json
+service-account*.json
+

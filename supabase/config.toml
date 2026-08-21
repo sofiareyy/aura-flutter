@@ -434,3 +434,10 @@ entrypoint = "./functions/mp-webhook/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/nueva-reserva-estudio-email/index.ts"
+
+# push-enviar: la dispara el trigger trg_notif_push_nueva en
+# notificaciones_usuario. verify_jwt=false porque la auth real es el secreto
+# compartido en el header x-push-secret (fail-closed).
+[functions.push-enviar]
+verify_jwt = false
+entrypoint = "./functions/push-enviar/index.ts"
