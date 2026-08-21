@@ -3,6 +3,19 @@
 Fecha: 2026-08-21. **Escrito para retomar en un chat nuevo sin re-investigar.**
 Todo lo de acá está VERIFICADO contra la base y el código, no supuesto.
 
+> ## Estado al 2026-08-21 (fin de sesión)
+>
+> | Paso | Estado |
+> |---|---|
+> | 1. Centrar el punto del logo (4 plantillas) | ✅ **HECHO y visto en Gmail** |
+> | 2. `mailer_otp_exp` 3600 → 86400 (24h) | ✅ **HECHO y verificado** |
+> | 3. Mensaje `email_not_confirmed` en el login | ✅ **YA ESTABA** — ver corrección abajo |
+> | 4. Activar `mailer_autoconfirm = false` | ⏳ **MAÑANA, post-aprobación de Apple** |
+> | 5. Personalizar plantilla `email_change` | ⏳ opcional, sin tocar |
+>
+> **Config en vivo ahora**: `mailer_autoconfirm=true` (verificación APAGADA a
+> propósito), `mailer_otp_exp=86400`, las 4 plantillas con el punto centrado.
+
 ---
 
 ## 1. Verificación de mail — estado
@@ -42,7 +55,7 @@ site_url ................. https://somosaurapass.com
   email_change  "Confirm Email Change"            ⚠️ GENÉRICA, en inglés
   ```
 
-### ⚠️ El punto del logo está corrido (PENDIENTE, ya diagnosticado)
+### ✅ El punto del logo — CENTRADO Y VERIFICADO (2026-08-21)
 
 **El logo es el CORRECTO** (cuadrado naranja `#e8763a`, anillo negro, punto
 negro). **NO hay que cambiarlo.** No tocar el ícono de la app tampoco.
@@ -65,16 +78,39 @@ las cuatro comparten el mismo bloque):
               position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);"></div>
 </div>
 
-<!-- DESPUÉS -->
+<!-- DESPUÉS (lo que se aplicó) -->
 <div style="width:28px;height:28px;border:3px solid #0d0d0d;border-radius:999px;">
   <div style="width:10px;height:10px;background:#0d0d0d;border-radius:999px;
-              margin:6px auto 0;"></div>
+              margin:9px 0 0 9px;"></div>
 </div>
 ```
 
-**Por qué 6px**: anillo de 28px con borde de 3px ⇒ 22px por dentro. Punto de
-10px. `(22 − 10) / 2 = 6`. `auto` centra en horizontal. Solo usa `margin`, que
-Gmail / Outlook / Apple Mail respetan sin excepción.
+### ⚠️ CORRECCIÓN: son 9px, NO 6px (este doc estaba mal)
+
+La versión original de este doc decía `margin:6px auto 0`, con la cuenta
+"anillo de 28px con borde de 3px ⇒ 22px por dentro". **Esa cuenta asume
+`box-sizing:border-box`, que la plantilla NO declara** (se verificó: no aparece
+`box-sizing` en ninguna de las 5). Sin esa declaración vale el default
+`content-box` ⇒ el interior del anillo son **28px**, no 22:
+
+```
+(28 − 10) / 2 = 9
+```
+
+**Segunda confirmación, independiente**: lo que hace hoy el `transform` es
+`top:50%` = 14px menos `translateY(-50%)` = −5px ⇒ el punto arranca a **9px**.
+O sea, 9px reproduce exactamente lo que ya se veía bien en Apple Mail. Con 6px
+el punto habría quedado 3px **alto** — corrido para el otro lado.
+
+**Sin `auto`**: los dos márgenes van explícitos (`9px 0 0 9px`) para que el
+cliente de mail no tenga que calcular nada. `margin` lo respetan Gmail /
+Outlook / Apple Mail sin excepción.
+
+**Aplicado y verificado el 2026-08-21**: PATCH a las 4 plantillas → HTTP 200 →
+re-lectura del `GET` y comparación **byte a byte** contra lo enviado: idénticas.
+`transform` y `position` restantes: **0 y 0** en las 4. Campos modificados en
+toda la config: exactamente los 4 de las plantillas, nada más. `email_change`
+intacta. **Sofi lo confirmó visualmente en Gmail: el punto quedó centrado.**
 
 **No se toca nada más**: ni el naranja, ni el anillo, ni el tamaño, ni el
 wordmark `AURA.`. Un solo atributo `style`.
@@ -82,15 +118,70 @@ wordmark `AURA.`. Un solo atributo `style`.
 Se aplica con la Management API: `PATCH /v1/projects/{ref}/config/auth` con
 `mailer_templates_{confirmation,recovery,magic_link,invite}_content`.
 
-### 📋 Pasos que faltan, en orden
+### 📋 Pasos — estado real
 
-1. **Centrar el punto** en las 4 plantillas (arriba). ← lo único que quedó a medio hacer
-2. **Subir `mailer_otp_exp`** de `3600` (1h) a `86400` (24h). Con 1h, quien
-   abre el mail al día siguiente encuentra el link vencido.
-3. **Mensaje en el login** para `email_not_confirmed` → *"Revisá tu mail para
-   confirmar tu cuenta"* + botón de reenviar. **Es Dart ⇒ va al build.**
-4. **Activar**: `mailer_autoconfirm = false`. No necesita build, es servidor.
-5. Opcional: personalizar la plantilla `email_change`, la única genérica.
+1. ✅ **Centrar el punto** en las 4 plantillas. HECHO 2026-08-21 (con 9px, ver
+   corrección arriba). Confirmado a ojo en Gmail.
+2. ✅ **Subir `mailer_otp_exp`** de `3600` (1h) a `86400` (24h). HECHO
+   2026-08-21. `GET` de verificación: `86400`, y fue el **único** campo que
+   cambió en toda la config. Aplica a links emitidos de ahí en adelante; los ya
+   emitidos conservan la ventana con la que nacieron.
+3. ✅ **Mensaje en el login para `email_not_confirmed`** — **YA ESTABA HECHO**,
+   este doc lo daba por pendiente por error. Existe
+   `_mostrarDialogoSinConfirmar()` en `login_screen.dart:300`, con explicación
+   ("puede figurar como remitente Supabase y estar en spam") y **botón de
+   reenviar** que llama a `auth_service.dart:46` (`resend`, `OtpType.signup`).
+   Se dispara en el `catch` del login (`login_screen.dart:283`) cuando el error
+   contiene `email not confirmed`. Commiteado el 2026-08-19 (`3efb5d9`) y
+   **presente en el build web desplegado** (verificado buscando el texto dentro
+   de `build/web/main.dart.js`).
+   ⚠️ **Pero**: que esté en `main.dart.js` prueba que está en **web**. La app de
+   las tiendas (iOS/Android) corre el build que se haya publicado — es
+   justamente lo que motiva el paso 4.
+4. ⏳ **Activar `mailer_autoconfirm = false`** → **QUEDA PARA MAÑANA**, ver abajo.
+5. ⏳ Opcional: personalizar la plantilla `email_change`, la única genérica.
+
+### ⏳ Paso 4 — DECIDIDO: se activa mañana, DESPUÉS de que Apple apruebe el build
+
+**Decisión de Sofi (2026-08-21): hoy NO se activa. `mailer_autoconfirm` queda
+en `true`.** Todo lo demás (web/base) quedó listo hoy; mañana solo va el build
+desde la Mac.
+
+**El motivo**: activar la verificación hace que el login por email/contraseña
+falle con `email_not_confirmed` hasta que la persona confirme. El mensaje
+amable que explica eso ("revisá tu mail" + reenviar) vive **dentro de la app**.
+La web ya lo tiene, pero **la app publicada en las tiendas corre el build viejo**
+— y no sabemos cuál es. Si activáramos hoy, quien se registre desde la app de la
+tienda vería un **error crudo**, sin explicación ni botón de reenviar, durante
+toda la ventana hasta que Apple apruebe (que puede ser un día o varios).
+
+**El orden correcto, entonces**:
+
+1. Buildear y subir desde la Mac (ver `PUSH_NOTIFICACIONES.md` → "PARA LA MAC").
+2. **Esperar la aprobación de Apple.**
+3. Recién ahí: `PATCH {"mailer_autoconfirm": false}`.
+
+**Checklist para retomar mañana, en el momento de activar:**
+
+- [ ] El build nuevo está **aprobado y disponible** en la App Store (no solo
+      "subido" ni en revisión).
+- [ ] **Re-medir** que sigan 100% de los usuarios con `email_confirmed_at`. El
+      74/74 es del 2026-08-20; con el autoconfirm prendido cualquier registro
+      nuevo también nace confirmado, así que debería seguir dando 100%, pero se
+      mide igual antes de tocar.
+- [ ] `PATCH /v1/projects/hvgqpzvornlnxmsbqnwg/config/auth`
+      con `{"mailer_autoconfirm": false}`.
+- [ ] `GET` de verificación: que quede en `false` y que sea el **único** campo
+      que cambió.
+- [ ] **Probar con una cuenta descartable**: registrarse → que exija validación
+      → que llegue el mail → que el link entre bien → que el diálogo de
+      "Validá tu cuenta" con el botón de reenviar aparezca en la app.
+- [ ] Reversión si algo sale mal: `PATCH {"mailer_autoconfirm": true}`, es
+      inmediato y no requiere nada del lado de la app.
+
+**Recordatorio de por qué activar es seguro** (ver la sección de abajo): solo
+afecta a **registros nuevos**, los 74 existentes ya tienen `email_confirmed_at`,
+y el 61% entra por OAuth, que ya trae el mail verificado.
 
 ### ✅ Activar NO rompe a los usuarios actuales — medido
 
@@ -170,7 +261,7 @@ El build ya estaba destrabado (Tanda 2 de lista de espera cerrada). Se suman:
 
 | Ítem | Dónde |
 |---|---|
-| Mensaje `email_not_confirmed` en el login | `login_screen` — punto 1.3 de arriba |
+| ~~Mensaje `email_not_confirmed` en el login~~ | ✅ **ya está en el código** desde el 2026-08-19 (`3efb5d9`); entra solo con buildear |
 | Reset que detecta cuenta solo-OAuth | `login_screen` / `auth_service` — punto 2 |
 | El cartel de créditos que tapa contenido | `detalle_clase_screen` — ver `LISTA_ESPERA_arreglar_y_asegurar.md` |
 | **Push**: copiar los 2 archivos de Firebase, agregar el `.plist` DESDE XCODE, verificar `aps-environment` | ver `PUSH_NOTIFICACIONES.md`, sección "PARA LA MAC" |
