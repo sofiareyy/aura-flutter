@@ -40,7 +40,7 @@ Los crons **ya no dependen** del `jwt_secret` (usan `sb_secret_`, que no es un
 JWT). Las edge functions tampoco: leen sus keys de variables de entorno que la
 plataforma repunta sola.
 
-## Los 3 lugares donde vive la anon key legacy
+## Los 4 lugares donde vive la anon key legacy
 
 Verificado por hash contra la key real del proyecto (`sha256 = eb8e16a1...`):
 
@@ -52,6 +52,10 @@ Verificado por hash contra la key real del proyecto (`sha256 = eb8e16a1...`):
 
 3. **`public.notif_email_nueva_reserva()`** → ídem, hacia
    `nueva-reserva-estudio-email`.
+
+4. **`web/descargar/index.html:311`** → la landing de descarga la trae embebida.
+   Se corrige editando el HTML y pusheando a `main` (GitHub Pages redeploya
+   solo). *(Agregado el 2026-08-21: en la primera versión de esta nota faltaba.)*
 
 En los casos 2 y 3 la anon key solo sirve para pasar el gateway; la autorización
 real la da el `x-push-secret` / `x-notif-secret` que sale del Vault.
