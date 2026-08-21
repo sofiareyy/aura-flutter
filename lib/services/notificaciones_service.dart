@@ -1,12 +1,21 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+
+/// Handler de mensajes en background/terminada. Tiene que ser una funcion
+/// top-level (Flutter la ejecuta en un isolate aparte, sin el estado de la app).
+/// No hace falta mostrar nada a mano: cuando el mensaje trae `notification`,
+/// el sistema la muestra solo. Esto queda por si despues hay que procesar data.
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
 
 class NotificacionesService {
   NotificacionesService._();
@@ -65,13 +74,138 @@ class NotificacionesService {
         }
       },
     );
-    await _requestPermissions();
+    // OJO: aca NO se piden permisos a proposito. `initialize()` corre en main(),
+    // o sea al abrir la app por primera vez, ANTES del login: el dialogo de iOS
+    // salia en frio, sin que la persona supiera todavia que es Aura. Y en iOS
+    // solo hay UN intento: si dice que no, no vuelve a aparecer nunca.
+    // El permiso ahora se pide despues del primer login -> pedirPermisos().
     _initialized = true;
+  }
+
+  /// Pide el permiso de notificaciones. Se llama DESPUES del login (ver el
+  /// authListener de main.dart), no al arrancar la app.
+  ///
+  /// Idempotente: si ya se concedio o ya se rechazo, el sistema no muestra
+  /// nada. En Android 13+ tambien es un permiso explicito.
+  Future<void> pedirPermisos() async {
+    if (kIsWeb) return;
+    await initialize();
+    await _requestPermissions();
+    // FCM lleva su propio pedido de permiso en iOS (APNs). En Android alcanza
+    // con el del plugin local, que ya cubre POST_NOTIFICATIONS de Android 13+.
+    if (Platform.isIOS) {
+      await FirebaseMessaging.instance
+          .requestPermission(alert: true, badge: true, sound: true);
+    }
   }
 
   Future<NotificationAppLaunchDetails?> getLaunchDetails() async {
     if (kIsWeb) return null;
     return _plugin.getNotificationAppLaunchDetails();
+  }
+
+  // ══ PUSH (FCM) ═══════════════════════════════════════════════════════════
+  // Todo lo de abajo es SOLO mobile. En web no se inicializa Firebase (no hay
+  // app web registrada en el proyecto y push web necesitaria service worker +
+  // claves VAPID), asi que somosaurapass.com no se toca.
+
+  bool _fcmInitialized = false;
+
+  /// Engancha los tres caminos por los que puede llegar un push. Se llama una
+  /// sola vez desde main(), detras de `if (!kIsWeb)`.
+  Future<void> initFirebaseMessaging() async {
+    if (kIsWeb || _fcmInitialized) return;
+    await initialize();
+
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+    // 1) App ABIERTA: FCM no muestra nada solo, hay que mostrarlo a mano.
+    FirebaseMessaging.onMessage.listen((msg) {
+      final n = msg.notification;
+      if (n == null) return;
+      showImmediate(
+        id: msg.hashCode & 0x7FFFFFFF,
+        titulo: n.title ?? 'Aura',
+        body: n.body ?? '',
+        payload: _payloadDesdeData(msg.data),
+      );
+    });
+
+    // 2) App en BACKGROUND y la tocaron.
+    FirebaseMessaging.onMessageOpenedApp.listen((msg) {
+      final p = _payloadDesdeData(msg.data);
+      if (p != null) _onNotificationTap?.call(p);
+    });
+
+    // 3) App CERRADA y la abrieron desde el push.
+    final inicial = await FirebaseMessaging.instance.getInitialMessage();
+    if (inicial != null) {
+      final p = _payloadDesdeData(inicial.data);
+      if (p != null) _onNotificationTap?.call(p);
+    }
+
+    // El token rota solo; hay que re-registrarlo cuando pasa.
+    FirebaseMessaging.instance.onTokenRefresh.listen((t) {
+      registrarDispositivo(tokenForzado: t);
+    });
+
+    _fcmInitialized = true;
+  }
+
+  /// FCM entrega `data` como Map. `_handleNotificationPayload` de main.dart ya
+  /// sabe rutear un JSON por `tipo`, asi que se convierte al mismo formato y se
+  /// reusa esa logica en vez de escribir un ruteo nuevo.
+  String? _payloadDesdeData(Map<String, dynamic> data) {
+    if (data.isEmpty) return null;
+    try {
+      return jsonEncode(data);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Guarda el token de este aparato contra el usuario logueado.
+  /// Va por RPC (no upsert directo): el token es unico y tiene que poder
+  /// CAMBIAR DE DUENO si otra persona se loguea en el mismo celular.
+  Future<void> registrarDispositivo({String? tokenForzado}) async {
+    if (kIsWeb) return;
+    try {
+      final cliente = Supabase.instance.client;
+      if (cliente.auth.currentUser == null) return;
+
+      final token = tokenForzado ?? await FirebaseMessaging.instance.getToken();
+      if (token == null || token.isEmpty) return;
+
+      String? version;
+      try {
+        final info = await PackageInfo.fromPlatform();
+        version = '${info.version}+${info.buildNumber}';
+      } catch (_) {}
+
+      await cliente.rpc('registrar_dispositivo', params: {
+        'p_token': token,
+        'p_plataforma': Platform.isIOS ? 'ios' : 'android',
+        'p_app_version': version,
+      });
+    } catch (e) {
+      debugPrint('[push] no se pudo registrar el dispositivo: $e');
+    }
+  }
+
+  /// Da de baja este aparato. Se llama ANTES del signOut: si no, a la proxima
+  /// persona que se loguee en este celular le seguirian llegando los push de
+  /// la cuenta anterior.
+  Future<void> borrarDispositivo() async {
+    if (kIsWeb) return;
+    try {
+      final cliente = Supabase.instance.client;
+      if (cliente.auth.currentUser == null) return;
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token == null || token.isEmpty) return;
+      await cliente.rpc('borrar_dispositivo', params: {'p_token': token});
+    } catch (e) {
+      debugPrint('[push] no se pudo borrar el dispositivo: $e');
+    }
   }
 
   Future<void> _requestPermissions() async {

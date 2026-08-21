@@ -209,6 +209,69 @@ emulador de Android sí sirve, si tiene Google Play services.
 | 7. Build iOS (TestFlight) | los dos | **sí** |
 | 8. Release a tiendas | usuaria | — |
 
+---
+
+# 🖥️ PARA LA MAC — lo que hay que hacer ANTES de buildear
+
+**Los archivos de Firebase NO están en el repo** (`.gitignore` líneas 67-68, desde
+julio) porque **el repo es público** y `google-services.json` trae la API key.
+Viven solo en la máquina de la usuaria. Al clonar/pullear en la Mac hay que
+copiarlos a mano desde el backup:
+
+```
+google-services.json      →  android/app/
+GoogleService-Info.plist  →  ios/Runner/
+```
+
+### ⚠️ El .plist NO alcanza con copiarlo
+
+Hay que **agregarlo al proyecto DESDE XCODE**, de modo que quede en
+**Build Phases → Copy Bundle Resources**. Si solo se copia a la carpeta:
+
+- compila igual, sin ningún error,
+- pero Firebase no lo encuentra en runtime,
+- y **el push nunca llega, sin mensaje claro que lo explique**.
+
+Es la falla silenciosa más típica de este setup.
+
+### ⚠️ Verificar `aps-environment` al archivar
+
+`ios/Runner/Runner.entitlements` quedó con:
+
+```xml
+<key>aps-environment</key>
+<string>development</string>
+```
+
+Sirve para builds locales. **Para TestFlight / App Store puede necesitar
+`production`.** No se pudo confirmar desde Windows: **verificarlo en Xcode al
+hacer el Archive**. Si queda mal, APNs entrega al servidor equivocado (sandbox
+vs producción) y el push no llega.
+
+### Recordatorio del entorno
+
+- iOS deployment target **15.0** y Android minSdk **24**: ambos ya por encima de
+  lo que pide Firebase (13.0 / 23). **No hay que subir nada.**
+- El **simulador de iOS NO recibe push nunca**. Hace falta un iPhone físico.
+- El emulador de Android sí sirve, si tiene Google Play services.
+
+---
+
+## 🔴 BLOQUEANTE DEL BUILD: la Tanda 2 de lista de espera
+
+**Decidido: NO se buildea para las tiendas hasta cerrarla.** Si saliera un build
+hoy, se llevaría:
+
+| | |
+|---|---|
+| ✅ Backoffice de precios arreglado | se destraba lo que reportó Sofia |
+| ✅ Push funcionando | |
+| ❌ **Sección "En espera" rota** | los 6 usos de `posicion` dan **HTTP 400** |
+| ❌ **Contador de lista de espera en 0** | `getCount()` cuenta filas y esa policy se cerró |
+
+Detalle en `LISTA_ESPERA_arreglar_y_asegurar.md` (Tanda 2). Del lado base ya está
+todo listo: `waitlist_mis_posiciones()` y `waitlist_count()` existen y funcionan.
+
 ## ⚠️ Este build lleva más que push
 
 No sacar dos releases seguidos. En el mismo build tienen que entrar:

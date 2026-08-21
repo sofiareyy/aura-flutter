@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/constants/app_constants.dart';
 import 'estudio_admin_service.dart';
+import 'notificaciones_service.dart';
 
 class AuthService {
   final _supabase = Supabase.instance.client;
@@ -60,7 +61,14 @@ class AuthService {
     );
   }
 
+  /// Único camino de logout de la app. TODO cierre de sesión pasa por acá,
+  /// justamente por el `borrarDispositivo` de abajo: si el token de push
+  /// quedara registrado, a la próxima persona que se loguee en este celular le
+  /// llegarían los push de la cuenta anterior. Es un bug de privacidad, no una
+  /// molestia.
   Future<void> signOut() async {
+    // Antes del signOut: después ya no hay sesión para autorizar el RPC.
+    await NotificacionesService.instance.borrarDispositivo();
     await _supabase.auth.signOut();
   }
 

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:app_links/app_links.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -33,6 +34,22 @@ void main() async {
   );
 
   await NotificacionesService.instance.initialize();
+
+  // Push (FCM): SOLO mobile. En el proyecto de Firebase estan registradas las
+  // apps de Android e iOS, no una app Web, asi que inicializar Firebase en web
+  // reventaria en runtime. Y push web necesitaria service worker + claves VAPID
+  // aparte. Con este guard, somosaurapass.com queda intacto.
+  if (!kIsWeb) {
+    try {
+      await Firebase.initializeApp();
+      await NotificacionesService.instance.initFirebaseMessaging();
+    } catch (e) {
+      // Si Firebase no esta configurado en esta maquina (falta
+      // google-services.json / GoogleService-Info.plist, que NO van al repo
+      // porque es publico), la app tiene que arrancar igual: sin push.
+      debugPrint('[push] Firebase no disponible: $e');
+    }
+  }
 
   // Valor del crédito en ARS: se cachea al arranque para que las
   // pantallas de dinero lo lean sincrónicamente sin hardcodear nada.
@@ -154,6 +171,15 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
               await context.read<AppProvider>().cargarUsuario();
             } catch (_) {}
           }
+          // PUSH: el permiso se pide ACA, después del login, no en main().
+          // Antes salía el diálogo de iOS al abrir la app por primera vez,
+          // en frío y antes de saber qué es Aura — quemando el único intento
+          // que da iOS. Y recién ahora hay usuario contra quien registrar el
+          // token del dispositivo.
+          try {
+            await NotificacionesService.instance.pedirPermisos();
+            await NotificacionesService.instance.registrarDispositivo();
+          } catch (_) {}
         }
       },
       onError: (Object e) => debugPrint('[authListener] error: $e'),
@@ -201,6 +227,20 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
         Future.delayed(const Duration(milliseconds: 200), () {
           try {
             appRouter.go('/explorar');
+          } catch (_) {}
+        });
+      } else if (tipo == 'pre_confirmada') {
+        // Push de "se liberó un lugar" (promoción de lista de espera). El
+        // codigo_qr lo manda la edge push-enviar en el `data`. Tiene 30 min
+        // para confirmar, así que el tap lo deja directo en la pantalla.
+        final codigoQr = data['codigo_qr']?.toString() ?? '';
+        Future.delayed(const Duration(milliseconds: 200), () {
+          try {
+            if (codigoQr.isNotEmpty) {
+              appRouter.go('/reserva-confirmada/$codigoQr?from_notif=true');
+            } else {
+              appRouter.go('/mis-reservas');
+            }
           } catch (_) {}
         });
       }

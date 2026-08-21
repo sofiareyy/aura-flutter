@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../services/auth_service.dart';
 
 /// Pantalla a la que se llega desde el mail de "olvidé mi contraseña".
 ///
@@ -54,7 +55,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       if (!mounted) return;
       // Cerramos la sesión de recuperación para que vuelva a entrar con la
       // contraseña nueva (evita quedar "a medias" logueado por el token temporal).
-      await Supabase.instance.client.auth.signOut();
+      await AuthService().signOut();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

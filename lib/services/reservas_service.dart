@@ -388,8 +388,9 @@ class ReservasService {
     }
   }
 
-  /// Llama a la RPC waitlist_promote_next y para cada promovido manda
-  /// notificacion local + insert en notificaciones_usuario.
+  /// Dispara la promoción de la lista de espera al liberarse un cupo.
+  ///
+  /// Solo dispara: el aviso al promovido lo manda el servidor (ver abajo).
   Future<void> _promoverYAvisar(int claseId, {int count = 1}) async {
     try {
       // Limpiar primero pre_confirmadas vencidas de esa clase, asi liberamos
@@ -397,47 +398,26 @@ class ReservasService {
       await _supabase.rpc('cleanup_pre_reservas_expiradas',
           params: {'p_clase_id': claseId});
 
-      final res = await _supabase.rpc('waitlist_promote_next', params: {
+      await _supabase.rpc('waitlist_promote_next', params: {
         'p_clase_id': claseId,
         'p_count': count,
       });
-      if (res is! Map || res['ok'] != true) return;
-      final promoted = res['promoted'];
-      if (promoted is! List) return;
 
-      for (final raw in promoted) {
-        if (raw is! Map) continue;
-        final usuarioId = raw['usuario_id']?.toString() ?? '';
-        final reservaId = (raw['reserva_id'] as num?)?.toInt();
-        final claseNombre = raw['clase_nombre']?.toString() ?? 'una clase';
-        final estudioNombre =
-            raw['estudio_nombre']?.toString() ?? 'el estudio';
-
-        // 1) Notif local inmediata (banner / push).
-        if (reservaId != null) {
-          await NotificacionesService.instance.showImmediate(
-            id: reservaId,
-            titulo: '¡Se liberó un lugar! ⚡',
-            body:
-                'Tenés 30 minutos para confirmar tu lugar en $claseNombre de $estudioNombre.',
-            payload: 'pre_confirmada:$reservaId',
-          );
-        }
-
-        // 2) Notificacion in-app (campanita) para que la vea cuando abra.
-        if (usuarioId.isNotEmpty) {
-          try {
-            await _supabase.from('notificaciones_usuario').insert({
-              'usuario_id': usuarioId,
-              'titulo': '¡Se liberó un lugar! ⚡',
-              'mensaje':
-                  'Tenés 30 minutos para confirmar tu lugar en $claseNombre de $estudioNombre.',
-              'tipo': 'pre_confirmada',
-              'leida': false,
-            });
-          } catch (_) {}
-        }
-      }
+      // El aviso al promovido lo manda el SERVIDOR, no este cliente.
+      //
+      // Antes acá había dos intentos, y los dos estaban mal:
+      //  1. `showImmediate` es una notificación LOCAL: se mostraba en el
+      //     teléfono de quien ejecuta este código, o sea EL QUE CANCELA, no el
+      //     promovido. Esa persona veía "Tenés 30 minutos para confirmar tu
+      //     lugar", que no era suyo. Estuvo dormido mientras la promoción
+      //     estaba rota; al arreglarla se despertó.
+      //  2. El insert en `notificaciones_usuario` escribía con el usuario_id de
+      //     OTRO y RLS lo denegaba (esa tabla solo tiene policies de SELECT y
+      //     UPDATE); el error quedaba tragado por el try/catch.
+      //
+      // Ahora `_waitlist_promote_interno` (security definer) crea la campanita,
+      // y el trigger de `notificaciones_usuario` dispara el push real al
+      // promovido. Este cliente ya no tiene que avisar a nadie.
     } catch (_) {}
   }
 

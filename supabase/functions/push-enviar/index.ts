@@ -129,6 +129,8 @@ Deno.serve(async (req) => {
   let mensaje = ''
   let tipo = ''
   let tokens: { token: string }[] = []
+  // Datos extra que viajan en `data` para que el tap sepa a dónde ir.
+  const extra: Record<string, string> = {}
 
   if (body.test_token) {
     // Modo prueba: permite validar la autenticación contra FCM SIN un celular.
@@ -152,6 +154,22 @@ Deno.serve(async (req) => {
     titulo = notif.titulo ?? 'Aura'
     mensaje = notif.mensaje ?? ''
     tipo = notif.tipo ?? ''
+
+    // Para el push de "se liberó un lugar" el tap tiene que dejar a la persona
+    // en SU pre-reserva (tiene 30 min para confirmar). `notificaciones_usuario`
+    // no guarda el código QR, así que se busca la pre_confirmada activa.
+    if (tipo === 'pre_confirmada') {
+      const { data: pre } = await admin
+        .from('reservas')
+        .select('codigo_qr')
+        .eq('usuario_id', notif.usuario_id)
+        .eq('estado', 'pre_confirmada')
+        .gt('expires_at', new Date().toISOString())
+        .order('expires_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (pre?.codigo_qr) extra.codigo_qr = String(pre.codigo_qr)
+    }
 
     const { data: disp } = await admin
       .from('dispositivos')
@@ -183,8 +201,9 @@ Deno.serve(async (req) => {
       message: {
         token,
         notification: { title: titulo, body: mensaje },
-        // `data` viaja para que el tap sepa a dónde ir.
-        data: { tipo, titulo, mensaje },
+        // `data` viaja para que el tap sepa a dónde ir. main.dart lo parsea
+        // con _handleNotificationPayload, que rutea por `tipo`.
+        data: { tipo, titulo, mensaje, ...extra },
         android: { priority: 'HIGH' },
         apns: {
           headers: { 'apns-priority': '10' },

@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
 import '../../models/estudio.dart';
+import '../../services/auth_service.dart';
 import '../../services/estudio_admin_service.dart';
 import '../../services/estudios_service.dart';
 import '../../services/media_upload_service.dart';
@@ -1192,7 +1193,7 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
     );
     if (confirm != true) return;
 
-    await Supabase.instance.client.auth.signOut();
+    await AuthService().signOut();
     if (mounted) context.go('/login');
   }
 
