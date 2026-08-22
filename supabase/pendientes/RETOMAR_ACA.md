@@ -124,9 +124,16 @@ la misma tabla.**
    de `generar_clases_estudio`, **después** el backfill de las 72. En ese orden,
    o el cron de las 03:00 las repone esa noche.
 3. **El índice** `reservas_usuario_clase_uidx` → `NOT IN ('cancelada','cancelada_por_estudio')`.
-4. **`ensure_referral_code`** sin `search_path` — la auditoría confirmó que es la última.
+4. ✅ **HECHA (22/8) — `ensure_referral_code` con `search_path`.** Era la
+   ultima sin blindar. **Blindaje completo: 94 de 94 SECURITY DEFINER.**
 5. **Whitelist de estados** del estudio (no hay ningún CHECK).
-6. **Código muerto:** `admin_update_global_credit_value` y `pack_credits_expiration`.
+6. ✅ **HECHA (22/8) — codigo muerto, 4 firmas dropeadas.**
+   `pack_credits_expiration` (3 sobrecargas ambiguas, 0 llamadores en todos
+   lados) y `admin_update_global_credit_value`. **Ojo: la nota vieja decia "0
+   llamadores" y era falsa** — habia un wrapper en Dart. Se dropeo igual porque
+   el wrapper esta huerfano y porque asi falla con PGRST202 en vez de
+   desincronizar `configuracion_global` en silencio. El metodo Dart quedo
+   anotado en DART_PENDIENTE (item 5).
 7. **Columna fantasma** `clases."lugares_ disponibles"` (el Dart va después).
 8. **Datos:** backfill de las 189 clases sin categoría, `creditos_por_categoria`
    legacy, y `vigencia_dias` en el upsert de packs.

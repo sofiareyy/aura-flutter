@@ -82,3 +82,20 @@ del Modelo C. Las experiencias gratis sí se pueden cargar ya.
 NO sirve para esto — depende de `_esGratuita`, que significa "sos alumno de
 este estudio en modo gestión", por usuario y no por clase. Son dos "gratis"
 distintos y hay que decidir cuál gana.
+
+---
+
+## 5. Borrar el metodo huerfano `updateGlobalCreditValue`
+
+**Donde:** `lib/services/admin_service.dart:617`.
+
+**Que pasa:** el metodo llama al RPC `admin_update_global_credit_value`, que se
+**dropeo de la base el 22/8** (migracion `20260822190000_baja_codigo_muerto.sql`).
+Nada invoca este metodo hoy —se verifico que esta huerfano, ni siquiera como
+tear-off— y la pantalla de config usa `setValorCreditoArs()`, que es la
+correcta porque ademas escribe `configuracion_global`.
+
+**Que hacer:** borrar el metodo. Si alguien lo llamara hoy, obtiene un
+`PGRST202` claro; eso es intencional y preferible al comportamiento viejo, que
+era desincronizar `configuracion_global` en silencio. Pero el metodo no deberia
+seguir ahi invitando a usarlo.
