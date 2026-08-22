@@ -138,6 +138,33 @@ la misma tabla.**
 8. **Datos:** backfill de las 189 clases sin categoría, `creditos_por_categoria`
    legacy, y `vigencia_dias` en el upsert de packs.
 
+## Pendiente nuevo (22/8) — no hay UI para editar packs
+
+`admin_service.dart:662` tiene `upsertPricingPack()` y **ninguna pantalla lo
+llama**. Igual que el `updateGlobalCreditValue` que acabamos de matar: definido
+y huerfano. Hoy **los precios de packs solo se pueden cambiar por SQL**.
+
+No es un bug —el RPC `admin_upsert_pricing_pack` funciona y preserva el
+vencimiento— pero es una pieza faltante del backoffice, y es justo lo que
+despues se hace a mano y se olvida.
+
+Ojo con el matiz: subir `valor_credito_ars` desde `/admin/config` **ya
+recalcula los 4 packs solo**, via `recalc_pack_prices()`. La UI de packs haria
+falta para poner un precio distinto del que sale de la formula.
+
+## Como cambiar precios, referencia rapida
+
+| Que | Donde | Que hace |
+|---|---|---|
+| **Valor del credito** | `/admin/config` | `admin_set_valor_credito_ars`: escribe `configuracion_global`, **recalcula los 4 packs** y actualiza `valor_credito` de los 9 estudios, todo en una transaccion |
+| **Precio de un estudio** (fijo o pico/valle) | Backoffice → Estudios → el estudio → **Precios** | `admin_set_pricing_estudio` + recalculo de sus clases |
+| **Precio de un pack puntual** | ⚠️ solo por SQL | `admin_upsert_pricing_pack`, sin pantalla |
+
+⚠️ **`ConfiguracionScreen` (`lib/screens/perfil/configuracion_screen.dart`) NO
+tiene nada que ver con precios**: es la pantalla de ajustes de la usuaria
+(notificaciones). No tocarla. Lo que estaba huerfano era el metodo
+`updateGlobalCreditValue`, anotado en DART_PENDIENTE item 5.
+
 ## Tanda B — verificación de mail
 Va **antes** del build: probablemente necesite una pantalla de "revisá tu mail",
 y descubrirlo después es perder el release. `mailer_autoconfirm = true`

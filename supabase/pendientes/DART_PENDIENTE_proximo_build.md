@@ -99,3 +99,25 @@ correcta porque ademas escribe `configuracion_global`.
 `PGRST202` claro; eso es intencional y preferible al comportamiento viejo, que
 era desincronizar `configuracion_global` en silencio. Pero el metodo no deberia
 seguir ahi invitando a usarlo.
+
+---
+
+## 6. Los multiplicadores de `_packsBase` estan corridos
+
+**Donde:** `lib/services/pricing_service.dart:22` (`_packsBase`).
+
+**Que pasa:** el fallback calcula con **1.10 / 1.05 / 1.00 / 0.95**, pero los
+multiplicadores REALES —los de `recalc_pack_prices()` en la base— son
+**1.10 / 1.00 / 0.95 / 0.90**. Estan corridos una posicion.
+
+Con `valor_credito = 1000` eso da 22.000 / 52.500 / 100.000 / 190.000 contra
+los 22.000 / 50.000 / 95.000 / 180.000 de la tabla. Solo el primero coincide.
+
+**Cuando muerde:** el fallback se dispara unicamente si `pricing_credit_packs`
+no responde o viene vacia. En ese caso el usuario ve precios inflados y despues
+`crear-checkout-pack` le frena la compra con "Los precios cambiaron". Frenar es
+lo correcto —mejor eso que cobrarle otra cosa— pero conviene alinear los
+numeros o borrar el fallback directamente.
+
+**Verificado el 22/8:** la tabla y la formula coinciden en los 4 packs. El
+problema es solo del fallback de Dart, no de los datos.
