@@ -90,9 +90,13 @@ la misma tabla.**
 
 ### Lo que salio de la Tanda 0 y hay que tener presente
 
-- **`email-confirmacion` NO esta deployada en produccion.** Existe en el repo,
-  nunca se subio. Es la que manda la confirmacion de reserva al usuario.
-  Revisar si es intencional antes de subirla.
+- **⬜ DECISION PENDIENTE: `email-confirmacion` NO esta deployada.** Existe en el
+  repo con su `reply_to` ya puesto, pero nunca se subio a produccion. Es la que
+  manda al USUARIO la confirmacion de su reserva.
+  **La pregunta de producto es si los usuarios deberian recibir esa
+  confirmacion.** Hoy no la reciben por mail (si ven la reserva y el QR en la
+  app). Antes de deployarla hay que decidir si se quiere ese mail, no subirla
+  solo porque el archivo existe. Anotado el 22/8, para otro momento.
 - **La trampa del `config.toml`:** aparecio dos veces. Una funcion no declarada
   ahi cambia su `verify_jwt` en silencio al deployar. Quedaron declaradas
   aviso-cobro-manana, reporte-mensual-estudios, aviso-alumnos-email y
@@ -106,7 +110,16 @@ la misma tabla.**
 
 ## Tanda A — el barrido de base (1 sesión, sin decisiones)
 
-1. La **fuga de `admin_adjust_user_credits`** + qué hacer con los 29 créditos eternos.
+1. ✅ **HECHA (22/8) — la fuga de `admin_adjust_user_credits`.** Parametro
+   `p_dias` con default 90; compatible con la app sin build (verificado por
+   PostgREST). Los 29 eternos resueltos: Julieta (clienta real) a 90 dias sin
+   cambio visible para ella, las dos cuentas de prueba vencidas.
+   **0 creditos eternos en toda la base.** Migracion
+   `20260822180000_creditos_manuales_con_vencimiento.sql`.
+   ⬜ **Queda la puerta:** `grant_user_credits` sigue aceptando vencimiento
+   nulo. Ahora que la tabla no tiene ni un null, se puede poner
+   `expires_at NOT NULL` y cerrarla para siempre — mismo movimiento que el
+   CHECK de sanidad con los precios absurdos. Sumar a esta tanda.
 2. **Las etiquetas de Sculpt**: primero sacar el `v_tipo := 'normal'` hardcodeado
    de `generar_clases_estudio`, **después** el backfill de las 72. En ese orden,
    o el cron de las 03:00 las repone esa noche.
