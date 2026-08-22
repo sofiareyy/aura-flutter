@@ -123,7 +123,14 @@ la misma tabla.**
 2. **Las etiquetas de Sculpt**: primero sacar el `v_tipo := 'normal'` hardcodeado
    de `generar_clases_estudio`, **después** el backfill de las 72. En ese orden,
    o el cron de las 03:00 las repone esa noche.
-3. **El índice** `reservas_usuario_clase_uidx` → `NOT IN ('cancelada','cancelada_por_estudio')`.
+3. ✅ **HECHA (22/8) — el indice `reservas_usuario_clase_uidx`.** Excluia solo
+   'cancelada' cuando hay DOS estados muertos, y `apply_reservation` ya usaba
+   los dos. Sintoma: "ya reservaste" en una clase que el estudio te habia
+   cancelado. Migracion `20260822200000`.
+   💡 Salio de ahi: **`reservas.estado` no tiene CHECK**, acepta cualquier
+   string. Si aparece un tercer estado muerto hay que acordarse de sumarlo al
+   indice. La whitelist de estados (item 5 de esta tanda) deberia cubrir
+   tambien `reservas.estado`, no solo `estudios.estado`.
 4. ✅ **HECHA (22/8) — `ensure_referral_code` con `search_path`.** Era la
    ultima sin blindar. **Blindaje completo: 94 de 94 SECURITY DEFINER.**
 5. **Whitelist de estados** del estudio (no hay ningún CHECK).
