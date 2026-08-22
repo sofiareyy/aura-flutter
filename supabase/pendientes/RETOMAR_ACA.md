@@ -81,7 +81,7 @@ la misma tabla.**
 
 ---
 
-## ⬜ Tanda A — el barrido de base · **4 de 9**
+## ⬜ Tanda A — el barrido de base · **6 de 9**
 
 ### Hechas
 
@@ -90,14 +90,14 @@ la misma tabla.**
 | ✅ | **Fuga de `admin_adjust_user_credits`** — los creditos regalados a mano no vencian nunca. Parametro `p_dias` (default 90), compatible con la app sin build. Los 29 eternos resueltos: Julieta (clienta real) a 90 dias sin cambio visible para ella, las dos de prueba vencidas. **0 creditos eternos en toda la base.** | `20260822180000` |
 | ✅ | **`ensure_referral_code` con `search_path`** — era la ultima sin blindar. **94 de 94 SECURITY DEFINER blindadas.** | `20260822190000` |
 | ✅ | **Codigo muerto, 4 firmas** — `pack_credits_expiration` (3 sobrecargas ambiguas) y `admin_update_global_credit_value`. La nota vieja decia "0 llamadores" y era **falsa**: habia un wrapper en Dart. Se dropeo igual porque esta huerfano y porque asi falla con PGRST202 en vez de desincronizar en silencio. | `20260822190000` |
+| ✅ | **`expires_at NOT NULL`** en `creditos_movimientos` — cierra la tabla para que no vuelvan los eternos por ningun camino, ni siquiera por SQL. Relevado antes: solo 2 funciones insertan y las 9 llamadas pasan vencimiento. | `20260822210000` |
+| ✅ | **Etiquetas de la grilla** — `generar_clases_estudio` hacia `v_tipo := 'normal'` hardcodeado y esa rama corria SIEMPRE, asi que toda clase generada nacia mal etiquetada. Se arreglo la funcion y DESPUES se backfillearon las 72 de Sculpt (54 valle, 18 pico). Creditos sin tocar. Probado simulando el cron: 41 clases nuevas, 0 mal etiquetadas. | `20260822210000` |
 | ✅ | **Indice `reservas_usuario_clase_uidx`** — excluia solo `'cancelada'` cuando hay DOS estados muertos. Sintoma: "ya reservaste" en una clase que el estudio te habia cancelado. | `20260822200000` |
 
 ### Faltan — 5
 
 | | Que | Nota |
 |---|---|---|
-| ⬜ | **`expires_at NOT NULL`** en `creditos_movimientos` | Contraparte del item 1: cierra la puerta para que no vuelvan los eternos. `grant_user_credits` todavia acepta nulo. Ahora que la tabla no tiene ni uno, entra limpio. **El mas chico que queda.** Unica decision: si alguna vez querrias un credito deliberadamente eterno. |
-| ⬜ | **Etiquetas de Sculpt** (72 desincronizadas) | ⚠️ **Orden critico:** primero sacar el `v_tipo := 'normal'` hardcodeado de `generar_clases_estudio`, **DESPUES** el backfill. Al reves, el cron de las 03:00 las repone esa misma noche. |
 | ⬜ | **Whitelist de estados** | **Creció:** no es solo `estudios.estado`. `reservas.estado` **tampoco tiene CHECK** y acepta cualquier string — salio del arreglo del indice. Deberia cubrir las dos columnas. |
 | ⬜ | **Columna fantasma** `clases."lugares_ disponibles"` (con espacio) | La columna se borra en base ahora; las **8 referencias del Dart** esperan al build. |
 | ⬜ | **Datos** | Backfill de las 189 clases sin categoria · `creditos_por_categoria` legacy en `configuracion_global` · `vigencia_dias` que se desincroniza al editar un pack. |
