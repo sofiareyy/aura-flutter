@@ -66,22 +66,43 @@ la misma tabla.**
 
 # 🔴 ORDEN DE ARREGLO
 
-## Tanda 0 — antes del 1/9, lo único con fecha
+## Tanda 0 — antes del 1/9 · CERRADA salvo el aviso
 
-1. **Verificar los 3 crons mensuales.** Se fuerza una corrida a mano.
-   `acreditar-creditos-corporativos` es seguro de correr hoy (0 empresas ⇒
-   no-op, no mailea). Los otros dos **SÍ mailearían a 8 destinatarios, 7 de
-   estudios reales** — hay que usar dry-run, simulación en SQL, o invalidar
-   `RESEND_API_KEY` durante la prueba. La capa de auth ya está probada: el
-   mismo `edge_service_key` de Vault lo usan cleanup (169 corridas OK) y
-   regenerar-grillas (2 OK).
-2. **Correo: SPF + buzón que reciba + Reply-To.** `somosaurapass.com` no tiene
-   MX ni TXT, y `smtp_admin_email` es `hola@somosaurapass.com` — los mails
-   salen de una dirección inexistente. De nada sirve que los crons anden si el
-   mail cae en spam.
-3. **Avisar el fin de la gracia.** Citra el 13/9. Ver
-   `aura-avisar-fin-de-gracia` en memoria: son 6 estudios entre el 13/9 y el
-   30/9, transición automática, falta la conversación.
+1. ✅ **Los 3 crons mensuales, verificados el 22/8.**
+   `acreditar-creditos-corporativos` corrido de verdad: 200 OK, `{empresas:0}`.
+   Con eso quedo probado el camino cron → Vault → edge function, identico en
+   los tres. **`aviso-cobro-manana` estaba ROTO** y se arreglo (ver abajo).
+   `reporte-mensual-estudios` verificado por simulacion SQL y dry-run.
+
+2. ✅ **Correo — resuelto SIN tocar DNS.**
+   El SPF que iba a agregar **ya existia**: Resend lo pone en
+   `send.somosaurapass.com`, no en el apex. Junto con el DKIM
+   (`resend._domainkey`) y el DMARC, la autenticacion estaba completa. Lo unico
+   roto era que `hola@somosaurapass.com` **no recibe** (apex sin MX, A de
+   GitHub Pages) y esa direccion figuraba en el pie de los mails.
+   Se cambio el pie a `aura.hola.app@gmail.com` —que ya era la direccion de
+   soporte de la app y la web, o sea que ademas **unifico** dos direcciones que
+   estaban peleadas— y se sumo `reply_to` en las 6 funciones. Sin DNS.
+
+3. ⬜ **Avisar el fin de la gracia.** Lo unico que queda. Citra el 13/9.
+   Ver `aura-avisar-fin-de-gracia` en memoria: 6 estudios entre el 13/9 y el
+   30/9, transicion automatica, falta la conversacion.
+
+### Lo que salio de la Tanda 0 y hay que tener presente
+
+- **`email-confirmacion` NO esta deployada en produccion.** Existe en el repo,
+  nunca se subio. Es la que manda la confirmacion de reserva al usuario.
+  Revisar si es intencional antes de subirla.
+- **La trampa del `config.toml`:** aparecio dos veces. Una funcion no declarada
+  ahi cambia su `verify_jwt` en silencio al deployar. Quedaron declaradas
+  aviso-cobro-manana, reporte-mensual-estudios, aviso-alumnos-email y
+  email-regalo. **Antes de cualquier `functions deploy`, chequear que la
+  funcion este declarada.**
+- **Arranque en frio:** la primera invocacion despues de un deploy corta a los
+  5s por el default de `pg_net`. No rompe el cron; para ver la respuesta hay
+  que pasar `timeout_milliseconds := 30000`.
+- **Las 2 funciones de mail a estudios aceptan `{"dry_run": true}`**: arman el
+  reporte y devuelven a quien le habrian escrito, sin mandar mail.
 
 ## Tanda A — el barrido de base (1 sesión, sin decisiones)
 
