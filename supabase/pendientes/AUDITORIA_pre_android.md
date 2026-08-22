@@ -109,17 +109,66 @@ mueve igual.
 
 ## 🟡 Deuda — no bloquea
 
-### 7. El toggle de bienvenida tira excepción
+### 7. ✅ CERRADO (verificado 2026-08-21) — el toggle de bienvenida NO revienta
 
-De 65 llamadas RPC, solo 4 apuntan a funciones inexistentes y las cuatro son de
-bienvenida (migración pendiente a propósito). Dos están protegidas:
+> **Este punto ya no aplica.** Se arregló entre el 2026-08-19 y el 2026-08-21.
+> Se deja el texto original abajo para que se entienda de dónde salía.
 
-- `acreditar_bienvenida` (`main.dart:147`) ✅ try/catch
-- `bienvenida_esta_activa` (`home_screen.dart:98`) ✅ try/catch
+De 65 llamadas RPC, 4 apuntan a funciones inexistentes y las cuatro son de
+bienvenida (migración pendiente a propósito). **Las cuatro están protegidas:**
 
-Las otras dos **no**: `admin_service.dart:410` (`admin_encender_bienvenida`) y
-`:419` (`admin_apagar_bienvenida`). El switch de Admin → Config revienta si
-alguien lo toca.
+| Llamada | Protección |
+|---|---|
+| `acreditar_bienvenida` (`main.dart`) | `catch (_) {}` |
+| `bienvenida_esta_activa` (`home_screen.dart`) | try/catch + `if (activa != true) return` |
+| `admin_encender_bienvenida` (`admin_service.dart`) | `on PostgrestException catch` → `_mensajeBienvenida` |
+| `admin_apagar_bienvenida` (`admin_service.dart`) | ídem |
+
+La cadena está cubierta en **dos capas**:
+
+1. **Service**: `_mensajeBienvenida` detecta el `PGRST202` y devuelve *"La
+   bienvenida todavía no está disponible: falta aplicar la migración en
+   Supabase. No se cambió nada."*
+2. **Pantalla**: `admin_config_screen.dart:_toggleBienvenida` tiene try/catch
+   que muestra ese mensaje en un SnackBar, y un `finally` que resetea el estado
+   de carga.
+
+Y un detalle que importa: `setState(() => _bienvenidaActiva = activar)` está
+**dentro del `try`, después del `await`**. Si la RPC falla esa línea no corre,
+así que **el switch ni siquiera se mueve visualmente**.
+
+Comportamiento real al tocarlo hoy: cartel rojo explicando que falta la
+migración, el switch vuelve a su lugar, cero crash.
+
+### La bienvenida está INERTE — verificado contra la base el 2026-08-21
+
+| | |
+|---|---|
+| `admin_encender_bienvenida` | no existe |
+| `admin_apagar_bienvenida` | no existe |
+| `bienvenida_esta_activa` | no existe |
+| `acreditar_bienvenida` | no existe |
+| Claves `bienvenida_*` en `configuracion_global` | **ninguna** → default `activa = false` |
+
+**No hay forma de activarla sin aplicar la migración a propósito.** Y por eso
+no hay nada que arreglar del lado de la base: crear esas RPC *sería* activar la
+feature, que es justo lo que no se quiere hasta tener verificación de mail
+(ver `POST_AUDITORIA_2026-08-21.md`).
+
+### Lo único que queda (opcional, Dart, próximo build)
+
+El switch se ve normal y recién al tocarlo avisa que no está disponible.
+Mejor sería mostrarlo deshabilitado con la nota al lado, u ocultarlo hasta que
+la migración exista. **No es un bug: es un cartel que llega tarde.**
+
+<details>
+<summary>Texto original del 2026-08-19 (ya no aplica)</summary>
+
+> Las otras dos **no**: `admin_service.dart:410` (`admin_encender_bienvenida`) y
+> `:419` (`admin_apagar_bienvenida`). El switch de Admin → Config revienta si
+> alguien lo toca.
+
+</details>
 
 ### 8. `lista_espera.posicion` no existe
 
