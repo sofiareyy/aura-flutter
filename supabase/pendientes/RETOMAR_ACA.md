@@ -7,72 +7,122 @@ Escrito para arrancar sin re-pensar.
 
 ---
 
-# ⛳ PASO 0 — LA AUDITORÍA COMPLETA
+# ✅ PASO 0 — AUDITORÍA COMPLETA: HECHA (2026-08-22)
 
-**Es lo primero de la próxima sesión.** Con cabeza fresca, medida contra la
-base como las anteriores. Se postergó a propósito el 22/8 porque la sesión ya
-venía larga.
+Las 8 áreas medidas contra la base. **Resultado: la base está sana.** Las áreas
+de plata directa —pricing, reservas, RLS— resistieron todo, incluidos 6
+exploits corridos con el JWT del dueño real de una reserva.
 
-No es una auditoría de seguridad nueva: es **verificar que lo que se tocó
-estos días sigue en pie y no rompió nada al costado.** Se tocaron muchas cosas
-en pocos días y ninguna se volvió a mirar en conjunto.
+| Área | Estado |
+|---|---|
+| 1 · Pricing (5 arreglos del 22/8) | ✅ todo en pie |
+| 2 · Farmeo del vencimiento | ⚠️ **fuga lateral** |
+| 3 · Foto de perfil | ⚠️ correcta pero **nunca ejercitada** |
+| 4 · Vencimiento de packs | ✅ ok |
+| 5 · Escritura de reservas | ✅ 6/6 exploits bloqueados |
+| 6 · CASCADE de usuarios | ⚠️ **confirmado abierto** |
+| 7 · Los 6 crons | ✅ con asterisco |
+| 8 · Storage y RLS | ✅ muy bien |
 
-## Áreas a cubrir
+**Lo que se confirmó bien:** triggers y CHECK de pricing en pie con 0 clases
+desviadas; 6 de 6 exploits de reserva bloqueados (bajar el precio, auto-
+cancelarse, cambiar el QR, mover la reserva, borrarla, crear una gratis); todas
+las tablas públicas con RLS y todo lo sensible invisible para un anónimo —los
+CBUs ni llegan a RLS, dan `permission denied` a nivel de grant—; y cero fallas
+de cron después del 21/8.
 
-### 1. Pricing — los 5 arreglos del 22/8
-Los cinco se aplicaron y se verificaron uno por uno, pero nunca juntos.
-- Los dos triggers instalados, activos y con el código vivo igual al del repo
-  (`pg_get_functiondef`, no confiar en los archivos: **las migraciones acá se
-  aplican a mano**)
-- `clases_creditos_sanos` y `horarios_fijos_creditos_sanos` con
-  `convalidated = true`
-- `horarios_fijos.creditos` sin default
-- 0 clases desviadas de la regla; ninguna fuera de 0–500
-- Que ningún estudio quedó sin poder cargar
-- Que las experiencias siguen con precio libre (no las tocamos a propósito)
-- **Que reservar sigue funcionando**, sobre todo con saldo 0 en evento gratis
+## Los 6 hallazgos nuevos
 
-### 2. Farmeo del vencimiento (21/8)
-`FIX_FARMEO_VENCIMIENTO_2026-08-21.sql`. Que cancelar una reserva **no** renueve
-el vencimiento de los créditos y que no queden créditos eternos. Es el que más
-plata mueve de los del 21.
+1. **Fuga en `admin_adjust_user_credits`.** Es la única función que escribe en
+   `creditos_movimientos` sin pasar por `grant_user_credits`, y mete
+   `expires_at = null` hardcodeado: **cada crédito regalado a mano no vence
+   nunca**. Hay 5 movimientos eternos, todos `source='manual'`, todos previos
+   al fix, con **29 créditos vivos** (20 de `julietarey2002@gmail.com`).
+2. **La foto de perfil nunca se ejercitó.** Policies y buckets correctos
+   (`{userId}/...`, 10MB, `image/*`), pero **0 archivos y 0 `avatar_url`**.
+   Está bien configurada; no está probada.
+3. **No hay policy de DELETE en `storage.objects`** para ningún bucket. El
+   servidor borra (service_role saltea RLS), el cliente no.
+4. **Los 3 crons mensuales no corrieron desde el fix.** Últimas ejecuciones el
+   1/8 y el 4/8, *antes* del 21/8. Y dos de ellos son los que le mandan mails a
+   los estudios, con próxima corrida pegada al inicio del cobro.
+5. **`pack_credits_expiration`** está muerta con 3 sobrecargas de tipos
+   ambiguos y cero llamadores.
+6. **`vigencia_dias`** no se actualiza en `admin_upsert_pricing_pack`, así que
+   se desincroniza de `vencimiento_dias` al editar un pack.
 
-### 3. Foto de perfil (21/8)
-`FIX_FOTO_PERFIL_2026-08-21.sql` — nunca había funcionado. Que las policies del
-bucket `avatares` estén y que una subida real ande. Queda el `DART_FOTO_PERFIL.md`
-para el build.
+**El patrón que comparten los tres con sustancia:** son puertas laterales que
+quedaron abiertas cuando se cerró la principal — el grant manual junto al
+farmeo, el `delete-account` junto al cascade, y el `tipo` junto al precio.
+Reflejo para la próxima: **cuando cierres un camino, buscá quién más escribe en
+la misma tabla.**
 
-### 4. Vencimiento de packs a 90 días (21/8)
-`FIX_VENCIMIENTO_PACKS_2026-08-21.sql`. Que editar un pack no le resetee el
-vencimiento.
-
-### 5. Escritura de `reservas` desde el cliente (21/8)
-`FIX_RESERVAS_ESCRITURA_CLIENTE_2026-08-21.sql`. Que el UPDATE libre y el INSERT
-gratis sigan cerrados.
-
-### 6. Borrado en cascada de `usuarios` (21/8)
-`FIX_TANDA2_2026-08-21.sql`. **Y el riesgo conocido que sigue abierto:** si un
-alumno borra su cuenta, el CASCADE se lleva la deuda al estudio. Verificar si
-quedó cubierto o sigue vivo.
-
-### 7. Los 6 crons
-Al 22/8 los seis figuran activos:
-`regenerar-grillas-diario` (03:00), `completar-reservas` (cada hora),
-`cleanup-lista-espera-15min`, `aviso-cobro-manana`,
-`acreditar-creditos-corporativos-mensual`, `reporte-mensual-estudios`.
-Verificar que **corrieron de verdad**, no sólo que están agendados (fue el bug
-de los 401 por Vault).
-
-### 8. Storage y RLS general
-Límites de storage del 21/8, y un barrido de policies sobre las tablas que se
-tocaron.
-
-## Datos de referencia al 22/8 (para comparar)
-885 clases · 70 horarios fijos · 5 reservas · 9 estudios · 1 experiencia ·
-0 clases desviadas de la regla · rangos 11–50 (clases) y 11–18 (horarios).
+## Números de referencia (22/8, post-auditoría)
+885 clases · 70 horarios fijos · 5 reservas (4 canceladas) · 9 estudios ·
+0 experiencias futuras · 0 clases desviadas de la regla · rangos 11–50 y 11–18 ·
+78 usuarios · 6 pagos aprobados por $84.220.
 
 ---
 
+# 🔴 ORDEN DE ARREGLO
+
+## Tanda 0 — antes del 1/9, lo único con fecha
+
+1. **Verificar los 3 crons mensuales.** Se fuerza una corrida a mano.
+   `acreditar-creditos-corporativos` es seguro de correr hoy (0 empresas ⇒
+   no-op, no mailea). Los otros dos **SÍ mailearían a 8 destinatarios, 7 de
+   estudios reales** — hay que usar dry-run, simulación en SQL, o invalidar
+   `RESEND_API_KEY` durante la prueba. La capa de auth ya está probada: el
+   mismo `edge_service_key` de Vault lo usan cleanup (169 corridas OK) y
+   regenerar-grillas (2 OK).
+2. **Correo: SPF + buzón que reciba + Reply-To.** `somosaurapass.com` no tiene
+   MX ni TXT, y `smtp_admin_email` es `hola@somosaurapass.com` — los mails
+   salen de una dirección inexistente. De nada sirve que los crons anden si el
+   mail cae en spam.
+3. **Avisar el fin de la gracia.** Citra el 13/9. Ver
+   `aura-avisar-fin-de-gracia` en memoria: son 6 estudios entre el 13/9 y el
+   30/9, transición automática, falta la conversación.
+
+## Tanda A — el barrido de base (1 sesión, sin decisiones)
+
+1. La **fuga de `admin_adjust_user_credits`** + qué hacer con los 29 créditos eternos.
+2. **Las etiquetas de Sculpt**: primero sacar el `v_tipo := 'normal'` hardcodeado
+   de `generar_clases_estudio`, **después** el backfill de las 72. En ese orden,
+   o el cron de las 03:00 las repone esa noche.
+3. **El índice** `reservas_usuario_clase_uidx` → `NOT IN ('cancelada','cancelada_por_estudio')`.
+4. **`ensure_referral_code`** sin `search_path` — la auditoría confirmó que es la última.
+5. **Whitelist de estados** del estudio (no hay ningún CHECK).
+6. **Código muerto:** `admin_update_global_credit_value` y `pack_credits_expiration`.
+7. **Columna fantasma** `clases."lugares_ disponibles"` (el Dart va después).
+8. **Datos:** backfill de las 189 clases sin categoría, `creditos_por_categoria`
+   legacy, y `vigencia_dias` en el upsert de packs.
+
+## Tanda B — verificación de mail
+Va **antes** del build: probablemente necesite una pantalla de "revisá tu mail",
+y descubrirlo después es perder el release. `mailer_autoconfirm = true`
+confirmado. **Medir antes de tocar el toggle** o rompés el registro de todos.
+
+## Tanda C — el build de Dart (todo junto, un release)
+Encabeza **el texto de "gratis"** (captación). Detalle completo en
+`DART_PENDIENTE_proximo_build.md`. Sumar de la auditoría: **probar que la foto
+de perfil funcione de verdad**, porque no hay un solo archivo subido.
+
+## Tanda D — Modelo C → destraba los running clubs
+Ver `aura-running-club-caso-de-uso-modelo-c` en memoria. La excepción tiene que
+admitir cero y ser respetada por los **dos** triggers **y** por
+`generar_clases_estudio`, o el cron la pisa.
+
+## Tanda E — experiencias, esquema pesado y el resto
+Experiencias (⚠️ hay **cero experiencias futuras**: decidir si el cuello es
+descubrimiento u oferta), preservar facturación (12 tablas CASCADE, incluidas
+`pagos` y `reservas`), keys legacy (sólo queda la `anon` de la app), y la firma
+del webhook de MP.
+
+## Mantenimiento
+Sanear los docs de esta carpeta, y escribir el doc de eventos gratis (no existe;
+ya hay material: la medición end-to-end con saldo 0 está hecha).
+
+---
 # Lo que se cerró el 2026-08-22 — tanda de pricing
 
 Los cinco aplicados en producción y verificados con tabla temporal + rollback,
@@ -112,48 +162,6 @@ las dos puntas cada uno. **Ninguna fila de producción se movió.**
 | 🟠 | Foto de perfil | `FIX_FOTO_PERFIL_2026-08-21.sql` |
 | 🟠 | Vencimiento de packs a 90 días | `FIX_VENCIMIENTO_PACKS_2026-08-21.sql` |
 | 🟠 | Tabla `resenas` legacy | borrada |
-
----
-
-# PENDIENTES POR PRIORIDAD
-
-## 🔴 Alta — base, sin build
-
-| Qué | Detalle |
-|---|---|
-| **Verificación de mail** (`mailer_autoconfirm`) | Ver PASO 1 abajo. **Medir antes de tocar el toggle**: si la app no maneja "registrado sin confirmar", rompés el registro para todos los nuevos |
-| **Firma del webhook de MP** | Hoy se calcula y **se descarta**: `if (signature && !valid) console.warn(...)` sin cortar, y el branch GET ni la evalúa. Requiere redeploy de la edge |
-| **`ensure_referral_code` sin `SET search_path`** | El último SECURITY DEFINER que falta, alcanzable por `authenticated` |
-| **`cancelada_por_estudio` en `reservas_usuario_clase_uidx`** | El índice excluye sólo `'cancelada'` ⇒ si el estudio cancela y reabre, la usuaria **no puede volver a reservar**. Pasar a `NOT IN ('cancelada','cancelada_por_estudio')` |
-| **CASCADE borra la deuda al estudio** | Si un alumno borra su cuenta se lleva lo que el estudio tenía por cobrar. Verificar en la auditoría si sigue vivo |
-
-## 🟠 Media — base, sin build
-
-| Qué | Detalle |
-|---|---|
-| **Packs hardcodeados** | La app **calcula** el precio (`_packsBase` en `pricing_service.dart`) en vez de leer `pricing_credit_packs`. Desde el build 21 `crear-checkout-pack` rechaza si no coincide exacto ⇒ **el día que subas `valor_credito_ars` se bloquean todas las compras de packs**. Hoy anda de casualidad porque está en 1000 |
-| **Limpiar reservas de prueba** | Al 22/8: **4 reservas completadas en Hot Clic, 47 créditos** — le muestran al estudio ~$33.000 falsos a cobrar. (La nota vieja decía 3 y $24.500: creció) |
-| **Borrar la RPC muerta `admin_update_global_credit_value`** | 0 llamadores; desincroniza `configuracion_global` |
-| **Borrar la columna fantasma `clases."lugares_ disponibles"`** (con espacio) | Verificada el 22/8: **sigue existiendo**. 0 filas con dato. El Dart la nombra en 8 lugares, siempre con `??` después de la correcta ⇒ borrar la columna es seguro; limpiar el Dart va después (build) |
-| **Whitelist de estados del estudio** | `WHITELIST_ESTADOS_ESTUDIO.md`. Que no se pueda revivir una `cancelada` a estado facturable |
-| **Las 66 etiquetas `tipo_precio` de Sculpt** | Dicen `normal` estando el estudio en `rango`. El precio está bien, la etiqueta no. Causa: el recálculo refresca `horarios_fijos.creditos` pero no su `tipo_precio`, y el generador copia el label viejo. Es un `UPDATE` |
-| **Correo saliente: SPF + Reply-To** | `CORREO_SALIENTE.md`. `somosaurapass.com` no tiene MX ni SPF |
-
-## 🔵 Dart — todo junto en UN solo build
-
-Detalle completo en **`DART_PENDIENTE_proximo_build.md`**. Resumen:
-
-| Qué | Por qué importa |
-|---|---|
-| **Propagar el mensaje del servidor al crear clase** | `mis_clases_screen.dart:1975` descarta el mensaje humano del arreglo #2 y muestra "Intentá de nuevo" |
-| **Badge "PRECIO REDUCIDO"** | Sale en **578 de 589** clases. Vacía el argumento de venta de pico/valle justo ahora |
-| **"Ver todas" de Experiencias** | `home_screen.dart:768` lleva a `/explorar`, la única pantalla que las excluye |
-| **Los ceros de las clases gratis** | Una clase de 0 no dice "gratis" en ningún lado: dice `0 cr`, `Reservar · 0 créditos` y `Canjear · 0 créditos`. **Para captar gente que baja la app sin comprar, esto no es cosmético** |
-| Cartel de lista de espera | `LISTA_ESPERA_arreglar_y_asegurar.md` |
-| Modo visita Pieza C | `MODO_VISITA_pieza_A.md` |
-| Limpieza de la foto de perfil | `DART_FOTO_PERFIL.md` |
-| Las 8 referencias a la columna fantasma | Después de borrarla en base |
-| Salir de las keys legacy | `SALIR_DE_KEYS_LEGACY.md` |
 
 ---
 
@@ -261,22 +269,13 @@ para todos los usuarios nuevos.**
 
 # Estado del repo al cerrar (2026-08-22)
 
-`main` sincronizado con `origin/main` en `8f5fae2`.
+`main` sincronizado. La tanda de pricing (4 migraciones) y la limpieza de
+reservas ya están **aplicadas en producción**; los archivos son el registro.
 
-**Sin commitear ni pushear — 6 archivos nuevos de esta sesión:**
+⚠️ **Verificar siempre contra la base, nunca contra los archivos.** Acá las
+migraciones se aplican a mano, así que un `.sql` en el repo no prueba que esté
+aplicado. Usar `pg_get_functiondef` / `pg_trigger` / `pg_constraint`. Ese error
+costó tres tropiezos esta semana. Ver `aura-sql-produccion-management-api`.
 
-```
-supabase/migrations/20260822140000_precio_cierra_bypass_tipo.sql
-supabase/migrations/20260822150000_precio_rechaza_estudio_sin_precio.sql
-supabase/migrations/20260822160000_precio_check_sanidad_creditos.sql
-supabase/migrations/20260822170000_precio_saca_default_10.sql
-supabase/MONITOREO_arbitraje_workshops.sql
-supabase/pendientes/DART_PENDIENTE_proximo_build.md
-```
-
-⚠️ **Los cuatro cambios de base YA ESTÁN APLICADOS en producción.** Los archivos
-son el registro, no la fuente. Si se pierden, la base igual quedó cambiada —
-por eso conviene commitearlos antes de cerrar.
-
-Documento de pricing con los tres modelos y las 7 decisiones de borde:
-https://claude.ai/code/artifact/2ce02720-525c-438e-b839-6d317f79e4b1
+Plan completo con las 8 áreas y el orden:
+https://claude.ai/code/artifact/85e0bcd6-dc65-4912-aae2-40371ad2e618
