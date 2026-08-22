@@ -1,4 +1,19 @@
-# 🔴 LO PRIMERO de la próxima sesión — farmeo del vencimiento por cancelación
+# ✅ CERRADO — farmeo del vencimiento por cancelación
+
+**ESTADO:** cerrado · **Verificado contra la base:** 2026-08-21
+
+Aplicado el 2026-08-21 en `supabase/FIX_FARMEO_VENCIMIENTO_2026-08-21.sql`.
+Verificado **12/12** contra producción, con rollback y midiendo efecto.
+Arrastró también los créditos eternos de `rollback_reserva`.
+
+Decisiones tomadas: (1) lote vencido se devuelve igual, en una fila nueva con
+la fecha original ya pasada — visible y no farmeable; (2) reservas anteriores
+usan el vencimiento más corto vivo; (3) FEFO, que ya era así.
+NO se tocó `estudio_cancelar_clase`: ahí cancela el estudio y la usuaria es la
+perjudicada.
+
+<details>
+<summary>El plan original (ya ejecutado)</summary>
 
 Fecha de la nota: 2026-08-21. **Todo servidor, NO necesita build.**
 Escrito para ejecutar sin re-pensar: el plan, el SQL y la verificación están
@@ -279,3 +294,5 @@ por el rollback.
 - **No aplicado.** Se decidió no hacer el parche a medias.
 - El código actual sigue renovando a 60 días en cada cancelación.
 - Todo el cambio es de base: **no requiere build ni pasar por las tiendas.**
+
+</details>
