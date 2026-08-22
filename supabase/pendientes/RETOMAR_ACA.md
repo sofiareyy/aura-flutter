@@ -31,24 +31,24 @@ las tablas públicas con RLS y todo lo sensible invisible para un anónimo —lo
 CBUs ni llegan a RLS, dan `permission denied` a nivel de grant—; y cero fallas
 de cron después del 21/8.
 
-## Los 6 hallazgos nuevos
+## Los 6 hallazgos nuevos — **3 ya resueltos**
 
-1. **Fuga en `admin_adjust_user_credits`.** Es la única función que escribe en
+1. ✅ **RESUELTO (22/8) · Fuga en `admin_adjust_user_credits`.** Es la única función que escribe en
    `creditos_movimientos` sin pasar por `grant_user_credits`, y mete
    `expires_at = null` hardcodeado: **cada crédito regalado a mano no vence
    nunca**. Hay 5 movimientos eternos, todos `source='manual'`, todos previos
    al fix, con **29 créditos vivos** (20 de `julietarey2002@gmail.com`).
-2. **La foto de perfil nunca se ejercitó.** Policies y buckets correctos
+2. ⬜ **Va al build de Dart · La foto de perfil nunca se ejercitó.** Policies y buckets correctos
    (`{userId}/...`, 10MB, `image/*`), pero **0 archivos y 0 `avatar_url`**.
    Está bien configurada; no está probada.
-3. **No hay policy de DELETE en `storage.objects`** para ningún bucket. El
+3. ⬜ **No hay policy de DELETE en `storage.objects`** para ningún bucket. El
    servidor borra (service_role saltea RLS), el cliente no.
-4. **Los 3 crons mensuales no corrieron desde el fix.** Últimas ejecuciones el
+4. ✅ **RESUELTO (22/8) · Los 3 crons mensuales no corrieron desde el fix.** Verificados en la Tanda 0; uno estaba roto y se arreglo. Últimas ejecuciones el
    1/8 y el 4/8, *antes* del 21/8. Y dos de ellos son los que le mandan mails a
    los estudios, con próxima corrida pegada al inicio del cobro.
-5. **`pack_credits_expiration`** está muerta con 3 sobrecargas de tipos
+5. ✅ **RESUELTO (22/8) · `pack_credits_expiration`** estaba muerta con 3 sobrecargas de tipos
    ambiguos y cero llamadores.
-6. **`vigencia_dias`** no se actualiza en `admin_upsert_pricing_pack`, así que
+6. ⬜ **Va en Tanda A (datos) · `vigencia_dias`** no se actualiza en `admin_upsert_pricing_pack`, así que
    se desincroniza de `vencimiento_dias` al editar un pack.
 
 **El patrón que comparten los tres con sustancia:** son puertas laterales que
@@ -66,134 +66,110 @@ la misma tabla.**
 
 # 🔴 ORDEN DE ARREGLO
 
-## Tanda 0 — antes del 1/9 · CERRADA salvo el aviso
+> **Estado al 22/8:** Tanda 0 ✅ cerrada (lo tecnico) · Tanda A ⬜ **4 de 9**
+> Los items de NEGOCIO estan al final, separados: los sigue la usuaria, no son
+> tareas tecnicas.
 
-1. ✅ **Los 3 crons mensuales, verificados el 22/8.**
-   `acreditar-creditos-corporativos` corrido de verdad: 200 OK, `{empresas:0}`.
-   Con eso quedo probado el camino cron → Vault → edge function, identico en
-   los tres. **`aviso-cobro-manana` estaba ROTO** y se arreglo (ver abajo).
-   `reporte-mensual-estudios` verificado por simulacion SQL y dry-run.
+---
 
-2. ✅ **Correo — resuelto SIN tocar DNS.**
-   El SPF que iba a agregar **ya existia**: Resend lo pone en
-   `send.somosaurapass.com`, no en el apex. Junto con el DKIM
-   (`resend._domainkey`) y el DMARC, la autenticacion estaba completa. Lo unico
-   roto era que `hola@somosaurapass.com` **no recibe** (apex sin MX, A de
-   GitHub Pages) y esa direccion figuraba en el pie de los mails.
-   Se cambio el pie a `aura.hola.app@gmail.com` —que ya era la direccion de
-   soporte de la app y la web, o sea que ademas **unifico** dos direcciones que
-   estaban peleadas— y se sumo `reply_to` en las 6 funciones. Sin DNS.
+## ✅ Tanda 0 — CERRADA
 
-3. ⬜ **Avisar el fin de la gracia.** Lo unico que queda. Citra el 13/9.
-   Ver `aura-avisar-fin-de-gracia` en memoria: 6 estudios entre el 13/9 y el
-   30/9, transicion automatica, falta la conversacion.
+| | Que | Resultado |
+|---|---|---|
+| ✅ | Los 3 crons mensuales | Verificados. `acreditar-creditos-corporativos` corrido de verdad (200 OK, `{empresas:0}`), con lo que quedo probado el camino cron → Vault → edge, identico en los tres. **`aviso-cobro-manana` estaba ROTO**: pedia `reservas.estudio_id`, que no existe, y fallaba en silencio con un 200. Arreglado y deployado. |
+| ✅ | Correo | Resuelto **sin tocar DNS**. El SPF ya existia en `send.somosaurapass.com`; lo unico roto era que `hola@somosaurapass.com` no recibe. Se cambio el pie de los mails a `aura.hola.app@gmail.com` (que ya usaban la app y la web) y se sumo `reply_to` en las 6 funciones. |
 
-### Lo que salio de la Tanda 0 y hay que tener presente
+---
 
-- **⬜ DECISION PENDIENTE: `email-confirmacion` NO esta deployada.** Existe en el
-  repo con su `reply_to` ya puesto, pero nunca se subio a produccion. Es la que
-  manda al USUARIO la confirmacion de su reserva.
-  **La pregunta de producto es si los usuarios deberian recibir esa
-  confirmacion.** Hoy no la reciben por mail (si ven la reserva y el QR en la
-  app). Antes de deployarla hay que decidir si se quiere ese mail, no subirla
-  solo porque el archivo existe. Anotado el 22/8, para otro momento.
-- **La trampa del `config.toml`:** aparecio dos veces. Una funcion no declarada
-  ahi cambia su `verify_jwt` en silencio al deployar. Quedaron declaradas
-  aviso-cobro-manana, reporte-mensual-estudios, aviso-alumnos-email y
-  email-regalo. **Antes de cualquier `functions deploy`, chequear que la
-  funcion este declarada.**
+## ⬜ Tanda A — el barrido de base · **4 de 9**
+
+### Hechas
+
+| | Que | Migracion |
+|---|---|---|
+| ✅ | **Fuga de `admin_adjust_user_credits`** — los creditos regalados a mano no vencian nunca. Parametro `p_dias` (default 90), compatible con la app sin build. Los 29 eternos resueltos: Julieta (clienta real) a 90 dias sin cambio visible para ella, las dos de prueba vencidas. **0 creditos eternos en toda la base.** | `20260822180000` |
+| ✅ | **`ensure_referral_code` con `search_path`** — era la ultima sin blindar. **94 de 94 SECURITY DEFINER blindadas.** | `20260822190000` |
+| ✅ | **Codigo muerto, 4 firmas** — `pack_credits_expiration` (3 sobrecargas ambiguas) y `admin_update_global_credit_value`. La nota vieja decia "0 llamadores" y era **falsa**: habia un wrapper en Dart. Se dropeo igual porque esta huerfano y porque asi falla con PGRST202 en vez de desincronizar en silencio. | `20260822190000` |
+| ✅ | **Indice `reservas_usuario_clase_uidx`** — excluia solo `'cancelada'` cuando hay DOS estados muertos. Sintoma: "ya reservaste" en una clase que el estudio te habia cancelado. | `20260822200000` |
+
+### Faltan — 5
+
+| | Que | Nota |
+|---|---|---|
+| ⬜ | **`expires_at NOT NULL`** en `creditos_movimientos` | Contraparte del item 1: cierra la puerta para que no vuelvan los eternos. `grant_user_credits` todavia acepta nulo. Ahora que la tabla no tiene ni uno, entra limpio. **El mas chico que queda.** Unica decision: si alguna vez querrias un credito deliberadamente eterno. |
+| ⬜ | **Etiquetas de Sculpt** (72 desincronizadas) | ⚠️ **Orden critico:** primero sacar el `v_tipo := 'normal'` hardcodeado de `generar_clases_estudio`, **DESPUES** el backfill. Al reves, el cron de las 03:00 las repone esa misma noche. |
+| ⬜ | **Whitelist de estados** | **Creció:** no es solo `estudios.estado`. `reservas.estado` **tampoco tiene CHECK** y acepta cualquier string — salio del arreglo del indice. Deberia cubrir las dos columnas. |
+| ⬜ | **Columna fantasma** `clases."lugares_ disponibles"` (con espacio) | La columna se borra en base ahora; las **8 referencias del Dart** esperan al build. |
+| ⬜ | **Datos** | Backfill de las 189 clases sin categoria · `creditos_por_categoria` legacy en `configuracion_global` · `vigencia_dias` que se desincroniza al editar un pack. |
+
+---
+
+## ⬜ Pendientes de NEGOCIO — los sigue la usuaria
+
+No son tareas tecnicas. Estan aca para que no se pierdan, no para que alguien
+las tome.
+
+| | Que | Cuando |
+|---|---|---|
+| ⬜ | **Avisar el fin de la gracia** | Citra el **13/9**. 6 estudios entre el 13/9 y el 30/9. La transicion es automatica; falta la conversacion. Ver `aura-avisar-fin-de-gracia` en memoria. |
+| ⬜ | **¿Los usuarios deberian recibir mail de confirmacion de reserva?** | `email-confirmacion` existe en el repo con su `reply_to` puesto, pero **nunca se deployo**. Hoy no reciben ese mail (si ven la reserva y el QR en la app). Es decision de producto, no se sube solo porque el archivo existe. |
+
+---
+
+## 💡 Cosas aprendidas que conviene no volver a descubrir
+
+- **La trampa del `config.toml`:** aparecio dos veces. Una edge function no
+  declarada ahi cambia su `verify_jwt` en silencio al deployar. Quedaron
+  declaradas `aviso-cobro-manana`, `reporte-mensual-estudios`,
+  `aviso-alumnos-email` y `email-regalo`. **Chequear antes de cada deploy.**
 - **Arranque en frio:** la primera invocacion despues de un deploy corta a los
   5s por el default de `pg_net`. No rompe el cron; para ver la respuesta hay
   que pasar `timeout_milliseconds := 30000`.
 - **Las 2 funciones de mail a estudios aceptan `{"dry_run": true}`**: arman el
   reporte y devuelven a quien le habrian escrito, sin mandar mail.
+- **No hay UI para editar packs.** `upsertPricingPack()` existe en
+  `admin_service.dart:662` y ninguna pantalla lo llama: hoy un pack suelto solo
+  se cambia por SQL. Ojo, subir el valor del credito desde `/admin/config` **ya
+  recalcula los 4 packs solo**; la UI haria falta solo para un precio que no
+  salga de la formula.
 
-## Tanda A — el barrido de base (1 sesión, sin decisiones)
-
-1. ✅ **HECHA (22/8) — la fuga de `admin_adjust_user_credits`.** Parametro
-   `p_dias` con default 90; compatible con la app sin build (verificado por
-   PostgREST). Los 29 eternos resueltos: Julieta (clienta real) a 90 dias sin
-   cambio visible para ella, las dos cuentas de prueba vencidas.
-   **0 creditos eternos en toda la base.** Migracion
-   `20260822180000_creditos_manuales_con_vencimiento.sql`.
-   ⬜ **Queda la puerta:** `grant_user_credits` sigue aceptando vencimiento
-   nulo. Ahora que la tabla no tiene ni un null, se puede poner
-   `expires_at NOT NULL` y cerrarla para siempre — mismo movimiento que el
-   CHECK de sanidad con los precios absurdos. Sumar a esta tanda.
-2. **Las etiquetas de Sculpt**: primero sacar el `v_tipo := 'normal'` hardcodeado
-   de `generar_clases_estudio`, **después** el backfill de las 72. En ese orden,
-   o el cron de las 03:00 las repone esa noche.
-3. ✅ **HECHA (22/8) — el indice `reservas_usuario_clase_uidx`.** Excluia solo
-   'cancelada' cuando hay DOS estados muertos, y `apply_reservation` ya usaba
-   los dos. Sintoma: "ya reservaste" en una clase que el estudio te habia
-   cancelado. Migracion `20260822200000`.
-   💡 Salio de ahi: **`reservas.estado` no tiene CHECK**, acepta cualquier
-   string. Si aparece un tercer estado muerto hay que acordarse de sumarlo al
-   indice. La whitelist de estados (item 5 de esta tanda) deberia cubrir
-   tambien `reservas.estado`, no solo `estudios.estado`.
-4. ✅ **HECHA (22/8) — `ensure_referral_code` con `search_path`.** Era la
-   ultima sin blindar. **Blindaje completo: 94 de 94 SECURITY DEFINER.**
-5. **Whitelist de estados** del estudio (no hay ningún CHECK).
-6. ✅ **HECHA (22/8) — codigo muerto, 4 firmas dropeadas.**
-   `pack_credits_expiration` (3 sobrecargas ambiguas, 0 llamadores en todos
-   lados) y `admin_update_global_credit_value`. **Ojo: la nota vieja decia "0
-   llamadores" y era falsa** — habia un wrapper en Dart. Se dropeo igual porque
-   el wrapper esta huerfano y porque asi falla con PGRST202 en vez de
-   desincronizar `configuracion_global` en silencio. El metodo Dart quedo
-   anotado en DART_PENDIENTE (item 5).
-7. **Columna fantasma** `clases."lugares_ disponibles"` (el Dart va después).
-8. **Datos:** backfill de las 189 clases sin categoría, `creditos_por_categoria`
-   legacy, y `vigencia_dias` en el upsert de packs.
-
-## Pendiente nuevo (22/8) — no hay UI para editar packs
-
-`admin_service.dart:662` tiene `upsertPricingPack()` y **ninguna pantalla lo
-llama**. Igual que el `updateGlobalCreditValue` que acabamos de matar: definido
-y huerfano. Hoy **los precios de packs solo se pueden cambiar por SQL**.
-
-No es un bug —el RPC `admin_upsert_pricing_pack` funciona y preserva el
-vencimiento— pero es una pieza faltante del backoffice, y es justo lo que
-despues se hace a mano y se olvida.
-
-Ojo con el matiz: subir `valor_credito_ars` desde `/admin/config` **ya
-recalcula los 4 packs solo**, via `recalc_pack_prices()`. La UI de packs haria
-falta para poner un precio distinto del que sale de la formula.
-
-## Como cambiar precios, referencia rapida
+## 📋 Como cambiar precios — referencia
 
 | Que | Donde | Que hace |
 |---|---|---|
-| **Valor del credito** | `/admin/config` | `admin_set_valor_credito_ars`: escribe `configuracion_global`, **recalcula los 4 packs** y actualiza `valor_credito` de los 9 estudios, todo en una transaccion |
+| **Valor del credito** | `/admin/config` | `admin_set_valor_credito_ars`: en UNA transaccion escribe `configuracion_global`, **recalcula los 4 packs** y actualiza el `valor_credito` de los 9 estudios. Por eso no puede desincronizar. |
 | **Precio de un estudio** (fijo o pico/valle) | Backoffice → Estudios → el estudio → **Precios** | `admin_set_pricing_estudio` + recalculo de sus clases |
 | **Precio de un pack puntual** | ⚠️ solo por SQL | `admin_upsert_pricing_pack`, sin pantalla |
 
 ⚠️ **`ConfiguracionScreen` (`lib/screens/perfil/configuracion_screen.dart`) NO
 tiene nada que ver con precios**: es la pantalla de ajustes de la usuaria
-(notificaciones). No tocarla. Lo que estaba huerfano era el metodo
+(notificaciones). **No tocarla.** Lo huerfano era el metodo
 `updateGlobalCreditValue`, anotado en DART_PENDIENTE item 5.
 
-## Tanda B — verificación de mail
+---
+
+## ⬜ Tanda B — verificación de mail
 Va **antes** del build: probablemente necesite una pantalla de "revisá tu mail",
 y descubrirlo después es perder el release. `mailer_autoconfirm = true`
 confirmado. **Medir antes de tocar el toggle** o rompés el registro de todos.
 
-## Tanda C — el build de Dart (todo junto, un release)
+## ⬜ Tanda C — el build de Dart (todo junto, un release)
 Encabeza **el texto de "gratis"** (captación). Detalle completo en
 `DART_PENDIENTE_proximo_build.md`. Sumar de la auditoría: **probar que la foto
 de perfil funcione de verdad**, porque no hay un solo archivo subido.
 
-## Tanda D — Modelo C → destraba los running clubs
+## ⬜ Tanda D — Modelo C → destraba los running clubs
 Ver `aura-running-club-caso-de-uso-modelo-c` en memoria. La excepción tiene que
 admitir cero y ser respetada por los **dos** triggers **y** por
 `generar_clases_estudio`, o el cron la pisa.
 
-## Tanda E — experiencias, esquema pesado y el resto
+## ⬜ Tanda E — experiencias, esquema pesado y el resto
 Experiencias (⚠️ hay **cero experiencias futuras**: decidir si el cuello es
 descubrimiento u oferta), preservar facturación (12 tablas CASCADE, incluidas
 `pagos` y `reservas`), keys legacy (sólo queda la `anon` de la app), y la firma
 del webhook de MP.
 
-## Mantenimiento
+## ⬜ Mantenimiento
 Sanear los docs de esta carpeta, y escribir el doc de eventos gratis (no existe;
 ya hay material: la medición end-to-end con saldo 0 está hecha).
 
@@ -344,8 +320,9 @@ para todos los usuarios nuevos.**
 
 # Estado del repo al cerrar (2026-08-22)
 
-`main` sincronizado. La tanda de pricing (4 migraciones) y la limpieza de
-reservas ya están **aplicadas en producción**; los archivos son el registro.
+`main` sincronizado. **Todo lo de esta sesion ya esta aplicado en produccion**
+(8 migraciones de base, la limpieza de reservas y 5 edge functions
+deployadas); los archivos del repo son el registro, no la fuente.
 
 ⚠️ **Verificar siempre contra la base, nunca contra los archivos.** Acá las
 migraciones se aplican a mano, así que un `.sql` en el repo no prueba que esté
