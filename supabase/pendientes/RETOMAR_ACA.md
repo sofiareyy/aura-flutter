@@ -66,7 +66,7 @@ la misma tabla.**
 
 # 🔴 ORDEN DE ARREGLO
 
-> **Estado al 22/8:** Tanda 0 ✅ cerrada (lo tecnico) · Tanda A ⬜ **4 de 9**
+> **Estado al 22/8:** Tanda 0 ✅ cerrada · Tanda A ✅ cerrada · sigue la **Tanda B**
 > Los items de NEGOCIO estan al final, separados: los sigue la usuaria, no son
 > tareas tecnicas.
 
@@ -81,7 +81,7 @@ la misma tabla.**
 
 ---
 
-## ⬜ Tanda A — el barrido de base · **8 de 9**
+## ✅ Tanda A — el barrido de base · **CERRADA (8 de 8)**
 
 ### Hechas
 
@@ -96,11 +96,11 @@ la misma tabla.**
 | ✅ | **`vigencia_dias` espejada** — el upsert de packs escribia solo `vencimiento_dias` y la primera edicion por RPC las hacia divergir. Ahora escribe las dos. **Ojo: el "item 7 · datos" del plan estaba mal descrito** como 3 correcciones de data rota; resultaron ser 3 cosas distintas (ver abajo). | `20260822220000` |
 | ✅ | **Indice `reservas_usuario_clase_uidx`** — excluia solo `'cancelada'` cuando hay DOS estados muertos. Sintoma: "ya reservaste" en una clase que el estudio te habia cancelado. | `20260822200000` |
 
-### Faltan — 5
+### Faltan — ninguna. Los dos que quedan abajo son decisiones, no tareas.
 
 | | Que | Nota |
 |---|---|---|
-| ⬜ | **`estudios.estado` sin CHECK** | Lo que queda del item de whitelist. Es el mas chico: acepta cualquier string. Va DESPUES del de reservas, ya hecho. |
+| — | ~~`estudios.estado` sin CHECK~~ | **NO EXISTE.** Era un error de lectura mio: el pendiente decia "estados del estudio" y yo lo lei como "de la tabla estudios". `WHITELIST_ESTADOS_ESTUDIO.md` se titula textual *"whitelist de estados que el estudio puede poner en reservas"* — o sea, lo que ya se arreglo. La tabla `estudios` no tiene columna `estado`, tiene `activo` (booleano). Mi chequeo de "no tiene CHECK" era trivialmente cierto: no hay constraint sobre una columna inexistente. |
 | ⬜ | **Columna fantasma** `clases."lugares_ disponibles"` (con espacio) | La columna se borra en base ahora; las **8 referencias del Dart** esperan al build. |
 
 
