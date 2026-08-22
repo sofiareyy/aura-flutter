@@ -81,7 +81,7 @@ la misma tabla.**
 
 ---
 
-## ⬜ Tanda A — el barrido de base · **7 de 8**
+## ⬜ Tanda A — el barrido de base · **8 de 9**
 
 ### Hechas
 
@@ -92,6 +92,7 @@ la misma tabla.**
 | ✅ | **Codigo muerto, 4 firmas** — `pack_credits_expiration` (3 sobrecargas ambiguas) y `admin_update_global_credit_value`. La nota vieja decia "0 llamadores" y era **falsa**: habia un wrapper en Dart. Se dropeo igual porque esta huerfano y porque asi falla con PGRST202 en vez de desincronizar en silencio. | `20260822190000` |
 | ✅ | **`expires_at NOT NULL`** en `creditos_movimientos` — cierra la tabla para que no vuelvan los eternos por ningun camino, ni siquiera por SQL. Relevado antes: solo 2 funciones insertan y las 9 llamadas pasan vencimiento. | `20260822210000` |
 | ✅ | **Etiquetas de la grilla** — `generar_clases_estudio` hacia `v_tipo := 'normal'` hardcodeado y esa rama corria SIEMPRE, asi que toda clase generada nacia mal etiquetada. Se arreglo la funcion y DESPUES se backfillearon las 72 de Sculpt (54 valle, 18 pico). Creditos sin tocar. Probado simulando el cron: 41 clases nuevas, 0 mal etiquetadas. | `20260822210000` |
+| ✅ | **El estudio no puede resucitar reservas canceladas** — podia dar vuelta `cancelada` → `presente` e inflar su propia liquidacion (`presente` es liquidable). Guarda quirurgica en el trigger que ya existia: el escaner completo sigue andando, incluido el "deshacer". Se complementa con el arreglo del indice: la alumna puede re-reservar. | `20260822230000` |
 | ✅ | **`vigencia_dias` espejada** — el upsert de packs escribia solo `vencimiento_dias` y la primera edicion por RPC las hacia divergir. Ahora escribe las dos. **Ojo: el "item 7 · datos" del plan estaba mal descrito** como 3 correcciones de data rota; resultaron ser 3 cosas distintas (ver abajo). | `20260822220000` |
 | ✅ | **Indice `reservas_usuario_clase_uidx`** — excluia solo `'cancelada'` cuando hay DOS estados muertos. Sintoma: "ya reservaste" en una clase que el estudio te habia cancelado. | `20260822200000` |
 
@@ -99,9 +100,19 @@ la misma tabla.**
 
 | | Que | Nota |
 |---|---|---|
-| ⬜ | **Whitelist de estados** | **Creció:** no es solo `estudios.estado`. `reservas.estado` **tampoco tiene CHECK** y acepta cualquier string — salio del arreglo del indice. Deberia cubrir las dos columnas. |
+| ⬜ | **`estudios.estado` sin CHECK** | Lo que queda del item de whitelist. Es el mas chico: acepta cualquier string. Va DESPUES del de reservas, ya hecho. |
 | ⬜ | **Columna fantasma** `clases."lugares_ disponibles"` (con espacio) | La columna se borra en base ahora; las **8 referencias del Dart** esperan al build. |
 
+
+### ⬜ Pendiente nuevo — log de cambios de estado en `reservas`
+
+`reservas` **no tiene historial de cambios de `estado`**. La guarda del
+22/8 PREVIENE que un estudio resucite una reserva cancelada, pero sin log no
+hay forma de DETECTAR abuso a posteriori por otros caminos.
+
+**Decision de la usuaria (22/8): no ahora.** Hoy prevenir alcanza — 6 estudios
+reales, todos conocidos, y la liquidacion practicamente no mueve plata todavia
+(1 reserva facturable en total). Retomar cuando haya volumen real.
 
 ### ⚠️ El "item 7 · datos" no existia como tal
 
