@@ -15,11 +15,18 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // ── Modo prueba ───────────────────────────────────────────────────────────
+  // Con {"dry_run": true} arma TODO el reporte y devuelve a quien le habria
+  // escrito, pero no manda un solo mail. El cron postea `{}`, asi que el
+  // default es false y el comportamiento normal no cambia.
+  const payload = await req.json().catch(() => ({})) as Record<string, unknown>
+  const dryRun = payload?.dry_run === true
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
 
-  if (!resendApiKey) {
+  if (!resendApiKey && !dryRun) {
     console.error('reporte-mensual-estudios: RESEND_API_KEY no configurada')
     return json({ error: 'RESEND_API_KEY no configurada' }, 500)
   }
@@ -106,14 +113,14 @@ Deno.serve(async (req: Request) => {
   // ── Obtener reservas del mes anterior ─────────────────────────────────────
   // OJO: la tabla `reservas` NO tiene columna estudio_id. El estudio se obtiene
   // vía clase: reservas.clase_id -> clases.estudio_id (ver claseEstudioMap).
-  const { data: reservasMesAnterior } = await adminSupabase
+  const { data: reservasMesAnterior, error: reservasErr } = await adminSupabase
     .from('reservas')
     .select('creditos_usados, estado, clase_id, usuario_id, created_at')
     .gte('created_at', inicioMesAnterior)
     .lte('created_at', finMesAnterior)
 
   // ── Obtener reservas del mes dos atrás (para comparación) ─────────────────
-  const { data: reservasMesDosAtras } = await adminSupabase
+  const { data: reservasMesDosAtras, error: reservas2Err } = await adminSupabase
     .from('reservas')
     .select('clase_id')
     // Incluye 'ausente' y 'completada': son reservas que el estudio cobra.
@@ -124,18 +131,33 @@ Deno.serve(async (req: Request) => {
     .lte('created_at', finMesDosAtras)
 
   // ── Obtener clases del mes anterior (para hora pico) ──────────────────────
-  const { data: clasesDelMes } = await adminSupabase
+  const { data: clasesDelMes, error: clasesErr } = await adminSupabase
     .from('clases')
     .select('id, nombre, estudio_id, fecha, tipo')
     .gte('fecha', inicioMesAnterior)
     .lte('fecha', finMesAnterior)
 
   // Valor global del crédito (fallback si el estudio no tiene el suyo).
-  const { data: cfgVal } = await adminSupabase
+  const { data: cfgVal, error: cfgErr } = await adminSupabase
     .from('configuracion_global')
     .select('valor')
     .eq('clave', 'valor_credito_ars')
     .maybeSingle()
+  // Fail-LOUD: si alguna consulta rompio, cortamos con 500 en vez de seguir con
+  // listas vacias y terminar en un 200 que no manda nada. Ese fallo silencioso
+  // es lo que tuvo a aviso-cobro-manana sin mandar avisos sin que se notara.
+  const fallas = [
+    ['reservas_mes_anterior', reservasErr],
+    ['reservas_mes_dos_atras', reservas2Err],
+    ['clases_del_mes', clasesErr],
+    ['configuracion_global', cfgErr],
+  ].filter(([, e]) => e) as Array<[string, { message: string }]>
+  if (fallas.length) {
+    const detalle = fallas.map(([q, e]) => `${q}: ${e.message}`).join(' | ')
+    console.error('reporte-mensual-estudios: consultas fallidas →', detalle)
+    return json({ error: 'Error obteniendo datos del reporte', detail: detalle }, 500)
+  }
+
   const valorGlobal = parseInt(String(cfgVal?.valor ?? '1000'), 10) || 1000
 
   const claseMap: Record<number, { nombre: string; estudio_id: number; hora: number; tipo: string }> = {}
@@ -350,6 +372,16 @@ Deno.serve(async (req: Request) => {
       nombreMes: nombreMesAnterior,
     })
 
+    // Modo prueba: el reporte ya esta armado, pero no se manda.
+    if (dryRun) {
+      resultados.push({
+        estudio: estudio.nombre as string,
+        enviado: false,
+        motivo: `dry_run — habria escrito a ${adminEmail}`,
+      })
+      continue
+    }
+
     try {
       const resendRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -380,10 +412,13 @@ Deno.serve(async (req: Request) => {
 
   const enviados = resultados.filter((r) => r.enviado).length
   const omitidos = resultados.filter((r) => !r.enviado && r.motivo === 'sin_reservas').length
-  const errores = resultados.filter((r) => !r.enviado && r.motivo !== 'sin_reservas').length
+  const simulados = resultados.filter((r) => (r.motivo ?? '').startsWith('dry_run')).length
+  const errores = resultados.filter((r) =>
+    !r.enviado && r.motivo !== 'sin_reservas' && !(r.motivo ?? '').startsWith('dry_run')
+  ).length
 
-  console.log(`reporte-mensual-estudios: ${enviados} enviados, ${omitidos} sin reservas, ${errores} errores`)
-  return json({ ok: true, enviados, omitidos, errores, detalle: resultados })
+  console.log(`reporte-mensual-estudios${dryRun ? ' [DRY RUN]' : ''}: ${enviados} enviados, ${simulados} simulados, ${omitidos} sin reservas, ${errores} errores`)
+  return json({ ok: true, dry_run: dryRun, enviados, simulados, omitidos, errores, detalle: resultados })
 })
 
 // ── Builder de HTML ───────────────────────────────────────────────────────────

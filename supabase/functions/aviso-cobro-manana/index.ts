@@ -16,11 +16,19 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // ── Modo prueba ───────────────────────────────────────────────────────────
+  // Con {"dry_run": true} arma TODO el reporte y devuelve a quién le habría
+  // escrito, pero no manda un solo mail. Sirve para verificar la función sin
+  // mailear a los estudios reales. El cron postea `{}`, así que el default es
+  // false y el comportamiento normal no cambia.
+  const payload = await req.json().catch(() => ({})) as Record<string, unknown>
+  const dryRun = payload?.dry_run === true
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
 
-  if (!resendApiKey) {
+  if (!resendApiKey && !dryRun) {
     console.error('aviso-cobro-manana: RESEND_API_KEY no configurada')
     return json({ error: 'RESEND_API_KEY no configurada' }, 500)
   }
@@ -93,9 +101,15 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── Obtener todas las reservas del mes de una vez ─────────────────────────
-  const { data: todasReservas } = await adminSupabase
+  // OJO: `reservas` NO tiene columna estudio_id. El estudio sale de la clase,
+  // igual que en reporte-mensual-estudios. Antes esto pedía `estudio_id` a
+  // `reservas` y PostgREST devolvía 42703; como el error no se capturaba, la
+  // función seguía con la lista vacía, todos los montos daban 0, el guard de
+  // `montoNeto === 0` salteaba a todos los estudios y terminaba con un 200
+  // sin haber mandado un solo mail. El cron lo anotaba como éxito.
+  const { data: todasReservas, error: reservasErr } = await adminSupabase
     .from('reservas')
-    .select('estado, estudio_id, creditos_usados, clases!reservas_clase_id_fkey(tipo)')
+    .select('estado, creditos_usados, clase_id, clases!reservas_clase_id_fkey(estudio_id, tipo)')
     // 'ausente' liquida igual: el credito se consumio al reservar y no vuelve.
     // 'completada' es obligatorio: el cron completar-reservas mueve ahi las
     // reservas apenas termina la clase. Sin eso, no se cobraria casi nada.
@@ -103,12 +117,23 @@ Deno.serve(async (req: Request) => {
     .gte('created_at', inicioMes)
     .lte('created_at', finMes)
 
+  // Fail-LOUD: si la consulta de reservas rompe, cortamos con 500 en vez de
+  // seguir con la lista vacía. El cron registra la falla y se ve.
+  if (reservasErr) {
+    console.error('aviso-cobro-manana: error obteniendo reservas:', reservasErr.message)
+    return json({ error: 'Error obteniendo reservas', detail: reservasErr.message }, 500)
+  }
+
   // Valor global del crédito (fallback si el estudio no tiene el suyo).
-  const { data: cfg } = await adminSupabase
+  const { data: cfg, error: cfgErr } = await adminSupabase
     .from('configuracion_global')
     .select('valor')
     .eq('clave', 'valor_credito_ars')
     .maybeSingle()
+  if (cfgErr) {
+    console.error('aviso-cobro-manana: error leyendo valor_credito_ars:', cfgErr.message)
+    return json({ error: 'Error leyendo configuracion_global', detail: cfgErr.message }, 500)
+  }
   const valorGlobal = parseInt(String(cfg?.valor ?? '1000'), 10) || 1000
 
   const estudioPorId: Record<number, any> = {}
@@ -119,11 +144,11 @@ Deno.serve(async (req: Request) => {
   const brutoPorEstudio: Record<number, number> = {}
   const reservasPorEstudio: Record<number, number> = {}
   for (const r of (todasReservas ?? [])) {
-    const esId = r.estudio_id as number
+    const clase = r.clases as { estudio_id?: number; tipo?: string } | null
+    const esId = clase?.estudio_id as number
     if (!esId) continue
     const est = estudioPorId[esId]
-    const esWorkshop =
-      (r.clases as { tipo?: string } | null)?.tipo === 'workshop'
+    const esWorkshop = clase?.tipo === 'workshop'
     netoPorEstudio[esId] = (netoPorEstudio[esId] ?? 0) + netoReserva(
       { estado: r.estado, creditos_usados: r.creditos_usados, esWorkshop },
       est,
@@ -193,6 +218,17 @@ Deno.serve(async (req: Request) => {
       nombreMes,
     })
 
+    // Modo prueba: llegamos hasta acá con el HTML ya armado, pero no se manda.
+    if (dryRun) {
+      resultados.push({
+        estudio: estudio.nombre as string,
+        enviado: false,
+        monto: montoNeto,
+        motivo: `dry_run — habria escrito a ${adminEmail}`,
+      })
+      continue
+    }
+
     try {
       const resendRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -223,10 +259,19 @@ Deno.serve(async (req: Request) => {
 
   const enviados = resultados.filter((r) => r.enviado).length
   const omitidos = resultados.filter((r) => !r.enviado && r.monto === 0).length
-  const errores = resultados.filter((r) => !r.enviado && r.monto > 0).length
+  // En dry_run los que "habrían salido" no son errores: se cuentan aparte.
+  const simulados = dryRun
+    ? resultados.filter((r) => !r.enviado && r.monto > 0).length
+    : 0
+  const errores = dryRun
+    ? 0
+    : resultados.filter((r) => !r.enviado && r.monto > 0).length
 
-  console.log(`aviso-cobro-manana: ${enviados} enviados, ${omitidos} sin reservas, ${errores} errores`)
-  return json({ ok: true, enviados, omitidos, errores, detalle: resultados })
+  console.log(
+    `aviso-cobro-manana${dryRun ? ' [DRY RUN]' : ''}: ${enviados} enviados, ` +
+      `${simulados} simulados, ${omitidos} sin reservas, ${errores} errores`,
+  )
+  return json({ ok: true, dry_run: dryRun, enviados, simulados, omitidos, errores, detalle: resultados })
 })
 
 // ── Builder de HTML ───────────────────────────────────────────────────────────

@@ -431,6 +431,22 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/acreditar-creditos-corporativos/index.ts"
 
+# Los dos mails mensuales a estudios. OJO: van con verify_jwt = TRUE, distinto
+# del resto de los crons. Funciona porque la service_role key que manda pg_cron
+# es un JWT valido del proyecto y pasa el gateway. Se declaran explicitos para
+# que un `functions deploy` no les cambie el valor en silencio: son los dos que
+# le escriben a los estudios y no queremos enterarnos el dia 1.
+# Ambas aceptan {"dry_run": true} en el body para probar sin mandar mail.
+[functions.aviso-cobro-manana]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/aviso-cobro-manana/index.ts"
+
+[functions.reporte-mensual-estudios]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/reporte-mensual-estudios/index.ts"
+
 # Webhook de Mercado Pago (MP no envía JWT de usuario; valida por firma HMAC).
 [functions.mp-webhook]
 enabled = true
