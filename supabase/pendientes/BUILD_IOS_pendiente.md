@@ -9,7 +9,22 @@
 | `1.0.5+21` | Precios nuevos de packs y planes, precio decidido en el servidor (`c8c7497`) | compilado; no se pudo confirmar si se subió |
 | `1.0.6+23` | Se compiló el 2026-08-14 con los precios. **No quedó registrado si se subió** — por eso se saltó al 24 | ⚠️ número consumido |
 | `1.0.6+24` | Precios + los 5 fixes de Dart de abajo + `MinimumOSVersion 15` | subido a App Store Connect el 2026-08-18 ✅ |
-| **`1.0.6+25`** | Push (FCM) en Android e iOS · force-update · modo visita · lista de espera · fixes de seguridad de base | 🔨 **en preparación** — número reservado el 2026-08-21 |
+| **`1.0.6+25`** | Push (FCM) en Android e iOS · force-update · modo visita · lista de espera · fixes de seguridad de base | ⚠️ **ESTADO DESCONOCIDO** — ver nota del 22/8 |
+
+### ⚠️ Nota del 2026-08-22 — no se sabe si el 25 se subió
+
+Este archivo decía "en preparación, número reservado el 21/8". Pero
+`RETOMAR_ACA.md` traía la frase "Builds 1.0.6+25 enviados a revisión en App
+Store y Google Play". **Las dos no pueden ser ciertas.**
+
+Desde el repo no se puede resolver: `pubspec.yaml` quedó en `1.0.6+25`
+commiteado el 21/8 "para el build de push", y ningún commit posterior menciona
+haberlo subido. Hay que mirar **App Store Connect y Play Console**.
+
+**Es la segunda vez que pasa.** El número 23 se perdió exactamente así. La
+regla de abajo existe justamente para esto y no se siguió.
+
+Cuando se confirme, actualizar esta fila y borrar esta nota.
 
 ### Notas del 1.0.6+25 (2026-08-21)
 
