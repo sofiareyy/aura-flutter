@@ -98,6 +98,7 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         from: FROM_EMAIL,
+        reply_to: 'aura.hola.app@gmail.com',
         to: user.email,
         subject: `Reserva confirmada - ${clase_nombre}`,
         html,

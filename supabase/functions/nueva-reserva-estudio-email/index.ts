@@ -146,7 +146,7 @@ Deno.serve(async (req: Request) => {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from: FROM_EMAIL, to: destinatarios, subject, html }),
+      body: JSON.stringify({ from: FROM_EMAIL, reply_to: 'aura.hola.app@gmail.com', to: destinatarios, subject, html }),
     })
 
     if (!res.ok) {

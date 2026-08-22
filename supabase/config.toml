@@ -437,6 +437,19 @@ entrypoint = "./functions/acreditar-creditos-corporativos/index.ts"
 # que un `functions deploy` no les cambie el valor en silencio: son los dos que
 # le escriben a los estudios y no queremos enterarnos el dia 1.
 # Ambas aceptan {"dry_run": true} en el body para probar sin mandar mail.
+# Mails transaccionales que tampoco estaban declarados. verify_jwt = true es
+# el valor que YA tenian en produccion al 22/8; se fijan para que un deploy no
+# se los cambie en silencio.
+[functions.aviso-alumnos-email]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/aviso-alumnos-email/index.ts"
+
+[functions.email-regalo]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/email-regalo/index.ts"
+
 [functions.aviso-cobro-manana]
 enabled = true
 verify_jwt = true

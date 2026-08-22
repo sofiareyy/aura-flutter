@@ -74,6 +74,7 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         from: FROM_EMAIL,
+        reply_to: 'aura.hola.app@gmail.com',
         to: String(destinatario_email).toLowerCase(),
         subject,
         html,

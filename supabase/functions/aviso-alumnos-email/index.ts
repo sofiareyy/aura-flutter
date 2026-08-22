@@ -182,6 +182,7 @@ Deno.serve(async (req: Request) => {
         },
         body: JSON.stringify({
           from: FROM_EMAIL,
+        reply_to: 'aura.hola.app@gmail.com',
           // `bcc` para que las alumnas no vean los mails de las demas.
           to: FROM_EMAIL,
           bcc: lote,
