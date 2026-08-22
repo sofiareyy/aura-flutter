@@ -81,7 +81,7 @@ la misma tabla.**
 
 ---
 
-## ⬜ Tanda A — el barrido de base · **6 de 9**
+## ⬜ Tanda A — el barrido de base · **7 de 8**
 
 ### Hechas
 
@@ -92,6 +92,7 @@ la misma tabla.**
 | ✅ | **Codigo muerto, 4 firmas** — `pack_credits_expiration` (3 sobrecargas ambiguas) y `admin_update_global_credit_value`. La nota vieja decia "0 llamadores" y era **falsa**: habia un wrapper en Dart. Se dropeo igual porque esta huerfano y porque asi falla con PGRST202 en vez de desincronizar en silencio. | `20260822190000` |
 | ✅ | **`expires_at NOT NULL`** en `creditos_movimientos` — cierra la tabla para que no vuelvan los eternos por ningun camino, ni siquiera por SQL. Relevado antes: solo 2 funciones insertan y las 9 llamadas pasan vencimiento. | `20260822210000` |
 | ✅ | **Etiquetas de la grilla** — `generar_clases_estudio` hacia `v_tipo := 'normal'` hardcodeado y esa rama corria SIEMPRE, asi que toda clase generada nacia mal etiquetada. Se arreglo la funcion y DESPUES se backfillearon las 72 de Sculpt (54 valle, 18 pico). Creditos sin tocar. Probado simulando el cron: 41 clases nuevas, 0 mal etiquetadas. | `20260822210000` |
+| ✅ | **`vigencia_dias` espejada** — el upsert de packs escribia solo `vencimiento_dias` y la primera edicion por RPC las hacia divergir. Ahora escribe las dos. **Ojo: el "item 7 · datos" del plan estaba mal descrito** como 3 correcciones de data rota; resultaron ser 3 cosas distintas (ver abajo). | `20260822220000` |
 | ✅ | **Indice `reservas_usuario_clase_uidx`** — excluia solo `'cancelada'` cuando hay DOS estados muertos. Sintoma: "ya reservaste" en una clase que el estudio te habia cancelado. | `20260822200000` |
 
 ### Faltan — 5
@@ -100,7 +101,31 @@ la misma tabla.**
 |---|---|---|
 | ⬜ | **Whitelist de estados** | **Creció:** no es solo `estudios.estado`. `reservas.estado` **tampoco tiene CHECK** y acepta cualquier string — salio del arreglo del indice. Deberia cubrir las dos columnas. |
 | ⬜ | **Columna fantasma** `clases."lugares_ disponibles"` (con espacio) | La columna se borra en base ahora; las **8 referencias del Dart** esperan al build. |
-| ⬜ | **Datos** | Backfill de las 189 clases sin categoria · `creditos_por_categoria` legacy en `configuracion_global` · `vigencia_dias` que se desincroniza al editar un pack. |
+
+
+### ⚠️ El "item 7 · datos" no existia como tal
+
+El plan lo describia como "3 correcciones de data rota". Aplicando el filtro
+—¿es decision del estudio, o data rota que nadie decidio?— resultaron ser tres
+cosas de naturaleza distinta:
+
+| | Que era en realidad | Que se hizo |
+|---|---|---|
+| **7a** · 189 clases sin categoria | **Decision del ESTUDIO.** Se verifico que la propagacion de la grilla funciona: correlacion perfecta en 30 horarios fijos, los que tienen categoria se la pasan a sus clases y los que no, no. No es un bug del sistema: son estudios que no la cargaron. | **FRENADO.** Las categorias las eligen los estudios, clase por clase. No se rellenan por ellos. |
+| **7b** · `creditos_por_categoria` | **Archivo historico a proposito.** La migracion `20260721180000` dice: "la dejamos en configuracion_global por si hay que auditarla". | **SE DEJA.** Borrarla seria revertir una decision, no corregir un error. |
+| **7c** · `vigencia_dias` | **Riesgo real** sobre una decision ya tomada: se eligio conservar la columna igualada, pero el upsert no la escribia. | **HECHO.** `20260822220000`. |
+
+**Lo accionable de "los datos" era una sola linea.**
+
+💡 Pero salio un pendiente de producto: **el formulario de grilla NO exige
+categoria.** El widget muestra "Elegi al menos una" como sugerencia y la unica
+validacion al guardar es que el nombre no este vacio. Por eso hay 189 clases
+sin categoria: el sistema lo deja pasar en silencio y el estudio no se entera
+de que importa. Dos caminos, los dos de la usuaria: que el form la exija (Dart,
+al build) o avisarle a Yessi y Ambra que las completen desde su panel.
+
+💡 Y un detalle cosmetico: **24 clases de Yessi se llaman "Fumcional"**, con
+eme. Typo del estudio, visible para las usuarias.
 
 ---
 
