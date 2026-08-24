@@ -1,6 +1,6 @@
 # 👉 RETOMAR ACÁ
 
-**Verificado contra la base:** 2026-08-22 · **Único lugar donde viven los pendientes.**
+**Verificado contra la base:** 2026-08-24 · **Único lugar donde viven los pendientes.**
 
 ---
 
@@ -12,6 +12,7 @@
 | ✅ | **Tanda 0** — crons + correo | cerrada |
 | ✅ | **Tanda A** — barrido de base (8 items) | cerrada |
 | ⏭️ | **Tanda B** — verificación de mail | **salteada por decisión**: se activa cuando entre la primera empresa |
+| 🔴 | **Auditar la tanda de guards del 20/8 entera** | **lo primero** · se validó mal (ver abajo) |
 | ⬜ | **Tanda C** — build de Dart (13 items) | **lo próximo** · bloqueada por saber si el build 25 se subió |
 | ⬜ | **Tanda D** — Modelo C de precios | arrancar por el DISEÑO de reglas, no por código |
 | ⬜ | **Tanda E** — experiencias, esquema pesado, keys legacy | |
@@ -19,12 +20,60 @@
 
 ### ⚠️ Lo primero al retomar
 
+**🔴 Auditar los 5 guards del 20/8 con el criterio de LAS DOS PUNTAS.**
+`FIX_GUARDS_CUERPO.sql` (commit `f4ba3dd`) se verificó midiendo **solo si el
+exploit quedaba cerrado**. Nunca se midió que el usuario legítimo siguiera
+pudiendo llamar la función. **Dos de los cinco estaban rotos en producción** y
+nadie lo vio durante 4 días, porque la verificación se hizo con
+`test@aura.com`, que es superadmin y satisface `is_admin()`.
+
+Los 4 arreglos ya salieron el 24/8 (ver abajo), pero **la lección aplica a toda
+la tanda y a las que vengan**: ningún guard cuenta como verificado hasta probar
+que un estudio real, una profe y una alumna común siguen pudiendo hacer su
+trabajo. **Probar SIEMPRE con una cuenta de estudio real, nunca con
+`test@aura.com`.** Falta repasar con este criterio el resto de las funciones
+endurecidas en `FIX_AMARILLAS_AUDITORIA.sql` (la tanda de grants anterior), que
+tiene el mismo problema de origen.
+
+
 **Averiguar si el build `1.0.6+25` se subió a las tiendas.** Los registros se
 contradicen: `BUILD_IOS_pendiente.md` dice *"en preparación, número reservado
 el 21/8"*, y una nota vieja de este archivo decía *"enviado a revisión"*. No se
 puede saber desde el repo — hay que mirar App Store Connect y Play Console.
 Si nunca se subió, la Tanda C sale en el 25 y no se quema otro número.
 Es la segunda vez que pasa: el número 23 ya se perdió así.
+
+---
+
+# ✅ HECHO EL 2026-08-24 — incidente: los guards del 20/8
+
+Disparado por **YN Pilates**, que no podía cargar clases desde el teléfono:
+`PostgresException, message: "no autorizado", code: P0001`. No era config de ese
+estudio: **estaba roto para los 11**.
+
+Todo se aplicó a mano vía Management API. **Sin Dart ⇒ sin build.**
+SQL completo con el porqué de cada decisión:
+`supabase/FIX_GUARDS_20-8_MAL_VALIDADOS_2026-08-24.sql`.
+
+| | Qué | Medición |
+|---|---|---|
+| ✅ | **GUARD 4 · `admin_list_studio_categories`** — el `is_admin()` del 20/8 rompía el panel de **todos** los estudios: `mis_clases_screen.dart` llama esa RPC para el selector de categorías (líneas 1186 y 208). Aflojado a `if auth.uid() is null`. Seguro porque `study_categories` ya tiene RLS SELECT `using (true)`. | 15 de 15 cuentas de estudio rechazadas → **21 de 21 pasan**, 13 categorías. anon → 42501; sin `auth.uid()` → P0001. |
+| ✅ | **`estudio_cancelar_clase`** — le pasaba `reservas.creditos_usados` (**bigint**) a `grant_user_credits(p_amount integer)` ⇒ `42883`. Roto para todos, superadmin incluido. Casteado a `::int`. **No venía del 20/8**, pero tapaba al guard 5. | 42883 → **ok, 1 reserva cancelada, 10 créditos devueltos**. |
+| ✅ | **GUARD 5 · `refresh_user_credit_balance`** — volteaba la devolución cuando el estudio cancelaba: `estudio_cancelar_clase` → `grant_user_credits(alumna)` → `refresh(alumna)` ⇒ P0001 y se caía la transacción entera: **nadie recuperaba créditos**. El recálculo se mudó a `_refresh_user_credit_balance_interno`, sin guard pero **revocada de anon/authenticated**; la RPC pública conserva el guard del 20/8 intacto. | saldo de la alumna **0 → 10**, reserva en `cancelada_por_estudio`, 1 lote. Saldo ajeno → P0001. Interno desde PostgREST → 42501. `cancelar_mi_reserva` → ok. |
+| ✅ | **GUARD 1 · lista de espera** — la profe **nunca** se enteraba de las reservas que entraban por waitlist. No era el guard: `_waitlist_promote_interno` simplemente no cableaba el aviso (solo lo nombraba en un comentario). Cableado contra el interno, en bloque propio para que un fallo del aviso no voltee la promoción. | `aviso_a_la_profe` **0 → 1**, el aviso a la promovida sigue en 1, la reserva directa sigue avisando 1, la suplantación sigue en 0. |
+
+**Guards 2 y 3 (`ensure_referral_code`, `avisos_generales_restantes`): sanos en
+las dos puntas**, medidos. La dueña y la profe pasan; la usuaria ajena no.
+
+**Caminos de créditos a terceros revisados y a salvo:** `canjear_regalo`
+acredita a `auth.uid()`; `activar_referido_por_compra` le da al referidor pero
+lo disparan `mp-webhook` y `confirmar-pago-manual` con service_role
+(`auth.uid()` null, que el guard deja pasar a propósito).
+
+**Números de la base al cierre del 24/8:** 937 clases · 70 horarios fijos ·
+4 reservas · 11 estudios · 15 movimientos de crédito · 63 créditos en circulación.
+Todas las pruebas corrieron en transacciones con `rollback`; se verificó que
+quedaran **0 filas de prueba**.
 
 ---
 
