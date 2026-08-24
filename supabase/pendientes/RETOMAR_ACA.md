@@ -387,6 +387,49 @@ tres son Dart puro, ninguno es un guard ni toca la base)
 cartel de espera muestra la posición exacta · si debe existir el mail de
 confirmación de reserva.
 
+## 📘 Para el instructivo de los estudios
+
+Material ya relevado y verificado contra la base. Falta redactarlo y darle
+formato; el contenido está.
+
+**Cómo editar**
+
+> **Clase suelta.** Tocá la clase en "Clases cargadas" y apretá **Editar**.
+> Podés cambiar todo, incluidos **fecha y hora**. Si subís los cupos, la lista
+> de espera se promueve sola.
+>
+> **Grilla (horario fijo).** Editala tranquila: la profe, el nombre, los cupos,
+> los créditos y también **el día y la hora**. Todas las clases futuras ya
+> publicadas se actualizan y se mueven solas; las que ya pasaron no se tocan.
+> Si el horario nuevo cae en otra franja, el precio se ajusta solo.
+>
+> **Workshop / experiencia.** Se edita como una clase suelta: nombre, profe,
+> fecha, hora, cupos y precio. ⚠️ La **descripción larga, la dirección y los
+> organizadores** todavía no se pueden editar — para cambiarlos hay que
+> borrarlo y volver a crearlo. (Se arregla en el build, item 15.)
+
+**FAQ — “¿Por qué me figura en la liquidación una clase que todavía no pasó?”**
+
+> Porque el crédito ya se descontó. Cuando una alumna reserva, sus créditos
+> salen de su cuenta en ese momento, no el día de la clase. Por eso la reserva
+> entra en tu liquidación apenas queda **confirmada**.
+>
+> Si la alumna cancela **dentro del plazo** (12 horas antes por defecto), la
+> reserva pasa a cancelada, ella recupera sus créditos y **deja de figurar**.
+> Si cancela tarde o no viene, la reserva sigue contando y vos la cobrás.
+>
+> Los estados que se liquidan son: confirmada, presente, ausente y completada.
+> No se liquidan: cancelada ni cancelada por el estudio.
+
+**Qué NO se puede hacer, y por qué** (por si un estudio pregunta)
+
+> · **Borrar una clase con alumnas anotadas.** Hay que cancelarla primero: así
+>   les devolvemos los créditos y les avisamos. Después sí se puede borrar.
+> · **Borrar una clase que ya tomaron.** Queda como registro de cobro.
+> · **Marcar asistencia antes de tiempo.** Se puede marcar recién cuando la
+>   alumna ya no puede cancelar (12 h antes por defecto). Si no, se le trabaría
+>   la cancelación y perdería créditos que le corresponden.
+
 ## ⬜ Tanda D — Modelo C de precios
 
 **Arrancar por el DISEÑO de las reglas, no por el código.** Es feature de
@@ -430,6 +473,22 @@ en memoria.
 - **Policy DELETE en `storage.objects`** — no existe para ningún bucket.
 - **Log de cambios de estado en `reservas`** — decisión del 22/8: no ahora. Retomar cuando la liquidación mueva plata real.
 - **UI para editar packs** — `upsertPricingPack()` existe y ninguna pantalla lo llama; hoy sólo por SQL.
+
+## ❓ Preguntas abiertas
+
+**¿Archivar o borrar las clases muy viejas (1-2 años) para no acumular?**
+Decisión de la usuaria **con su contadora**: cuánto tiempo hay que guardar.
+La parte técnica es un cron de pocas líneas, pero **la forma importa**:
+- ✅ **Recomendado: archivar, no borrar.** Una columna `archivada` (o
+  `estado='archivada'`) en `clases`: desaparecen de todas las vistas pero la
+  fila y sus reservas quedan intactas. Cero riesgo contable.
+- ⚠️ **Borrar de verdad, solo después de romper el CASCADE** (Tanda E). Hoy
+  borrar una clase vieja se lleva sus reservas `completada`, que son la
+  evidencia de cobro. Además el candado del 24/8 justamente impide borrarlas,
+  así que un cron tendría que correr con service_role para saltearlo — y ahí
+  volvés a perder la facturación.
+- ❌ **Lo que NO hay que hacer:** un borrado automático con el CASCADE como
+  está. Sería el bug que tapamos el 24/8, pero automatizado.
 
 ## ⬜ Pendientes de NEGOCIO — los sigue la usuaria
 
