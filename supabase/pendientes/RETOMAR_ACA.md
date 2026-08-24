@@ -13,7 +13,7 @@
 | ✅ | **Tanda A** — barrido de base (8 items) | cerrada |
 | ⏭️ | **Tanda B** — verificación de mail | **salteada por decisión**: se activa cuando entre la primera empresa |
 | 🔴 | **Auditar la tanda de guards del 20/8 entera** | **lo primero** · se validó mal (ver abajo) |
-| ⬜ | **Tanda C** — build de Dart (16 items) | **lo próximo** · bloqueada por saber si el build 25 se subió |
+| ⬜ | **Tanda C** — build de Dart (17 items) | **lo próximo** · bloqueada por saber si el build 25 se subió |
 | ⬜ | **Tanda D** — Modelo C de precios | arrancar por el DISEÑO de reglas, no por código |
 | ⬜ | **Tanda E** — experiencias, esquema pesado, keys legacy | |
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia · mail de confirmación |
@@ -157,7 +157,21 @@ Todo junto, un solo release. ⚠️ **Antes: confirmar si el 25 ya se subió.**
 4. El mensaje de "falta configurar el precio" no llega en el alta (`mis_clases_screen.dart:1975`).
 5. Borrar el método huérfano `updateGlobalCreditValue` (la RPC ya no existe).
 6. Los multiplicadores de `_packsBase` están corridos: son `1.10/1.00/0.95/0.90`.
-7. Las 8 referencias a la columna fantasma. ⚠️ **Va después de borrarla en base.**
+7. **La columna fantasma — base y Dart JUNTOS, en este mismo release.**
+   `clases` tiene una columna `"lugares_ disponibles"` (con un espacio en el
+   medio del nombre), duplicado muerto de `lugares_disponibles`. Verificado el
+   24/8: **null en las 937 filas**. Está vacía y no molesta, así que **no se
+   borra por separado antes** — hacerlo abriría una ventana en la que la base
+   ya no la tiene y las apps viejas todavía la piden. Se hace todo de una:
+   · `alter table public.clases drop column "lugares_ disponibles";`
+   · y limpiar las referencias del Dart en el mismo build.
+   ⚠️ **Son 10, no 8** (el conteo viejo estaba desactualizado). Las 10 leen
+   `lugares_disponibles` PRIMERO y usan la fantasma solo como `??` de respaldo,
+   así que sacar el fallback es seguro y no cambia comportamiento:
+   `models/clase.dart:40` · `services/clases_service.dart:231` ·
+   `services/estudios_service.dart:178` · `widgets/clase_card.dart:26` ·
+   `screens/clases/detalle_clase_screen.dart:293,489` ·
+   `screens/clases/mis_clases_screen.dart:3612,5021,5819,6699`.
 8. **Probar que la foto de perfil funcione** — 0 archivos subidos desde el fix.
 
 **Ya estaban en la lista**
@@ -203,6 +217,25 @@ tres son Dart puro, ninguno es un guard ni toca la base)
     **Arreglo: construir la UI sobre `waitlist_count`.** Si además se quiere
     mostrar *quiénes* esperan, eso necesita una RPC nueva —no reabrir la
     policy—, y es decisión de producto (ver las 3 de abajo).
+
+17. **Que el panel no le muestre al estudio el error crudo de Postgres.**
+    Lo que hizo feo el incidente del 24/8: YN Pilates vio en pantalla
+    `PostgresException, message: "no autorizado", code: P0001`. Un estudio no
+    puede hacer nada con eso, y encima asusta.
+    Tres puntos en `mis_clases_screen.dart`:
+    · **1237** — el `catch` del `Future.wait` de `_loadStudio` hace
+      `_error = e.toString()`. Es el que se vio el 24/8.
+    · **1168** — `_error = 'Error al generar clases: ${e.toString()}'`.
+    · **1250 y 2006** — `_openForm` y `_openGridForm` llaman a
+      `_loadCategoriasDisponibles()` **sin `try/catch`**: ahí la excepción sube
+      pelada, ni siquiera hay cartel.
+    **Arreglo:** mensaje humano — *"Hubo un problema al cargar. Escribinos a
+    aura.hola.app@gmail.com"* — y el detalle técnico a `debugPrint`, que es el
+    patrón que el mismo archivo ya usa al guardar (ver el `catch` del alta de
+    clase, con su comentario explicando por qué). Barato, y evita que el
+    próximo error de base asuste a un estudio.
+    Ojo: **no tapar el error**, solo traducirlo. El texto crudo tiene que
+    seguir yendo a `debugPrint` o no se puede diagnosticar nada.
 
 **3 decisiones de producto antes de tocar código:** cuál "gratis" gana · si el
 cartel de espera muestra la posición exacta · si debe existir el mail de
