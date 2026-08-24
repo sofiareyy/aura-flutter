@@ -67,10 +67,29 @@
 --   QUE NO MOLESTE                          antes              ahora
 --   cancelar y después borrar         borró · saldo 50    borró · saldo 50
 --   borrar clase SIN reservas         borró               borró
---   borrar con reserva 'completada'   borró               borró
+--   borrar con reserva 'completada'   borró               BLOQUEADO (2da versión)
 --   borrar con reserva 'cancelada'    borró               borró
 --   admin_delete_estudio (backoffice) borró el estudio    borró el estudio
 --   (saldo 50 = los 18 volvieron)
+--
+-- ── RENDIMIENTO ────────────────────────────────────────────────────────────
+-- El candado corre **solo en BEFORE DELETE**. Verificado contra `pg_trigger`:
+-- los otros cuatro triggers de `clases` son INSERT/UPDATE, y este es el único
+-- de DELETE. No toca SELECT, así que la navegación normal no lo ve nunca.
+-- Cuando sí corre, hace un único `count` sobre `reservas` filtrado por
+-- `clase_id`, que tiene índice propio (`reservas_clase_id_idx`).
+--
+-- ── LO QUE ESTO NO CUBRE (sigue en la Tanda E) ─────────────────────────────
+-- Este candado cierra el camino de todos los días: el estudio borrando clases
+-- desde el panel. Quedan abiertos dos caminos que NO pasan por él:
+--   · **La alumna borrando su cuenta.** `reservas.usuario_id` es CASCADE desde
+--     `usuarios`, y la edge function `delete-account` corre con service_role
+--     (exenta por la guarda de `current_user`) y además borra reservas a mano.
+--     Medido: borrar a Male se lleva sus 2 reservas, incluida la `completada`
+--     de 18 créditos facturados a Citra.
+--   · **`admin_delete_estudio`**, exento a propósito.
+-- Por eso romper el CASCADE **sigue siendo necesario**, aunque ahora por el
+-- borrado de CUENTA y no por el de clases.
 -- ============================================================================
 
 create or replace function public.clases_bloquear_borrado_con_reservas()
@@ -79,7 +98,8 @@ language plpgsql
 set search_path to 'public'
 as $fn$
 declare
-  v_n int;
+  v_activas     int;
+  v_completadas int;
 begin
   -- Solo frenamos al PANEL. `current_user` es 'authenticated'/'anon' cuando la
   -- operacion entra por PostgREST. Dentro de un SECURITY DEFINER de postgres
@@ -91,18 +111,28 @@ begin
     return old;
   end if;
 
-  -- Solo reservas ACTIVAS: hay creditos comprometidos que devolver.
-  -- 'completada' queda AFUERA a proposito, para que el estudio pueda limpiar
-  -- clases viejas. (Preservar esa historia para la facturacion es otro tema:
-  -- romper el CASCADE de reservas -> clases. Anotado en la Tanda E.)
-  select count(*) into v_n
+  -- Estados que importan:
+  --   · 'confirmada' / 'pre_confirmada' / 'presente' -> hay creditos
+  --     comprometidos que devolver.
+  --   · 'completada' -> ya se facturo. Borrar la clase se lleva la reserva por
+  --     CASCADE y con ella la evidencia de lo que se le debe al estudio.
+  -- Las 'cancelada' y 'cancelada_por_estudio' SI se pueden borrar: ahi no hay
+  -- ni creditos ni facturacion en juego.
+  select
+    count(*) filter (where coalesce(r.estado,'') in ('confirmada','pre_confirmada','presente')),
+    count(*) filter (where coalesce(r.estado,'') = 'completada')
+    into v_activas, v_completadas
     from public.reservas r
-   where r.clase_id = old.id
-     and coalesce(r.estado, '') in ('confirmada', 'pre_confirmada', 'presente');
+   where r.clase_id = old.id;
 
-  if v_n > 0 then
+  if v_activas > 0 then
     raise exception
-      'No podés borrar esta clase porque tiene % alumna(s) anotada(s). Cancelala primero para devolverles los créditos y avisarles, después la borrás.', v_n;
+      'No podés borrar esta clase porque tiene % alumna(s) anotada(s). Cancelala primero para devolverles los créditos y avisarles, después la borrás.', v_activas;
+  end if;
+
+  if v_completadas > 0 then
+    raise exception
+      'No podés borrar esta clase porque % alumna(s) ya la tomaron y quedó facturada. Se conserva como registro de cobro.', v_completadas;
   end if;
 
   return old;

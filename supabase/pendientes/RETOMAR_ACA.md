@@ -153,11 +153,13 @@ devolución falla, el error se traga y **borra igual**. Como hasta el 24/8
 `devolucion_clase_cancelada`. Nunca un borrado devolvió créditos.
 
 **El arreglo:** trigger `before delete` que rechaza si hay alumnas activas
-(`confirmada`, `pre_confirmada`, `presente`). Se eligió bloquear en vez de
+(`confirmada`, `pre_confirmada`, `presente`) **o `completada`**. Se eligió bloquear en vez de
 devolver-y-borrar porque **es invisible en el camino correcto** —la UI ya
 cancela antes de borrar, así que las reservas llegan en `cancelada_por_estudio`
 y el trigger ni se entera—, falla cerrado, y no hace que un DELETE mueva plata
-en silencio. `completada` queda afuera para poder limpiar clases viejas.
+en silencio. `completada` se sumó al candado el mismo día, para proteger el registro de
+facturación: nadie necesita borrar clases viejas. El candado corre **solo en
+BEFORE DELETE**, así que la navegación normal no lo ve.
 
 | Medido como `citrabarre@gmail.com` (alumna con 32 cr, pagó 18) | Antes | Ahora |
 |---|---|---|
@@ -165,7 +167,8 @@ en silencio. `completada` queda afuera para poder limpiar clases viejas.
 | botón "eliminar horario fijo" | borró · saldo **32** | **BLOQUEADO** |
 | botón "eliminar toda la grilla" | borró · saldo **32** | **BLOQUEADO** |
 | cancelar y después borrar | borró · saldo **50** | borró · saldo **50** |
-| borrar sin reservas / con `completada` / con `cancelada` | borró | borró |
+| borrar con reserva **`completada`** | borró | **BLOQUEADO** (se sumó el mismo día) |
+| borrar sin reservas / con `cancelada` | borró | borró |
 | `admin_delete_estudio` (backoffice) | borró el estudio | borró el estudio |
 
 La guarda `current_user not in ('authenticated','anon')` exime al backoffice y
@@ -399,18 +402,30 @@ en memoria.
   24/8:** `reservas.clase_id` es `ON DELETE CASCADE`, así que borrar una clase
   se lleva puestas sus reservas — incluidas las **`completada`**, que son la
   evidencia de lo que se le debe al estudio.
-  El 24/8 se tapó la pérdida de créditos con `trg_clases_bloquear_borrado`,
-  que impide borrar una clase con alumnas **activas** anotadas
-  (`FIX_NO_BORRAR_CLASE_CON_ANOTADAS_2026-08-24.sql`). Pero las `completada`
-  quedaron **a propósito** fuera de ese bloqueo, para que el estudio pueda
-  limpiar clases viejas. O sea: hoy se puede seguir borrando historia de plata.
+  El 24/8 se cerró el camino de todos los días con
+  `trg_clases_bloquear_borrado`: no se puede borrar una clase que tenga
+  reservas en `confirmada`, `pre_confirmada`, `presente` **ni `completada`**
+  (`FIX_NO_BORRAR_CLASE_CON_ANOTADAS_2026-08-24.sql`). Las `cancelada` sí se
+  pueden borrar.
+
+  **¿Hace falta igual romper el CASCADE? SÍ — pero ya no por las clases.**
+  El candado tapa al estudio borrando clases desde el panel. Quedan **dos
+  caminos que no pasan por él**, medidos el 24/8:
+  1. **La alumna borrando su cuenta.** `reservas.usuario_id` es CASCADE desde
+     `usuarios`, y la edge function `delete-account` corre con service_role
+     —exenta por la guarda de `current_user`— y encima borra reservas a mano
+     (`index.ts:216`). Medido: borrar a Male se lleva sus **2 reservas**,
+     incluida la `completada` de **18 créditos facturados a Citra**. Este es el
+     riesgo original de [[aura-cascade-borra-deuda-estudio]], y sigue intacto.
+  2. **`admin_delete_estudio`**, exento a propósito (borrar un estudio entero
+     es deliberado y tiene su confirmación).
+
   **Números al 24/8:** 552 ids de reserva asignados y 5 filas vivas ⇒ **547
   reservas borradas**; 2520 ids de clase y 1019 vivas ⇒ ~1500 clases borradas.
-  Hoy hay 1 reserva `completada` (18 créditos facturados) expuesta.
-  **El arreglo de fondo** es romper ese CASCADE: `on delete set null` con los
-  datos de la clase copiados en la reserva, o una tabla de historial. Es más
-  grande y no bloquea el alta de Rock Studio, pero conviene antes de que
-  facture en serio.
+  **El arreglo de fondo** es que la reserva sobreviva a la baja de la usuaria:
+  `on delete set null` en `reservas.usuario_id` con los datos mínimos copiados
+  (email/nombre al momento), o una tabla de historial de facturación. No
+  bloquea el alta de Rock Studio, pero conviene antes de que facture en serio.
 - **Firma del webhook de MP** — se calcula y se descarta; mitigado porque después verifica contra la API.
 - **Policy DELETE en `storage.objects`** — no existe para ningún bucket.
 - **Log de cambios de estado en `reservas`** — decisión del 22/8: no ahora. Retomar cuando la liquidación mueva plata real.
