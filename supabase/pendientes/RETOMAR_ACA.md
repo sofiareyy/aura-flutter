@@ -133,7 +133,44 @@ ni la hora de una grilla".** Queda una sola advertencia viva, la de workshops:
 descripción larga, dirección y organizadores no se pueden editar (item 15).
 
 **Queda decidir antes del 13/9** qué pasa con las alumnas ya anotadas cuando se
-mueve una grilla — ver la tabla de pendientes de NEGOCIO. La dueña y la profe pasan; la usuaria ajena no.
+mueve una grilla — ver la tabla de pendientes de NEGOCIO.
+
+### Cuarta tanda del 24/8 — no se puede borrar una clase con alumnas anotadas
+
+Salió de investigar por qué la barra de progreso de Mi Perfil bajó de 1 a 0.
+La barra estaba bien (cuenta reservas propias en `presente`/`completada`, y
+`test@aura.com` no tiene ninguna). Lo que apareció detrás es lo importante.
+`FIX_NO_BORRAR_CLASE_CON_ANOTADAS_2026-08-24.sql`. **Sin Dart ⇒ sin build.**
+
+**El hueco:** los tres botones de borrar SÍ intentan devolver primero, pero
+`_deleteFixed` (:2721) y `_eliminarGrillaCompleta` (:4624) hacen
+`try{devolver}catch(_){}` y `try{borrar}catch(_){}` **por separado**: si la
+devolución falla, el error se traga y **borra igual**. Como hasta el 24/8
+`estudio_cancelar_clase` moría siempre con 42883, la devolución fallaba el
+100% de las veces. Solo "eliminar clase suelta" (:4552) falla cerrado.
+
+**La evidencia:** el ledger no tiene **ni un** movimiento
+`devolucion_clase_cancelada`. Nunca un borrado devolvió créditos.
+
+**El arreglo:** trigger `before delete` que rechaza si hay alumnas activas
+(`confirmada`, `pre_confirmada`, `presente`). Se eligió bloquear en vez de
+devolver-y-borrar porque **es invisible en el camino correcto** —la UI ya
+cancela antes de borrar, así que las reservas llegan en `cancelada_por_estudio`
+y el trigger ni se entera—, falla cerrado, y no hace que un DELETE mueva plata
+en silencio. `completada` queda afuera para poder limpiar clases viejas.
+
+| Medido como `citrabarre@gmail.com` (alumna con 32 cr, pagó 18) | Antes | Ahora |
+|---|---|---|
+| botón "eliminar clase suelta" | borró · saldo **32** | **BLOQUEADO** |
+| botón "eliminar horario fijo" | borró · saldo **32** | **BLOQUEADO** |
+| botón "eliminar toda la grilla" | borró · saldo **32** | **BLOQUEADO** |
+| cancelar y después borrar | borró · saldo **50** | borró · saldo **50** |
+| borrar sin reservas / con `completada` / con `cancelada` | borró | borró |
+| `admin_delete_estudio` (backoffice) | borró el estudio | borró el estudio |
+
+La guarda `current_user not in ('authenticated','anon')` exime al backoffice y
+a los crons: dentro de un SECURITY DEFINER de postgres `current_user` es
+`postgres` (comprobado midiendo). La dueña y la profe pasan; la usuaria ajena no.
 
 **Caminos de créditos a terceros revisados y a salvo:** `canjear_regalo`
 acredita a `auth.uid()`; `activar_referido_por_compra` le da al referidor pero
@@ -356,7 +393,24 @@ en memoria.
 ## ⬜ Tanda E — experiencias, esquema pesado y el resto
 
 - **Experiencias** con buscador y categorías (⚠️ hay **cero experiencias futuras**: decidir si el cuello es descubrimiento u oferta).
-- **Preservar facturación** — 12 tablas con CASCADE desde `usuarios`, incluidas `pagos` y `reservas`. Confirmado abierto en la auditoría.
+- 🔴 **Preservar facturación — SUBE DE PRIORIDAD por el alta de Rock Studio.**
+  12 tablas con CASCADE desde `usuarios`, incluidas `pagos` y `reservas`.
+  Confirmado abierto en la auditoría. **Y hay un segundo CASCADE, medido el
+  24/8:** `reservas.clase_id` es `ON DELETE CASCADE`, así que borrar una clase
+  se lleva puestas sus reservas — incluidas las **`completada`**, que son la
+  evidencia de lo que se le debe al estudio.
+  El 24/8 se tapó la pérdida de créditos con `trg_clases_bloquear_borrado`,
+  que impide borrar una clase con alumnas **activas** anotadas
+  (`FIX_NO_BORRAR_CLASE_CON_ANOTADAS_2026-08-24.sql`). Pero las `completada`
+  quedaron **a propósito** fuera de ese bloqueo, para que el estudio pueda
+  limpiar clases viejas. O sea: hoy se puede seguir borrando historia de plata.
+  **Números al 24/8:** 552 ids de reserva asignados y 5 filas vivas ⇒ **547
+  reservas borradas**; 2520 ids de clase y 1019 vivas ⇒ ~1500 clases borradas.
+  Hoy hay 1 reserva `completada` (18 créditos facturados) expuesta.
+  **El arreglo de fondo** es romper ese CASCADE: `on delete set null` con los
+  datos de la clase copiados en la reserva, o una tabla de historial. Es más
+  grande y no bloquea el alta de Rock Studio, pero conviene antes de que
+  facture en serio.
 - **Firma del webhook de MP** — se calcula y se descarta; mitigado porque después verifica contra la API.
 - **Policy DELETE en `storage.objects`** — no existe para ningún bucket.
 - **Log de cambios de estado en `reservas`** — decisión del 22/8: no ahora. Retomar cuando la liquidación mueva plata real.
