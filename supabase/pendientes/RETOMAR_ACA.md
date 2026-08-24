@@ -13,7 +13,7 @@
 | ✅ | **Tanda A** — barrido de base (8 items) | cerrada |
 | ⏭️ | **Tanda B** — verificación de mail | **salteada por decisión**: se activa cuando entre la primera empresa |
 | 🔴 | **Auditar la tanda de guards del 20/8 entera** | **lo primero** · se validó mal (ver abajo) |
-| ⬜ | **Tanda C** — build de Dart (13 items) | **lo próximo** · bloqueada por saber si el build 25 se subió |
+| ⬜ | **Tanda C** — build de Dart (16 items) | **lo próximo** · bloqueada por saber si el build 25 se subió |
 | ⬜ | **Tanda D** — Modelo C de precios | arrancar por el DISEÑO de reglas, no por código |
 | ⬜ | **Tanda E** — experiencias, esquema pesado, keys legacy | |
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia · mail de confirmación |
@@ -149,7 +149,9 @@ Todo junto, un solo release. ⚠️ **Antes: confirmar si el 25 ya se subió.**
 **Alto impacto — el motivo del build**
 1. **El texto de "gratis"** — una clase de 0 créditos dice `0 cr` y `Canjear · 0 créditos`, nunca "gratis". Para la captación no es cosmético. Ojo: el `'Reservar gratis'` que existe depende de `_esGratuita` ("sos alumno del estudio"), es otro gratis. **Decidir cuál gana.**
 2. **Badge "PRECIO REDUCIDO"** en 573 de 583 clases (`explorar_screen.dart:1009`).
-3. **El cartel de lista de espera tapa contenido** — el único bug de UI que se nota hoy.
+3. **El cartel de lista de espera tapa contenido** — pantalla de la alumna.
+   ⚠️ **No confundir con el item 16**, que es la lista de espera del lado del
+   ESTUDIO. Son dos cosas distintas que se llaman parecido.
 
 **Consecuencias de lo que se hizo en base**
 4. El mensaje de "falta configurar el precio" no llega en el alta (`mis_clases_screen.dart:1975`).
@@ -164,6 +166,43 @@ Todo junto, un solo release. ⚠️ **Antes: confirmar si el 25 ya se subió.**
 11. Modo visita Pieza C: volver a la clase tras registrarse (`MODO_VISITA_pieza_A.md`).
 12. Badge de packs (`BADGE_PACKS_pendiente.md`).
 13. Keys legacy — **primer paso** nomás: publicar con la clave nueva, esperar adopción, y recién después desactivar la vieja (`SALIR_DE_KEYS_LEGACY.md`).
+
+**Hallazgos del 24/8 probando en el teléfono** (los encontró la usuaria; los
+tres son Dart puro, ninguno es un guard ni toca la base)
+
+14. **(b) El listado de clases abajo del QR en Asistencia — REGRESIÓN.**
+    `asistencia_screen.dart`, `_cargar()`. El Build 20 (`9459ffb`) arregló un
+    bug real —antes hacía `from('clases')` sin filtro y traía clases de TODO el
+    marketplace— pero de paso metió un filtro de **solo HOY**:
+    `.where((c) => DateTime(f.year,f.month,f.day) == hoyDia)`.
+    **Arreglo: borrar ese `.where`.** `getClasesDeEstudio(from: hoy)` ya recorta
+    a hoy-en-adelante, que es justo lo que esperan los buckets.
+    Prueba de que el filtro no era intencional: `_bucketDeClase` devuelve
+    `'proximas'` y la UI (líneas 1734-1744) dibuja una sección **PROXIMAS** que
+    nunca puede tener nada. Sección muerta desde el Build 20; el selector
+    AHORA/HOY/PROXIMAS se había escrito en `8738f70` para mostrar futuras.
+    Medido el 24/8: **6 de los 11 estudios tienen 0 clases hoy** ⇒ lista vacía.
+
+15. **(c) La hoja de detalle de clase no muestra la descripción.**
+    `_ClaseDetalleSheet` en `mis_clases_screen.dart:5803`. El tap anda
+    (`onTap → _showClaseSheet`); lo que falta es dibujar. La hoja solo renderiza
+    fecha, instructor, cupos, duración y créditos: **nunca lee**
+    `clase['descripcion']`, `clase['incluye']` ni `clase['instructor_descripcion']`,
+    aunque `getClasesDeEstudio` hace `.select()` y los tres ya vienen en el mapa.
+    **Arreglo: agregar las filas.** No hace falta tocar la query.
+
+16. **(a) No existe la pantalla de lista de espera del ESTUDIO.**
+    El estudio no puede ver quién está esperando. Son dos cosas:
+    · **Datos:** `lista_espera` tiene una sola policy, `waitlist_own`
+      (`auth.uid() = usuario_id`), así que el estudio consultándola recibe 0
+      filas. La policy abierta `waitlist_count_public` se cerró **bien** en
+      `LISTA_ESPERA_TANDA1.sql` (exponía el `usuario_id` de todas a cualquiera)
+      y dejó la RPC `waitlist_count`, que devuelve el número sin identidades.
+    · **UI:** `WaitlistService` solo se usa en `detalle_clase_screen.dart`, que
+      es la pantalla de la ALUMNA. El panel del estudio no tiene nada.
+    **Arreglo: construir la UI sobre `waitlist_count`.** Si además se quiere
+    mostrar *quiénes* esperan, eso necesita una RPC nueva —no reabrir la
+    policy—, y es decisión de producto (ver las 3 de abajo).
 
 **3 decisiones de producto antes de tocar código:** cuál "gratis" gana · si el
 cartel de espera muestra la posición exacta · si debe existir el mail de
