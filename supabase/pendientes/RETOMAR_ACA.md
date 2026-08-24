@@ -12,7 +12,8 @@
 | ✅ | **Tanda 0** — crons + correo | cerrada |
 | ✅ | **Tanda A** — barrido de base (8 items) | cerrada |
 | ⏭️ | **Tanda B** — verificación de mail | **salteada por decisión**: se activa cuando entre la primera empresa |
-| 🔴 | **Auditar la tanda de guards del 20/8 entera** | **lo primero** · se validó mal (ver abajo) |
+| ✅ | **Auditoría de guards y grants** (dos tandas) | **hecha el 24/8** con el criterio de las dos puntas · 5 arreglos de base |
+| 🔵 | **Alta de Rock Studio** (spinning, 2 sedes, 50 bicis) | **lo primero** · la cadena está verificada punta a punta, ver abajo |
 | ⬜ | **Tanda C** — build de Dart (19 items) | **lo próximo** · bloqueada por saber si el build 25 se subió |
 | ⬜ | **Tanda D** — Modelo C de precios | arrancar por el DISEÑO de reglas, no por código |
 | ⬜ | **Tanda E** — experiencias, esquema pesado, keys legacy | |
@@ -20,21 +21,47 @@
 
 ### ⚠️ Lo primero al retomar
 
-**🔴 Auditar los 5 guards del 20/8 con el criterio de LAS DOS PUNTAS.**
-`FIX_GUARDS_CUERPO.sql` (commit `f4ba3dd`) se verificó midiendo **solo si el
-exploit quedaba cerrado**. Nunca se midió que el usuario legítimo siguiera
-pudiendo llamar la función. **Dos de los cinco estaban rotos en producción** y
-nadie lo vio durante 4 días, porque la verificación se hizo con
-`test@aura.com`, que es superadmin y satisface `is_admin()`.
+**🔵 El alta de Rock Studio** (spinning, 2 sedes, 50 bicis, 15 para Aura).
+El 24/8 se simuló **el proceso completo con cuentas reales** (no superadmin),
+en transacciones con rollback, y **los 7 eslabones andan**: crear estudio con
+precio modo rango · cargar clase suelta y grilla con el precio correcto ·
+comprar pack (acredita con vencimiento) · reservar (descuenta, baja cupo, da
+QR) · marcar presente · cancelar a tiempo (recupera) y tarde (no puede) ·
+liquidación (70 % y primer mes sin comisión dan bien).
 
-Los 4 arreglos ya salieron el 24/8 (ver abajo), pero **la lección aplica a toda
-la tanda y a las que vengan**: ningún guard cuenta como verificado hasta probar
-que un estudio real, una profe y una alumna común siguen pudiendo hacer su
-trabajo. **Probar SIEMPRE con una cuenta de estudio real, nunca con
-`test@aura.com`.** Falta repasar con este criterio el resto de las funciones
-endurecidas en `FIX_AMARILLAS_AUDITORIA.sql` (la tanda de grants anterior), que
-tiene el mismo problema de origen.
+Dos cosas para tener a mano al configurarlo:
+- **Modo rango: `valle` es opt-in.** Solo cobra `creditos_min` en los pares
+  (día, hora) marcados en `horarios_config`; **todo lo no marcado es pico** =
+  `creditos_max`. Si Rock Studio carga el rango y se olvida de marcar las
+  franjas valle, **cobra el máximo en todas sus clases y nadie tira un error**.
+  Es el punto más frágil del alta. La hora se trunca hacia abajo: marcar la
+  franja "10" cubre 10:00, 10:30 y 10:45.
+- **Cupos:** se carga `lugares_total = 15` (las bicis que van a Aura). El resto
+  no existe para Aura. Medido: la reserva baja el disponible de a uno y
+  `clases_resync_cupo` recalcula desde las reservas reales.
 
+**Y dos cosas que esperan a la usuaria:**
+- Que **YN Pilates confirme en el teléfono** que puede cargar y cancelar. Todos
+  los arreglos del 24/8 son de base, así que ya los tienen sin actualizar nada.
+- La decisión **antes del 13/9** sobre qué pasa con las alumnas ya anotadas
+  cuando el estudio mueve una grilla (ver pendientes de NEGOCIO).
+
+### 📏 La regla de trabajo que salió del 24/8
+
+**Ningún guard cuenta como verificado hasta medir LAS DOS PUNTAS**: que el
+exploit quede cerrado **y** que el usuario legítimo siga pudiendo trabajar.
+`FIX_GUARDS_CUERPO.sql` (commit `f4ba3dd`) se validó midiendo solo lo primero,
+y **dos de sus cinco guards estuvieron rotos en producción 4 días** sin que
+nadie lo viera. No se vio porque se probó con `test@aura.com`, que es
+superadmin y satisface `is_admin()`.
+
+**Probar SIEMPRE con una cuenta de estudio real, nunca con `test@aura.com`.**
+Y medir efecto —saldos, filas, estados antes/después—, nunca ausencia de error.
+
+Las dos tandas sospechosas ya se auditaron enteras el 24/8
+(`FIX_GUARDS_CUERPO.sql` y `FIX_AMARILLAS_AUDITORIA.sql`): 110 funciones, 23
+tablas y 3 buckets. **No quedan guards mal validados.** La regla queda para lo
+que venga.
 
 **Averiguar si el build `1.0.6+25` se subió a las tiendas.** Los registros se
 contradicen: `BUILD_IOS_pendiente.md` dice *"en preparación, número reservado
@@ -188,6 +215,45 @@ quedaran **0 filas de prueba**.
 ---
 
 # ✅ HECHO EL 2026-08-22
+
+### Quinta tanda del 24/8 — el estudio no puede marcar asistencia antes de tiempo
+
+Salió de la prueba punta a punta previa a Rock Studio.
+`FIX_NO_MARCAR_ASISTENCIA_ANTES_2026-08-24.sql`. **Sin Dart ⇒ sin build.**
+
+Marcar asistencia es un UPDATE directo del cliente sobre `reservas`, sin
+función de por medio. Se auditaron los vectores y **tres de cuatro ya estaban
+cerrados** por RLS y por `reservas_bloquear_columnas_sensibles`: un estudio
+sobre reservas de OTRO estudio (0 filas), revivir `cancelada` (P0001), cambiar
+`creditos_usados` (P0001), fabricar una reserva (42501 — `reservas` no tiene
+policy de INSERT).
+
+**El que sí estaba abierto:** el QR no se valida en la base, así que el estudio
+podía marcar `presente` cualquier reserva suya, sin escanear, de clases a 5 o
+30 días vista. Eso **no** inflaba la liquidación por sí solo (`confirmada` y
+`presente` están las dos en `estadosLiquidables`). El daño era otro, medido:
+
+| | Antes | Ahora |
+|---|---|---|
+| Clase a 5 / 30 días / mañana / 13 h · también `ausente` | marcaba | **RECHAZADO** |
+| Clase a 11 h (ventana cerrada), 20 min antes, empezando, +30 min, de ayer, ventana en 0 | marcaba | **marca igual** |
+| **La alumna cancela tras el intento del estudio** | `{ok:false,"estado_invalido"}` saldo 50 | **`{ok:true, devueltos:18}` saldo 50 → 68** |
+
+O sea: marcando presente por adelantado el estudio **le trababa la cancelación
+y le retenía los créditos**, y sí movía plata por la vía indirecta (sin ese
+movimiento la reserva se habría cancelado y no sería liquidable).
+
+**La regla:** la asistencia se marca recién cuando la alumna ya no puede
+cancelar — el daño escrito como regla. Usa la **misma cascada** que
+`cancelar_mi_reserva`: clase → estudio → 720 min.
+Se descartó "rechazar si la clase no empezó, con 10 min de tolerancia" porque
+rompía dos casos legítimos: el check-in de quien llega 15-20 min antes (clave
+con 50 bicis) y el marcado manual el mismo día. Con la ventana de cancelación,
+una clase de las 19:00 con cierre de 12 h se marca desde las 07:00 de ese día.
+El `greatest(cierre, 10)` conserva la tolerancia del escáner por si un estudio
+pone la ventana en 0.
+
+---
 
 ## Auditoría completa — las 8 áreas
 
