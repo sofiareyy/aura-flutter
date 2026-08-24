@@ -13,7 +13,7 @@
 | ✅ | **Tanda A** — barrido de base (8 items) | cerrada |
 | ⏭️ | **Tanda B** — verificación de mail | **salteada por decisión**: se activa cuando entre la primera empresa |
 | 🔴 | **Auditar la tanda de guards del 20/8 entera** | **lo primero** · se validó mal (ver abajo) |
-| ⬜ | **Tanda C** — build de Dart (17 items) | **lo próximo** · bloqueada por saber si el build 25 se subió |
+| ⬜ | **Tanda C** — build de Dart (18 items) | **lo próximo** · bloqueada por saber si el build 25 se subió |
 | ⬜ | **Tanda D** — Modelo C de precios | arrancar por el DISEÑO de reglas, no por código |
 | ⬜ | **Tanda E** — experiencias, esquema pesado, keys legacy | |
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia · mail de confirmación |
@@ -63,7 +63,35 @@ SQL completo con el porqué de cada decisión:
 | ✅ | **GUARD 1 · lista de espera** — la profe **nunca** se enteraba de las reservas que entraban por waitlist. No era el guard: `_waitlist_promote_interno` simplemente no cableaba el aviso (solo lo nombraba en un comentario). Cableado contra el interno, en bloque propio para que un fallo del aviso no voltee la promoción. | `aviso_a_la_profe` **0 → 1**, el aviso a la promovida sigue en 1, la reserva directa sigue avisando 1, la suplantación sigue en 0. |
 
 **Guards 2 y 3 (`ensure_referral_code`, `avisos_generales_restantes`): sanos en
-las dos puntas**, medidos. La dueña y la profe pasan; la usuaria ajena no.
+las dos puntas**, medidos.
+
+### Segunda tanda del 24/8 — auditoría de las tandas ANTERIORES
+
+Con el mismo criterio de las dos puntas, sobre lo de antes del 20/8:
+**110 funciones de `public` (62 las llama la app), 23 tablas y 3 buckets.**
+`FIX_AVISO_CANCELACION_Y_FAVORITOS_2026-08-24.sql`.
+
+**No había más guards mal validados.** Los 62 tienen `execute` para
+`authenticated`; la matriz de 17 funciones × 4 personas (alumna / profe /
+estudio / superadmin) no bloqueó a ningún actor legítimo; y del otro lado, una
+alumna ajena rebota en las 10 funciones que son solo del estudio. Storage:
+subir a su carpeta OK, a carpeta ajena 42501.
+
+Sí aparecieron **dos huecos más viejos que las tandas de endurecimiento**, que
+nunca reportó nadie:
+
+| | Qué | Medición |
+|---|---|---|
+| ✅ | **La alumna no se enteraba de que le cancelaban la clase.** `notificaciones_usuario` no tiene policy de INSERT; el aviso lo intentaba el cliente y RLS lo negaba en silencio. Ninguna función de la base lo creaba. Ahora lo crea `estudio_cancelar_clase` (SECURITY DEFINER, saltea RLS), en bloque propio para que un fallo del aviso no voltee la devolución. | campanita **0 → 1** con el texto correcto, créditos siguen en 0→10. Clase gratis: el texto no promete devolución. Dos alumnas: 2 campanitas. Fabricar notificaciones ajenas: sigue 42501. |
+| ✅ | **Re-favoritear un estudio ya marcado fallaba.** `favoritos_estudios` tenía INSERT/SELECT/DELETE pero no UPDATE, y el `.upsert()` sobre la PK resuelve el conflicto con un UPDATE. | 42501 → pasa. No agrega capacidad: la usuaria ya podía borrar e insertar sus favoritos. |
+
+⚠️ **Al tocar `notificaciones_usuario`: `trg_notif_push_nueva` está ACTIVO** y
+dispara `net.http_post` a `push-enviar`. Se comprobó que el push se encola
+dentro de la transacción y que el rollback lo borra (cola 0→1→0), así que
+probar con rollback es seguro. Sin esa comprobación, un test manda un push real
+al teléfono de alguien.
+
+Queda para el build el item 18: borrar los dos inserts muertos del cliente. La dueña y la profe pasan; la usuaria ajena no.
 
 **Caminos de créditos a terceros revisados y a salvo:** `canjear_regalo`
 acredita a `auth.uid()`; `activar_referido_por_compra` le da al referidor pero
@@ -236,6 +264,17 @@ tres son Dart puro, ninguno es un guard ni toca la base)
     próximo error de base asuste a un estudio.
     Ojo: **no tapar el error**, solo traducirlo. El texto crudo tiene que
     seguir yendo a `debugPrint` o no se puede diagnosticar nada.
+
+18. **Borrar los dos inserts muertos a `notificaciones_usuario`.**
+    El cliente intenta crear campanitas para OTROS usuarios. `notificaciones_usuario`
+    no tiene policy de INSERT, así que RLS los rechaza **siempre** con 42501 y el
+    `catch (_) {}` se lo traga. Además ahora los crea la base, así que si RLS
+    los dejara pasar **duplicarían** el aviso:
+    · `estudio_admin_service.dart:581` — campanita de lista de espera. La crea
+      `_waitlist_promote_interno` desde el 22/8.
+    · `reservas_service.dart:593` — aviso "❌ Clase cancelada". La crea
+      `estudio_cancelar_clase` desde el 24/8.
+    **Arreglo: borrarlos.** No hay que reemplazarlos por nada.
 
 **3 decisiones de producto antes de tocar código:** cuál "gratis" gana · si el
 cartel de espera muestra la posición exacta · si debe existir el mail de
