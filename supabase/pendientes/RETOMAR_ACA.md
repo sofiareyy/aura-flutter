@@ -13,7 +13,7 @@
 | ✅ | **Tanda A** — barrido de base (8 items) | cerrada |
 | ⏭️ | **Tanda B** — verificación de mail | **salteada por decisión**: se activa cuando entre la primera empresa |
 | 🔴 | **Auditar la tanda de guards del 20/8 entera** | **lo primero** · se validó mal (ver abajo) |
-| ⬜ | **Tanda C** — build de Dart (18 items) | **lo próximo** · bloqueada por saber si el build 25 se subió |
+| ⬜ | **Tanda C** — build de Dart (19 items) | **lo próximo** · bloqueada por saber si el build 25 se subió |
 | ⬜ | **Tanda D** — Modelo C de precios | arrancar por el DISEÑO de reglas, no por código |
 | ⬜ | **Tanda E** — experiencias, esquema pesado, keys legacy | |
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia · mail de confirmación |
@@ -91,7 +91,49 @@ dentro de la transacción y que el rollback lo borra (cola 0→1→0), así que
 probar con rollback es seguro. Sin esa comprobación, un test manda un push real
 al teléfono de alguien.
 
-Queda para el build el item 18: borrar los dos inserts muertos del cliente. La dueña y la profe pasan; la usuaria ajena no.
+Queda para el build el item 18: borrar los dos inserts muertos del cliente.
+
+### Tercera tanda del 24/8 — editar una grilla ya no duplica clases
+
+Salió de relevar cómo funciona editar clases y grillas.
+`FIX_GRILLA_MOVER_CLASES_2026-08-24.sql`. **Sin Dart ⇒ sin build.**
+
+**El bug:** la app propaga los campos del horario fijo a las clases futuras
+pero **no la fecha**. Editar el día o la hora fallaba de dos formas según el
+tamaño del cambio: corrimiento **> 1 hora o cambio de día** → las clases viejas
+quedaban publicadas en el horario anterior y el generador creaba otras encima
+(**9 clases pasaban a 18, duplicadas, sin aviso**); corrimiento **≤ 1 hora** →
+**se ignoraba en silencio**, porque el chequeo de existencia da por "ya creada"
+cualquier clase de esa grilla dentro de ±1 hora.
+
+**El arreglo:** un trigger en `horarios_fijos` que mueve las clases futuras
+cuando cambia `dia_semana` u `hora_inicio`. Se mete antes de que la app
+regenere, así que el chequeo de existencia las encuentra y los duplicados no
+llegan a nacer.
+
+⚠️ **El trigger es *invoker*, NO security definer, y es a propósito:** el
+`update clases` de adentro dispara `clases_fija_precio`, que sale temprano si
+`current_user` no es `authenticated`/`anon`. Siendo invoker, el precio se
+recalcula solo al cambiar de franja. Como definer, una clase movida de valle a
+pico se quedaría con el precio viejo — fue el falso negativo de la primera
+medición, hecha como `postgres`.
+
+| Medido como `sculptclub.ar@gmail.com` (rango 14 valle / 16 pico) | Antes | Ahora |
+|---|---|---|
+| hora 10:00→19:00 (valle→pico) | 9→18 duplica | **9→9** · 19:00 · 14→16 cr |
+| hora 19:00→10:00 (pico→valle) | 9→18 duplica | **9→9** · 10:00 · 16→14 cr |
+| día miércoles→viernes | 9→18 duplica | **9→9** · viernes |
+| hora 10:00→10:30 (30 min) | se ignoraba | **9→9** · 10:30 |
+| día Y hora juntos | 9→18 duplica | **9→9** · viernes 19:00 · 14→16 cr |
+| solo profe / solo cupo / solo créditos | 9→9 ok | **9→9 ok**, sin regresión |
+| clases pasadas de la grilla | no se tocan | **no se tocan** (15/7 quedó en 15/7 10:00) |
+
+**Con esto, el instructivo ya no necesita la advertencia de "no toques el día
+ni la hora de una grilla".** Queda una sola advertencia viva, la de workshops:
+descripción larga, dirección y organizadores no se pueden editar (item 15).
+
+**Queda decidir antes del 13/9** qué pasa con las alumnas ya anotadas cuando se
+mueve una grilla — ver la tabla de pendientes de NEGOCIO. La dueña y la profe pasan; la usuaria ajena no.
 
 **Caminos de créditos a terceros revisados y a salvo:** `canjear_regalo`
 acredita a `auth.uid()`; `activar_referido_por_compra` le da al referidor pero
@@ -276,6 +318,31 @@ tres son Dart puro, ninguno es un guard ni toca la base)
       `estudio_cancelar_clase` desde el 24/8.
     **Arreglo: borrarlos.** No hay que reemplazarlos por nada.
 
+19. **Paralelizar la carga de "ver un estudio" (y de paso limpiar 2 cosas).**
+    Medido el 24/8 a raíz de que la web se sentía lenta (~4 s en abrir un
+    estudio). **No era la base**: server-side la apertura del panel más pesado
+    (Citra, 368 clases) tarda **53 ms**. El costo real es la red: **una sola
+    ida y vuelta a Supabase mide entre 150 ms y 1,6 s**, muy variable — por eso
+    "antes era más rápido" depende del momento, no del código.
+    `DetalleEstudioScreen._cargar()` hace **8 idas y vueltas EN SERIE**, sin
+    `Future.wait`: getEstudio · getClasesDeEstudio (clases + reservas) ·
+    getExperienciasDeEstudio (clases + reservas otra vez) · esFavorito ·
+    getReviewsForStudy · canReviewStudy. Ocho por ~250 ms son 2 s; con dos
+    muestras lentas te vas a 4 y pico.
+    **Arreglo: `Future.wait`.** Pasan de sumarse a costar lo que la más lenta.
+    Es la mejora de performance más grande disponible y es barata.
+    · **Vale la pena también:** `_conOcupacion` consulta `reservas` **dos
+      veces** —una para clases y otra para experiencias— donde una sola
+      alcanza. Es 1 de las 8; se va gratis al paralelizar.
+    · **Evaluado y NO vale la pena hoy:** el índice faltante en
+      `horarios_fijos(estudio_id)`. Con 70 filas el planner hace seq scan y es
+      más rápido que un índice. Anotado para cuando la tabla crezca.
+    · **Aparte, decisión de producto:** `_loadStudio` llama a
+      `generar_clases_estudio` en **cada** apertura del panel (24 ms de
+      servidor para Citra, 207 búsquedas de existencia, más una ida y vuelta).
+      Funciona, pero conviene decidir cuándo debe regenerarse la grilla en vez
+      de hacerlo siempre.
+
 **3 decisiones de producto antes de tocar código:** cuál "gratis" gana · si el
 cartel de espera muestra la posición exacta · si debe existir el mail de
 confirmación de reserva.
@@ -301,6 +368,7 @@ No son tareas técnicas. Están acá para que no se pierdan.
 
 | | Qué | Cuándo |
 |---|---|---|
+| 🔴 | **Qué pasa con las alumnas ya anotadas cuando el estudio mueve una grilla** | **Antes del 13/9** (cuando arranquen las reservas reales). Desde el 24/8 editar el día/hora de una grilla **mueve** las clases futuras, que es lo correcto — pero eso le cambia el horario a quien ya se anotó. Hoy no muerde: medido, **0 clases futuras de grilla con reservas activas**. Opciones: **(2) mover + campanita automática** —la preferida por la usuaria, y el patrón ya existe desde el aviso de cancelación— o **(3) rechazar el cambio si hay anotadas**. Ver `FIX_GRILLA_MOVER_CLASES_2026-08-24.sql`. |
 | ⬜ | **Avisar el fin de la gracia** | **Citra el 13/9.** 6 estudios entre el 13/9 y el 30/9. Transición automática; falta la conversación. |
 | ⬜ | **¿Los usuarios deberían recibir mail de confirmación de reserva?** | `email-confirmacion` existe en el repo y **nunca se deployó**. Decisión de producto. |
 | ⬜ | **Categorías faltantes** | Avisarle a Yessi (112 clases) y Ambra (77) que las completen. O que el form las exija (Dart). |
