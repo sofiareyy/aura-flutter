@@ -498,16 +498,22 @@ de 08:30 a 21:30, L-V, y probablemente no era la intención.
 | reservas | **0** (ninguna, en ningún estado) |
 | si sólo se deduplica | quedan **70 grillas y 624 clases**, exactamente L-V 08:30→21:30 |
 
-**Cuando confirme, en la misma migración:** borrar las grillas sobrantes (la
-de menor `id` por slot se queda) → sus clases caen por `CASCADE`, el candado
-`trg_clases_bloquear_borrado` no interviene porque no hay reservas → y recién
-ahí **`create unique index on horarios_fijos (estudio_id, dia_semana, hora_inicio)`**.
+**Cuando confirme, en la misma migración:** ⚠️ **`clases.horario_fijo_id` es
+`ON DELETE SET NULL`, no CASCADE** (medido el 25/8 al limpiar Yessi): borrar
+sólo la grilla deja sus clases huérfanas y publicadas. Entonces: borrar las
+clases de las grillas sobrantes **primero y explícitamente** → borrar las
+grillas sobrantes (la de menor `id` por slot se queda; el candado
+`trg_clases_bloquear_borrado` no interviene porque no hay reservas) → y
+recién ahí **`create unique index on horarios_fijos (estudio_id, dia_semana,
+hora_inicio)`**. Plantilla: `FIX_YESSI_GRILLA_DUPLICADA_2026-08-25.sql`.
+**Es el ÚNICO bloqueo que queda para el índice**: 0 grillas con `dia_semana`
+o `hora_inicio` NULL, y ningún otro estudio con duplicados.
 
-**Y una decisión aparte, Yessi Funes:** miércoles 18:00 tiene **dos grillas
-distintas**, no un doble tap — `Fumcional / Natalia` (id 165, 13 clases) y
-`Funcional / Tomas` (id 173, 10 clases), 0 reservas. Dos profes a la misma
-hora. Preguntarle cuál vale. El índice único tampoco se puede crear con esto
-vivo.
+**Yessi Funes: resuelto el 25/8** (la dueña confirmó que reordena sus clases
+igual). Miércoles 18:00 tenía dos grillas distintas; quedó la de menor `id`
+(165, Natalia) y se borró la 173 (Tomás) **con sus 10 clases**, 0 reservas.
+Verificado: 0 huérfanas, una clase por miércoles, el generador no la recrea.
+`FIX_YESSI_GRILLA_DUPLICADA_2026-08-25.sql`.
 
 ## 🟡 Menores de la auditoría fresca — por prioridad, ninguno urgente
 
