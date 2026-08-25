@@ -14,7 +14,7 @@
 | ⏭️ | **Tanda B** — verificación de mail | **salteada por decisión**: se activa cuando entre la primera empresa |
 | ✅ | **Auditoría de guards y grants** (dos tandas) | **hecha el 24/8** con el criterio de las dos puntas · 5 arreglos de base |
 | ✅ | **Auditoría FRESCA de punta a punta** (cabeza limpia, sin mirar estas notas) | **hecha el 24/8** · 4 agujeros nuevos + 41 clases mal publicadas · **5 arreglos aplicados** |
-| 🔴 | **Alta de Rock Studio** (spinning, 2 sedes, 50 bicis) | **BLOQUEADA por el PASO 2** (`admin_link_estudio_access`). Ver abajo. |
+| 🟢 | **Alta de Rock Studio** (spinning, 2 sedes, 50 bicis) | **LISTA.** Multi-sede verificado punta a punta el 24/8 con las 2 sedes. Ver abajo. |
 | ⬜ | **Tanda C** — build de Dart (19 items) | **lo próximo** · bloqueada por saber si el build 25 se subió |
 | ⬜ | **Tanda D** — Modelo C de precios | arrancar por el DISEÑO de reglas, no por código |
 | ⬜ | **Tanda E** — experiencias, esquema pesado, keys legacy | |
@@ -22,53 +22,61 @@
 
 ### ⚠️ Lo primero al retomar
 
-**🔴 PASO 2 del multi-sede: que `admin_link_estudio_access` SUME en vez de pisar.**
-Es lo único que separa a Rock Studio de poder entrar. **Decisión ya tomada por
-la usuaria: que sume siempre**; si alguna vez hay que sacarle un estudio a
-alguien, se hace aparte.
+**🟢 Rock Studio se puede cargar. El multi-sede está COMPLETO.**
 
-Hoy esa función escribe **solo `usuarios.estudio_id`** (un escalar) y **0 filas
-en `estudio_admins`**. Medido el 24/8 con el alta completa de un estudio nuevo
-por el camino real del backoffice:
+Verificado el 24/8 corriendo el alta entera de las **dos sedes** por el camino
+real del backoffice, con la cuenta del dueño (real, no superadmin):
 
 | | |
 |---|---|
-| `usuarios.estudio_id` | 37 |
-| filas en `estudio_admins` | **0** |
-| `es_miembro_de_estudio` | **false** |
-| cargar grilla · clase suelta | **42501 · 42501** |
-| `generar_clases_estudio` | `no_autorizado` |
+| Aura crea Palermo y Belgrano, modo rango 12–16, valle 7/8/9 L-V | ok |
+| vincular sede 1 | `estudio_admins` = 1 fila · `usuarios.estudio_id` = Palermo |
+| **vincular sede 2 — ¿pisa a la primera?** | **NO.** `estudio_id` sigue en Palermo · administra **Belgrano + Palermo** |
+| `list_my_studios` | `Belgrano \| Palermo (ACTIVA)` |
+| grilla en **Palermo** (07:00 valle) | **PASA · 12 cr** · generar: 4 creadas, 0 omitidas |
+| grilla en **Belgrano** (19:00 pico) | **PASA · 16 cr** · generar: 4 creadas, 0 omitidas |
+| `set_active_estudio(Belgrano)` | ok · la sede activa cambia |
 
-⚠️ **Ojo con la historia, para no diagnosticar mal:** el botón de vincular del
-backoffice **ya estaba a medias desde antes** de la auditoría. La policy de
-`clases` siempre usó `estudio_admins`, así que un estudio recién vinculado
-**nunca** pudo cargar clases sueltas. Antes del PASO 1 podía cargar grillas y
-no clases; ahora ninguna de las dos. El PASO 2 arregla las dos.
+**Qué lo hizo funcionar:** el arreglo del 24/8 que movió la RLS de
+`horarios_fijos` a `estudio_admins`. Antes de eso la segunda sede daba 42501,
+porque la RLS miraba el puntero de sede activa, que apunta a una sola.
 
-Los estudios que hoy funcionan es porque están en `estudio_admins` por otra vía.
+⚠️ **NO existe ningún "PASO 2" pendiente. Fue un error de diagnóstico del
+24/8** y queda anotado acá para que nadie lo vuelva a "arreglar":
 
-**Al configurar Rock Studio, dos cosas para tener a mano:**
+`admin_link_estudio_access` sí escribe sólo `usuarios.estudio_id` y 0 filas en
+`estudio_admins` — pero **es el fallback legacy**. El botón de vincular del
+backoffice llama primero a **`studio_promote_user_to_admin`**
+(`admin_service.dart:246`), que ya hace lo correcto y **acumula**:
+
+```sql
+insert into estudio_admins (...) on conflict (estudio_id, usuario_id) do nothing;
+update usuarios set estudio_id = p_estudio_id where id = ... and estudio_id is null;
+```
+
+El `on conflict do nothing` acumula y el `where estudio_id is null` evita pisar
+la sede activa. Sólo se cae al legacy si esa RPC no existiera, y existe.
+La medición que dio "bloqueado" llamaba **a la función equivocada**.
+
+**Al configurar Rock Studio, tres trampas silenciosas:**
 - **Modo rango: `valle` es opt-in.** Solo cobra `creditos_min` en los pares
   (día, hora) marcados en `horarios_config`; **todo lo no marcado es pico** =
-  `creditos_max`. Si Rock Studio carga el rango y se olvida de marcar las
-  franjas valle, **cobra el máximo en todas sus clases y nadie tira un error**.
-  Es el punto más frágil del alta. La hora se trunca hacia abajo: marcar la
-  franja "10" cubre 10:00, 10:30 y 10:45.
-- **`fecha_inicio_cobro` en null ⇒ se cobra comisión desde el día uno.** Misma
-  trampa silenciosa que el valle: si al dar de alta queda vacío, Rock Studio
-  pierde el mes de gracia y nadie avisa. Los 6 estudios reales lo tienen
-  seteado; los 3 de prueba, no.
-- **Cupos:** se carga `lugares_total = 15` (las bicis que van a Aura). Medido:
-  la reserva baja el disponible de a uno y `clases_resync_cupo` recalcula desde
+  `creditos_max`. Si se carga el rango y se olvidan las franjas valle,
+  **cobra el máximo en todas y nadie tira un error**. La hora se trunca hacia
+  abajo: marcar "10" cubre 10:00, 10:30 y 10:45.
+- **`fecha_inicio_cobro` en null ⇒ se cobra comisión desde el día uno**, sin
+  mes de gracia y sin aviso. Los 6 estudios reales lo tienen seteado.
+- **Cupos:** cargar `lugares_total = 15` (las bicis que van a Aura). Medido: la
+  reserva baja el disponible de a uno y `clases_resync_cupo` recalcula desde
   las reservas reales.
 
-**Verificado el 24/8 con cuentas reales (no superadmin), en rollback:** el viaje
-completo anda — crear sede en modo rango · grilla de spinning pegada (07:00,
-08:00 valle = 12 cr; 19:00 pico = 16 cr; **12 clases creadas, 0 omitidas**, sin
-colisión entre grillas contiguas) · clase suelta 12:00 = 16 cr pico · comprar
-pack (40→60) · reservar (−12, cupo 15→14, QR) · marcar presente (a +20 días
-BLOQUEADO, mañana con la ventana abierta PASA) · cancelar a tiempo (+16) ·
-el estudio cancela (+12, campanita) · **vuelta exacta 40 → 12 → 28 → 40**.
+**El viaje completo, verificado el 24/8 con cuentas reales en rollback:**
+crear sede en modo rango · grilla de spinning pegada (07:00 y 08:00 valle =
+12 cr; 19:00 pico = 16 cr; **12 clases creadas, 0 omitidas**, sin colisión
+entre grillas contiguas) · clase suelta 12:00 = 16 cr pico · comprar pack
+(40→60) · reservar (−12, cupo 15→14, QR) · marcar presente (a +20 días
+BLOQUEADO, mañana con la ventana abierta PASA) · cancelar a tiempo (+16) · el
+estudio cancela (+12, campanita) · **vuelta exacta 40 → 12 → 28 → 40**.
 
 **Y dos cosas que esperan a la usuaria:**
 - Que **YN Pilates confirme en el teléfono** que puede cargar y cancelar.
@@ -415,24 +423,28 @@ quedaron desactualizados en dos días. **Medir siempre contra la base.**
 
 # ⬜ LO QUE QUEDA
 
-## 🔴 PASO 2 del multi-sede — lo primero, desbloquea Rock Studio
+## ✅ Multi-sede — CERRADO, no queda nada
 
-`admin_link_estudio_access` tiene que **SUMAR** una fila en `estudio_admins`
-(decisión de la usuaria: que sume siempre, nunca que reemplace) además de
-mover el puntero de sede activa. Sin esto, un estudio recién dado de alta
-**no puede cargar ni grillas ni clases sueltas**. Detalle completo y medición
-arriba, en "Lo primero al retomar".
+El arreglo de la RLS de `horarios_fijos` (commit `f34dd9d`) fue lo único que
+hacía falta. `studio_promote_user_to_admin` ya acumulaba en `estudio_admins`
+desde antes, y los 3 usuarios multi-sede ya estaban bien ahí (0 punteros a
+estudios que no administran, 0 huérfanos): **no hubo backfill que hacer.**
 
-Después del PASO 2 queda el **PASO 3**, que la medición dice que **no hace
-falta**: los 3 usuarios multi-sede ya están bien en `estudio_admins`
-(0 punteros a estudios que no administran, 0 huérfanos). **No hay backfill que
-hacer** — se arreglan solos. Verificar de nuevo antes de darlo por cerrado.
+⚠️ El "PASO 2" que este documento marcó unas horas como bloqueante **no
+existe**: la medición usó `admin_link_estudio_access` (el fallback legacy) en
+vez de `studio_promote_user_to_admin` (lo que llama el botón). Ver arriba.
+
+Lo único que queda de ahí es prolijidad, sin urgencia: **`admin_link_estudio_access`
+sigue existiendo y sigue escribiendo sólo el puntero.** No se usa salvo que
+falte la RPC principal, pero si algún día se cae a ese fallback, el estudio
+queda sin acceso real. Vale borrarla o hacerla escribir `estudio_admins`
+también. Es el ítem 5 de la tabla de abajo.
 
 ## 🟡 Menores de la auditoría fresca — por prioridad, ninguno urgente
 
 | Prio | Qué | Por qué |
 |---|---|---|
-| **1** | **Las 4 policies de `estudio_alumnos`** siguen con el mismo error de categoría que tenía `horarios_fijos`: autorizan con `usuarios.estudio_id`. | Hoy **riesgo cero** (0 filas, 0 estudios en modo gestión), pero se activa **el día que un estudio pase a modo gestión** y ahí el bug vuelve entero. Es el mismo arreglo de una línea que el PASO 1. **Conviene hacerlo con el PASO 2, en la misma tanda.** |
+| **1** | **Las 4 policies de `estudio_alumnos`** siguen con el mismo error de categoría que tenía `horarios_fijos`: autorizan con `usuarios.estudio_id`. | Hoy **riesgo cero** (0 filas, 0 estudios en modo gestión), pero se activa **el día que un estudio pase a modo gestión** y ahí el bug vuelve entero. Es el mismo arreglo de una línea que ya se hizo en `horarios_fijos`. **No afecta a Rock Studio ni a ningún estudio de hoy**: `estudio_alumnos` sólo la usa el modo gestión. |
 | **2** | **La huérfana de YN Pilates.** 31/08 11:00, dos clases idénticas: id **2441** de la grilla 239 (correcta) e id **2439** sin grilla, 0 reservas. | Es la única colisión futura que queda. Es un `DELETE` de 1 fila, no un move. Decisión de la usuaria porque es data de un estudio real. |
 | **3** | **Sin policy `DELETE` en `storage.objects`.** No existe para ninguno de los 3 buckets. | Nadie puede borrar lo que sube — **ni Aura**. Con Rock Studio subiendo fotos, el bucket sólo crece. Ya estaba anotado desde la auditoría de las 8 áreas. |
 | **4** | **`plan` y `subscription_status` son auto-escribibles** por la propia usuaria. | Medido: **ninguna función regala créditos mirándolas** (`process_approved_plan_payment` es SECURITY DEFINER y la dispara el webhook contra una fila de `pagos` real). El efecto se limita a **un badge falso en la UI**. Barato de cerrar sumándolas al guard. |
