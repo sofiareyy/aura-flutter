@@ -423,38 +423,60 @@ quedaron desactualizados en dos días. **Medir siempre contra la base.**
 
 # ⬜ LO QUE QUEDA
 
-## ✅ Multi-sede — CERRADO, no queda nada
+## ✅ Multi-sede — CERRADO. Rock Studio se puede cargar.
 
 El arreglo de la RLS de `horarios_fijos` (commit `f34dd9d`) fue lo único que
 hacía falta. `studio_promote_user_to_admin` ya acumulaba en `estudio_admins`
 desde antes, y los 3 usuarios multi-sede ya estaban bien ahí (0 punteros a
 estudios que no administran, 0 huérfanos): **no hubo backfill que hacer.**
 
-⚠️ El "PASO 2" que este documento marcó unas horas como bloqueante **no
-existe**: la medición usó `admin_link_estudio_access` (el fallback legacy) en
-vez de `studio_promote_user_to_admin` (lo que llama el botón). Ver arriba.
+⚠️ **El "PASO 2" que este documento marcó unas horas como bloqueante NO
+EXISTE.** La medición usó `admin_link_estudio_access` (el fallback legacy) en
+vez de `studio_promote_user_to_admin` (lo que llama el botón del backoffice,
+`admin_service.dart:246`). Ver el detalle arriba, en "Lo primero al retomar".
 
-Lo único que queda de ahí es prolijidad, sin urgencia: **`admin_link_estudio_access`
-sigue existiendo y sigue escribiendo sólo el puntero.** No se usa salvo que
-falte la RPC principal, pero si algún día se cae a ese fallback, el estudio
-queda sin acceso real. Vale borrarla o hacerla escribir `estudio_admins`
-también. Es el ítem 5 de la tabla de abajo.
+---
+
+## ⏸️ Para cuando actives MODO GESTIÓN — hoy no bloquea nada
+
+**Hoy no usás modo gestión: 0 estudios en `modo='gestion'` y 0 filas en
+`estudio_alumnos`.** Esto duerme hasta que actives esa función. No tiene nada
+que ver con Rock Studio ni con el multi-sede.
+
+**Las 4 policies de `estudio_alumnos`** (select/insert/update/delete) siguen
+con el mismo error de categoría que tenía `horarios_fijos`: autorizan con
+`usuarios.estudio_id`, que es el puntero de sede activa y no una columna de
+permisos. El día que un estudio pase a modo gestión, el bug vuelve entero: un
+dueño de dos sedes no va a poder ver ni cargar el padrón de alumnas de la
+segunda.
+
+**El arreglo es el mismo de una línea que ya se aplicó en `horarios_fijos`:**
+cambiar las 4 a `es_miembro_de_estudio(estudio_id)`. Ver
+`FIX_GRILLAS_MULTISEDE_paso1_2026-08-24.sql` como plantilla.
+
+**Hacerlo ANTES de encender el primer estudio en modo gestión**, no después.
+
+---
 
 ## 🟡 Menores de la auditoría fresca — por prioridad, ninguno urgente
 
+**Ninguno bloquea a Rock Studio ni a nada de hoy.**
+
 | Prio | Qué | Por qué |
 |---|---|---|
-| **1** | **Las 4 policies de `estudio_alumnos`** siguen con el mismo error de categoría que tenía `horarios_fijos`: autorizan con `usuarios.estudio_id`. | Hoy **riesgo cero** (0 filas, 0 estudios en modo gestión), pero se activa **el día que un estudio pase a modo gestión** y ahí el bug vuelve entero. Es el mismo arreglo de una línea que ya se hizo en `horarios_fijos`. **No afecta a Rock Studio ni a ningún estudio de hoy**: `estudio_alumnos` sólo la usa el modo gestión. |
-| **2** | **La huérfana de YN Pilates.** 31/08 11:00, dos clases idénticas: id **2441** de la grilla 239 (correcta) e id **2439** sin grilla, 0 reservas. | Es la única colisión futura que queda. Es un `DELETE` de 1 fila, no un move. Decisión de la usuaria porque es data de un estudio real. |
-| **3** | **Sin policy `DELETE` en `storage.objects`.** No existe para ninguno de los 3 buckets. | Nadie puede borrar lo que sube — **ni Aura**. Con Rock Studio subiendo fotos, el bucket sólo crece. Ya estaba anotado desde la auditoría de las 8 áreas. |
+| **1** | **La huérfana de YN Pilates.** 31/08 11:00, dos clases idénticas: id **2441** de la grilla 239 (correcta) e id **2439** sin grilla, 0 reservas. | Es la única colisión futura que queda. Es un `DELETE` de 1 fila, no un move. Decisión de la usuaria porque es data de un estudio real. |
+| **2** | **Sin policy `DELETE` en `storage.objects`.** No existe para ninguno de los 3 buckets. | Nadie puede borrar lo que sube — **ni Aura**. Con Rock Studio subiendo fotos, el bucket sólo crece. Ya estaba anotado desde la auditoría de las 8 áreas. |
+| **3** | **`admin_link_estudio_access` sigue escribiendo sólo `usuarios.estudio_id`** y 0 filas en `estudio_admins`. ⚠️ **Esto NO es modo gestión** y no bloquea nada hoy. | Es el **fallback legacy** de vincular acceso: sólo se usa si `studio_promote_user_to_admin` no existiera, y existe. Pero si algún día se cayera a él, el estudio quedaría **sin acceso real y con un síntoma confuso** (el backoffice diría "vinculado" y el panel no dejaría cargar nada). **Vale borrarla, o hacerla escribir `estudio_admins` también.** |
 | **4** | **`plan` y `subscription_status` son auto-escribibles** por la propia usuaria. | Medido: **ninguna función regala créditos mirándolas** (`process_approved_plan_payment` es SECURITY DEFINER y la dispara el webhook contra una fila de `pagos` real). El efecto se limita a **un badge falso en la UI**. Barato de cerrar sumándolas al guard. |
 | **5** | **Las 3 RPCs de bienvenida que no existen** — `acreditar_bienvenida`, `bienvenida_esta_activa`, `admin_apagar_bienvenida`. La migración nunca se aplicó. | El Dart lo maneja bien (`catch` silencioso, y el backoffice dice *"falta aplicar la migración"*), así que **no está roto**. Pero `acreditar_bienvenida` se llama en **cada login** y falla siempre: una ida y vuelta desperdiciada por sesión. **Decidir: aplicar la migración o borrar las 3 llamadas.** Lo segundo toca Dart ⇒ build. |
 | **6** | **La policy `"Admins leen config"` de `configuracion_global` es `SELECT using (true)`** para todos. | El nombre miente, pero **no filtra nada sensible** (valor del crédito, min_build, categorías). La lectura abierta probablemente sea necesaria: el chequeo de `min_build` corre **antes del login**. **Renombrarla, no cerrarla** — cerrarla sin mirar rompería el gate de versión. |
 | **7** | **`horarios_fijos` tiene `"todos pueden ver horarios"` con `USING (true)`.** | Cualquier usuario logueado lee las grillas de todos los estudios. Es anterior a todo esto y no filtra nada que no sea público (las clases ya lo son). Cosmético salvo que se quiera privacidad de grilla. |
 | **8** | **Las 5 funciones sin `search_path`** (ver Tanda A). | Las 5 son trigger functions *invoker*, **0 SECURITY DEFINER** ⇒ no hay vector real. Prolijidad. |
 
-**Lo único de esta lista con fecha es el 1**, y la fecha no es un día: es "antes
-de que un estudio pase a modo gestión".
+**Ninguno tiene fecha.** El único con un disparador es el bloque de modo
+gestión de arriba, y el disparador no es un día: es "antes de encender el
+primer estudio en modo gestión".
+
 
 
 ## ⏭️ Tanda B — verificación de mail · SALTEADA
