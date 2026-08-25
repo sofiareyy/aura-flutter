@@ -133,6 +133,7 @@ clase por hora, casi nunca lo son.
 | ✅ | **Guard: no se puede cargar dos veces el mismo horario fijo.** Trigger `BEFORE INSERT OR UPDATE` en `horarios_fijos`, rechaza con mensaje legible y `errcode 23505`. Va como trigger y no como índice único porque Postgres no deja crear el índice mientras existan los duplicados de Tiwar y Yessi; **el índice `(estudio_id, dia_semana, hora_inicio)` va en la migración que limpie Tiwar**, y el trigger queda como capa del mensaje. | lote normal 5 slots ✅ genera 20 · doble tap **RECHAZADO** · rango solapado **rechazado entero, siguen 5** · slot nuevo ✅ · editar profe/cupo ✅ · mover a libre ✅ · mover a ocupado **RECHAZADO** · otro estudio mismo slot ✅ · como `postgres` **RECHAZADO** · Tiwar edita sus 130 (dupes incluidos) ✅ 130 filas · cron regenera ✅ | `FIX_GRILLAS_SIN_DUPLICADOS_2026-08-25.sql` |
 | ✅ | **`aviso-alumnos-email` mostraba la clase 3 h antes.** `new Date("…T08:30:00")` en Deno (UTC) + `timeZone: Buenos_Aires` ⇒ **05:30**. Latente: `avisos_envios` = 0, nunca se mandó uno. Pasa a `timeZone: 'UTC'` como ya hacía `nueva-reserva-estudio-email`. **Deployada** (declarada en `config.toml`, `verify_jwt` intacto). | `node` en `TZ=UTC`: **05:30 → 08:30** | edge function |
 | ✅ | **`email-confirmacion`** tenía el mismo patrón. Arreglada **en el código, NO deployada**: no está en `config.toml` (deployarla cambiaría `verify_jwt` en silencio) y si debe existir es decisión de producto (ver NEGOCIO). | idem | edge function |
+| ✅ | **El generador no crea clases encima de una que ya existe.** Interacción encontrada en la verificación de punta a punta: `clases.horario_fijo_id` es `ON DELETE SET NULL` (borrar una grilla deja sus clases huérfanas y publicadas), el chequeo de existencia iba **sólo por `horario_fijo_id`** (ciego a huérfanas), el guard de grillas no ve clases, y `_deleteFixed` traga errores. Medido: borrar grilla → 3 huérfanas → recrear → **3 fechas duplicadas**. Ahora hay un **segundo chequeo por `(estudio, fecha exacta)`**, venga de la grilla que venga o de ninguna; contador `ocupadas` aparte. De yapa el cron **deja de crearle semanas duplicadas a Tiwar** hasta la limpieza. | huérfanas por SQL → recrear: **dups 0** (antes 3) · el caso real (`_deleteFixed` con clase protegida por el candado, 1 huérfana tragada) → recrear: **dups 0** · grilla nueva 6/0 · regenerar 0/6 · mover 0/6 · cron como `service_role`: 6 estudios, colisiones siguen 517, 0 desalineadas · Tiwar `creadas 0 · ocupadas 6` (antes creaba 12) | `FIX_GENERADOR_NO_PISA_CLASES_2026-08-25.sql` |
 
 ---
 
@@ -153,6 +154,18 @@ mal publicadas en producción.** Los 5 arreglos están aplicados y commiteados.
 | ✅ | **Un dueño no podía administrar 2 sedes.** Las 4 policies de `horarios_fijos` autorizaban con `usuarios.estudio_id`, que **no es una columna de permisos**: es el puntero de **sede activa**. Al ser escalar, la segunda sede quedaba inaccesible. | `bottarobelen` (real, no superadmin): grilla en Colegiales PASA, **en Urquiza 42501**. Después: **las dos PASAN**, y el flujo completo en la 2ª sede anda (2 grillas → 8 clases → mover horario → 0 duplicados). Sin regresión: Citra 23 grillas, Sculpt 17. | `f34dd9d` |
 | ✅ | **Farmeo corporativo recurrente.** `es_corporativo` y `empresa_id` no estaban en el guard; lo único que los tapaba era una FK, porque `empresas` está vacía. El cron mensual está **activo**. | Simulando la primera empresa (30 cr/empleado): **40 → 190 cr en 5 corridas**, 150 regalados. Después: **BLOQUEADO** en las 3 formas; el alta de un empleado real por dominio sigue vinculando y acreditando (30 cr) y el cron le sigue pagando. | `b718592` |
 | ✅ | **41 clases publicadas a la hora equivocada** (Citra y Yessi). Daño anterior al arreglo de grillas del 24/8. | 41 **movidas**, 0 borradas · desalineadas **41 → 0** · colisiones **37 → 1** · total futuro **397 → 397** · precios desviados 0 · las 5 reservas intactas. | `a3a5b97` |
+
+**Huérfanas vivas en producción (barrido del 25/8):** **una sola** clase
+futura con `horario_fijo_id NULL` en toda la base — YN Pilates 31/08 11:00
+(id 2439), la de siempre, con la grilla 239 viva en el slot. El problema era
+sólo a futuro. Con el generador nuevo esa huérfana ya no engendra más
+duplicados, pero la del 31/08 sigue siendo un duplicado real: menor 1.
+
+⚠️ **Efecto deliberado del generador nuevo:** si un estudio carga una clase
+suelta o un workshop **en el mismo minuto** que una clase de grilla, esa
+semana la grilla no genera la suya (`ocupadas 1`). Un minuto, una clase, por
+estudio — coherente con el guard de grillas. Si algún día un estudio con dos
+salas necesita dos clases al mismo minuto, esto lo frena.
 
 ### ⚠️ La lección del backfill: parecían duplicados y no lo eran
 
@@ -647,6 +660,24 @@ tres son Dart puro, ninguno es un guard ni toca la base)
     Ojo: **no tapar el error**, solo traducirlo. El texto crudo tiene que
     seguir yendo a `debugPrint` o no se puede diagnosticar nada.
 
+17b. 🔴 **`_deleteFixed` y `_eliminarGrillaCompleta` no pueden tragarse errores** —
+    **va con el 17, y es el que deja clases huérfanas invisibles.**
+    `mis_clases_screen.dart:2681` (`_deleteFixed`, :4624 `_eliminarGrillaCompleta`):
+    por cada clase futura de la grilla hacen `try{cancelar}catch(_){}` y
+    `try{borrar}catch(_){}` **por separado**, y después borran la grilla
+    **pase lo que pase**. Si el borrado de una clase falla —el candado del
+    24/8 porque tiene una reserva `presente`/`completada`, un error de red,
+    lo que sea— la clase queda **huérfana** (`horario_fijo_id` NULL por el
+    `SET NULL`), **publicada, tomando reservas, e invisible en "Horarios
+    fijos"**. El estudio cree que la borró. Medido el 25/8 simulando el
+    camino exacto: `borradas 3 · falló y se tragó 1 · grilla borrada · 1
+    huérfana publicada`. Desde el 25/8 el generador ya no crea encima de
+    esa huérfana (no duplica), pero la huérfana sigue ahí.
+    **Arreglo, en este orden:** (1) borrar las clases; (2) si **alguna**
+    falló, **NO borrar la grilla**, parar y mostrar cuál y por qué — el
+    mensaje del candado ya es legible (*"tiene alumnas anotadas / ya
+    tomada"*); (3) sólo si todas se borraron, borrar la grilla. El detalle
+    técnico sigue yendo a `debugPrint`, como en el 17.
 18. **Borrar los dos inserts muertos a `notificaciones_usuario`.**
     El cliente intenta crear campanitas para OTROS usuarios. `notificaciones_usuario`
     no tiene policy de INSERT, así que RLS los rechaza **siempre** con 42501 y el
