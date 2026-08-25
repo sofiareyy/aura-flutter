@@ -13,7 +13,8 @@
 | ✅ | **Tanda A** — barrido de base (8 items) | cerrada |
 | ⏭️ | **Tanda B** — verificación de mail | **salteada por decisión**: se activa cuando entre la primera empresa |
 | ✅ | **Auditoría de guards y grants** (dos tandas) | **hecha el 24/8** con el criterio de las dos puntas · 5 arreglos de base |
-| 🔵 | **Alta de Rock Studio** (spinning, 2 sedes, 50 bicis) | **lo primero** · la cadena está verificada punta a punta, ver abajo |
+| ✅ | **Auditoría FRESCA de punta a punta** (cabeza limpia, sin mirar estas notas) | **hecha el 24/8** · 4 agujeros nuevos + 41 clases mal publicadas · **5 arreglos aplicados** |
+| 🔴 | **Alta de Rock Studio** (spinning, 2 sedes, 50 bicis) | **BLOQUEADA por el PASO 2** (`admin_link_estudio_access`). Ver abajo. |
 | ⬜ | **Tanda C** — build de Dart (19 items) | **lo próximo** · bloqueada por saber si el build 25 se subió |
 | ⬜ | **Tanda D** — Modelo C de precios | arrancar por el DISEÑO de reglas, no por código |
 | ⬜ | **Tanda E** — experiencias, esquema pesado, keys legacy | |
@@ -21,28 +22,56 @@
 
 ### ⚠️ Lo primero al retomar
 
-**🔵 El alta de Rock Studio** (spinning, 2 sedes, 50 bicis, 15 para Aura).
-El 24/8 se simuló **el proceso completo con cuentas reales** (no superadmin),
-en transacciones con rollback, y **los 7 eslabones andan**: crear estudio con
-precio modo rango · cargar clase suelta y grilla con el precio correcto ·
-comprar pack (acredita con vencimiento) · reservar (descuenta, baja cupo, da
-QR) · marcar presente · cancelar a tiempo (recupera) y tarde (no puede) ·
-liquidación (70 % y primer mes sin comisión dan bien).
+**🔴 PASO 2 del multi-sede: que `admin_link_estudio_access` SUME en vez de pisar.**
+Es lo único que separa a Rock Studio de poder entrar. **Decisión ya tomada por
+la usuaria: que sume siempre**; si alguna vez hay que sacarle un estudio a
+alguien, se hace aparte.
 
-Dos cosas para tener a mano al configurarlo:
+Hoy esa función escribe **solo `usuarios.estudio_id`** (un escalar) y **0 filas
+en `estudio_admins`**. Medido el 24/8 con el alta completa de un estudio nuevo
+por el camino real del backoffice:
+
+| | |
+|---|---|
+| `usuarios.estudio_id` | 37 |
+| filas en `estudio_admins` | **0** |
+| `es_miembro_de_estudio` | **false** |
+| cargar grilla · clase suelta | **42501 · 42501** |
+| `generar_clases_estudio` | `no_autorizado` |
+
+⚠️ **Ojo con la historia, para no diagnosticar mal:** el botón de vincular del
+backoffice **ya estaba a medias desde antes** de la auditoría. La policy de
+`clases` siempre usó `estudio_admins`, así que un estudio recién vinculado
+**nunca** pudo cargar clases sueltas. Antes del PASO 1 podía cargar grillas y
+no clases; ahora ninguna de las dos. El PASO 2 arregla las dos.
+
+Los estudios que hoy funcionan es porque están en `estudio_admins` por otra vía.
+
+**Al configurar Rock Studio, dos cosas para tener a mano:**
 - **Modo rango: `valle` es opt-in.** Solo cobra `creditos_min` en los pares
   (día, hora) marcados en `horarios_config`; **todo lo no marcado es pico** =
   `creditos_max`. Si Rock Studio carga el rango y se olvida de marcar las
   franjas valle, **cobra el máximo en todas sus clases y nadie tira un error**.
   Es el punto más frágil del alta. La hora se trunca hacia abajo: marcar la
   franja "10" cubre 10:00, 10:30 y 10:45.
-- **Cupos:** se carga `lugares_total = 15` (las bicis que van a Aura). El resto
-  no existe para Aura. Medido: la reserva baja el disponible de a uno y
-  `clases_resync_cupo` recalcula desde las reservas reales.
+- **`fecha_inicio_cobro` en null ⇒ se cobra comisión desde el día uno.** Misma
+  trampa silenciosa que el valle: si al dar de alta queda vacío, Rock Studio
+  pierde el mes de gracia y nadie avisa. Los 6 estudios reales lo tienen
+  seteado; los 3 de prueba, no.
+- **Cupos:** se carga `lugares_total = 15` (las bicis que van a Aura). Medido:
+  la reserva baja el disponible de a uno y `clases_resync_cupo` recalcula desde
+  las reservas reales.
+
+**Verificado el 24/8 con cuentas reales (no superadmin), en rollback:** el viaje
+completo anda — crear sede en modo rango · grilla de spinning pegada (07:00,
+08:00 valle = 12 cr; 19:00 pico = 16 cr; **12 clases creadas, 0 omitidas**, sin
+colisión entre grillas contiguas) · clase suelta 12:00 = 16 cr pico · comprar
+pack (40→60) · reservar (−12, cupo 15→14, QR) · marcar presente (a +20 días
+BLOQUEADO, mañana con la ventana abierta PASA) · cancelar a tiempo (+16) ·
+el estudio cancela (+12, campanita) · **vuelta exacta 40 → 12 → 28 → 40**.
 
 **Y dos cosas que esperan a la usuaria:**
-- Que **YN Pilates confirme en el teléfono** que puede cargar y cancelar. Todos
-  los arreglos del 24/8 son de base, así que ya los tienen sin actualizar nada.
+- Que **YN Pilates confirme en el teléfono** que puede cargar y cancelar.
 - La decisión **antes del 13/9** sobre qué pasa con las alumnas ya anotadas
   cuando el estudio mueve una grilla (ver pendientes de NEGOCIO).
 
@@ -69,6 +98,69 @@ el 21/8"*, y una nota vieja de este archivo decía *"enviado a revisión"*. No s
 puede saber desde el repo — hay que mirar App Store Connect y Play Console.
 Si nunca se subió, la Tanda C sale en el 25 y no se quema otro número.
 Es la segunda vez que pasa: el número 23 ya se perdió así.
+
+---
+
+# ✅ HECHO EL 2026-08-24 — AUDITORÍA FRESCA de punta a punta
+
+Pedida con **cabeza limpia y sin dar nada por bueno**, midiendo **contra la
+base** y no contra estas notas, con **cuentas reales y nunca `test@aura.com`**,
+y verificando **las dos puntas** en cada cosa. Todo en transacciones con
+`rollback`; verificado que quedaran 0 filas de prueba.
+
+**Encontró 4 agujeros que las tandas anteriores no habían visto, y 41 clases
+mal publicadas en producción.** Los 5 arreglos están aplicados y commiteados.
+
+| | Qué | Medición | Commit |
+|---|---|---|---|
+| ✅ | **`consume_user_credits_detallado` invocable desde internet.** SECURITY DEFINER, sin validar quién llama, tomando el `user_id` por parámetro, con `EXECUTE` para **PUBLIC** además de anon y authenticated. Cualquiera con la anon key —que va dentro de la app— vaciaba los créditos de cualquiera **sin loguearse**. | alumna ajena deja a otra en 0 (**40 → 0**); anon idem (**22 → 0**); por HTTP devolvía **200**. Después: **42501 / HTTP 401** para anon y para alumna logueada; reservar, cancelar y confirmar pre-reserva siguen andando. | `382067c` |
+| ✅ | **Escalada por el email → control de `liquidaciones`.** El guard de `usuarios` no protegía `email`, y la policy de `liquidaciones` comparaba contra el mail hardcodeado `'test@aura.com'` en vez de `is_admin()`. Una alumna se ponía ese mail y quedaba dueña del libro de pagos. | Antes: cambiarse el mail PASA, leía `est 3 · $8400`, insertaba falsas, **modificaba 2 y borraba 2**. Después: mail **BLOQUEADO**, liquidaciones **0 filas / 42501**; el admin real sigue leyendo, creando, marcando pagada y borrando. | `8215db7` |
+| ✅ | **Un dueño no podía administrar 2 sedes.** Las 4 policies de `horarios_fijos` autorizaban con `usuarios.estudio_id`, que **no es una columna de permisos**: es el puntero de **sede activa**. Al ser escalar, la segunda sede quedaba inaccesible. | `bottarobelen` (real, no superadmin): grilla en Colegiales PASA, **en Urquiza 42501**. Después: **las dos PASAN**, y el flujo completo en la 2ª sede anda (2 grillas → 8 clases → mover horario → 0 duplicados). Sin regresión: Citra 23 grillas, Sculpt 17. | `f34dd9d` |
+| ✅ | **Farmeo corporativo recurrente.** `es_corporativo` y `empresa_id` no estaban en el guard; lo único que los tapaba era una FK, porque `empresas` está vacía. El cron mensual está **activo**. | Simulando la primera empresa (30 cr/empleado): **40 → 190 cr en 5 corridas**, 150 regalados. Después: **BLOQUEADO** en las 3 formas; el alta de un empleado real por dominio sigue vinculando y acreditando (30 cr) y el cron le sigue pagando. | `b718592` |
+| ✅ | **41 clases publicadas a la hora equivocada** (Citra y Yessi). Daño anterior al arreglo de grillas del 24/8. | 41 **movidas**, 0 borradas · desalineadas **41 → 0** · colisiones **37 → 1** · total futuro **397 → 397** · precios desviados 0 · las 5 reservas intactas. | `a3a5b97` |
+
+### ⚠️ La lección del backfill: parecían duplicados y no lo eran
+
+Las 37 "clases duplicadas" **no eran duplicados**. Medido: en los 13 grupos, el
+horario correcto de cada clase estaba **libre**. Lo que pasaba es que dos
+grillas **distintas** chocaban en la hora equivocada — Citra los lunes, grilla
+18 (08:30) y grilla 20 (09:30): del 31/8 al 28/9 las dos a las 08:30 con el
+slot 09:30 **vacío**, y el 5 y 12/10 al revés.
+
+Cada fila era una clase **legítima mal ubicada**. **Borrarlas le habría sacado
+a Citra y Yessi 41 clases reales que sí dictan.** Se movieron: resuelve la
+colisión y repone la faltante de una sola vez.
+
+**La regla que deja:** antes de borrar filas "duplicadas", chequear si el lugar
+correcto está libre. Si lo está, es un *move*, no un *delete*.
+
+### ⚠️ Y la del grant a PUBLIC
+
+El plan original del arreglo #2 era *"revocar a anon y authenticated"*. Al
+mirar la ACL antes de tocar apareció `=X/postgres`, que es el grant a
+**`PUBLIC`**: con eso ahí, **revocar a anon y authenticated no habría cerrado
+nada**, porque todo rol hereda de PUBLIC. Fue la única de las tres primitivas
+de crédito que lo tenía.
+
+**La regla:** al revocar un `execute`, mirar la ACL completa —`proacl`—, no
+sólo los roles obvios.
+
+### Lo que la auditoría probó que SÍ está bien
+
+- **El viaje completo de plata cierra exacto:** 40 → 12 → 28 → 40, con cuentas
+  reales, incluyendo pack, reserva, QR, presente, cancelación de la alumna y
+  cancelación del estudio con campanita.
+- **0 precios desviados** en 702 clases futuras y 79 grillas.
+- **Convención de `dia_semana` consistente:** 0 desvíos en 1007 clases de grilla.
+- **Editar una grilla ya no duplica**, incluido el **borde exacto de 1 hora**
+  (que era el caso que antes se ignoraba en silencio).
+- **Marcar asistencia antes de tiempo sigue bloqueado**; con la ventana abierta
+  se puede.
+- **Las `admin_*` abiertas a `anon` rechazan todas por HTTP** (probadas
+  `admin_delete_estudio`, `admin_list_users`, `admin_adjust_user_credits`,
+  `admin_pricing_snapshot`): el grant está desprolijo pero no es explotable.
+- **Las 32 tablas tienen RLS.** `admin_activity_logs` y `avisos_entregas` la
+  tienen con 0 policies, o sea deny-all: fallan cerrado, está bien.
 
 ---
 
@@ -289,7 +381,7 @@ perfil sin ejercitar (Tanda C) y la falta de policy DELETE en `storage.objects`.
 | | Qué | Migración |
 |---|---|---|
 | ✅ | **Créditos manuales sin vencimiento** — la única función que escribía en `creditos_movimientos` sin pasar por `grant_user_credits`. **0 eternos en toda la base.** | `20260822180000` |
-| ✅ | **`ensure_referral_code`** — era la última sin `search_path`. **94 de 94 blindadas.** | `20260822190000` |
+| ✅ | **`ensure_referral_code`** — era la última sin `search_path` de las de entonces. ⚠️ **El "94 de 94" ya no vale:** medido el 24/8 hay **113 funciones y 5 sin `search_path`** (`set_updated_at`, `set_study_review_updated_at`, `sync_categoria_estudio`, `sync_categorias_clase`, `aura_inicio_mes_art`). Las 5 son trigger functions *invoker*, **0 SECURITY DEFINER** ⇒ riesgo bajo. | `20260822190000` |
 | ✅ | **Código muerto, 4 firmas** | `20260822190000` |
 | ✅ | **Índice `reservas_usuario_clase_uidx`** — decía "ya reservaste" en clases que el estudio te había cancelado | `20260822200000` |
 | ✅ | **`expires_at NOT NULL`** — cierra la tabla para que no vuelvan los eternos | `20260822210000` |
@@ -305,13 +397,53 @@ perfil sin ejercitar (Tanda C) y la falta de policy DELETE en `storage.objects`.
 decía "estados del estudio" y era sobre `reservas.estado`, que sí se arregló.
 
 ### Números de referencia (para comparar la próxima)
-885 clases · 70 horarios fijos · 5 reservas · 9 estudios · 78 usuarios ·
-0 precios desviados · 0 etiquetas desviadas · 0 créditos eternos ·
-0 experiencias futuras · rangos 11–18 (clases) y 50 (el workshop).
+
+**Al cierre del 2026-08-24, después de la auditoría fresca:**
+1019 clases (702 futuras) · 79 horarios fijos · 5 reservas (2 vivas) ·
+11 estudios · 78 usuarios · 16 movimientos de crédito · 85 créditos en
+circulación (ledger y `usuarios.creditos` coinciden) · 29 pagos ·
+113 funciones · 32 tablas · 22 triggers · 1 liquidación.
+
+**0 precios desviados · 0 clases futuras desalineadas de su grilla ·
+0 créditos eternos · 0 emails desincronizados con `auth.users` ·
+0 usuarios corporativos · 1 colisión futura (la huérfana de YN Pilates).**
+
+⚠️ Los números viejos de esta sección (885 clases, 70 horarios, 9 estudios)
+quedaron desactualizados en dos días. **Medir siempre contra la base.**
 
 ---
 
 # ⬜ LO QUE QUEDA
+
+## 🔴 PASO 2 del multi-sede — lo primero, desbloquea Rock Studio
+
+`admin_link_estudio_access` tiene que **SUMAR** una fila en `estudio_admins`
+(decisión de la usuaria: que sume siempre, nunca que reemplace) además de
+mover el puntero de sede activa. Sin esto, un estudio recién dado de alta
+**no puede cargar ni grillas ni clases sueltas**. Detalle completo y medición
+arriba, en "Lo primero al retomar".
+
+Después del PASO 2 queda el **PASO 3**, que la medición dice que **no hace
+falta**: los 3 usuarios multi-sede ya están bien en `estudio_admins`
+(0 punteros a estudios que no administran, 0 huérfanos). **No hay backfill que
+hacer** — se arreglan solos. Verificar de nuevo antes de darlo por cerrado.
+
+## 🟡 Menores de la auditoría fresca — por prioridad, ninguno urgente
+
+| Prio | Qué | Por qué |
+|---|---|---|
+| **1** | **Las 4 policies de `estudio_alumnos`** siguen con el mismo error de categoría que tenía `horarios_fijos`: autorizan con `usuarios.estudio_id`. | Hoy **riesgo cero** (0 filas, 0 estudios en modo gestión), pero se activa **el día que un estudio pase a modo gestión** y ahí el bug vuelve entero. Es el mismo arreglo de una línea que el PASO 1. **Conviene hacerlo con el PASO 2, en la misma tanda.** |
+| **2** | **La huérfana de YN Pilates.** 31/08 11:00, dos clases idénticas: id **2441** de la grilla 239 (correcta) e id **2439** sin grilla, 0 reservas. | Es la única colisión futura que queda. Es un `DELETE` de 1 fila, no un move. Decisión de la usuaria porque es data de un estudio real. |
+| **3** | **Sin policy `DELETE` en `storage.objects`.** No existe para ninguno de los 3 buckets. | Nadie puede borrar lo que sube — **ni Aura**. Con Rock Studio subiendo fotos, el bucket sólo crece. Ya estaba anotado desde la auditoría de las 8 áreas. |
+| **4** | **`plan` y `subscription_status` son auto-escribibles** por la propia usuaria. | Medido: **ninguna función regala créditos mirándolas** (`process_approved_plan_payment` es SECURITY DEFINER y la dispara el webhook contra una fila de `pagos` real). El efecto se limita a **un badge falso en la UI**. Barato de cerrar sumándolas al guard. |
+| **5** | **Las 3 RPCs de bienvenida que no existen** — `acreditar_bienvenida`, `bienvenida_esta_activa`, `admin_apagar_bienvenida`. La migración nunca se aplicó. | El Dart lo maneja bien (`catch` silencioso, y el backoffice dice *"falta aplicar la migración"*), así que **no está roto**. Pero `acreditar_bienvenida` se llama en **cada login** y falla siempre: una ida y vuelta desperdiciada por sesión. **Decidir: aplicar la migración o borrar las 3 llamadas.** Lo segundo toca Dart ⇒ build. |
+| **6** | **La policy `"Admins leen config"` de `configuracion_global` es `SELECT using (true)`** para todos. | El nombre miente, pero **no filtra nada sensible** (valor del crédito, min_build, categorías). La lectura abierta probablemente sea necesaria: el chequeo de `min_build` corre **antes del login**. **Renombrarla, no cerrarla** — cerrarla sin mirar rompería el gate de versión. |
+| **7** | **`horarios_fijos` tiene `"todos pueden ver horarios"` con `USING (true)`.** | Cualquier usuario logueado lee las grillas de todos los estudios. Es anterior a todo esto y no filtra nada que no sea público (las clases ya lo son). Cosmético salvo que se quiera privacidad de grilla. |
+| **8** | **Las 5 funciones sin `search_path`** (ver Tanda A). | Las 5 son trigger functions *invoker*, **0 SECURITY DEFINER** ⇒ no hay vector real. Prolijidad. |
+
+**Lo único de esta lista con fecha es el 1**, y la fecha no es un día: es "antes
+de que un estudio pase a modo gestión".
+
 
 ## ⏭️ Tanda B — verificación de mail · SALTEADA
 
