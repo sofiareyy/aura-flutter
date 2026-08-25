@@ -57,17 +57,22 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'fecha_iso invalida' }, 400)
     }
 
+    // `clases.fecha` es `timestamp without time zone` y guarda HORA DE PARED
+    // argentina ("2026-08-24T08:30:00", sin Z). Deno corre en UTC y `new Date`
+    // toma ese string como 08:30 UTC; formatearlo en Buenos_Aires lo corria a
+    // 05:30 (medido el 25/8). Con timeZone 'UTC' sale la hora de pared tal
+    // cual, que es lo correcto. Mismo criterio que nueva-reserva-estudio-email.
     const fechaStr = fecha.toLocaleDateString('es-AR', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
       year: 'numeric',
-      timeZone: 'America/Argentina/Buenos_Aires',
+      timeZone: 'UTC',
     })
     const horaStr = fecha.toLocaleTimeString('es-AR', {
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: 'America/Argentina/Buenos_Aires',
+      timeZone: 'UTC',
     })
 
     let mapsUrl: string | null = null

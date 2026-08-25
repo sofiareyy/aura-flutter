@@ -15,6 +15,7 @@
 | ✅ | **Auditoría de guards y grants** (dos tandas) | **hecha el 24/8** con el criterio de las dos puntas · 5 arreglos de base |
 | ✅ | **Auditoría FRESCA de punta a punta** (cabeza limpia, sin mirar estas notas) | **hecha el 24/8** · 4 agujeros nuevos + 41 clases mal publicadas · **5 arreglos aplicados** |
 | 🟢 | **Alta de Rock Studio** (spinning, 2 sedes, 50 bicis) | **LISTA.** Multi-sede verificado punta a punta el 24/8 con las 2 sedes. Ver abajo. |
+| ✅ | **Incidente Tiwar 25/8** — "las clases se duplican / horarios raros" | **no era zona horaria**: reloj de 12 h en el panel + grilla cargada 2 veces como rango · guard aplicado · **limpieza de Tiwar espera confirmación del estudio** |
 | ⬜ | **Tanda C** — build de Dart (19 items) | **lo próximo** · bloqueada por saber si el build 25 se subió |
 | ⬜ | **Tanda D** — Modelo C de precios | arrancar por el DISEÑO de reglas, no por código |
 | ⬜ | **Tanda E** — experiencias, esquema pesado, keys legacy | |
@@ -106,6 +107,32 @@ el 21/8"*, y una nota vieja de este archivo decía *"enviado a revisión"*. No s
 puede saber desde el repo — hay que mirar App Store Connect y Play Console.
 Si nunca se subió, la Tanda C sale en el 25 y no se quema otro número.
 Es la segunda vez que pasa: el número 23 ya se perdió así.
+
+---
+
+# ✅ HECHO EL 2026-08-25 — incidente Tiwar: "se duplican las clases y aparecen horarios raros"
+
+**Reporte:** el dueño cargó "8:30 y 9:30" y ve clases a la "1:30 y 2:30"; la
+usuaria ve "17:30 y 18:30" para lo que creían la misma clase. Sonaba a zona
+horaria. **No lo era.** Se midió todo antes de tocar:
+
+| Qué se creyó | Qué era (medido) |
+|---|---|
+| desfase de timezone | **no existe**: `clases.fecha` es `timestamp without time zone` (hora de pared), la API devuelve `"…T08:30:00"` sin `Z`, Dart no aplica zona al parsear, y no hay ninguna resta de 7 h en el código (las 27 `Duration(hours:` son −3 para "ahora en Argentina" o ventanas) |
+| "1:30 y 2:30" | **13:30 y 14:30 en reloj de 12 h.** La tarjeta del panel del estudio usa `DateFormat('hh:mm a')` (`mis_clases_screen.dart:5017`) — el **único** lugar de toda la app en 12 h, desde el commit inicial. Y esas clases existen |
+| "17:30 y 18:30" | las dos siguientes clases reales cuando la usuaria miró (grilla cargada 16:15 ART, lista de la alumna = `fecha >= ahora`) |
+| "cargó 8:30 y 9:30" | son los dos **"Desde"** que tipeó. El formulario de grilla es un **rango**; mandó dos —08:30→21:30 y 09:30→22:30— con 46 s de diferencia. El cartel se lo dijo: *"13 clases por día"* |
+| "el generador duplica" | **no**: reproducido, `generar_clases_estudio` es idempotente en 3 corridas. Las 534 clases de más entran enteras por las **60 grillas duplicadas** |
+
+**Regla que deja:** cuando tres personas ven tres horas distintas, antes de
+pensar en zona horaria mirar si **son la misma clase**. En una grilla con una
+clase por hora, casi nunca lo son.
+
+| | Qué | Medición | Archivo |
+|---|---|---|---|
+| ✅ | **Guard: no se puede cargar dos veces el mismo horario fijo.** Trigger `BEFORE INSERT OR UPDATE` en `horarios_fijos`, rechaza con mensaje legible y `errcode 23505`. Va como trigger y no como índice único porque Postgres no deja crear el índice mientras existan los duplicados de Tiwar y Yessi; **el índice `(estudio_id, dia_semana, hora_inicio)` va en la migración que limpie Tiwar**, y el trigger queda como capa del mensaje. | lote normal 5 slots ✅ genera 20 · doble tap **RECHAZADO** · rango solapado **rechazado entero, siguen 5** · slot nuevo ✅ · editar profe/cupo ✅ · mover a libre ✅ · mover a ocupado **RECHAZADO** · otro estudio mismo slot ✅ · como `postgres` **RECHAZADO** · Tiwar edita sus 130 (dupes incluidos) ✅ 130 filas · cron regenera ✅ | `FIX_GRILLAS_SIN_DUPLICADOS_2026-08-25.sql` |
+| ✅ | **`aviso-alumnos-email` mostraba la clase 3 h antes.** `new Date("…T08:30:00")` en Deno (UTC) + `timeZone: Buenos_Aires` ⇒ **05:30**. Latente: `avisos_envios` = 0, nunca se mandó uno. Pasa a `timeZone: 'UTC'` como ya hacía `nueva-reserva-estudio-email`. **Deployada** (declarada en `config.toml`, `verify_jwt` intacto). | `node` en `TZ=UTC`: **05:30 → 08:30** | edge function |
+| ✅ | **`email-confirmacion`** tenía el mismo patrón. Arreglada **en el código, NO deployada**: no está en `config.toml` (deployarla cambiaría `verify_jwt` en silencio) y si debe existir es decisión de producto (ver NEGOCIO). | idem | edge function |
 
 ---
 
@@ -458,6 +485,30 @@ cambiar las 4 a `es_miembro_de_estudio(estudio_id)`. Ver
 
 ---
 
+## ⏳ Esperando confirmación del ESTUDIO — Tiwar Fitness
+
+**No tocar hasta que el dueño confirme qué horarios quiere de verdad.** Puede
+que quiera *menos* horarios, no sólo deduplicar: hoy tiene una clase por hora
+de 08:30 a 21:30, L-V, y probablemente no era la intención.
+
+| Medido al 25/8 | |
+|---|---|
+| grillas | 130 para 70 slots · **60 slots con 2 filas idénticas** |
+| clases | 1158 · **534 de más** cuelgan de las grillas sobrantes |
+| reservas | **0** (ninguna, en ningún estado) |
+| si sólo se deduplica | quedan **70 grillas y 624 clases**, exactamente L-V 08:30→21:30 |
+
+**Cuando confirme, en la misma migración:** borrar las grillas sobrantes (la
+de menor `id` por slot se queda) → sus clases caen por `CASCADE`, el candado
+`trg_clases_bloquear_borrado` no interviene porque no hay reservas → y recién
+ahí **`create unique index on horarios_fijos (estudio_id, dia_semana, hora_inicio)`**.
+
+**Y una decisión aparte, Yessi Funes:** miércoles 18:00 tiene **dos grillas
+distintas**, no un doble tap — `Fumcional / Natalia` (id 165, 13 clases) y
+`Funcional / Tomas` (id 173, 10 clases), 0 reservas. Dos profes a la misma
+hora. Preguntarle cuál vale. El índice único tampoco se puede crear con esto
+vivo.
+
 ## 🟡 Menores de la auditoría fresca — por prioridad, ninguno urgente
 
 **Ninguno bloquea a Rock Studio ni a nada de hoy.**
@@ -614,6 +665,19 @@ tres son Dart puro, ninguno es un guard ni toca la base)
       servidor para Citra, 207 búsquedas de existencia, más una ida y vuelta).
       Funciona, pero conviene decidir cuándo debe regenerarse la grilla en vez
       de hacerlo siempre.
+
+20. **La tarjeta del panel del estudio a 24 h.** `mis_clases_screen.dart:5017`
+    usa `DateFormat('hh:mm a')` → *"01:30 PM"*. Es el **único** lugar de la app
+    en 12 h y fue lo que confundió a Tiwar (leyó 13:30 como "1:30"). Cambiar a
+    `HH:mm`. Rock Studio va a tener una grilla igual de densa: hacerlo en este
+    build.
+21. **El snackbar de la grilla dice "N horarios creados" con `rows.length`**
+    (`estudio_admin_service.dart:500`), contado en el cliente antes del insert.
+    Con el guard del 25/8 un lote con duplicados se rechaza entero, así que ya
+    no puede mentir por partes — pero el estudio ve el `23505` crudo por el
+    item 17. Cuando se arregle el 17, ese mensaje ya viene legible desde la
+    base (*"Ya tenés un horario fijo el lunes a las 08:00…"*): mostrarlo tal
+    cual.
 
 **3 decisiones de producto antes de tocar código:** cuál "gratis" gana · si el
 cartel de espera muestra la posición exacta · si debe existir el mail de
