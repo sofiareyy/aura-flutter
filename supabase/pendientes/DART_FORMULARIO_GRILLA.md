@@ -57,54 +57,79 @@ elegido; después `generarProximasSemanasDesdeHorarios()` publica 9 semanas.
 | B · el rango, pero con la lista completa antes de confirmar | mismo form, mejor preview | La confusión nace **antes**, en "Desde/Hasta"; el preview la atrapa tarde y con 13 items para leer. Mejor que hoy, pero conserva el modelo mental equivocado |
 | C · dos modos (puntuales / rango) | correcto | un switch más que decidir, y "¿en qué modo estoy?" es una confusión nueva |
 
-## Recomendación: **lista primero, rango como atajo** (C sin el switch)
+## Recomendación: **lista por día, rango y "copiar" como atajos** (C sin el switch)
 
 **La lista de horarios es lo único que se envía, y es la vista previa.** No hay
 modo: el estudio siempre está mirando la lista exacta de lo que va a crear.
 
-```
-Nombre de la clase       [Crossfit / Hyrox        ]
-Días                     (L)(M)(X)(J)(V)( S )( D )
-Duración de cada clase   [60 min ▾]
+**Y es POR DÍA, no una sola lista.** Medido el 25/8: de los 6 estudios con
+grilla, **4 tienen horarios distintos según el día** (Citra 5 patrones en 6
+días, Sculpt 4, Ambra 3, Yessi 3). Los únicos uniformes son Tiwar (el bug) y
+YN. Una lista única obligaría a correr el form varias veces al caso más
+común, así que el modelo es `Map<int día, List<TimeOfDay>>`.
 
-Horarios                                    ← la lista, ordenada, chips con ×
-  [08:30 ×] [09:30 ×]
-  + Agregar horario        ← time picker (24 h), agrega UN chip
-  Completar un rango…      ← atajo: Desde / Hasta / cada [60 min]
-                              → RELLENA la lista con chips; no envía nada
+```
+Nombre de la clase       [Citra barre            ]
+Duración de cada clase   [60 min ▾]
+Días                     (L)(M)(X)(J)(V)(S)( D )      ← marca los que dicta
+
+Horarios                          ← una fila por día marcado, cada una con sus chips
+  Lunes      [08:30 ×] [09:30 ×] [18:00 ×] [19:00 ×]   + agregar   copiar a…
+  Martes     [08:00 ×] [14:00 ×] [17:30 ×] [18:30 ×] [19:30 ×]   + agregar   copiar a…
+  Miércoles  [08:30 ×] [09:30 ×] [18:00 ×] [19:00 ×]   + agregar   copiar a…
+  …
+  Completar un rango…   ← Desde / Hasta / cada 60 min · para: (todos) o días elegidos
+                           RELLENA las filas; no envía nada
 
 ─────────────────────────────────────────────
 Revisá antes de crear
-  Lun, Mar, Mié, Jue, Vie · 08:30, 09:30
-  10 horarios fijos · 90 clases en las próximas 9 semanas
-                                 [Volver]  [Crear 10 horarios]
+  Lun  08:30, 09:30, 18:00, 19:00
+  Mar  08:00, 14:00, 17:30, 18:30, 19:30
+  …
+  23 horarios fijos · 207 clases en las próximas 9 semanas
+                                 [Volver]  [Crear 23 horarios]
 ```
+
+**Los tres atajos, y para quién es cada uno:**
+- **`+ agregar`** en una fila: time picker 24 h, agrega un chip a ESE día.
+  Rock Studio: 07:00, 08:00, 09:00, 19:00 en lunes, y listo.
+- **`copiar a…`**: copia la fila a otros días marcados. Citra hace lunes y
+  lo copia a miércoles; hace martes y lo copia a jueves. Tiwar/YN: arma un
+  día y "copiar a todos". Es el atajo que resuelve el 80 % de los casos
+  reales, y es lo que faltaba en la versión anterior de este documento.
+- **`Completar un rango…`**: Desde / Hasta / cada X min, con selector de días
+  (default: todos los marcados). Rellena chips. Para el estudio tipo
+  Deportnet con una clase por hora.
+
+**Un estudio con lunes 08:00 y martes 19:00 corre el form UNA vez:** marca L
+y M, agrega 08:00 en la fila de lunes y 19:00 en la de martes, ve las dos
+filas en la confirmación, crea 2 horarios. Sin repetir el formulario.
 
 **Por qué esta y no otra:**
 - **Elimina la confusión en el origen:** ya no existe un campo "Hasta" que se
   pueda leer como hora de cierre. Si querés 13 clases por día, tenés que ver
   13 chips antes de apretar.
-- **Cubre a los dos tipos de estudio sin elegir modo:** Rock Studio agrega
-  07:00, 08:00, 09:00, 19:00 a mano (4 chips); Citra usa "Completar un rango"
-  y le aparecen sus 12 chips, que puede podar.
-- **Es lo más simple de construir que resuelve el problema.** El modelo de
-  datos no cambia; `crearHorariosFijosEnGrilla` ya arma `rows` a partir de
-  `(día, hora)`; sólo cambia la firma: `List<TimeOfDay> horarios` en vez de
-  `horaInicio/horaFin`. Es UI dentro de `_openGridForm` +
-  `_confirmarGeneracionGrilla` + una firma de servicio. Nada de base.
+- **Cubre los tres perfiles reales sin elegir modo:** pocos horarios (Rock),
+  patrones que se repiten en días alternos (Citra, Sculpt), una por hora
+  (Deportnet).
+- **Es lo más simple que resuelve el problema de verdad.** El modelo de
+  datos no cambia (una fila por `(día, hora)`); `crearHorariosFijosEnGrilla`
+  ya arma `rows` así; sólo cambia la firma:
+  `crearHorariosFijosEnGrilla({Map<int, List<TimeOfDay>> horariosPorDia, int duracionMin, Map payloadBase})`.
+  Es UI en `_openGridForm` + `_confirmarGeneracionGrilla` + esa firma. Nada
+  de base.
 - **El guard del 25/8 (`trg_horarios_fijos_00_sin_duplicados`) es la red:**
   aunque manden el mismo lote dos veces, se rechaza con mensaje legible.
 
 **Detalles que van con esto:**
 - Chips y picker en **24 h** (item 20: la tarjeta del panel también).
-- `Duración` deja de ser el paso: el paso vive en el atajo ("cada X min",
-  default = duración) y la duración es sólo la duración.
-- Sin horarios en la lista ⇒ botón deshabilitado. Sin días ⇒ idem.
-- La confirmación lista **días + horarios**, no "N por día entre X e Y".
+- `Duración` deja de ser el paso: el paso vive en el atajo de rango ("cada X
+  min", default = duración) y la duración es sólo la duración.
+- Botón deshabilitado si no hay días marcados **o si algún día marcado no
+  tiene horarios** (mostrar "Lunes: sin horarios" en rojo, no crear a medias).
+- La confirmación lista **día por día**, no "N por día entre X e Y".
 - El snackbar usa lo que devuelve el servidor, no `rows.length` (item 21).
 - Corregir el párrafo de arriba: "próximas 9 semanas", no "3 meses".
-- **Misma lista para todos los días elegidos.** Si un estudio tiene horarios
-  distintos por día, corre el form dos veces (el guard evita duplicados).
-  Horarios por día es una v2, no hace falta ahora.
-- El helper "Completar un rango" hereda validaciones que ya existen
+- Al desmarcar un día que tenía chips, avisar antes de descartarlos.
+- El helper de rango hereda las validaciones que ya existen
   (`fin > inicio`, `franjasPorDia > 0`).

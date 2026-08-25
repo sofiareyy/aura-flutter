@@ -543,8 +543,10 @@ Todo junto, un solo release. ⚠️ **Antes: confirmar si el 25 ya se subió.**
 0. 🔴 **Rediseño del formulario de grilla — PRIORITARIO.** Causa clases
    fantasma y quejas (Tiwar 25/8; le va a pasar a Rock Studio). Relevado el
    25/8, diseño decidido, ver `DART_FORMULARIO_GRILLA.md`. En una línea:
-   **la lista de horarios es la fuente de verdad y la vista previa a la vez**;
-   el rango pasa a ser un atajo que *rellena* la lista, no lo que se envía.
+   **la lista de horarios, POR DÍA, es la fuente de verdad y la vista previa a
+   la vez**; el rango y "copiar a otros días" son atajos que *rellenan* la
+   lista, no lo que se envía. Por día y no una sola lista: medido, 4 de los
+   6 estudios con grilla tienen horarios distintos según el día.
    Descubrimiento clave del relevamiento: **hoy no existe forma de crear UN
    horario fijo semanal** — "Nueva clase" es evento único y "Crear grilla" es
    un generador por rango. Un Crossfit con 2 clases por día no tiene
