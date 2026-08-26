@@ -870,7 +870,27 @@ por ejemplo si se le quedó debiendo plata, o por obligación fiscal.
 Las dos salidas, cuando esté decidido: `reservas.clase_id` a `SET NULL`, o que
 `admin_delete_estudio` archive en vez de borrar.
 
-## ⬜ Tanda D — Modelo C de precios
+## 🟢 Tanda D — servicios de precio fijo · **DISEÑO CERRADO, listo para construir**
+
+**9 decisiones cerradas, 0 abiertas.** Todo el diseño está en
+`supabase/pendientes/SERVICIOS_PRECIO_FIJO_relevamiento.md`: el caso real de la
+usuaria, las 9 decisiones, cómo lo ve el estudio al cargar, el reparto
+base/Dart, la trampa del orden y el plan de construcción paso a paso.
+
+**No re-relevar ni re-decidir nada.** La sesión de construcción arranca por la
+sección **6c (PLAN DE CONSTRUCCIÓN)** de ese archivo.
+
+Tres cosas que conviene saber antes de abrirlo:
+- **Es aditivo**: un *early return* en `calcular_precio_clase`. La tabla arranca
+  vacía ⇒ ningún estudio actual cambia de precio. La verificación obligatoria
+  es recalcular todo y que dé **idéntico**.
+- **`clases_tipo_precio_check` va PRIMERO** (hoy no acepta `'servicio'`; sin
+  ampliarlo el trigger revienta con 23514).
+- **La base sola hace que el estudio vea un número equivocado mientras carga**
+  (el espejo del panel sigue calculando por franja). Por eso no se le entrega
+  el alta de servicios a ningún estudio hasta el build 27.
+
+## ⬜ Modelo C de precios — la excepción de precio
 
 **Arrancar por el DISEÑO de las reglas, no por el código.** Es feature de
 diseño. Ver "FEATURES EN DISEÑO" abajo y `aura-running-club-caso-de-uso-modelo-c`
