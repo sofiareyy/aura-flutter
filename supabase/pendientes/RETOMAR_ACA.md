@@ -662,265 +662,57 @@ primer estudio en modo gestión".
 `mailer_autoconfirm = true`. **Decisión del 22/8: no ahora.** Se activa cuando
 entre la primera empresa. El detalle completo está más abajo, en PASO 1.
 
-## ⬜ Tanda C — el build de Dart · **lo próximo**
+## ✅ Tanda C — CERRADA. Es el **build 26** (1.0.6+26), compilado el 26/8
 
-Todo junto, un solo release. ⚠️ **Antes: confirmar si el 25 ya se subió.**
+Commits: `51e8da1` (grupo 3) · `cf2d67f` (sueltos) · `6f202d9` (bump + aps).
+Los grupos 1 y 2 ya estaban (25/8). `flutter analyze` 0 errores, tests OK, web
+e iOS compilan.
 
-**✅ Hechos en el build del 25/8 (grupo 1, revisado en el build local y aprobado):**
-- **Item 0 · formulario de grilla nuevo**: lista de horarios **por día** (chips con
-  hora + precio de su franja, ej. `🌙 08:30 · 12 cr`), "+ agregar", "copiar a…",
-  "Completar un rango…", botón deshabilitado hasta que todos los días tengan
-  horario, confirmación día por día con precios y aviso de sala, sin
-  "3 meses" (dice 9 semanas). Servicio: `crearHorariosFijosEnGrilla({horariosPorDia, duracionMin, payloadBase})`
-  devuelve lo que confirmó el servidor (item 21). Test: `test/grilla_editor_smoke_test.dart`.
-  Probado creando de verdad en Hot Clic: 3 grillas exactas, 27 clases, 0 dup, limpiado.
-- **Item 20 · 24 h en todos lados**: tarjeta del panel `HH:mm` y los tres
-  selectores de hora (grilla, clase suelta, edición) sin AM/PM.
-- **"Cancelar clase" cancela la clase** (opción B, base + Dart): etiqueta
-  **Cancelada** en las tres vistas del panel (lista, tabla semanal, grilla),
-  oculta del lado alumna, mensaje legible al reservar, no se puede cancelar
-  dos veces ni **editar** una cancelada; botón **"Reactivar clase"** (verde)
-  que la vuelve reservable. RLS medida: alumna 0 filas, otro estudio 0 filas.
-- **Sin botones "Generar 3 meses"** en Clases cargadas (el panel regenera al
-  abrir y el cron cada noche).
-- **"Descripción, sala y fotos"** siempre visible (era plegable, nadie lo
-  cargaba) en los tres formularios.
-- **Renglón ⓘ debajo de las pestañas** explicando el alcance: Horarios fijos =
-  la serie, Clases cargadas = una fecha.
-- **Tres errores de debug preexistentes**: `ConnectivityBanner` metía un `Stack`
-  arriba de `MaterialApp` (sin `Directionality`, pantalla roja en cualquier
-  build local); `_StatBox` (dashboard) y `_CountBox` (asistencia) devolvían
-  `Expanded` y los callers los envolvían otra vez.
+### Lo que quedó AFUERA y por qué — leer antes de re-proponerlo
 
-**✅ Grupo 2 del build (25/8, revisado y aprobado):**
-- **Item 14 · Asistencia**: se sacó el filtro "solo HOY" del Build 20; la
-  sección PRÓXIMAS vuelve a mostrar clases (6 de 11 estudios no tenían clase
-  hoy y veían la lista vacía).
-- **Item 17 · errores legibles**: los 4 puntos que mostraban el `PostgresException`
-  crudo al estudio ahora muestran "Hubo un problema… escribinos a aura.hola.app@gmail.com"
-  y el detalle va a `debugPrint`. Los borrados muestran el mensaje de la base
-  (que ya viene en castellano).
-- **Item 17b · `_deleteFixed`/`_eliminarGrillaCompleta` no se tragan errores**:
-  función compartida `_borrarClasesDeHorario`; si una clase no se puede borrar
-  (candado), el horario NO se toca y un diálogo dice cuál y por qué. Simulado
-  en base: con una clase protegida, grilla conservada y 0 huérfanas.
-- **Item 22 · RPC de nombres**: `estudio_nombres_alumnas(uuid[])` devuelve solo
-  (id, nombre, email, **avatar_url**) de alumnas con reserva en clases del
-  estudio; **la policy provisoria `usuarios_select_alumnas_de_mis_clases` se
-  dropeó**. La usan Asistencia (lista + escaneo) y Cobros. En Asistencia cada
-  asistente muestra foto + nombre + email. RLS medida: alumna 0, otro estudio 0,
-  anon 401. Archivos: `FIX_RPC_NOMBRES_ALUMNAS_2026-08-25.sql` (v1) y
-  `FIX_RPC_NOMBRES_ALUMNAS_v2_avatar_2026-08-25.sql` (suma avatar_url).
-- **"Mis Alumnos" (modo gestión) escondido del menú del estudio**: hoy no lo
-  usa nadie (0 estudios en gestión, 0 filas en estudio_alumnos) y confundía. La
-  ruta, la pantalla y el servicio quedan intactos; reactivar = descomentar el
-  `_NavItem` en `estudio_sidebar.dart`.
+- **Item 12 · badge "MEJOR VALOR" de packs.** NO se tocó: el 14/8 la usuaria
+  dijo *"anotalos pero no los toques ahora"*. Ojo, el bloqueo técnico de la
+  nota vieja ("requiere CLI linkeado") **ya no existe** — el SQL se corre por
+  Management API. Es agregar una columna de texto a `pricing_credit_packs` y
+  leerla en `_packDesdeFila`; base + Dart, o sea que necesita su propio build.
+- **Item 13 · salir de las keys legacy.** NO en este build, y no por miedo:
+  medido el 26/8, la `sb_publishable_…` **funciona** — REST lee, la RPC
+  responde, y GoTrue la acepta (con una key inválida contesta
+  *"Invalid API key"*; con la publishable contesta `invalid_credentials`, o
+  sea que llegó a chequear la contraseña). El motivo es otro: el paso 1 es
+  *publicar con la clave nueva y esperar adopción*, y eso quiere un build
+  donde el cambio de clave sea la variable notable, no uno con quince cambios
+  más encima.
+- **Item 7 · el DROP de la columna fantasma.** La mitad Dart entra en el build
+  26; el `alter table` está listo en
+  `supabase/FIX_COLUMNA_FANTASMA_2026-08-26.sql` para **correr después de que
+  el build 26 esté publicado y verificado**. Ver ahí el detalle de por qué no
+  hay ventana de riesgo.
+- **Item 16 · lista de espera del estudio.** Hecho, pero hoy no muestra nada:
+  `lista_espera` tiene **0 filas** y nunca se usó, porque ninguna clase futura
+  está llena. Dato del 26/8: hay **2 reservas en toda la app**, las dos de
+  agosto. No es un bug, es la etapa.
 
-**Quedaron anotados de la revisión (no hechos):**
-- "Excepción de la serie": editar UNA clase y después editar la serie pisa
-  la edición individual. Marcar la clase como editada a mano y que la
-  propagación la respete.
-- "Pausar" un horario fijo (vacaciones) sin borrarlo: el generador ya saltea
-  `activo=false`; falta el botón + cancelar sus futuras.
-- Filtro para esconder las canceladas viejas en Clases cargadas.
-- `17:30h` con la h al final, si se prefiere.
+### Correcciones a lo que decía esta nota (estaba desactualizada)
 
-**Alto impacto — el motivo del build**
-0. ✅ **Rediseño del formulario de grilla — HECHO el 25/8.** Causa clases
-   fantasma y quejas (Tiwar 25/8; le va a pasar a Rock Studio). Relevado el
-   25/8, diseño decidido, ver `DART_FORMULARIO_GRILLA.md`. En una línea:
-   **la lista de horarios, POR DÍA, es la fuente de verdad y la vista previa a
-   la vez**; el rango y "copiar a otros días" son atajos que *rellenan* la
-   lista, no lo que se envía. Por día y no una sola lista: medido, 4 de los
-   6 estudios con grilla tienen horarios distintos según el día.
-   Descubrimiento clave del relevamiento: **hoy no existe forma de crear UN
-   horario fijo semanal** — "Nueva clase" es evento único y "Crear grilla" es
-   un generador por rango. Un Crossfit con 2 clases por día no tiene
-   herramienta, y por eso Tiwar usó el rango como si fuera "hora de apertura".
-1. **El texto de "gratis"** — una clase de 0 créditos dice `0 cr` y `Canjear · 0 créditos`, nunca "gratis". Para la captación no es cosmético. Ojo: el `'Reservar gratis'` que existe depende de `_esGratuita` ("sos alumno del estudio"), es otro gratis. **Decidir cuál gana.**
-2. **Badge "PRECIO REDUCIDO"** en 573 de 583 clases (`explorar_screen.dart:1009`).
-3. **El cartel de lista de espera tapa contenido** — pantalla de la alumna.
-   ⚠️ **No confundir con el item 16**, que es la lista de espera del lado del
-   ESTUDIO. Son dos cosas distintas que se llaman parecido.
+- **Item 8 (foto de perfil) ya andaba.** Decía "0 archivos subidos desde el
+  fix"; el 26/8 hay un avatar subido el **24/8 a las 21:33**, posterior al fix.
+- **Item 23 (`#BK-`) NO estaba hecho.** Figuraba como hecho-sin-verificar y el
+  código seguía con `.split('-').last`. Se arregló ahora.
+- **Item 7: las referencias eran 7 de 10, no 10 de 10.** La nota decía que las
+  diez leían la columna real primero; en `clase_card.dart` y en los dos puntos
+  de `detalle_clase_screen.dart` la fantasma iba **primero**. Daba igual porque
+  siempre es null, pero la afirmación estaba mal.
 
-**Consecuencias de lo que se hizo en base**
-4. El mensaje de "falta configurar el precio" no llega en el alta (`mis_clases_screen.dart:1975`).
-5. Borrar el método huérfano `updateGlobalCreditValue` (la RPC ya no existe).
-6. Los multiplicadores de `_packsBase` están corridos: son `1.10/1.00/0.95/0.90`.
-7. **La columna fantasma — base y Dart JUNTOS, en este mismo release.**
-   `clases` tiene una columna `"lugares_ disponibles"` (con un espacio en el
-   medio del nombre), duplicado muerto de `lugares_disponibles`. Verificado el
-   24/8: **null en las 937 filas**. Está vacía y no molesta, así que **no se
-   borra por separado antes** — hacerlo abriría una ventana en la que la base
-   ya no la tiene y las apps viejas todavía la piden. Se hace todo de una:
-   · `alter table public.clases drop column "lugares_ disponibles";`
-   · y limpiar las referencias del Dart en el mismo build.
-   ⚠️ **Son 10, no 8** (el conteo viejo estaba desactualizado). Las 10 leen
-   `lugares_disponibles` PRIMERO y usan la fantasma solo como `??` de respaldo,
-   así que sacar el fallback es seguro y no cambia comportamiento:
-   `models/clase.dart:40` · `services/clases_service.dart:231` ·
-   `services/estudios_service.dart:178` · `widgets/clase_card.dart:26` ·
-   `screens/clases/detalle_clase_screen.dart:293,489` ·
-   `screens/clases/mis_clases_screen.dart:3612,5021,5819,6699`.
-8. **Probar que la foto de perfil funcione** — 0 archivos subidos desde el fix.
+### Decisiones de negocio que quedaron abiertas (medidas, sin decidir)
 
-**Ya estaban en la lista**
-9. "Ver todas" de Experiencias lleva a donde no hay ninguna.
-10. Foto de perfil: dos caminos de upload duplicados (`DART_FOTO_PERFIL.md`).
-11. Modo visita Pieza C: volver a la clase tras registrarse (`MODO_VISITA_pieza_A.md`).
-12. Badge de packs (`BADGE_PACKS_pendiente.md`).
-13. Keys legacy — **primer paso** nomás: publicar con la clave nueva, esperar adopción, y recién después desactivar la vieja (`SALIR_DE_KEYS_LEGACY.md`).
-
-**Hallazgos del 24/8 probando en el teléfono** (los encontró la usuaria; los
-tres son Dart puro, ninguno es un guard ni toca la base)
-
-✅ (hecho 25/8) 14. **(b) El listado de clases abajo del QR en Asistencia — REGRESIÓN.**
-    `asistencia_screen.dart`, `_cargar()`. El Build 20 (`9459ffb`) arregló un
-    bug real —antes hacía `from('clases')` sin filtro y traía clases de TODO el
-    marketplace— pero de paso metió un filtro de **solo HOY**:
-    `.where((c) => DateTime(f.year,f.month,f.day) == hoyDia)`.
-    **Arreglo: borrar ese `.where`.** `getClasesDeEstudio(from: hoy)` ya recorta
-    a hoy-en-adelante, que es justo lo que esperan los buckets.
-    Prueba de que el filtro no era intencional: `_bucketDeClase` devuelve
-    `'proximas'` y la UI (líneas 1734-1744) dibuja una sección **PROXIMAS** que
-    nunca puede tener nada. Sección muerta desde el Build 20; el selector
-    AHORA/HOY/PROXIMAS se había escrito en `8738f70` para mostrar futuras.
-    Medido el 24/8: **6 de los 11 estudios tienen 0 clases hoy** ⇒ lista vacía.
-
-15. **(c) La hoja de detalle de clase no muestra la descripción.**
-    `_ClaseDetalleSheet` en `mis_clases_screen.dart:5803`. El tap anda
-    (`onTap → _showClaseSheet`); lo que falta es dibujar. La hoja solo renderiza
-    fecha, instructor, cupos, duración y créditos: **nunca lee**
-    `clase['descripcion']`, `clase['incluye']` ni `clase['instructor_descripcion']`,
-    aunque `getClasesDeEstudio` hace `.select()` y los tres ya vienen en el mapa.
-    **Arreglo: agregar las filas.** No hace falta tocar la query.
-
-16. **(a) No existe la pantalla de lista de espera del ESTUDIO.**
-    El estudio no puede ver quién está esperando. Son dos cosas:
-    · **Datos:** `lista_espera` tiene una sola policy, `waitlist_own`
-      (`auth.uid() = usuario_id`), así que el estudio consultándola recibe 0
-      filas. La policy abierta `waitlist_count_public` se cerró **bien** en
-      `LISTA_ESPERA_TANDA1.sql` (exponía el `usuario_id` de todas a cualquiera)
-      y dejó la RPC `waitlist_count`, que devuelve el número sin identidades.
-    · **UI:** `WaitlistService` solo se usa en `detalle_clase_screen.dart`, que
-      es la pantalla de la ALUMNA. El panel del estudio no tiene nada.
-    **Arreglo: construir la UI sobre `waitlist_count`.** Si además se quiere
-    mostrar *quiénes* esperan, eso necesita una RPC nueva —no reabrir la
-    policy—, y es decisión de producto (ver las 3 de abajo).
-
-✅ (hecho 25/8) 17. **Que el panel no le muestre al estudio el error crudo de Postgres.**
-    Lo que hizo feo el incidente del 24/8: YN Pilates vio en pantalla
-    `PostgresException, message: "no autorizado", code: P0001`. Un estudio no
-    puede hacer nada con eso, y encima asusta.
-    Tres puntos en `mis_clases_screen.dart`:
-    · **1237** — el `catch` del `Future.wait` de `_loadStudio` hace
-      `_error = e.toString()`. Es el que se vio el 24/8.
-    · **1168** — `_error = 'Error al generar clases: ${e.toString()}'`.
-    · **1250 y 2006** — `_openForm` y `_openGridForm` llaman a
-      `_loadCategoriasDisponibles()` **sin `try/catch`**: ahí la excepción sube
-      pelada, ni siquiera hay cartel.
-    **Arreglo:** mensaje humano — *"Hubo un problema al cargar. Escribinos a
-    aura.hola.app@gmail.com"* — y el detalle técnico a `debugPrint`, que es el
-    patrón que el mismo archivo ya usa al guardar (ver el `catch` del alta de
-    clase, con su comentario explicando por qué). Barato, y evita que el
-    próximo error de base asuste a un estudio.
-    Ojo: **no tapar el error**, solo traducirlo. El texto crudo tiene que
-    seguir yendo a `debugPrint` o no se puede diagnosticar nada.
-
-22. 🔴 **RPC limpia para los nombres de alumnas — y dropear la policy provisoria.**
-    El 25/8 se abrió `usuarios_select_alumnas_de_mis_clases` para desbloquear
-    Asistencia hoy. Una policy habilita la **fila entera**: el estudio ve
-    además `creditos`, `plan`, `codigo_referido`, `empresa_id`, `avatar_url`
-    de esa alumna. No hay plata ajena ni CBUs, pero es más de lo que la
-    pantalla necesita. **Arreglo:** una RPC `estudio_listar_asistentes(clase_id)`
-    que devuelva sólo `(usuario_id, nombre, email, estado, codigo_qr)`,
-    cambiar `_cargarAsistentes` para usarla (y de paso matar el N+1: hoy hace
-    una query por asistente), y **`drop policy usuarios_select_alumnas_de_mis_clases`**.
-23. **El `#BK-` que ve la alumna quedó en 4 dígitos.**
-    `reserva_confirmada_screen.dart:433` hace `codigoQr.split('-').last`. Con
-    los 12 hex sin guiones eso daba el código entero (`#BK-45DB492F6964`); con
-    el formato `AURA-…` del 25/8 `.last` son los 4 dígitos al azar
-    (`#BK-4571`). Sirve pero es débil. **Arreglo de una línea:** usar
-    `split('-')[1]`, el bloque hex (`#BK-58E38EDA`).
-
-17b. 🔴 **`_deleteFixed` y `_eliminarGrillaCompleta` no pueden tragarse errores** —
-    **va con el 17, y es el que deja clases huérfanas invisibles.**
-    `mis_clases_screen.dart:2681` (`_deleteFixed`, :4624 `_eliminarGrillaCompleta`):
-    por cada clase futura de la grilla hacen `try{cancelar}catch(_){}` y
-    `try{borrar}catch(_){}` **por separado**, y después borran la grilla
-    **pase lo que pase**. Si el borrado de una clase falla —el candado del
-    24/8 porque tiene una reserva `presente`/`completada`, un error de red,
-    lo que sea— la clase queda **huérfana** (`horario_fijo_id` NULL por el
-    `SET NULL`), **publicada, tomando reservas, e invisible en "Horarios
-    fijos"**. El estudio cree que la borró. Medido el 25/8 simulando el
-    camino exacto: `borradas 3 · falló y se tragó 1 · grilla borrada · 1
-    huérfana publicada`. Desde el 25/8 el generador ya no crea encima de
-    esa huérfana (no duplica), pero la huérfana sigue ahí.
-    **Arreglo, en este orden:** (1) borrar las clases; (2) si **alguna**
-    falló, **NO borrar la grilla**, parar y mostrar cuál y por qué — el
-    mensaje del candado ya es legible (*"tiene alumnas anotadas / ya
-    tomada"*); (3) sólo si todas se borraron, borrar la grilla. El detalle
-    técnico sigue yendo a `debugPrint`, como en el 17.
-18. **Borrar los dos inserts muertos a `notificaciones_usuario`.**
-    El cliente intenta crear campanitas para OTROS usuarios. `notificaciones_usuario`
-    no tiene policy de INSERT, así que RLS los rechaza **siempre** con 42501 y el
-    `catch (_) {}` se lo traga. Además ahora los crea la base, así que si RLS
-    los dejara pasar **duplicarían** el aviso:
-    · `estudio_admin_service.dart:581` — campanita de lista de espera. La crea
-      `_waitlist_promote_interno` desde el 22/8.
-    · `reservas_service.dart:593` — aviso "❌ Clase cancelada". La crea
-      `estudio_cancelar_clase` desde el 24/8.
-    **Arreglo: borrarlos.** No hay que reemplazarlos por nada.
-
-19. **Paralelizar la carga de "ver un estudio" (y de paso limpiar 2 cosas).**
-    Medido el 24/8 a raíz de que la web se sentía lenta (~4 s en abrir un
-    estudio). **No era la base**: server-side la apertura del panel más pesado
-    (Citra, 368 clases) tarda **53 ms**. El costo real es la red: **una sola
-    ida y vuelta a Supabase mide entre 150 ms y 1,6 s**, muy variable — por eso
-    "antes era más rápido" depende del momento, no del código.
-    `DetalleEstudioScreen._cargar()` hace **8 idas y vueltas EN SERIE**, sin
-    `Future.wait`: getEstudio · getClasesDeEstudio (clases + reservas) ·
-    getExperienciasDeEstudio (clases + reservas otra vez) · esFavorito ·
-    getReviewsForStudy · canReviewStudy. Ocho por ~250 ms son 2 s; con dos
-    muestras lentas te vas a 4 y pico.
-    **Arreglo: `Future.wait`.** Pasan de sumarse a costar lo que la más lenta.
-    Es la mejora de performance más grande disponible y es barata.
-    · **Vale la pena también:** `_conOcupacion` consulta `reservas` **dos
-      veces** —una para clases y otra para experiencias— donde una sola
-      alcanza. Es 1 de las 8; se va gratis al paralelizar.
-    · **Evaluado y NO vale la pena hoy:** el índice faltante en
-      `horarios_fijos(estudio_id)`. Con 70 filas el planner hace seq scan y es
-      más rápido que un índice. Anotado para cuando la tabla crezca.
-    · **Aparte, decisión de producto:** `_loadStudio` llama a
-      `generar_clases_estudio` en **cada** apertura del panel (24 ms de
-      servidor para Citra, 207 búsquedas de existencia, más una ida y vuelta).
-      Funciona, pero conviene decidir cuándo debe regenerarse la grilla en vez
-      de hacerlo siempre.
-
-20. ✅ **(hecho 25/8) La tarjeta del panel del estudio a 24 h.** `mis_clases_screen.dart:5017`
-    usa `DateFormat('hh:mm a')` → *"01:30 PM"*. Es el **único** lugar de la app
-    en 12 h y fue lo que confundió a Tiwar (leyó 13:30 como "1:30"). Cambiar a
-    `HH:mm`. Rock Studio va a tener una grilla igual de densa: hacerlo en este
-    build.
-21. ✅ **(hecho 25/8) El snackbar de la grilla dice "N horarios creados" con `rows.length`**
-    (`estudio_admin_service.dart:500`), contado en el cliente antes del insert.
-    Con el guard del 25/8 un lote con duplicados se rechaza entero, así que ya
-    no puede mentir por partes — pero el estudio ve el `23505` crudo por el
-    item 17. Cuando se arregle el 17, ese mensaje ya viene legible desde la
-    base (*"Ya tenés un horario fijo el lunes a las 08:00…"*): mostrarlo tal
-    cual.
-
-**Decisiones de producto — 2 de 3 CERRADAS el 25/8, no volver a preguntarlas:**
-- ✅ **Cuál "gratis" gana: no hay conflicto.** Se usa el texto "gratis" para
-  precio 0, sin definir precedencia, porque `_esGratuita` es de **modo
-  gestión** y hoy no aplica a nadie (0 estudios en gestión, 0 filas en
-  `estudio_alumnos`, 0 clases con `creditos = 0`). Los dos "gratis" no pueden
-  coexistir en ninguna pantalla. Al implementarlo, dejar claro en el código
-  que son cosas distintas: `_esGratuita` = "vos ya le pagás al estudio" (por
-  usuaria) vs precio 0 = "esta clase es gratis para todos" (por clase).
-- ✅ **El cartel de lista de espera SÍ muestra la posición exacta** (item 3).
-- ⬜ Si debe existir el mail de confirmación de reserva → sigue abierta, en
-  NEGOCIO.
+- **Las franjas de Tiwar parecen invertidas**: 8, 9, 19 y 20 h están en valle
+  (11 cr) y son las horas más pedidas. Se arregla con un
+  `admin_set_pricing_estudio`, sin recargar clases.
+- **YN Pilates tiene `creditos_max = 13` pero ninguna clase pasa de 11**, así
+  que se lleva el badge de precio reducido en 79 de 79. Mismo olor que lo de
+  Tiwar: una banda configurada que no se usa.
+- **La clase huérfana de YN Pilates** (31/08 11:00, id 2439, 0 reservas).
 
 ## 📘 Para el instructivo de los estudios
 
