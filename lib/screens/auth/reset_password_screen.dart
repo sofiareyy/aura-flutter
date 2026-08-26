@@ -40,7 +40,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'El enlace venció o ya se usó. Pedí uno nuevo desde "Olvidé mi contraseña".'),
+              'El enlace no es válido acá. Puede que haya vencido, que ya se '
+              'haya usado, o que lo hayas abierto en otro dispositivo del que '
+              'lo pediste. Pedí uno nuevo desde "Olvidé mi contraseña" y abrilo '
+              'en el mismo lugar.'),
+          duration: Duration(seconds: 8),
           backgroundColor: AppColors.error,
         ),
       );
