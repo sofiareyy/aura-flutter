@@ -21,6 +21,26 @@
 | ⬜ | **Tanda E** — experiencias, esquema pesado, keys legacy | |
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia · mail de confirmación |
 
+### 🔴 `aps-environment` — mirar ANTES de cualquier build de iOS
+
+`ios/Runner/Runner.entitlements` está en **`production`** desde el 26/8, para
+archivar el build 26 y subirlo a la App Store.
+
+**Si compilás para probar en tu teléfono o para un TestFlight de prueba, hay
+que volverlo a `development` o en ESE build el push no llega.** Y acordate de
+dejarlo en `production` otra vez antes del próximo archivado para la tienda.
+
+```
+ios/Runner/Runner.entitlements
+  <key>aps-environment</key>
+  <string>production</string>   <!-- App Store -->
+  <string>development</string>  <!-- teléfono propio / TestFlight de prueba -->
+```
+
+No es un detalle cosmético: sin el valor correcto, APNs no emite el token y FCM
+no puede entregar nada en iOS — y el síntoma es "no llegan las notificaciones",
+que es carísimo de diagnosticar desde afuera.
+
 ### ⚠️ Lo primero al retomar
 
 **🟢 Rock Studio se puede cargar. El multi-sede está COMPLETO.**
