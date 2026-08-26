@@ -11,6 +11,7 @@ import '../../core/theme/app_theme.dart';
 import '../../models/estudio.dart';
 import '../../models/usuario.dart';
 import '../../providers/app_provider.dart';
+import '../../services/media_upload_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/estudio_admin_service.dart';
 import '../../services/favoritos_service.dart';
@@ -38,7 +39,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
   List<Estudio> _favoritos = const [];
   List<Map<String, dynamic>> _misEstudios = const [];
   String? _appVersion;
-  final _imagePicker = ImagePicker();
+  final _mediaUploadService = MediaUploadService();
 
   bool _editandoNombre = false;
   bool _guardandoNombre = false;
@@ -765,46 +766,24 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
       return;
     }
 
-    XFile? file;
-    try {
-      file = await _imagePicker.pickImage(
-        source: source,
-        imageQuality: 82,
-        maxWidth: 1024,
-      );
-    } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-              'No se pudo abrir el selector: ${e.toString().replaceFirst('Exception: ', '')}'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-      return;
-    }
-    if (file == null || !mounted) return;
-
     setState(() => _uploadingAvatar = true);
     try {
-      final bytes = await file.readAsBytes();
-      final supabase = Supabase.instance.client;
-      const path = 'perfil.jpg';
-      final fullPath = '$userId/$path';
+      // Esta pantalla tenía su propia copia del upload: forzaba `.jpg` y
+      // `image/jpeg` mientras el service respeta la extensión del archivo, o
+      // sea que los dos caminos ya habían divergido. Ahora las dos pantallas
+      // de perfil pasan por `MediaUploadService.uploadAvatar`, que además hace
+      // el pick (por eso se le pasa `source`: acá se puede elegir cámara).
+      final publicUrl = await _mediaUploadService.uploadAvatar(
+        userId: userId,
+        source: source,
+      );
+      // null = canceló el selector, no es un error.
+      if (publicUrl == null) {
+        if (mounted) setState(() => _uploadingAvatar = false);
+        return;
+      }
 
-      await supabase.storage.from('avatares').uploadBinary(
-            fullPath,
-            bytes,
-            fileOptions: const FileOptions(
-              cacheControl: '3600',
-              upsert: true,
-              contentType: 'image/jpeg',
-            ),
-          );
-
-      final baseUrl = supabase.storage.from('avatares').getPublicUrl(fullPath);
-      final publicUrl = '$baseUrl?v=${DateTime.now().millisecondsSinceEpoch}';
-
-      await supabase
+      await Supabase.instance.client
           .from('usuarios')
           .update({'avatar_url': publicUrl}).eq('id', userId);
 

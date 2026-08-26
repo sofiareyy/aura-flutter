@@ -3822,7 +3822,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     }).map((r) {
       final clase = Map<String, dynamic>.from((r['clases'] as Map<String, dynamic>?) ?? const {});
       final total = (clase['lugares_total'] as num?)?.toInt() ?? 0;
-      final disponibles = ((clase['lugares_disponibles'] ?? clase['lugares_ disponibles']) as num?)?.toInt() ?? 0;
+      final disponibles = (clase['lugares_disponibles'] as num?)?.toInt() ?? 0;
       return {
         ...clase,
         '_user_reserva_qr': r['codigo_qr'],
@@ -5207,7 +5207,7 @@ class _StudioClassCard extends StatelessWidget {
     final instructor = clase['instructor']?.toString() ?? 'Sin instructor';
     final total = (clase['lugares_total'] as num?)?.toInt() ?? 20;
     final disp = (clase['_disponibles_real'] as num?)?.toInt() ??
-        ((clase['lugares_disponibles'] ?? clase['lugares_ disponibles']) as num?)?.toInt() ??
+        (clase['lugares_disponibles'] as num?)?.toInt() ??
         0;
     final ocupados = (clase['_ocupados_real'] as num?)?.toInt() ?? (total - disp);
     final progress = total <= 0 ? 0.0 : (ocupados / total).clamp(0.0, 1.0);
@@ -6013,7 +6013,7 @@ class _ClaseDetalleSheet extends StatelessWidget {
     final nombre = clase['nombre']?.toString() ?? 'Clase';
     final instructor = clase['instructor']?.toString();
     final total = (clase['lugares_total'] as num?)?.toInt() ?? 0;
-    final disponibles = ((clase['lugares_disponibles'] ?? clase['lugares_ disponibles']) as num?)?.toInt() ?? 0;
+    final disponibles = (clase['lugares_disponibles'] as num?)?.toInt() ?? 0;
     final ocupados = total > 0 ? (total - disponibles).clamp(0, total) : 0;
     final duracion = (clase['duracion_min'] as num?)?.toInt() ?? 60;
     final creditos = (clase['creditos'] as num?)?.toInt() ?? 10;
@@ -6962,10 +6962,7 @@ class _ClaseGridCard extends StatelessWidget {
         : '—';
     final nombre = clase['nombre']?.toString() ?? 'Clase';
     final total = (clase['lugares_total'] as num?)?.toInt() ?? 0;
-    final disp = ((clase['lugares_disponibles'] ??
-            clase['lugares_ disponibles']) as num?)
-            ?.toInt() ??
-        0;
+    final disp = (clase['lugares_disponibles'] as num?)?.toInt() ?? 0;
     final ocupados =
         total > 0 ? (total - disp).clamp(0, total) : 0;
 

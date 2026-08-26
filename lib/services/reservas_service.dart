@@ -575,23 +575,11 @@ class ReservasService {
           .eq('clase_id', claseId)
           .eq('estado', 'cancelada_por_estudio');
 
-      final inserts = (reservas as List)
-          .map((r) => r['usuario_id'])
-          .whereType<String>()
-          .toSet()
-          .map((uid) => {
-                'usuario_id': uid,
-                'titulo': '❌ Clase cancelada',
-                'mensaje':
-                    'Se canceló "$claseNombre". Te devolvimos tus créditos.',
-                'tipo': 'clase_cancelada',
-                'leida': false,
-              })
-          .toList();
-
-      if (inserts.isNotEmpty) {
-        await _supabase.from('notificaciones_usuario').insert(inserts);
-      }
+      // El aviso de "clase cancelada" lo crea la base dentro de
+      // `estudio_cancelar_clase` desde el 24/8. Acá había un insert a
+      // `notificaciones_usuario` que RLS rechazaba SIEMPRE (la tabla no tiene
+      // policy de INSERT) y el `catch (_) {}` se lo tragaba; si pasara,
+      // duplicaría el aviso. Se borró: no hay que reemplazarlo por nada.
     } catch (_) {}
 
     return afectados;

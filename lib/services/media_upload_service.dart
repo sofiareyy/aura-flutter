@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -28,6 +30,7 @@ class MediaUploadService {
       await _uploadBytes(bucket: bucket, path: path, bytes: bytes);
       return _client.storage.from(bucket).getPublicUrl(path);
     } catch (e) {
+      debugPrint('[MediaUploadService.upload] $e');
       throw Exception(
         'No se pudo subir la imagen. Revisá Storage y volvé a intentarlo.',
       );
@@ -37,9 +40,17 @@ class MediaUploadService {
   /// Sube la foto de perfil al bucket `avatares` con path `{userId}/perfil.{ext}`.
   /// upsert reemplaza la foto anterior; siempre devuelve la URL pública con
   /// cache-buster por timestamp para forzar refresh del avatar en la UI.
-  Future<String?> uploadAvatar({required String userId}) async {
+  ///
+  /// `source` existe porque Mi Perfil deja elegir cámara o galería. Antes esa
+  /// pantalla tenía su propia copia del upload (forzaba `.jpg` y
+  /// `image/jpeg`, esta respeta la extensión) y ya habían divergido: dos
+  /// caminos para lo mismo. Ahora las dos pantallas pasan por acá.
+  Future<String?> uploadAvatar({
+    required String userId,
+    ImageSource source = ImageSource.gallery,
+  }) async {
     final file = await _picker.pickImage(
-      source: ImageSource.gallery,
+      source: source,
       imageQuality: 82,
       maxWidth: 1600,
     );
@@ -54,6 +65,11 @@ class MediaUploadService {
       final base = _client.storage.from('avatares').getPublicUrl(path);
       return '$base?t=${DateTime.now().millisecondsSinceEpoch}';
     } catch (e) {
+      // El catch genérico es lo que escondió el bug de las policies faltantes
+      // durante meses: mostraba "revisá Storage" y descartaba el
+      // `violates row-level security policy` que lo resolvía en minutos.
+      // El texto para la usuaria queda igual; la causa va al log.
+      debugPrint('[uploadAvatar] $e');
       throw Exception(
         'No se pudo subir la imagen. Revisá Storage y volvé a intentarlo.',
       );

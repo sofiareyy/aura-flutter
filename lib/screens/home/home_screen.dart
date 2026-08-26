@@ -765,17 +765,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                   fontWeight: FontWeight.w700,
                                 ),
                           ),
-                          GestureDetector(
-                            onTap: () => context.go('/explorar'),
-                            child: const Text(
-                              'Ver todas',
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
+                          // Acá había un "Ver todas" que iba a /explorar, y
+                          // /explorar excluye los workshops
+                          // (`getProximasClases` hace .neq('tipo','workshop')):
+                          // la alumna caía en una pantalla sin ninguna
+                          // experiencia. No existe pantalla de experiencias —
+                          // es la feature en diseño con categorías y buscador
+                          // propios (Tanda E). Mientras tanto el carrusel trae
+                          // hasta 20 y hay 1 workshop en toda la base, así que
+                          // ya las muestra todas y el link sobraba.
                         ],
                       ),
                     ),

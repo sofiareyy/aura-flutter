@@ -22,9 +22,7 @@ class ClaseCard extends StatelessWidget {
         : null;
     final estudio = clase['estudios'] as Map<String, dynamic>?;
     final imageUrl = (clase['imagen_url'] ?? estudio?['foto_url'])?.toString();
-    final lugaresDisp =
-        (clase['lugares_ disponibles'] ?? clase['lugares_disponibles'] ?? 0)
-            as num;
+    final lugaresDisp = (clase['lugares_disponibles'] ?? 0) as num;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

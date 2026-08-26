@@ -43,6 +43,15 @@ class _CreditosOnboardingScreenState extends State<CreditosOnboardingScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kPrefsKey, true);
     if (!mounted) return;
+    // Pieza C: volver a la clase que la invitada estaba mirando cuando se
+    // topó con el muro. Sólo se acepta una ruta interna que empiece con "/":
+    // sin ese filtro, un `?volver=https://…` armado a mano mandaría a la
+    // usuaria fuera de la app apenas termina de registrarse.
+    final volver = GoRouterState.of(context).uri.queryParameters['volver'];
+    if (volver != null && volver.startsWith('/') && !volver.startsWith('//')) {
+      context.go(volver);
+      return;
+    }
     context.go('/home');
   }
 

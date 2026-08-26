@@ -75,9 +75,15 @@ class RegistroMuro extends StatelessWidget {
 
   /// `push` y no `go`: si desde el registro tocan atrás, vuelven a donde
   /// estaban en vez de caer en el onboarding.
+  ///
+  /// Pieza C del modo visita: además se lleva la ruta actual en `?volver=`.
+  /// Sin esto, la invitada que estaba mirando una clase, se registraba y
+  /// terminaba en `/home` — perdía la clase que la trajo hasta acá, que es
+  /// justo el momento en que estaba por reservar.
   void _ir(BuildContext context, String ruta) {
+    final desde = GoRouterState.of(context).uri.toString();
     Navigator.of(context).pop();
-    context.push(ruta);
+    context.push('$ruta?volver=${Uri.encodeComponent(desde)}');
   }
 
   @override

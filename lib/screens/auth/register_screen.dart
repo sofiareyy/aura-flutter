@@ -220,7 +220,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         );
       }
-      context.go('/creditos-onboarding');
+      // Pieza C: si venía de una clase (el muro de invitada puso `?volver=`),
+      // se lo pasamos al onboarding para que la devuelva ahí en vez de /home.
+      final volver = GoRouterState.of(context).uri.queryParameters['volver'];
+      context.go(volver == null || volver.isEmpty
+          ? '/creditos-onboarding'
+          : '/creditos-onboarding?volver=${Uri.encodeComponent(volver)}');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

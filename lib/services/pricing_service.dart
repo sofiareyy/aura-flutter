@@ -19,6 +19,13 @@ class PricingService {
   final _client = Supabase.instance.client;
 
   static const int _valorCreditoFallback = 1000;
+  /// Fallback si `pricing_credit_packs` no responde. Los multiplicadores
+  /// tienen que dar el MISMO precio que la tabla o la alumna ve un precio que
+  /// no es el que va a pagar.
+  /// Medido contra la base el 26/8 (valor_credito = 1000):
+  /// 20 cr → 22.000 (1,10) · 50 → 50.000 (1,00) · 100 → 95.000 (0,95) ·
+  /// 200 → 180.000 (0,90). Estaban corridos un lugar en tres de los cuatro y
+  /// cotizaban de MÁS: Esencial 52.500, Popular 100.000, Full 190.000.
   static const List<_PackBase> _packsBase = [
     _PackBase(
       nombre: 'Pack Prueba',
@@ -31,7 +38,7 @@ class PricingService {
     _PackBase(
       nombre: 'Pack Esencial',
       creditos: 50,
-      multiplicador: 1.05,
+      multiplicador: 1.00,
       vigenciaDias: 45,
       badge: 'MÁS POPULAR',
       descripcion: 'Para sumar clases al mes · vence en 45 días',
@@ -39,7 +46,7 @@ class PricingService {
     _PackBase(
       nombre: 'Pack Popular',
       creditos: 100,
-      multiplicador: 1.00,
+      multiplicador: 0.95,
       vigenciaDias: 45,
       badge: 'MEJOR VALOR',
       descripcion: 'Para entrenar seguido y variar · vence en 45 días',
@@ -47,7 +54,7 @@ class PricingService {
     _PackBase(
       nombre: 'Pack Full',
       creditos: 200,
-      multiplicador: 0.95,
+      multiplicador: 0.90,
       vigenciaDias: 60,
       badge: null,
       descripcion: 'Máxima libertad para explorar · vence en 60 días',

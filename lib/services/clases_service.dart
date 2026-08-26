@@ -230,10 +230,7 @@ class ClasesService {
     return clases.map((c) {
       final classId = (c['id'] as num?)?.toInt();
       final total = (c['lugares_total'] as num?)?.toInt() ?? 0;
-      final storedDisp =
-          (c['lugares_disponibles'] as num?)?.toInt() ??
-          (c['lugares_ disponibles'] as num?)?.toInt() ??
-          total;
+      final storedDisp = (c['lugares_disponibles'] as num?)?.toInt() ?? total;
       final storedOcupados = total > 0 ? (total - storedDisp) : 0;
       final reserved = classId != null ? (countByClass[classId] ?? 0) : 0;
       final ocupados = reserved > storedOcupados ? reserved : storedOcupados;

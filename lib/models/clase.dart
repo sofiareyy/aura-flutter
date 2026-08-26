@@ -35,9 +35,7 @@ class Clase {
       duracionMin: (map['duracion_min'] as num?)?.toInt(),
       creditos: (map['creditos'] as num?)?.toInt(),
       lugaresTotal: (map['lugares_total'] as num?)?.toInt(),
-      lugaresDisponibles:
-          (map['lugares_disponibles'] as num?)?.toInt() ??
-          (map['lugares_ disponibles'] as num?)?.toInt(),
+      lugaresDisponibles: (map['lugares_disponibles'] as num?)?.toInt(),
     );
   }
 

@@ -74,13 +74,39 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
 
   Future<void> _cargar() async {
     final userId = context.read<AppProvider>().userId;
+    // Abrir un estudio hacía 6 idas y vueltas EN SERIE. Medido el 24/8: el
+    // servidor tarda 53 ms en el panel más pesado (Citra, 368 clases), pero
+    // cada ida y vuelta a Supabase mide entre 150 ms y 1,6 s — muy variable.
+    // Seis en serie son ~2 s, y con dos muestras lentas se va a 4 y pico. Por
+    // eso "antes era más rápido" dependía del momento, no del código.
+    // Sólo `getEstudio` tiene que ir primero (las otras necesitan su id); las
+    // cinco que siguen no dependen entre sí, así que pasan de sumarse a costar
+    // lo que la más lenta.
     final estudio = await _service.getEstudio(widget.estudioId);
-    final clasesRaw = estudio != null && estudio.id != null
-        ? await _service.getClasesDeEstudio(estudio.id!)
-        : <Map<String, dynamic>>[];
-    final experienciasRaw = estudio != null && estudio.id != null
-        ? await _service.getExperienciasDeEstudio(estudio.id!)
-        : <Map<String, dynamic>>[];
+    final estudioId = estudio?.id;
+
+    final resultados = await Future.wait([
+      estudioId != null
+          ? _service.getClasesDeEstudio(estudioId)
+          : Future.value(<Map<String, dynamic>>[]),
+      estudioId != null
+          ? _service.getExperienciasDeEstudio(estudioId)
+          : Future.value(<Map<String, dynamic>>[]),
+      estudioId != null && userId.isNotEmpty
+          ? _favoritosService.esFavorito(userId, estudioId)
+          : Future.value(false),
+      estudioId != null
+          ? _reviewsService.getReviewsForStudy(estudioId)
+          : Future.value(<Map<String, dynamic>>[]),
+      estudioId != null && userId.isNotEmpty
+          ? _reviewsService.canReviewStudy(estudioId: estudioId)
+          : Future.value(false),
+    ]);
+    final clasesRaw = resultados[0] as List<Map<String, dynamic>>;
+    final experienciasRaw = resultados[1] as List<Map<String, dynamic>>;
+    final esFavorito = resultados[2] as bool;
+    final reviews = resultados[3] as List<Map<String, dynamic>>;
+    final canReview = resultados[4] as bool;
 
     // Adjuntar datos del estudio a cada clase para que ClaseCard muestre imagen
     final estudioMap = estudio != null
@@ -98,15 +124,6 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
     final experiencias = estudioMap != null
         ? experienciasRaw.map((c) => {...c, 'estudios': estudioMap}).toList()
         : experienciasRaw;
-    final esFavorito = estudio?.id != null && userId.isNotEmpty
-        ? await _favoritosService.esFavorito(userId, estudio!.id!)
-        : false;
-    final reviews = estudio?.id != null
-        ? await _reviewsService.getReviewsForStudy(estudio!.id!)
-        : <Map<String, dynamic>>[];
-    final canReview = estudio?.id != null && userId.isNotEmpty
-        ? await _reviewsService.canReviewStudy(estudioId: estudio!.id!)
-        : false;
 
     if (mounted) {
       setState(() {

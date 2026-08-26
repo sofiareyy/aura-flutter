@@ -24,6 +24,18 @@ class ReservaConfirmadaScreen extends StatefulWidget {
   State<ReservaConfirmadaScreen> createState() => _ReservaConfirmadaScreenState();
 }
 
+/// El identificador corto que ve la alumna, sacado del código QR.
+///
+/// Formato del QR desde el 25/8: `AURA-<8hex>-<claseId>-<ms>-<4dig>`. El bloque
+/// hex es el único tramo que identifica la reserva; los 4 dígitos finales son
+/// al azar y se repiten. Los códigos viejos (12 hex sin guiones) no tienen
+/// tramos: para esos se muestra el código entero, como antes.
+String _idCorto(String codigoQr) {
+  final partes = codigoQr.split('-');
+  if (partes.length >= 2 && partes[1].isNotEmpty) return partes[1];
+  return codigoQr;
+}
+
 class _ReservaConfirmadaScreenState extends State<ReservaConfirmadaScreen> {
   final _reservasService = ReservasService();
   Map<String, dynamic>? _reserva;
@@ -430,7 +442,12 @@ Future<void> _abrirShareSheet({
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      '#BK-${widget.codigoQr.split('-').last}',
+                                      // El QR es AURA-<8hex>-<clase>-<ms>-<4dig>
+                                      // desde el 25/8: `.last` daba los 4
+                                      // dígitos al azar (#BK-4571), que se
+                                      // repiten entre reservas. El bloque hex
+                                      // es el que identifica.
+                                      '#BK-${_idCorto(widget.codigoQr)}',
                                       style: const TextStyle(
                                         color: AppColors.black,
                                         fontSize: 18,

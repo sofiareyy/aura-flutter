@@ -303,9 +303,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
       return;
     }
 
-    final lugaresDisp =
-        (_clase!['lugares_ disponibles'] ?? _clase!['lugares_disponibles'] ?? 0)
-            as num;
+    final lugaresDisp = (_clase!['lugares_disponibles'] ?? 0) as num;
     if (lugaresDisp <= 0) return;
 
     final provider = context.read<AppProvider>();
@@ -510,9 +508,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     final cierreMinutos = CierreMinutos.reserva(clase);
     final reservaCerrada = fecha != null &&
         ReservasService.reservaCerrada(fecha, cierreMinutos);
-    final lugaresDisp =
-        (clase['lugares_ disponibles'] ?? clase['lugares_disponibles'] ?? 0)
-            as num;
+    final lugaresDisp = (clase['lugares_disponibles'] ?? 0) as num;
     final creditos = (clase['creditos'] as num?)?.toInt() ?? 1;
     final creditosSaldo = context.watch<AppProvider>().usuario?.creditos ?? 0;
     final disponible = lugaresDisp > 0 && !_yaReservado && !reservaCerrada;

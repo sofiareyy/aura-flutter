@@ -1,0 +1,26 @@
+-- Item 7: borrar la columna fantasma `clases."lugares_ disponibles"`.
+--
+-- Tiene un espacio en el medio del nombre. Es un duplicado muerto de
+-- `lugares_disponibles`, de cuando se creó la tabla.
+--
+-- ⚠️ CORRER RECIÉN DESPUÉS DE QUE EL BUILD 26 ESTÉ PUBLICADO Y VERIFICADO.
+-- La limpieza del Dart ya va en el build 26; esta es la mitad irreversible y
+-- no hay ningún apuro: la columna está vacía y no molesta.
+--
+-- Medido el 26/8 antes de escribir esto:
+--   · 0 de 1320 filas tienen valor (el 24/8 eran 0 de 937).
+--   · Ninguna vista, índice, función ni constraint la nombra.
+--   · pg_depend no devuelve ninguna dependencia.
+--   · Ninguna query del Dart la pide por nombre: todas usan `.select()` (= *)
+--     o nombran sólo la columna real. Por eso NO hay ventana de riesgo con las
+--     apps viejas — el build 25 en un teléfono no la *pide*, sólo lee una clave
+--     del JSON que va a pasar a estar ausente, y una clave ausente en un Map
+--     de Dart es null, que es justo lo que la columna ya devuelve hoy.
+--
+-- (La nota vieja de RETOMAR decía que las 10 referencias del Dart leían la
+--  columna real primero y la fantasma sólo como respaldo. Eran 7 de 10: en
+--  clase_card.dart y en los dos puntos de detalle_clase_screen.dart la
+--  fantasma iba PRIMERO. Daba igual porque siempre es null, pero la nota
+--  estaba mal.)
+
+alter table public.clases drop column if exists "lugares_ disponibles";

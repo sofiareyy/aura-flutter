@@ -614,13 +614,6 @@ class AdminService {
     return Map<String, dynamic>.from((res as List).first as Map);
   }
 
-  Future<void> updateGlobalCreditValue(int value) async {
-    await _client.rpc(
-      'admin_update_global_credit_value',
-      params: {'p_value': value},
-    );
-  }
-
   Future<List<Map<String, dynamic>>> listPricingPlans() async {
     final res = await _client.rpc('admin_list_pricing_plans');
     return List<Map<String, dynamic>>.from(res as List);

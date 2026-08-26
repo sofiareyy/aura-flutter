@@ -603,29 +603,12 @@ class EstudioAdminService {
           // La notif "push" local la dispara el dispositivo del alumno
           // cuando entra a la app y detecta su pre_confirmada (vease
           // DetalleClaseScreen + MisReservas).
-          if (res is Map &&
-              res['ok'] == true &&
-              res['promoted'] is List) {
-            for (final raw in (res['promoted'] as List)) {
-              if (raw is! Map) continue;
-              final uid = raw['usuario_id']?.toString() ?? '';
-              if (uid.isEmpty) continue;
-              final claseNombre =
-                  raw['clase_nombre']?.toString() ?? 'una clase';
-              final estudioNombre =
-                  raw['estudio_nombre']?.toString() ?? 'el estudio';
-              try {
-                await _client.from('notificaciones_usuario').insert({
-                  'usuario_id': uid,
-                  'titulo': '¡Buenas noticias! Se abrieron lugares ⚡',
-                  'mensaje':
-                      'Confirmá tu lugar en $claseNombre de $estudioNombre en los próximos 30 minutos.',
-                  'tipo': 'pre_confirmada',
-                  'leida': false,
-                });
-              } catch (_) {}
-            }
-          }
+          // La campanita de "se abrieron lugares" la crea la base dentro de
+          // `_waitlist_promote_interno` desde el 22/8. Acá había un insert a
+          // `notificaciones_usuario` que RLS rechazaba SIEMPRE (la tabla no
+          // tiene policy de INSERT: sólo SELECT y UPDATE de lo propio) y el
+          // `catch (_) {}` se lo tragaba. Si RLS lo dejara pasar, duplicaría
+          // el aviso. Se borró: no hay que reemplazarlo por nada.
         } catch (_) {}
       }
     }
