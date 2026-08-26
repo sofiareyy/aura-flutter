@@ -22,6 +22,38 @@
 | ⬜ | **8 menores de la auditoría fresca** | ninguno urgente · re-medidos el 26/8, los 8 siguen abiertos |
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia · mail de confirmación |
 
+### ⏳ REPONER TEMPORAL — cerrar cuando Apple apruebe el BUILD 26
+
+**Policy `usuarios_select_alumnas_de_mis_clases` repuesta el 26/8.** Es
+temporal y hay que volver a cerrarla.
+
+**Por qué se repuso:** el arreglo de nombres tiene dos mitades. La app vieja
+(build 25, la que los estudios tienen instalada) lee `public.usuarios`
+**directo**, sujeta a RLS; el build 26 usa la RPC limpia
+`estudio_nombres_alumnas`. Al crear la RPC el 25/8 se dropeó la policy, y eso
+dejó a la app vieja **sin nombres**: medido el 26/8, la consulta del build 25
+como Citra devolvía **0 filas** y el cartel del escaneo decía "Usuario".
+Con el primer cliente real entrando el 27/8, se repuso.
+
+**El costo, asumido:** una policy habilita la **fila entera**, así que el
+estudio ve también `creditos`, `plan`, `codigo_referido`, `empresa_id` y
+`avatar_url` de las alumnas con reserva en sus clases. **No hay datos de cobro
+ni CBU en esa tabla.** Es más de lo que la pantalla necesita, y por eso existe
+la RPC.
+
+**👉 Qué hacer cuando el build 26 esté aprobado Y adoptado:**
+
+```sql
+drop policy usuarios_select_alumnas_de_mis_clases on public.usuarios;
+```
+
+y verificar que Asistencia siga mostrando nombres (ya por la RPC).
+Archivo: `supabase/FIX_REPONER_POLICY_NOMBRES_TEMPORAL_2026-08-26.sql`.
+
+⚠️ **No cerrarla apenas Apple apruebe**: hay que esperar a que los estudios
+**actualicen**. Si se cierra con estudios todavía en el build 25, vuelven a
+ver "Usuario".
+
 ### 🔴 `aps-environment` — mirar ANTES de cualquier build de iOS
 
 `ios/Runner/Runner.entitlements` está en **`production`** desde el 26/8, para
