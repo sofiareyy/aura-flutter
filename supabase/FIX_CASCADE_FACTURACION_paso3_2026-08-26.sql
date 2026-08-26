@@ -1,8 +1,16 @@
 -- Paso 3 de preservar facturación: la red de seguridad de esquema.
 --
--- ⚠️ NO EJECUTADO. Requiere confirmación: los `drop not null` no se deshacen
--- solos (se puede volver a poner el NOT NULL sólo si no quedó ninguna fila en
--- NULL, así que el momento de revertir es limitado).
+-- ✅ APLICADO EN PRODUCCIÓN el 2026-08-26, en el orden de abajo: primero el
+-- prerrequisito (3.0), después las FK (3.1).
+--
+-- Verificado después de aplicar:
+--   · cancelar una clase con una reserva huérfana: ok, 2 reservas afectadas y
+--     sólo 12 créditos devueltos (la huérfana se saltea, la real cobra).
+--   · cancelar una clase normal: idéntico a antes.
+--   · borrar una fila de `usuarios` por SQL directo: Citra conserva sus 36 por
+--     cobrar y el ledger sus 16 movimientos. Con CASCADE, medido en la misma
+--     transacción, daba 0 y 0.
+--   · base sana: 85 = 85, 2 reservas, 1320 clases, 0 huérfanas reales.
 --
 -- CONTEXTO: el agujero YA está tapado por la edge function `delete-account`
 -- v10 (26/8), que en vez de borrar la fila de `usuarios` la anonimiza. Esto es
@@ -121,3 +129,22 @@ alter table public.creditos_movimientos add constraint creditos_movimientos_user
 alter table public.admin_activity_logs drop constraint admin_activity_logs_admin_user_id_fkey;
 alter table public.admin_activity_logs add constraint admin_activity_logs_admin_user_id_fkey
   foreign key (admin_user_id) references public.usuarios(id) on delete set null;
+
+
+-- ============================================================================
+-- ⚠️ LO QUE ESTO NO CIERRA — medido el 26/8 después de aplicar
+-- ============================================================================
+-- `admin_delete_estudio` SIGUE destruyendo la facturación, y por otra puerta:
+-- hace `delete from public.clases where estudio_id = ...`, y `reservas.clase_id`
+-- es ON DELETE CASCADE — un cascade DISTINTO del de `usuario_id`, que es el que
+-- arreglamos acá. Además hace `delete from public.liquidaciones`.
+--
+-- Medido con Citra en una transacción con rollback: sus 36 créditos por cobrar
+-- pasan a 0 y las 2 reservas desaparecen.
+--
+-- No se tocó porque borrar un estudio entero es una acción deliberada de
+-- superadmin y tiene su propia confirmación, pero conviene decidir si el
+-- histórico de facturación de un estudio dado de baja tiene que sobrevivir
+-- (para la contadora, o por si se le quedó debiendo plata).
+-- Opciones: `reservas.clase_id` a SET NULL, o que `admin_delete_estudio`
+-- archive en vez de borrar.
