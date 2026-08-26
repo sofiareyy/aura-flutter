@@ -16,9 +16,10 @@
 | ✅ | **Auditoría FRESCA de punta a punta** (cabeza limpia, sin mirar estas notas) | **hecha el 24/8** · 4 agujeros nuevos + 41 clases mal publicadas · **5 arreglos aplicados** |
 | 🟢 | **Alta de Rock Studio** (spinning, 2 sedes, 50 bicis) | **LISTA.** Multi-sede verificado punta a punta el 24/8 con las 2 sedes. Ver abajo. |
 | ✅ | **Incidente Tiwar 25/8** — "las clases se duplican / horarios raros" | **no era zona horaria**: reloj de 12 h en el panel + grilla cargada 2 veces como rango · guard aplicado · **limpieza de Tiwar espera confirmación del estudio** |
-| ⬜ | **Tanda C** — build de Dart (19 items) | **lo próximo** · bloqueada por saber si el build 25 se subió |
+| ✅ | **Tanda C** — build de Dart | **cerrada 26/8 = build 26** (1.0.6+26), archivado y subido. El build 25 sí se había archivado el 21/8 (dos `.xcarchive`, `1.0.6 (25)`). |
 | ⬜ | **Tanda D** — Modelo C de precios | arrancar por el DISEÑO de reglas, no por código |
-| ⬜ | **Tanda E** — experiencias, esquema pesado, keys legacy | |
+| ⬜ | **Tanda E** — experiencias, facturación/CASCADE, keys legacy | **lo próximo** · el ítem gordo es preservar facturación |
+| ⬜ | **8 menores de la auditoría fresca** | ninguno urgente · re-medidos el 26/8, los 8 siguen abiertos |
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia · mail de confirmación |
 
 ### 🔴 `aps-environment` — mirar ANTES de cualquier build de iOS
@@ -508,6 +509,24 @@ perfil sin ejercitar (Tanda C) y la falta de policy DELETE en `storage.objects`.
 
 **Y el noveno ítem no existía:** `estudios.estado` no es una columna. El pendiente
 decía "estados del estudio" y era sobre `reservas.estado`, que sí se arregló.
+
+### Re-medición del 2026-08-26 (después del build 26)
+
+1320 clases (997 futuras) · 115 horarios fijos · **2 reservas** · 11 estudios ·
+79 usuarios · 117 funciones · 32 tablas.
+
+**El ledger de créditos cuadra: 85 disponibles en `creditos_movimientos` = 85
+en `usuarios.creditos`, con los mismos 16 movimientos del 24/8.** Nada
+financiero se perdió.
+
+⚠️ **Pero las reservas pasaron de 5 (24/8) a 2.** Las 3 que faltan estaban
+canceladas y no movieron créditos —el ledger lo confirma—, pero **no se puede
+saber quién las borró ni cuándo**: no hay log de cambios de estado en
+`reservas` (el ítem que se postergó el 22/8). Es el argumento concreto para
+levantarlo: cuando la liquidación mueva plata real, una diferencia así no se
+va a poder explicar.
+(La secuencia `reservas_id_seq` fue de 552 a 649 en el mismo período, pero eso
+son ids consumidos por las pruebas con `begin/rollback`, no filas borradas.)
 
 ### Números de referencia (para comparar la próxima)
 
