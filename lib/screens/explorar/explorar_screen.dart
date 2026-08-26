@@ -945,6 +945,24 @@ class _ResultCard extends StatelessWidget {
     final imageUrl = (clase['imagen_url'] ?? estudio?['foto_url'])?.toString();
     final tipoPrecio = clase['tipo_precio']?.toString();
     final esWorkshop = clase['tipo']?.toString() == 'workshop';
+    final creditos = (clase['creditos'] as num?)?.toInt();
+    // "PRECIO REDUCIDO" tiene que ser VERDAD, no el nombre de la franja.
+    // Antes salía con tipo_precio 'normal' o 'valle' y eso lo ponía en 823 de
+    // las 997 clases futuras (83%) — incluso en los tres estudios que cobran
+    // un precio único, donde no hay nada reducido, y en la franja 'normal',
+    // que en promedio es la MÁS cara (15,2 cr contra 14,3 de 'pico').
+    // La regla honesta: esta clase cuesta menos que el techo de SU estudio, y
+    // ese estudio de verdad tiene un rango. Se compara contra creditos_max del
+    // estudio (no contra las clases cargadas) para que el badge no cambie
+    // según qué página de la lista se haya traído. Medido el 26/8: baja a 371
+    // de 997 y las tres de precio único dejan de mostrarlo.
+    final crMinEstudio = (estudio?['creditos_min'] as num?)?.toInt();
+    final crMaxEstudio = (estudio?['creditos_max'] as num?)?.toInt();
+    final esPrecioReducido = creditos != null &&
+        crMinEstudio != null &&
+        crMaxEstudio != null &&
+        crMaxEstudio > crMinEstudio &&
+        creditos < crMaxEstudio;
     final organizadores = (clase['organizadores'] as List?) ?? const [];
 
     return Material(
@@ -1002,13 +1020,12 @@ class _ResultCard extends StatelessWidget {
                               color: AppColors.primary,
                             )
                           else if (tipoPrecio == 'pico')
-                            _PriceBadge(
+                            const _PriceBadge(
                               text: '⚡ POPULAR',
                               color: Color(0xFFE8763A),
                             )
-                          else if (tipoPrecio == 'normal' ||
-                              tipoPrecio == 'valle')
-                            _PriceBadge(
+                          else if (esPrecioReducido)
+                            const _PriceBadge(
                               text: '🏷️ PRECIO REDUCIDO',
                               color: Color(0xFF4CAF50),
                             ),
@@ -1056,7 +1073,11 @@ class _ResultCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          _Pill(text: '${clase['creditos'] ?? 10} cr'),
+                          _Pill(
+                            text: creditos == 0
+                                ? 'GRATIS'
+                                : '${creditos ?? 10} cr',
+                          ),
                         ],
                       ),
                     ],

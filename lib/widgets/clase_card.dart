@@ -176,7 +176,12 @@ class ClaseCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(9999),
                     ),
                     child: Text(
-                      '${clase['creditos']} cr',
+                      // Una clase de 0 créditos dice "GRATIS", no "0 cr":
+                      // para la captación es la diferencia entre que se
+                      // entienda y que no.
+                      (clase['creditos'] as num?)?.toInt() == 0
+                          ? 'GRATIS'
+                          : '${clase['creditos']} cr',
                       style: const TextStyle(
                         color: AppColors.white,
                         fontSize: 12,

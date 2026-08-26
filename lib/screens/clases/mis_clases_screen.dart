@@ -466,6 +466,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       builder: (_) => _ClaseDetalleSheet(
         clase: clase,
         puedeEditar: _puedeEditar,
+        enEspera: _enEspera[claseId] ?? 0,
         onEdit: () async {
           Navigator.pop(context);
           await _editClaseDialog(clase);
@@ -1221,6 +1222,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     });
   }
 
+  /// Cuánta gente espera lugar en cada clase futura, por `clase_id`. Vacío
+  /// mientras no haya nadie anotada (que es el caso hoy en todos los estudios).
+  Map<int, int> _enEspera = const {};
+
   Future<void> _loadStudio() async {
     try {
       // Auto-mantener 3 meses (13 semanas) de clases concretas a partir de
@@ -1267,6 +1272,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       final profes = estudioIdProfes != null
           ? await _service.listProfes(estudioIdProfes)
           : <Map<String, dynamic>>[];
+      final enEspera = estudioIdProfes != null
+          ? await _service.getListaEsperaDelEstudio(estudioIdProfes)
+          : const <int, int>{};
       final categorias = <String>{
         ...categoriasAdmin.where((item) => item.trim().isNotEmpty),
         ...horarios
@@ -1286,6 +1294,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         _estudio = estudio;
         _estudioNombre = estudio?['nombre']?.toString();
         _profesEstudio = profes;
+        _enEspera = enEspera;
         // Si el filtro apuntaba a una profe que ya no está, lo reseteamos.
         if (_filtroProfe != null && !_profeNombres.contains(_filtroProfe)) {
           _filtroProfe = null;
@@ -3331,6 +3340,17 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                             minHeight: 4,
                                             borderRadius: BorderRadius.circular(4),
                                           ),
+                                          // La lista de espera del estudio no
+                                          // se veía en ningún lado. Sólo
+                                          // aparece si hay alguien esperando.
+                                          if ((_enEspera[(c['id'] as num?)?.toInt()] ?? 0) > 0) ...[
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              '${_enEspera[(c['id'] as num?)?.toInt()]} esperando',
+                                              style: const TextStyle(color: Color(0xFFE8763A), fontSize: 10, fontWeight: FontWeight.w700),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
@@ -5981,7 +6001,9 @@ class _ClaseDetalleSheet extends StatelessWidget {
   final VoidCallback? onReactivar;
   // false para la profe: solo edita, no puede cancelar (borrar) la clase.
   final bool puedeEditar;
-  const _ClaseDetalleSheet({required this.clase, required this.onEdit, required this.onCancel, this.onAvisar, this.onReactivar, this.puedeEditar = true});
+  /// Cuántas esperan lugar en esta clase. 0 = no se muestra nada.
+  final int enEspera;
+  const _ClaseDetalleSheet({required this.clase, required this.onEdit, required this.onCancel, this.onAvisar, this.onReactivar, this.puedeEditar = true, this.enEspera = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -5995,12 +6017,28 @@ class _ClaseDetalleSheet extends StatelessWidget {
     final ocupados = total > 0 ? (total - disponibles).clamp(0, total) : 0;
     final duracion = (clase['duracion_min'] as num?)?.toInt() ?? 60;
     final creditos = (clase['creditos'] as num?)?.toInt() ?? 10;
+    // Los tres campos de "Descripción, sala y fotos" ya venían en el mapa
+    // (`getClasesDeEstudio` hace `.select()`), pero esta hoja nunca los
+    // dibujaba: el estudio los cargaba y no los veía en ningún lado. Ahora
+    // que el bloque dejó de estar plegado (25/8) se empiezan a llenar.
+    final sala = (clase['sala'] ?? '').toString().trim();
+    final descripcion = (clase['descripcion'] ?? '').toString().trim();
+    final incluye = (clase['incluye'] ?? '').toString().trim();
+    final instructorDesc =
+        (clase['instructor_descripcion'] ?? '').toString().trim();
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFFF7F5F2),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      // Con descripción y "qué incluye" el contenido puede pasarse de alto:
+      // sin scroll la hoja se desborda (raya amarilla y texto cortado). Se
+      // limita a 85% de la pantalla y adentro scrollea.
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      child: SingleChildScrollView(
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         Center(
           child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16), decoration: BoxDecoration(color: const Color(0xFFCCC5BD), borderRadius: BorderRadius.circular(99))),
@@ -6019,7 +6057,22 @@ class _ClaseDetalleSheet extends StatelessWidget {
         if (instructor != null && instructor.isNotEmpty)
           _DetailRow(icon: Icons.person_outline_rounded, text: instructor),
         _DetailRow(icon: Icons.people_outline_rounded, text: '$ocupados/$total reservas · $disponibles disponibles'),
+        if (enEspera > 0)
+          _DetailRow(
+            icon: Icons.hourglass_bottom_rounded,
+            text: enEspera == 1
+                ? '1 persona esperando un lugar'
+                : '$enEspera personas esperando un lugar',
+          ),
         _DetailRow(icon: Icons.timer_outlined, text: '$duracion min · $creditos créditos'),
+        if (sala.isNotEmpty)
+          _DetailRow(icon: Icons.meeting_room_outlined, text: sala),
+        if (instructorDesc.isNotEmpty)
+          _BloqueTexto(titulo: 'Sobre quien la da', texto: instructorDesc),
+        if (descripcion.isNotEmpty)
+          _BloqueTexto(titulo: 'Descripción', texto: descripcion),
+        if (incluye.isNotEmpty)
+          _BloqueTexto(titulo: 'Qué incluye', texto: incluye),
         const SizedBox(height: 20),
         if (onAvisar != null) ...[
           SizedBox(
@@ -6078,8 +6131,25 @@ class _ClaseDetalleSheet extends StatelessWidget {
           ],
         ]),
       ]),
+      ),
     );
   }
+}
+
+/// Un campo largo de la clase (descripción, qué incluye…) con su título.
+/// Va en la hoja de detalle, debajo de los renglones cortos con ícono.
+class _BloqueTexto extends StatelessWidget {
+  final String titulo, texto;
+  const _BloqueTexto({required this.titulo, required this.texto});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 12),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(titulo.toUpperCase(), style: const TextStyle(color: Color(0xFF8F877F), fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+      const SizedBox(height: 4),
+      Text(texto, style: const TextStyle(color: Color(0xFF5F5953), fontSize: 14, height: 1.4)),
+    ]),
+  );
 }
 
 class _DetailRow extends StatelessWidget {

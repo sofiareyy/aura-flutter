@@ -245,6 +245,30 @@ class EstudioAdminService {
 
   /// Lista las profes (rol limitado) de un estudio. Solo funciona si el caller
   /// es admin real del estudio (validado en el RPC).
+  /// Cuánta gente espera lugar en cada clase futura del estudio, en UNA sola
+  /// llamada: `{clase_id: cuántas}`.
+  ///
+  /// `lista_espera` sólo deja ver la fila propia (policy `waitlist_own`), así
+  /// que consultarla desde el panel devuelve 0 filas siempre — tiene que salir
+  /// de la RPC. Devuelve conteos, no identidades.
+  Future<Map<int, int>> getListaEsperaDelEstudio(int estudioId) async {
+    try {
+      final rows = await _client.rpc(
+        'estudio_lista_espera_conteo',
+        params: {'p_estudio_id': estudioId},
+      );
+      return {
+        for (final r in (rows as List))
+          ((r as Map)['clase_id'] as num).toInt():
+              (r['esperando'] as num).toInt(),
+      };
+    } catch (e) {
+      // Que no se caiga el panel entero por un contador.
+      debugPrint('[getListaEsperaDelEstudio] $e');
+      return const {};
+    }
+  }
+
   Future<List<Map<String, dynamic>>> listProfes(int estudioId) async {
     try {
       final res = await _client.rpc(

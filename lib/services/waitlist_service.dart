@@ -32,6 +32,32 @@ class WaitlistService {
   }
 
   /// Adds the user to the waitlist. Silently ignores duplicate entries.
+  /// Puesto de la usuaria logueada en la lista de espera de [claseId], o
+  /// null si no está anotada.
+  ///
+  /// `posicion` NO es una columna de `lista_espera`: el orden es por llegada
+  /// (`created_at`) y el puesto lo deriva la base con `row_number()` en
+  /// `waitlist_mis_posiciones()`. La policy `waitlist_own` sólo deja ver la
+  /// fila propia, así que contar "cuántas hay antes que yo" desde el cliente
+  /// devolvería siempre 1 — tiene que salir de la RPC.
+  Future<({int posicion, int total})?> getMiPosicion(int claseId) async {
+    try {
+      final rows = await _client.rpc('waitlist_mis_posiciones');
+      for (final r in (rows as List)) {
+        final m = Map<String, dynamic>.from(r as Map);
+        if ((m['clase_id'] as num?)?.toInt() == claseId) {
+          return (
+            posicion: (m['posicion'] as num).toInt(),
+            total: (m['total'] as num).toInt(),
+          );
+        }
+      }
+    } catch (_) {
+      // Sin puesto la UI cae al texto de "N esperando", que ya funcionaba.
+    }
+    return null;
+  }
+
   Future<void> join(int claseId, String userId) async {
     await _client.from('lista_espera').upsert({
       'clase_id': claseId,

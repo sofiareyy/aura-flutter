@@ -44,6 +44,15 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
   bool _enListaEspera = false;
   bool _togglingWaitlist = false;
   int _waitlistCount = 0;
+
+  /// Alto real del CTA flotante, medido después de cada frame. Arranca en el
+  /// valor viejo (56 = botón suelto) y se corrige solo.
+  final GlobalKey _ctaKey = GlobalKey();
+  double _altoCTA = 56;
+
+  /// Puesto exacto en la lista de espera (1 = la próxima). null = no anotada
+  /// o la RPC falló; en ese caso se muestra el conteo, como antes.
+  int? _miPosicionEspera;
   List<Map<String, dynamic>> _reviews = [];
 
   // Lista de espera promovida -> pre_confirmada del usuario en esta clase.
@@ -214,11 +223,15 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
             ? _waitlistService.isOnWaitlist(widget.claseId, provider.userId)
             : Future.value(false),
         _waitlistService.getCount(widget.claseId),
+        provider.userId.isNotEmpty
+            ? _waitlistService.getMiPosicion(widget.claseId)
+            : Future.value(null),
       ]);
 
       final esGratuita = futures[0] as bool;
       final enListaEspera = futures[1] as bool;
       final waitlistCount = futures[2] as int;
+      final miPos = futures[3] as ({int posicion, int total})?;
 
       // Buscar pre_confirmada activa del usuario para esta clase
       Map<String, dynamic>? preReserva;
@@ -251,6 +264,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
         _esGratuita = esGratuita;
         _enListaEspera = enListaEspera;
         _waitlistCount = waitlistCount;
+        _miPosicionEspera = miPos?.posicion;
         _preReserva = preReserva;
         _preReservaExpiresAt = expiresAt;
         _loading = false;
@@ -401,6 +415,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
         setState(() {
           _enListaEspera = false;
           _waitlistCount = (_waitlistCount - 1).clamp(0, 9999);
+          _miPosicionEspera = null;
         });
         messenger.showSnackBar(
           const SnackBar(
@@ -410,16 +425,25 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
         );
       } else {
         await _waitlistService.join(widget.claseId, userId);
+        // El puesto lo decide la base por orden de llegada: si dos se anotan
+        // a la vez, contar en el cliente daría el mismo número a las dos.
+        final pos = await _waitlistService.getMiPosicion(widget.claseId);
         if (!mounted) return;
         setState(() {
           _enListaEspera = true;
-          _waitlistCount = _waitlistCount + 1;
+          _waitlistCount = pos?.total ?? (_waitlistCount + 1);
+          _miPosicionEspera = pos?.posicion;
         });
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('¡Anotado! Te avisamos si se libera un lugar.'),
+          SnackBar(
+            content: Text(
+              pos == null
+                  ? '¡Anotada! Te avisamos si se libera un lugar.'
+                  : 'Listo, sos la N° ${pos.posicion} en la lista de espera. '
+                      'Te avisamos si se libera un lugar.',
+            ),
             backgroundColor: AppColors.blackSoft,
-            duration: Duration(seconds: 4),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -464,6 +488,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _medirCTA());
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _loading
@@ -491,6 +516,18 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     final creditos = (clase['creditos'] as num?)?.toInt() ?? 1;
     final creditosSaldo = context.watch<AppProvider>().usuario?.creditos ?? 0;
     final disponible = lugaresDisp > 0 && !_yaReservado && !reservaCerrada;
+
+    // El CTA flota sobre el scroll (Positioned), así que el contenido tiene
+    // que reservarle lugar o le queda tapado. El padding estaba fijo en 120,
+    // que alcanza para el botón suelto (56) pero NO para las dos variantes
+    // altas: la de lista de espera (cartel de "no se te cobran créditos" +
+    // puesto + botón) y la tarjeta de pre-reserva con countdown. Por eso el
+    // final de la pantalla quedaba tapado.
+    // Se mide el alto real en vez de estimarlo por variante: así vale también
+    // para la variante que se agregue mañana, y para cuando un texto pase a
+    // dos renglones en pantalla angosta.
+    final espacioParaCTA =
+        MediaQuery.of(context).padding.bottom + 16 + _altoCTA + 16;
     final barrio = estudio?['barrio']?.toString() ?? 'Palermo';
     final estudioNombre = estudio?['nombre']?.toString() ?? 'Aura Studio';
     final categoria = estudio?['categoria']?.toString().toUpperCase() ?? 'YOGA';
@@ -620,7 +657,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+                  padding: EdgeInsets.fromLTRB(20, 16, 20, espacioParaCTA),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -784,28 +821,44 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  RichText(
-                                    text: TextSpan(
-                                      children: [
-                                        TextSpan(
-                                          text: '$creditos',
-                                          style: const TextStyle(
-                                            color: AppColors.primary,
-                                            fontSize: 38,
-                                            fontWeight: FontWeight.w700,
+                                  // Precio 0 = "esta clase es gratis para
+                                  // todas", que NO es lo mismo que
+                                  // `_esGratuita` ("vos ya le pagás a este
+                                  // estudio", modo gestión, por usuaria). Hoy
+                                  // no pueden coexistir en una pantalla, pero
+                                  // son cosas distintas: no unificarlas.
+                                  if (creditos == 0)
+                                    const Text(
+                                      'Gratis',
+                                      style: TextStyle(
+                                        color: AppColors.primary,
+                                        fontSize: 38,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    )
+                                  else
+                                    RichText(
+                                      text: TextSpan(
+                                        children: [
+                                          TextSpan(
+                                            text: '$creditos',
+                                            style: const TextStyle(
+                                              color: AppColors.primary,
+                                              fontSize: 38,
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                           ),
-                                        ),
-                                        const TextSpan(
-                                          text: ' créditos',
-                                          style: TextStyle(
-                                            color: AppColors.primary,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
+                                          const TextSpan(
+                                            text: ' créditos',
+                                            style: TextStyle(
+                                              color: AppColors.primary,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
                                   const SizedBox(height: 6),
                                   const Text(
                                     'Precio de esta clase',
@@ -1125,15 +1178,30 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
           left: 20,
           right: 20,
           bottom: MediaQuery.of(context).padding.bottom + 16,
-          child: _buildBottomAction(
-            lugaresDisp: lugaresDisp.toInt(),
-            reservaCerrada: reservaCerrada,
-            disponible: disponible,
-            creditos: creditos,
+          child: KeyedSubtree(
+            key: _ctaKey,
+            child: _buildBottomAction(
+              lugaresDisp: lugaresDisp.toInt(),
+              reservaCerrada: reservaCerrada,
+              disponible: disponible,
+              creditos: creditos,
+            ),
           ),
         ),
       ],
     );
+  }
+
+  /// Mide el CTA ya dibujado y, si cambió de alto, vuelve a construir para
+  /// que el scroll le reserve exactamente ese lugar. El `!= _altoCTA` corta
+  /// el ciclo: sin eso, cada setState pediría otro frame para siempre.
+  void _medirCTA() {
+    final ctx = _ctaKey.currentContext;
+    final alto = ctx?.size?.height;
+    if (alto == null || !mounted) return;
+    if ((alto - _altoCTA).abs() > 0.5) {
+      setState(() => _altoCTA = alto);
+    }
   }
 
   Widget _buildBottomAction({
@@ -1205,6 +1273,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
           _WaitlistButton(
             enListaEspera: _enListaEspera,
             waitlistCount: _waitlistCount,
+            miPosicion: _miPosicionEspera,
             loading: _togglingWaitlist,
             onTap: _toggleListaEspera,
           ),
@@ -1226,7 +1295,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
               ? 'Ya reservada'
               : !disponible
                   ? (reservaCerrada ? 'Reservas cerradas' : 'Sin lugares')
-                  : _esGratuita
+                  : (_esGratuita || creditos == 0)
                       ? 'Reservar gratis'
                       : 'Reservar · $creditos créditos',
         ),
@@ -1671,7 +1740,7 @@ class _PreReservaConfirmCard extends StatelessWidget {
                       ),
                     )
                   : Text(
-                      esGratuita
+                      (esGratuita || creditos == 0)
                           ? 'Confirmar (gratis)'
                           : 'Confirmar y pagar · $creditos cr',
                       style: const TextStyle(
@@ -1708,12 +1777,15 @@ class _PreReservaConfirmCard extends StatelessWidget {
 class _WaitlistButton extends StatelessWidget {
   final bool enListaEspera;
   final int waitlistCount;
+  /// Puesto exacto (1 = la próxima). null = no anotada, o la RPC no respondió.
+  final int? miPosicion;
   final bool loading;
   final VoidCallback onTap;
 
   const _WaitlistButton({
     required this.enListaEspera,
     required this.waitlistCount,
+    required this.miPosicion,
     required this.loading,
     required this.onTap,
   });
@@ -1723,7 +1795,25 @@ class _WaitlistButton extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (waitlistCount > 0)
+        // Anotada: el puesto exacto, que es lo único que le sirve saber
+        // ("soy la 2 de 5" decide si espera o busca otra clase). Sin puesto
+        // —no anotada, o la RPC no respondió— se muestra el conteo de antes.
+        if (enListaEspera && miPosicion != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              miPosicion == 1
+                  ? 'Sos la próxima: N° 1 de $waitlistCount en la lista'
+                  : 'Sos la N° $miPosicion de $waitlistCount en la lista',
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          )
+        else if (waitlistCount > 0)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
