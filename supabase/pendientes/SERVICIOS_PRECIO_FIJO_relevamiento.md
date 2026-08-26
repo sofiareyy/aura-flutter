@@ -121,16 +121,24 @@ hasta que Aura cree una fila a propósito.
 **Verificación obligatoria al aplicar:** recalcular todo y comprobar que los
 precios dan **idénticos** a antes. Si algo se movió, la implementación está mal.
 
-### 🆕 Consecuencia que apareció con el caso real — decidir al construir
+### 9 · Qué categorías ve cada estudio — CERRADA el 27/8
 
-`study_categories` es **global**. Al crear "Sauna", "Ice bath" y
-"Sauna + Ice bath", esos nombres aparecen en el multi-select de **TODOS** los
-estudios: un estudio de yoga vería "Sauna" entre sus opciones.
+**Cada estudio ve las genéricas + SÓLO los servicios de precio fijo que Aura
+configuró para ÉL.** El estudio de yoga **no** ve "Sauna"; el de wellness sí.
+`study_categories` es global, así que sin este filtro "Sauna", "Ice bath" y
+"Sauna + Ice bath" aparecerían en el multi-select de todos.
 
-**Recomendado:** filtrar la lista que ve cada estudio = las categorías
-genéricas de siempre **+ sólo los servicios que tienen precio fijo para ESE
-estudio**. Sale casi gratis porque la tabla nueva ya es por estudio, y evita
-que el catálogo se ensucie para todos.
+**Y esto sale 100% de BASE, sin build.** La lista no se lee de la tabla: sale
+de la RPC `admin_list_studio_categories()`, que **no toma parámetros** y ya es
+`SECURITY DEFINER` con `auth.uid()`. El filtro se mete adentro **sin tocar la
+firma** ⇒ la app que los estudios ya tienen instalada empieza a ver la lista
+filtrada sola.
+
+⚠️ **Con una condición:** la misma RPC la usa el backoffice
+(`admin_config_screen`, `admin_estudios_screen`), que necesita verlas TODAS
+para poder asignarlas. El filtro tiene que ser condicional:
+**si el caller es superadmin (`is_admin()`) → todas; si no → genéricas + las
+suyas.**
 
 ## 6. Cómo lo ve el ESTUDIO al cargar — el diseño
 
@@ -209,6 +217,54 @@ los 5 puntos de arriba.
 **Regla de oro que ya rige en el archivo y acá también:** esto es sólo el
 espejo para que la UI no mienta. **El precio final lo fija la base** con el
 trigger. Si los dos no coinciden, manda la base y el espejo está mal.
+
+## 6b. Qué sale de BASE y qué espera el BUILD
+
+### 🟢 BASE — sale sin build, se puede tener andando antes
+
+| Pieza | Detalle |
+|---|---|
+| Tabla `estudio_servicios_precio` + policies | `(estudio_id, servicio, creditos, activo)` |
+| **Ampliar `clases_tipo_precio_check`** | ⚠️ **VA PRIMERO.** Hoy es `CHECK (tipo_precio in ('pico','valle','normal','experiencia'))`. Sin sumar `'servicio'`, el trigger revienta con **23514** en el primer guardado. |
+| `calcular_precio_clase` | el *early return* del precio fijo |
+| `horarios_fijos_fija_precio` | pasar la categoría en vez de `null` |
+| `clases_fija_precio` | pasar la categoría en vez de `null` |
+| `admin_recalcular_precios_estudio` | idem, para no pisar los fijos al guardar precios |
+| `generar_clases_estudio` | que la etiqueta no pise `'servicio'` |
+| **El rechazo de 2 servicios (decisión 2)** | mejor como **trigger en la base**, no sólo validación de Dart: así vale para cualquier camino |
+| RPC `admin_set_servicio_precio` | para el backoffice |
+| **El filtro de categorías (decisión 9)** | dentro de `admin_list_studio_categories()`, sin tocar la firma ⇒ **la app vieja lo aprovecha sola** |
+
+### 🔵 DART — espera el próximo build
+
+| Pieza | Detalle |
+|---|---|
+| Pantalla del backoffice | cargar servicio + precio por estudio (mientras tanto: por SQL) |
+| `TipoPrecio.servicio` en el enum | + su `badge` y `detalle` en `PricingResult` |
+| `PricingCalculator.calcular` | que **use** la `categoria` que ya recibe |
+| Cargar los servicios en `_loadStudio` | una lectura más dentro del `Future.wait` |
+| Los chips | precio en el chip de categoría · chips de horario sin ícono de franja |
+| El renglón "precio único" | arriba de la lista de horarios |
+| El mensaje de rechazo | el guard real vive en la base; esto es el texto amable |
+| Explorar | que un `'servicio'` no muestre badge de valle/pico |
+
+### ⚠️ El orden importa — y hay una trampa
+
+**La mitad de base funciona sola: el precio va a salir bien.** Pero mientras
+falte la mitad de Dart, **el estudio ve un número equivocado MIENTRAS carga**:
+el espejo del panel (`PricingCalculator`) sigue calculando por franja, así que
+el formulario le muestra `⚡ 19:30 · 18 cr` y la base guarda **14**. Al recargar
+el panel aparece 14 (que es lo correcto), pero la confirmación día por día
+—que lista los precios antes de crear— habría mentido.
+
+**Recomendación operativa:** aplicar toda la base cuando quieras, pero
+**no le entregues servicios de precio fijo a un estudio hasta que salga el
+build**. Si necesitás uno andando antes, **cargale la grilla vos desde el
+backoffice**: el precio queda bien y el estudio nunca ve el número equivocado.
+
+**La única pieza de base que conviene aplicar YA, aparte:** el filtro de
+categorías (decisión 9). No depende de nada más y mejora la app que los
+estudios ya tienen instalada.
 
 ## 7. Conexión con el running club
 
