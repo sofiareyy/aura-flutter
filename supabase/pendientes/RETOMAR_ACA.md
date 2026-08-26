@@ -137,6 +137,40 @@ clase por hora, casi nunca lo son.
 
 ---
 
+# ✅ HECHO EL 2026-08-25 — incidente Citra: QR, nombres y campanita
+
+Tres síntomas reportados juntos ("el QR no escanea", "no llegó el aviso", "no
+aparece el nombre al marcar presente"). Se sospechó una clase de Citra rota.
+**Medido: la clase 516 está sana** (martes 25/8 18:30, grilla 32 alineada, una
+sola en ese minuto). **Son tres causas independientes y sistémicas — le pasaban
+a todos los estudios.**
+
+| | Qué | Medición | Archivo |
+|---|---|---|---|
+| ✅ | **El escáner rechazaba TODOS los QR reales.** Valida el formato antes de consultar la base (`asistencia_screen.dart:400`, `^AURA-[A-Z0-9]{8}-\d+-\d+-\d{4}$`). Hasta el 21/7 el código lo generaba el cliente así; ese día se mudó a la base (`897c6cc`, D1) y salió como 12 hex sueltos. Nadie tocó el regex. **`_waitlist_promote_interno` nunca dejó de usar el formato correcto** — `reservar_clase` era el único desalineado. Se arregla en la BASE para que funcione en las apps ya instaladas. | en toda la base: 3 reservas `AURA-…` (junio, canceladas) vs **2 de 12 hex** (19/8 y 24/8) ⇒ **el escáner no leyó una sola reserva real desde julio**. Después: `AURA-58E38EDA-603-…-4571` **pasa**, el lookup encuentra la reserva/clase/alumna correcta, `clase_id` embebido coincide, aguanta basura del lector; cancelar por QR nuevo OK; las 2 viejas intactas | `FIX_QR_FORMATO_ESCANER_2026-08-25.sql` |
+| ✅ | **El estudio no veía el nombre de sus alumnas.** `_cargarAsistentes` pide `usuarios.nombre,email` y la única policy era `usuarios_select_self` ⇒ `null` ⇒ la UI mostraba 'Alumno'. **Provisorio**: policy acotada vía helper `es_alumna_de_mi_estudio()`. | Citra ve **`malekuipers <malekuipers@gmail.com>`** ✓ · no ve a Julieta (0 filas) · lista **2 de 78** · Sculpt no ve a la alumna de Citra (0) · alumna ve 1 (ella) · anon 1 · cancelando **todas** las reservas deja de verla | `FIX_ESTUDIO_VE_NOMBRES_ALUMNAS_2026-08-25.sql` |
+| ✅ | **La campanita de reserva no le llegaba al dueño.** Sólo insertaba para `rol='profe'` con `nombre == clases.instructor`; un `admin_estudio` nunca recibía nada, y salía con 0 si la clase no tenía instructor (**277 de 1797 clases futuras**). Ahora `union` de profe (igual que antes) + dueños del estudio, dedup, excluyendo a quien reservó. | 0 → **3 campanitas** (los 3 admins de Citra) con el texto correcto, en una clase **sin instructor** · la dueña reservando en su propia clase → **0** · reserva ajena (guard 20/8) → **0** · otro estudio → **0** | `FIX_CAMPANITA_RESERVA_AL_DUENO_2026-08-25.sql` |
+
+### El mail sí se envió — es spam, y hay algo real que arreglar
+
+`delivered` a Citra (confirmado en Resend); el bounce era una casilla de prueba
+inexistente. Pero **el FROM sale de un dominio SIN SPF**: `hola@somosaurapass.com`
+no tiene registro SPF; el SPF vive en `send.somosaurapass.com`, que **no es el
+dominio del FROM**. DKIM está y DMARC es `p=none`, así que entrega — con la
+señal débil que manda a spam. **La nota vieja que decía "el SPF ya existe" mira
+el subdominio equivocado.** Arreglo: agregar SPF en el dominio raíz (DNS, no
+código).
+
+### ⚠️ Consecuencia de la campanita, para decidir
+
+`test@aura.com` es admin de **8 estudios** y es **la única cuenta con
+dispositivos push** (×2). Con este arreglo recibe un push por **cada reserva de
+cualquier estudio**. Es la cuenta de prueba propia, así que es ruido y no daño;
+se apaga poniéndole `notifs_reservas_profe = false`, o se excluye a los
+superadmin con una línea en la función. **Sin decidir.**
+
+---
+
 # ✅ HECHO EL 2026-08-24 — AUDITORÍA FRESCA de punta a punta
 
 Pedida con **cabeza limpia y sin dar nada por bueno**, midiendo **contra la
@@ -528,6 +562,25 @@ igual). Miércoles 18:00 tenía dos grillas distintas; quedó la de menor `id`
 Verificado: 0 huérfanas, una clase por miércoles, el generador no la recrea.
 `FIX_YESSI_GRILLA_DUPLICADA_2026-08-25.sql`.
 
+## 🔴 A DIAGNOSTICAR — el reset de contraseña de los estudios
+
+**Sin diagnosticar. Reportado el 25/8, no se miró nada todavía.**
+
+Un estudio intenta cambiar su contraseña, toca para cambiarla, y **le aparece
+la pantalla de iniciar sesión**. No se sabe si es el deep link
+(`aura://reset-password`, `login_screen.dart:126`), la allowlist de Redirect
+URLs del dashboard, el manejo del token de recuperación, o la sesión que se
+pierde al volver a la app.
+
+**Por dónde empezar:** `login_screen.dart:126` (`resetPasswordForEmail` con
+`redirectTo`), `cambiar_contrasena_screen.dart`, el handler de deep links en
+`main.dart`, y la lista de Redirect URLs en el dashboard de Supabase. Ojo con
+lo ya aprendido: la URL de la web **termina en `/` a propósito** y tiene que
+estar en la allowlist — ver `AppConstants.auraWebUrl`.
+
+**Importa para Rock Studio:** si un estudio no puede recuperar su contraseña,
+queda afuera de su propio panel.
+
 ## 🟡 Menores de la auditoría fresca — por prioridad, ninguno urgente
 
 **Ninguno bloquea a Rock Studio ni a nada de hoy.**
@@ -659,6 +712,22 @@ tres son Dart puro, ninguno es un guard ni toca la base)
     próximo error de base asuste a un estudio.
     Ojo: **no tapar el error**, solo traducirlo. El texto crudo tiene que
     seguir yendo a `debugPrint` o no se puede diagnosticar nada.
+
+22. 🔴 **RPC limpia para los nombres de alumnas — y dropear la policy provisoria.**
+    El 25/8 se abrió `usuarios_select_alumnas_de_mis_clases` para desbloquear
+    Asistencia hoy. Una policy habilita la **fila entera**: el estudio ve
+    además `creditos`, `plan`, `codigo_referido`, `empresa_id`, `avatar_url`
+    de esa alumna. No hay plata ajena ni CBUs, pero es más de lo que la
+    pantalla necesita. **Arreglo:** una RPC `estudio_listar_asistentes(clase_id)`
+    que devuelva sólo `(usuario_id, nombre, email, estado, codigo_qr)`,
+    cambiar `_cargarAsistentes` para usarla (y de paso matar el N+1: hoy hace
+    una query por asistente), y **`drop policy usuarios_select_alumnas_de_mis_clases`**.
+23. **El `#BK-` que ve la alumna quedó en 4 dígitos.**
+    `reserva_confirmada_screen.dart:433` hace `codigoQr.split('-').last`. Con
+    los 12 hex sin guiones eso daba el código entero (`#BK-45DB492F6964`); con
+    el formato `AURA-…` del 25/8 `.last` son los 4 dígitos al azar
+    (`#BK-4571`). Sirve pero es débil. **Arreglo de una línea:** usar
+    `split('-')[1]`, el bloque hex (`#BK-58E38EDA`).
 
 17b. 🔴 **`_deleteFixed` y `_eliminarGrillaCompleta` no pueden tragarse errores** —
     **va con el 17, y es el que deja clases huérfanas invisibles.**
