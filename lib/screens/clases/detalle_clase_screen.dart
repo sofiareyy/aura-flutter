@@ -1189,8 +1189,9 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
   }
 
   /// Mide el CTA ya dibujado y, si cambió de alto, vuelve a construir para
-  /// que el scroll le reserve exactamente ese lugar. El `!= _altoCTA` corta
-  /// el ciclo: sin eso, cada setState pediría otro frame para siempre.
+  /// que el scroll le reserve exactamente ese lugar. La comparación con
+  /// tolerancia corta el ciclo: sin eso, cada setState pediría otro frame
+  /// para siempre.
   void _medirCTA() {
     final ctx = _ctaKey.currentContext;
     final alto = ctx?.size?.height;

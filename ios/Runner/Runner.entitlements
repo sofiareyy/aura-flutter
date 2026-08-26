@@ -6,10 +6,12 @@
 	<array>
 		<string>Default</string>
 	</array>
-	<!-- Push (APNs). En `development` para builds locales/TestFlight; Xcode lo
-	     cambia a `production` al archivar para la App Store. Sin esta clave el
-	     token de APNs no se emite y FCM no puede entregar en iOS. -->
+	<!-- Push (APNs). Puesto en `production` para archivar el build 26 (2026-08-26).
+	     Sin esta clave el token de APNs no se emite y FCM no puede entregar en
+	     iOS. Si se vuelve a compilar para correr en un dispositivo local o para
+	     un TestFlight de prueba, hay que volver a `development` o el push no
+	     llega en ese build. -->
 	<key>aps-environment</key>
-	<string>development</string>
+	<string>production</string>
 </dict>
 </plist>
