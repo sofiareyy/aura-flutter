@@ -80,13 +80,29 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, skipped: 'opt_out', enviados: 0 })
     }
 
-    // 4. Nombre del alumno
+    // 4. Nombre y mail del alumno
+    // El mail se agrega a pedido de los estudios: lo necesitan para cargar la
+    // reserva en su propio sistema. Es dato personal de la alumna que se
+    // comparte con el estudio donde reservó, que es quien le presta el
+    // servicio.
     const { data: alumno } = await admin
       .from('usuarios')
-      .select('nombre')
+      .select('nombre, email, rol')
       .eq('id', reserva.usuario_id)
       .maybeSingle()
     const alumnoNombre = (alumno?.nombre as string | null)?.trim() || 'Un alumno'
+
+    // Doble guard del anonimizado (26/8): una cuenta borrada conserva su fila
+    // como lápida, con `rol = 'eliminado'` y un email placeholder
+    // `anonimo+<uid>@cuenta-eliminada.aura`. Ese mail NO es de nadie y no se
+    // le muestra al estudio. Se chequean las dos cosas por separado para no
+    // depender de una sola convención.
+    const emailCrudo = (alumno?.email as string | null)?.trim().toLowerCase() || ''
+    const cuentaAnonimizada =
+      alumno?.rol === 'eliminado' ||
+      emailCrudo.endsWith('@cuenta-eliminada.aura')
+    const alumnoEmail =
+      !cuentaAnonimizada && emailCrudo.includes('@') ? emailCrudo : ''
 
     // 5. Destinatarios: en test, la casilla de prueba; si no, los admins del
     // estudio EXCLUYENDO profes (rol <> 'profe').
@@ -135,7 +151,7 @@ Deno.serve(async (req: Request) => {
     const subject = horaStr
       ? `Nueva reserva en ${estudioNombre} — ${claseNombre} ${horaStr}`
       : `Nueva reserva en ${estudioNombre} — ${claseNombre}`
-    const html = renderHtml({ estudioNombre, claseNombre, instructorNombre, alumnoNombre, fechaStr, horaStr })
+    const html = renderHtml({ estudioNombre, claseNombre, instructorNombre, alumnoNombre, alumnoEmail, fechaStr, horaStr })
 
     // 7. Enviar por Resend. El `to` son los admins del estudio (en test, la
     // casilla de prueba) — NUNCA la propia dirección de Aura. Son co-managers
@@ -172,10 +188,11 @@ function renderHtml(args: {
   claseNombre: string
   instructorNombre: string
   alumnoNombre: string
+  alumnoEmail: string
   fechaStr: string | null
   horaStr: string | null
 }): string {
-  const { estudioNombre, claseNombre, instructorNombre, alumnoNombre, fechaStr, horaStr } = args
+  const { estudioNombre, claseNombre, instructorNombre, alumnoNombre, alumnoEmail, fechaStr, horaStr } = args
   const cuando = fechaStr && horaStr
     ? `${escape(fechaStr)} a las ${escape(horaStr)} hs`
     : (fechaStr ? escape(fechaStr) : '')
@@ -195,7 +212,8 @@ function renderHtml(args: {
         🧘 <strong>Clase:</strong> ${escape(claseNombre)}<br>
         ${instructorNombre ? `🧑‍🏫 <strong>Profe:</strong> ${escape(instructorNombre)}<br>` : ''}
         ${cuando ? `📅 <strong>Cuándo:</strong> ${cuando}<br>` : ''}
-        👤 <strong>Alumno:</strong> ${escape(alumnoNombre)}
+        👤 <strong>Alumno:</strong> ${escape(alumnoNombre)}${alumnoEmail ? '<br>' : ''}
+        ${alumnoEmail ? `📧 <strong>Mail:</strong> <a href="mailto:${escape(alumnoEmail)}" style="color:#E8763A;">${escape(alumnoEmail)}</a>` : ''}
       </div>
       <p style="margin:16px 0 0; color:#555; font-size:14px;">Podés ver la lista completa de asistentes en la app.</p>
     </td></tr>
