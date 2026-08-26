@@ -587,6 +587,58 @@ depende del trigger); y lo legítimo pasa: horario nuevo ✓, mismo slot en otra
 **Yessi** ya se había resuelto el 25/8 (miércoles 18:00 tenía dos grillas
 distintas; quedó la de menor id con sus clases).
 
+## ✅ Reset de contraseña — DIAGNOSTICADO y mitigado el 26/8
+
+**No es un bug de lógica: el flujo es device-dependent.** El SDK usa **PKCE por
+defecto** (`gotrue 2.19`, `flowType = AuthFlowType.pkce`; el código nunca lo
+setea). `resetPasswordForEmail` genera un **code verifier y lo guarda en el
+almacenamiento del cliente QUE PIDIÓ el reset** (`gotrue_client.dart:888`, junto
+con la marca `passwordRecovery`). El mail trae `?code=…` y el canje **sólo
+funciona en ese mismo cliente**: abierto en otro dispositivo o navegador, falla
+→ sin sesión → el router manda a `/login`. **Ese es el síntoma reportado.**
+
+Verificado que el resto de la cadena está bien: el evento `passwordRecovery`
+llega, `main.dart:149` navega a `/reset-password`, la ruta está en
+`publicRoutes`, el splash tiene el flag para el cold start
+(`splash_screen.dart:56`), y `security_update_password_require_reauthentication
+= False`, así que `updateUser` funciona.
+
+Segundo agujero, sólo mobile: si se pide desde la app el link es
+`aura://reset-password`, y **abrirlo en una computadora no hace nada**.
+
+**Config de Supabase (medida, está bien):** Site URL `https://somosaurapass.com`;
+la allowlist incluye `aura://reset-password`, `https://somosaurapass.com` y
+`/**`; `mailer_otp_exp` 24 h; la plantilla usa `{{ .ConfirmationURL }}`.
+
+### ⚠️ NO cambiar `redirectTo` a https:// — se propuso y se descartó al medirlo
+
+iOS **no tiene** `associated-domains` y el App Link de Android **sólo cubre
+`/payment-result`**, así que un link https abriría el **navegador**, no la app.
+El verifier quedaría en la app → el canje fallaría → **rompería el único caso
+que hoy SÍ anda** (pedirlo en la app y abrir el mail en el mismo teléfono).
+Queda el comentario explicándolo en `login_screen.dart`.
+
+**Lo que sí entró en el build del 26/8** (`a6483ad`): los textos avisan que hay
+que abrir el link en el mismo dispositivo/navegador donde se pidió, y el error
+de `/reset-password` nombra esa causa además del vencimiento.
+
+### ⬜ Para más adelante: cross-device de verdad (TokenHash + verifyOTP)
+
+Plantilla del mail con `{{ .TokenHash }}` + una pantalla que llame a
+`verifyOTP(type: recovery)`. **No necesita verifier**, así que anda en cualquier
+dispositivo. Es config + una pantalla. Decisión: no en este build.
+
+### Dos cosas operativas que salieron de esto
+
+- **5 cuentas de estudio NO tienen contraseña** (entraron con Google/Apple):
+  Ambra, Sculpt Club y las tres de BB Estudio. Si intentan entrar con email +
+  contraseña **nunca van a poder**: tienen que usar el botón de Google.
+- **Yessi Funes** quedó bloqueada (último login 29/7, pidió recovery el 25/8
+  22:02). Se desbloquea desde Supabase Dashboard → Authentication → Users →
+  Reset password. **No se puede desde acá**: requiere la `service_role` key, que
+  no está en el vault (sólo `edge_service_key`, `notif_trigger_secret`,
+  `push_trigger_secret`).
+
 ## 🟡 Menores de la auditoría fresca — por prioridad, ninguno urgente
 
 **Ninguno bloquea a Rock Studio ni a nada de hoy.**
