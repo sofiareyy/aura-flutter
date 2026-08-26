@@ -55,25 +55,17 @@ Y `calcular_precio_clase` arranca con: *si hay fila activa para
 
 ## 4. Base vs Dart
 
-**Base (sale sin build, se aplica cuando quieras):**
-- la tabla nueva + sus policies
-- `calcular_precio_clase`: la búsqueda al principio
-- los 2 triggers: pasar la categoría en vez de `null`
-- `admin_recalcular_precios_estudio`: pasar la categoría (o saltear los fijos)
-- `generar_clases_estudio`: que la etiqueta no pise `'servicio'`
-- RPC `admin_set_servicio_precio` para el backoffice
+👉 **Está en la sección 6b, completa.** Acá había un borrador del 26/8 que
+quedó corto (le faltaban el `CHECK` de `tipo_precio`, el rechazo por trigger y
+el filtro de categorías). Se sacó para que nadie lea la versión vieja.
 
-**Dart (necesita build):**
-- backoffice: pantalla para cargar "servicio + precio" por estudio
-- panel del estudio: que al elegir el servicio muestre *"Sauna · 8 créditos
-  (precio único)"* en vez del rango
-- Explorar: que un servicio de precio fijo **no** muestre badge de valle/pico
+Lo único de ese borrador que vale conservar acá, porque es una interacción con
+otro arreglo: **el badge "PRECIO REDUCIDO" de Explorar compara contra
+`estudios.creditos_max`**. Un servicio fijo de 14 en un estudio con techo 18
+saldría marcado "precio reducido" siendo precio único. Hay que excluir
+`tipo_precio = 'servicio'` del badge.
 
-> Ojo con la interacción: el badge "PRECIO REDUCIDO" que arreglé hoy compara
-> contra `estudios.creditos_max`. Un servicio fijo de 8 en un estudio con techo
-> 18 daría "precio reducido" siendo precio único. Hay que excluirlo.
-
-## 5. Las 8 decisiones — TODAS CERRADAS el 2026-08-27
+## 5. Las 9 decisiones — TODAS CERRADAS el 2026-08-27
 
 ### El caso real que define el diseño (palabras de la usuaria)
 
@@ -91,7 +83,7 @@ Dos cosas se desprenden y son parte del diseño:
 - **Los combos son una categoría propia**, no una suma. "Sauna + Ice bath" es
   una fila más con su precio. Eso refuerza la regla de UNO SOLO por horario.
 
-### Las 8, cerradas
+### Las 9, cerradas (la 9 está más abajo, después de la garantía)
 
 | # | Decisión | **Cerrada así** |
 |---|---|---|
@@ -265,6 +257,58 @@ backoffice**: el precio queda bien y el estudio nunca ve el número equivocado.
 **La única pieza de base que conviene aplicar YA, aparte:** el filtro de
 categorías (decisión 9). No depende de nada más y mejora la app que los
 estudios ya tienen instalada.
+
+## 6c. PLAN DE CONSTRUCCIÓN — para la sesión dedicada
+
+**El proyecto está 100% definido: no queda ninguna decisión abierta.** Esta
+sección es el orden de trabajo, no una lista de cosas a decidir.
+
+### Reglas de la usuaria para esta construcción (2026-08-27)
+
+1. **La base se aplica EN la sesión de construcción**, con todo junto. No antes,
+   ni por partes.
+2. **El filtro de categorías (decisión 9) NO se aplica suelto**, aunque salga
+   sin build y mejore la app ya instalada. Va con el resto, para verificar las
+   dos puntas bien de una sola vez.
+3. **No se le entregan servicios de precio fijo a un estudio para que cargue él
+   hasta que salga el build 27** (la parte visual). Ver la trampa del orden en
+   6b.
+4. **Si hace falta un estudio de servicios andando antes del build 27: la
+   grilla la carga Aura desde el backoffice.** El precio queda bien y el
+   estudio nunca ve el número equivocado.
+
+### Orden sugerido
+
+**Paso 1 — base, en este orden (el primero no es opcional):**
+1. Ampliar `clases_tipo_precio_check` para aceptar `'servicio'`. **Si no va
+   primero, el trigger revienta con 23514 en el primer guardado.**
+2. Tabla `estudio_servicios_precio` + policies.
+3. El *early return* en `calcular_precio_clase`.
+4. Los dos triggers pasando la categoría; `admin_recalcular_precios_estudio`
+   igual.
+5. `generar_clases_estudio`: que no pise la etiqueta `'servicio'`.
+6. El trigger que rechaza dos servicios de precio fijo en un mismo horario.
+7. El filtro dentro de `admin_list_studio_categories()`, condicionado a
+   `is_admin()`.
+8. RPC `admin_set_servicio_precio`.
+
+**Paso 2 — la verificación que NO se puede saltear:**
+- **Recalcular todo y comprobar que los precios dan IDÉNTICOS a antes.** La
+  tabla arranca vacía, así que ningún estudio actual puede cambiar. Si algo se
+  movió, la implementación está mal. Números de referencia contra los que
+  comparar (medidos el 26/8, re-medir antes de tocar):
+  `normal 452 · valle 371 · pico 174` en clases futuras no canceladas.
+- Las dos puntas con cuentas reales: un estudio **con** servicio fijo carga y
+  le sale el precio único; un estudio **sin** servicio sigue con su valle/pico
+  intacto.
+- Que el rechazo de dos servicios frene de verdad, y que uno solo pase.
+- Que el filtro de categorías: el estudio de yoga **no** ve "Sauna", el de
+  wellness **sí**, y el backoffice sigue viéndolas **todas**.
+
+**Paso 3 — Dart (build 27):** las 8 piezas de la tabla azul de 6b.
+
+**Paso 4 — después del build:** recién ahí, entregarle el alta de servicios a
+los estudios.
 
 ## 7. Conexión con el running club
 
