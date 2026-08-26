@@ -21,6 +21,8 @@ class ClasesService {
         .select()
         // Excluir workshops/eventos: van en su propia sección "Experiencias".
         .neq('tipo', 'workshop')
+        // 2026-08-25: una clase cancelada por el estudio no se ofrece.
+        .eq('cancelada', false)
         .gte('fecha', _toSupaDate(ahora))
         .lte('fecha', _toSupaDate(semanasAdelante))
         .order('fecha', ascending: true)
@@ -40,6 +42,7 @@ class ClasesService {
         .from(AppConstants.tableClases)
         .select()
         .eq('tipo', 'workshop')
+        .eq('cancelada', false)
         .gte('fecha', _toSupaDate(ahora))
         .lte('fecha', _toSupaDate(hasta))
         .order('fecha', ascending: true)
@@ -151,6 +154,7 @@ class ClasesService {
           .from('clases')
           .select(
               '*, estudios!inner(id, nombre, categoria, categorias, barrio, foto_url)')
+          .eq('cancelada', false)
           .gte('fecha', _toSupaDate(ahora))
           .lte('fecha', _toSupaDate(hasta))
           // `overlaps` = el estudio comparte AL MENOS una categoria con las

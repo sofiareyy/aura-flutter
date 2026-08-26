@@ -679,6 +679,8 @@ class ReservasService {
   /// sqlerrm crudo) se devuelve tal cual entre comillas como fallback.
   String _mensajeReservaError(String? code) {
     switch (code) {
+      case 'clase_cancelada':
+        return 'El estudio canceló esta clase.';
       case 'sin_lugares':
         return 'Se acaba de llenar esta clase. No quedan lugares disponibles.';
       // `reservar_clase` devuelve 'ya_reservada' y `apply_reservation`

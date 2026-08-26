@@ -449,10 +449,19 @@ class EstudioAdminService {
     return Map<String, dynamic>.from(inserted);
   }
 
+  /// Crea los horarios fijos de una grilla a partir de la LISTA EXACTA de
+  /// horarios por día que el estudio armó en el formulario.
+  ///
+  /// Antes recibía un rango (Desde / Hasta / duración) y generaba una franja
+  /// por cada `duración` minutos. Ese modelo se leía como "horario de apertura"
+  /// y produjo grillas de 13 clases por día donde el estudio creía cargar 2
+  /// (Tiwar, 25/8). Ahora lo que se ve en pantalla es exactamente lo que se
+  /// crea; el rango pasó a ser un atajo del formulario que RELLENA la lista.
+  ///
+  /// Devuelve la cantidad REAL de filas insertadas (lo que confirma el
+  /// servidor), no el largo del lote armado en el cliente.
   Future<int> crearHorariosFijosEnGrilla({
-    required List<int> diasSemana,
-    required TimeOfDay horaInicio,
-    required TimeOfDay horaFin,
+    required Map<int, List<TimeOfDay>> horariosPorDia,
     required int duracionMin,
     required Map<String, dynamic> payloadBase,
   }) async {
@@ -460,27 +469,24 @@ class EstudioAdminService {
     if (studioId == null) {
       throw Exception('No hay estudio asociado.');
     }
-
-    final dias = diasSemana.toSet().where((d) => d >= 1 && d <= 7).toList()
-      ..sort();
-    if (dias.isEmpty) {
-      throw Exception('Elegí al menos un día.');
-    }
-
-    final inicio = horaInicio.hour * 60 + horaInicio.minute;
-    final fin = horaFin.hour * 60 + horaFin.minute;
     if (duracionMin <= 0) {
       throw Exception('La duración debe ser mayor a 0.');
     }
-    if (fin <= inicio) {
-      throw Exception('La hora de fin tiene que ser posterior a la de inicio.');
-    }
 
     final rows = <Map<String, dynamic>>[];
+    final dias = horariosPorDia.keys.where((d) => d >= 1 && d <= 7).toList()
+      ..sort();
     for (final dia in dias) {
-      for (var current = inicio; current + duracionMin <= fin; current += duracionMin) {
-        final hh = (current ~/ 60).toString().padLeft(2, '0');
-        final mm = (current % 60).toString().padLeft(2, '0');
+      // Dedup por minuto del día y orden cronológico: dos chips iguales no
+      // pueden convertirse en dos filas (el guard de la base lo rechazaría
+      // entero y el estudio no entendería por qué).
+      final minutos = <int>{};
+      for (final t in horariosPorDia[dia] ?? const <TimeOfDay>[]) {
+        minutos.add(t.hour * 60 + t.minute);
+      }
+      for (final m in minutos.toList()..sort()) {
+        final hh = (m ~/ 60).toString().padLeft(2, '0');
+        final mm = (m % 60).toString().padLeft(2, '0');
         rows.add({
           ...payloadBase,
           'estudio_id': studioId,
@@ -492,12 +498,13 @@ class EstudioAdminService {
     }
 
     if (rows.isEmpty) {
-      throw Exception('No se generaron horarios con esa configuración.');
+      throw Exception('Agregá al menos un horario.');
     }
 
-    await _client.from('horarios_fijos').insert(rows);
+    final inserted =
+        await _client.from('horarios_fijos').insert(rows).select('id');
     await generarProximasSemanasDesdeHorarios();
-    return rows.length;
+    return (inserted as List).length;
   }
 
   Future<void> eliminarHorarioFijo(int id) async {
@@ -508,6 +515,12 @@ class EstudioAdminService {
   /// responsabilidad del caller (usar
   /// `ReservasService.cancelarClaseConDevolucion` primero para devolver
   /// los creditos a los alumnos).
+  /// Quita la marca `cancelada` de una clase (la vuelve reservable). Solo el
+  /// admin del estudio pasa la RLS de UPDATE sobre `clases`.
+  Future<void> reactivarClase(int id) async {
+    await _client.from('clases').update({'cancelada': false}).eq('id', id);
+  }
+
   Future<void> eliminarClaseRow(int id) async {
     await _client.from('clases').delete().eq('id', id);
   }

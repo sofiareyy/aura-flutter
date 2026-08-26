@@ -103,6 +103,21 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   /// Precio calculado para un día (isodow) y hora concretos, según la config
   /// del estudio. El estudio NO elige este número: lo define Aura desde el
   /// backoffice (modo fijo o rango con grilla pico/valle).
+  /// "🌙 08:30 · 12 cr": la hora con el precio que le toca en SU franja, con
+  /// la misma regla que después aplica el trigger de la base. Sin precio
+  /// configurado muestra solo la hora.
+  String _etiquetaHorario(int dia, TimeOfDay t) {
+    final p = _precioDe(dia, t);
+    final hhmm = _hhmm(t);
+    if (!p.configurado) return hhmm;
+    final ico = switch (p.tipo) {
+      TipoPrecio.valle => '🌙 ',
+      TipoPrecio.pico => '⚡ ',
+      _ => '',
+    };
+    return '$ico$hhmm · ${p.creditos} cr';
+  }
+
   PricingResult _precioDe(int dia, TimeOfDay hora) =>
       PricingCalculator.calcular(
         estudio: _estudio,
@@ -445,6 +460,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           Navigator.pop(context);
           await _confirmarCancelacion(clase);
         },
+        onReactivar: () async {
+          Navigator.pop(context);
+          await _reactivarClase(clase);
+        },
         onAvisar: _puedeEditar
             ? () async {
                 Navigator.pop(context);
@@ -595,6 +614,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
   Future<void> _editClaseDialog(Map<String, dynamic> clase) async {
+    if (clase['cancelada'] == true) {
+      _snack('Esta clase está cancelada. Reactivala primero si querés editarla.');
+      return;
+    }
     // Opción A: editar clase individual lo puede hacer la profe. El borrado y
     // los workshops quedan bloqueados por el backend.
     if (!_puedeGestionarClases) return;
@@ -641,7 +664,6 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     DateTime fechaSel = fechaOrig ?? DateTime.now();
     TimeOfDay horaSel = TimeOfDay(hour: fechaSel.hour, minute: fechaSel.minute);
     if (!mounted) return;
-    bool showExtraFields = false;
     final ok = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -755,8 +777,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                     horaSel.minute)),
                                 icon: Icons.schedule_rounded,
                                 onTap: () async {
-                                  final t = await showTimePicker(
-                                      context: ctx, initialTime: horaSel);
+                                  final t = await _pickHora24(ctx, horaSel);
                                   if (t != null) {
                                     setD(() {
                                       horaSel = t;
@@ -856,11 +877,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                           ),
                           const SizedBox(height: 12),
                           // Card 5: Detalles adicionales (colapsable)
-                          _CollapsibleSectionCard(
-                            title: 'Detalles adicionales',
-                            expanded: showExtraFields,
-                            onToggle: () => setD(
-                                () => showExtraFields = !showExtraFields),
+                          _SectionCard(
+                            title: 'Descripción, sala y fotos',
                             children: [
                               _AuraTextField(
                                 controller: insDesc,
@@ -1017,6 +1035,38 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     }
   }
 
+  /// Vuelve reservable una clase cancelada. Las reservas que ya se devolvieron
+  /// quedan como estaban (cancelada_por_estudio): las alumnas se anotan de nuevo.
+  Future<void> _reactivarClase(Map<String, dynamic> clase) async {
+    if (!_puedeEditar) return;
+    final claseId = (clase['id'] as num?)?.toInt();
+    if (claseId == null || clase['cancelada'] != true) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Reactivar esta clase?'),
+        content: const Text('Vuelve a aparecer para las alumnas y se puede reservar. Las que ya recibieron sus créditos tienen que anotarse de nuevo.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Volver')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF43A047), foregroundColor: Colors.white),
+            child: const Text('Reactivar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await _service.reactivarClase(claseId);
+      await _loadStudio();
+      _snack('Clase reactivada: ya se puede reservar.');
+    } catch (e) {
+      debugPrint('[reactivarClase] $e');
+      _snack('No se pudo reactivar la clase. Escribinos a aura.hola.app@gmail.com');
+    }
+  }
+
   Future<void> _confirmarCancelacion(Map<String, dynamic> clase) async {
     // Guarda de permiso: la profe no crea, edita, borra ni avisa.
     // Va acá y no solo en la UI para cubrir cualquier camino de
@@ -1024,6 +1074,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     if (!_puedeEditar) return;
     final claseId = (clase['id'] as num?)?.toInt();
     if (claseId == null) return;
+    if (clase['cancelada'] == true) {
+      _snack('Esta clase ya está cancelada.');
+      return;
+    }
     final nombre = clase['nombre']?.toString() ?? 'esta clase';
 
     final ok = await showModalBottomSheet<bool>(
@@ -1325,7 +1379,6 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       for (final x in orgInstaCtrls) { x.dispose(); }
     }
     if (!mounted) return;
-    bool showExtraFields = false;
     final ok = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -1517,8 +1570,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 value: _timeText(t),
                                 icon: Icons.schedule_rounded,
                                 onTap: () async {
-                                  final p = await showTimePicker(
-                                      context: ctx, initialTime: t);
+                                  final p = await _pickHora24(ctx, t);
                                   if (p != null) setD(() => t = p);
                                 },
                               ),
@@ -1777,11 +1829,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                             const SizedBox(height: 12),
                           ],
                           // Card 5: Detalles adicionales (colapsable)
-                          _CollapsibleSectionCard(
-                            title: 'Detalles adicionales',
-                            expanded: showExtraFields,
-                            onToggle: () => setD(
-                                () => showExtraFields = !showExtraFields),
+                          _SectionCard(
+                            title: 'Descripción, sala y fotos',
                             children: [
                               _AuraTextField(
                                 controller: iDesc,
@@ -2017,11 +2066,15 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     int dur = 60;
     final cats = <String>[];
     final diasSeleccionados = <int>{1, 2, 3, 4, 5};
-    TimeOfDay horaInicio = const TimeOfDay(hour: 7, minute: 0);
-    TimeOfDay horaFin = const TimeOfDay(hour: 21, minute: 0);
+    // La lista de horarios POR DÍA es la fuente de verdad y la vista previa a
+    // la vez: lo que se ve acá es exactamente lo que se crea. El rango
+    // (Desde/Hasta/cada) y "copiar a…" son atajos que la RELLENAN.
+    // Antes el formulario ERA un rango, y "Desde 08:30 / Hasta 21:30" se leía
+    // como horario de apertura: Tiwar cargó 13 clases por día creyendo que
+    // cargaba 2 (25/8).
+    final horariosPorDia = <int, List<TimeOfDay>>{};
 
     if (!mounted) return;
-    bool showExtraFields = false;
     final ok = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -2087,7 +2140,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Text(
-                              'Esto crea muchos horarios fijos de una sola vez. Las clases se van a programar automáticamente para los próximos 3 meses; pasado ese tiempo vas a tener que renovarlas para que sigan apareciendo a los usuarios. Después podés editar cada día y horario por separado sin tocar el resto de la grilla.',
+                              'Armá la grilla semanal: marcá los días y agregá los horarios de cada uno. Lo que ves en la lista es exactamente lo que se va a crear. Las clases se publican para las próximas $kGrillaSemanas semanas y se renuevan solas; después podés editar cada horario por separado.',
                               style: TextStyle(
                                 color: AppColors.primary,
                                 fontSize: 13,
@@ -2160,57 +2213,46 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                       borderRadius:
                                           BorderRadius.circular(99),
                                     ),
-                                    onSelected: (value) {
+                                    onSelected: (value) async {
+                                      if (value) {
+                                        setD(() => diasSeleccionados.add(dia));
+                                        return;
+                                      }
+                                      final cargados =
+                                          horariosPorDia[dia]?.length ?? 0;
+                                      if (cargados > 0) {
+                                        final seguro = await showDialog<bool>(
+                                          context: ctx,
+                                          builder: (dctx) => AlertDialog(
+                                            title: Text(
+                                                'Sacar ${_dayName(dia)}'),
+                                            content: Text(
+                                                'Se descartan los $cargados horario${cargados != 1 ? 's' : ''} que cargaste para ese día.'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(dctx, false),
+                                                child: const Text('Volver'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(dctx, true),
+                                                child: const Text('Descartar'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        if (seguro != true) return;
+                                      }
                                       setD(() {
-                                        if (value) {
-                                          diasSeleccionados.add(dia);
-                                        } else {
-                                          diasSeleccionados.remove(dia);
-                                        }
+                                        diasSeleccionados.remove(dia);
+                                        horariosPorDia.remove(dia);
                                       });
                                     },
                                   );
                                 }),
                               ),
                               const SizedBox(height: 14),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _AuraTapField(
-                                      label: 'Desde',
-                                      value: _timeText(horaInicio),
-                                      icon: Icons.schedule_rounded,
-                                      onTap: () async {
-                                        final picked = await showTimePicker(
-                                          context: ctx,
-                                          initialTime: horaInicio,
-                                        );
-                                        if (picked != null) {
-                                          setD(() => horaInicio = picked);
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: _AuraTapField(
-                                      label: 'Hasta',
-                                      value: _timeText(horaFin),
-                                      icon: Icons.schedule_rounded,
-                                      onTap: () async {
-                                        final picked = await showTimePicker(
-                                          context: ctx,
-                                          initialTime: horaFin,
-                                        );
-                                        if (picked != null) {
-                                          setD(() => horaFin = picked);
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
                               _AuraDropdown<int>(
                                 label: 'Duración de cada clase',
                                 value: dur,
@@ -2227,6 +2269,14 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                       value: 90, child: Text('90 min')),
                                 ],
                                 onChanged: (v) => setD(() => dur = v ?? dur),
+                              ),
+                              const SizedBox(height: 14),
+                              _HorariosPorDiaEditor(
+                                dias: (diasSeleccionados.toList()..sort()),
+                                horarios: horariosPorDia,
+                                duracionMin: dur,
+                                onChanged: () => setD(() {}),
+                                etiqueta: _etiquetaHorario,
                               ),
                             ],
                           ),
@@ -2307,18 +2357,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 dia: diasSeleccionados.isEmpty
                                     ? 1
                                     : (diasSeleccionados.toList()..sort()).first,
-                                hora: horaInicio,
+                                hora: _primeraHora(
+                                    diasSeleccionados, horariosPorDia),
                                 porHorario: true,
                               ),
                             ],
                           ),
                           const SizedBox(height: 12),
                           // Card 5: Detalles adicionales (colapsable)
-                          _CollapsibleSectionCard(
-                            title: 'Detalles adicionales',
-                            expanded: showExtraFields,
-                            onToggle: () => setD(() =>
-                                showExtraFields = !showExtraFields),
+                          _SectionCard(
+                            title: 'Descripción, sala y fotos',
                             children: [
                               _AuraTextField(
                                 controller: iDesc,
@@ -2403,22 +2451,36 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                     child: SizedBox(
                       width: double.infinity,
                       height: 52,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                      child: Builder(builder: (_) {
+                        final total = _totalHorarios(
+                            diasSeleccionados, horariosPorDia);
+                        final listo = diasSeleccionados.isNotEmpty &&
+                            diasSeleccionados.every((d) =>
+                                (horariosPorDia[d] ?? const []).isNotEmpty);
+                        return ElevatedButton(
+                          onPressed:
+                              listo ? () => Navigator.pop(ctx, true) : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: const Color(0xFFE5E0DA),
+                            disabledForegroundColor: const Color(0xFF9A928B),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                          elevation: 0,
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        child: const Text('Crear grilla'),
-                      ),
+                          child: Text(listo
+                              ? 'Crear $total horario${total != 1 ? 's' : ''}'
+                              : diasSeleccionados.isEmpty
+                                  ? 'Elegí al menos un día'
+                                  : 'Faltan horarios en algún día'),
+                        );
+                      }),
                     ),
                   ),
                 ],
@@ -2469,7 +2531,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         dia: diasSeleccionados.isEmpty
             ? 1
             : (diasSeleccionados.toList()..sort()).first,
-        hora: horaInicio,
+        hora: _primeraHora(diasSeleccionados, horariosPorDia),
       ),
       'reserva_cierre_minutos': cierreReserva,
       'instructor': i.text.trim().isEmpty ? null : i.text.trim(),
@@ -2487,11 +2549,14 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     // Resumen ANTES de crear nada. Una grilla de 5 días x 6 franjas publica
     // 270 clases de una: el estudio tiene que ver el número antes, no
     // enterarse después por el snackbar.
+    final porDia = <int, List<TimeOfDay>>{
+      for (final d in diasSeleccionados.toList()..sort())
+        d: List<TimeOfDay>.of(horariosPorDia[d] ?? const []),
+    };
     final confirmado = await _confirmarGeneracionGrilla(
-      diasSemana: diasSeleccionados.toList(),
-      horaInicio: horaInicio,
-      horaFin: horaFin,
+      horariosPorDia: porDia,
       duracionMin: dur,
+      sala: s.text.trim(),
     );
     if (confirmado != true || !mounted) {
       n.dispose();
@@ -2507,17 +2572,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     }
 
     try {
+      // `creados` es lo que confirmó el servidor, no el largo del lote.
       final creados = await _service.crearHorariosFijosEnGrilla(
-        diasSemana: diasSeleccionados.toList(),
-        horaInicio: horaInicio,
-        horaFin: horaFin,
+        horariosPorDia: porDia,
         duracionMin: dur,
         payloadBase: payloadBase,
       );
       await _loadStudio();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Grilla creada: $creados horarios fijos. Generando próximos 3 meses…')),
+        SnackBar(content: Text('Grilla creada: $creados horario${creados != 1 ? 's' : ''} fijo${creados != 1 ? 's' : ''}. Publicando las próximas $kGrillaSemanas semanas…')),
       );
       try {
         final result = await _service.generarProximasSemanasDesdeHorarios(weeks: kGrillaSemanas);
@@ -2525,7 +2589,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         if (!mounted) return;
         final creadas = result['creadas'] ?? 0;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Clases programadas para 3 meses ($creadas nuevas).')),
+          SnackBar(content: Text('Clases publicadas para $kGrillaSemanas semanas ($creadas nuevas).')),
         );
       } catch (e) {
         if (!mounted) return;
@@ -2551,23 +2615,18 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     }
   }
 
-  /// Resumen previo a crear una grilla: cuántas clases va a publicar y en qué
-  /// rango de fechas. Replica el cálculo de `crearHorariosFijosEnGrilla`
-  /// (franjas de `duracionMin` entre inicio y fin, por cada día elegido) y lo
-  /// multiplica por las semanas que publica `generarProximasSemanasDesdeHorarios`.
+  /// Resumen previo a crear una grilla, DÍA POR DÍA: exactamente los
+  /// horarios que se van a crear, cuántos horarios fijos son y cuántas clases
+  /// publica en las próximas [kGrillaSemanas] semanas.
   ///
-  /// El número es un techo: la generación saltea las clases que ya existen.
+  /// El número de clases es un techo: la generación saltea las que ya existen.
   Future<bool?> _confirmarGeneracionGrilla({
-    required List<int> diasSemana,
-    required TimeOfDay horaInicio,
-    required TimeOfDay horaFin,
+    required Map<int, List<TimeOfDay>> horariosPorDia,
     required int duracionMin,
+    String sala = '',
   }) async {
-    final dias = diasSemana.toSet().where((d) => d >= 1 && d <= 7).toList()
+    final dias = horariosPorDia.keys.where((d) => d >= 1 && d <= 7).toList()
       ..sort();
-    final inicio = horaInicio.hour * 60 + horaInicio.minute;
-    final fin = horaFin.hour * 60 + horaFin.minute;
-
     if (dias.isEmpty) {
       _snack('Elegí al menos un día.');
       return false;
@@ -2576,69 +2635,96 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       _snack('La duración tiene que ser mayor a 0.');
       return false;
     }
-    if (fin <= inicio) {
-      _snack('La hora de fin tiene que ser posterior a la de inicio.');
+    final vacios = dias.where((d) => (horariosPorDia[d] ?? const []).isEmpty);
+    if (vacios.isNotEmpty) {
+      _snack('Faltan horarios en ${vacios.map(_dayName).join(', ')}.');
       return false;
     }
 
-    // Franjas por día: mismo bucle que usa el servicio.
-    var franjasPorDia = 0;
-    for (var t = inicio; t + duracionMin <= fin; t += duracionMin) {
-      franjasPorDia++;
-    }
-    if (franjasPorDia == 0) {
-      _snack('Con esa duración no entra ninguna clase en el rango horario.');
-      return false;
-    }
-
-    final horarios = franjasPorDia * dias.length;
+    final horarios = _totalHorarios(dias.toSet(), horariosPorDia);
     final totalClases = horarios * kGrillaSemanas;
 
     final desde = _ahoraAr();
     final hasta = desde.add(const Duration(days: kGrillaSemanas * 7));
     final f = DateFormat("d 'de' MMMM", 'es');
-    final nombresDias = dias.map(_dayName).join(', ');
 
     if (!mounted) return false;
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Revisá antes de generar'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Vas a generar $totalClases clase${totalClases != 1 ? 's' : ''}.',
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: AppColors.black,
+        title: const Text('Revisá antes de crear'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final d in dias)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 44,
+                        child: Text(
+                          _kDiaCorto[d] ?? '',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          (List<TimeOfDay>.of(horariosPorDia[d]!)
+                                ..sort((a, b) =>
+                                    (a.hour * 60 + a.minute)
+                                        .compareTo(b.hour * 60 + b.minute)))
+                              .map((t) => _etiquetaHorario(d, t))
+                              .join('   '),
+                          style: const TextStyle(
+                              color: AppColors.black,
+                              fontSize: 13,
+                              height: 1.35),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const Divider(height: 18),
+              Text(
+                '$horarios horario${horarios != 1 ? 's' : ''} fijo${horarios != 1 ? 's' : ''} de ${_durLabel(duracionMin)} · '
+                '$totalClases clase${totalClases != 1 ? 's' : ''} en las próximas $kGrillaSemanas semanas',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.black,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            _FilaResumenGrilla(
-              icono: Icons.calendar_today_outlined,
-              texto: 'Desde el ${f.format(desde)} hasta el ${f.format(hasta)}',
-            ),
-            _FilaResumenGrilla(
-              icono: Icons.event_repeat_rounded,
-              texto: nombresDias,
-            ),
-            _FilaResumenGrilla(
-              icono: Icons.schedule_rounded,
-              texto: '$franjasPorDia clase${franjasPorDia != 1 ? 's' : ''} por '
-                  'día de ${_durLabel(duracionMin)}, '
-                  'entre ${_hhmm(horaInicio)} y ${_hhmm(horaFin)}',
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Si ya había clases en esos horarios no se duplican, así que el '
-              'número final puede ser menor.',
-              style: TextStyle(
-                  color: AppColors.grey, fontSize: 12, height: 1.35),
-            ),
-          ],
+              const SizedBox(height: 8),
+              _FilaResumenGrilla(
+                icono: Icons.calendar_today_outlined,
+                texto: 'Desde el ${f.format(desde)} hasta el ${f.format(hasta)}',
+              ),
+              // La sala forma parte de la clave: dos salones pueden dictar al
+              // mismo minuto, el mismo salón (o ninguno) dos veces, no. Se
+              // avisa ANTES de crear, que es cuando se puede corregir.
+              _FilaResumenGrilla(
+                icono: Icons.meeting_room_outlined,
+                texto: sala.isEmpty
+                    ? 'Sin sala. Si otro salón ya dicta a alguna de estas horas, '
+                        'volvé y cargá el nombre de la sala para que no choquen.'
+                    : 'Sala: $sala',
+              ),
+              const Text(
+                'Si ya había clases en esos horarios no se duplican, así que el '
+                'número final puede ser menor.',
+                style: TextStyle(
+                    color: AppColors.grey, fontSize: 12, height: 1.35),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -2652,7 +2738,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.white,
             ),
-            child: Text('Generar $totalClases'),
+            child: Text('Crear $horarios horario${horarios != 1 ? 's' : ''}'),
           ),
         ],
       ),
@@ -3015,24 +3101,6 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                 onPressed: () => setState(() => _weekAnchor = _weekAnchor.add(const Duration(days: 7))),
                 icon: const Icon(Icons.chevron_right_rounded),
               ),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: 38,
-                child: ElevatedButton.icon(
-                  onPressed: _publishingWeek ? null : _generateWeek,
-                  icon: _publishingWeek
-                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white))
-                      : const Icon(Icons.auto_awesome_rounded, size: 16),
-                  label: Text(_publishingWeek ? 'Generando…' : 'Generar 3 meses'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -3062,7 +3130,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                 : weekClases.isEmpty
                     ? Center(
                         child: Text(
-                          'Sin clases para esta semana.\nUsá "Generar 3 meses" para crear desde los horarios fijos.',
+                          'Sin clases para esta semana. Las clases se publican solas desde los horarios fijos; si todavía no cargaste ninguno, creá la grilla.',
                           style: const TextStyle(color: AppColors.grey, fontSize: 14),
                           textAlign: TextAlign.center,
                         ),
@@ -3088,18 +3156,22 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                             final creditos = (c['creditos'] as num?)?.toInt() ?? 0;
                             final dt2 = DateTime.tryParse(c['fecha']?.toString() ?? '');
                             final now2 = DateTime.now();
-                            final status = dt2 == null
-                                ? 'Programada'
-                                : (dt2.isBefore(now2) && now2.difference(dt2).inMinutes < 90)
-                                    ? 'En curso'
-                                    : dt2.difference(now2).inHours < 8
-                                        ? 'Confirmada'
-                                        : 'Programada';
-                            final statusColor = status == 'Confirmada'
-                                ? const Color(0xFFE3F3E5)
-                                : status == 'En curso'
-                                    ? const Color(0xFFFFF3DE)
-                                    : const Color(0xFFF1E7FF);
+                            final status = c['cancelada'] == true
+                                ? 'Cancelada'
+                                : dt2 == null
+                                    ? 'Programada'
+                                    : (dt2.isBefore(now2) && now2.difference(dt2).inMinutes < 90)
+                                        ? 'En curso'
+                                        : dt2.difference(now2).inHours < 8
+                                            ? 'Confirmada'
+                                            : 'Programada';
+                            final statusColor = status == 'Cancelada'
+                                ? const Color(0xFFF1F1F1)
+                                : status == 'Confirmada'
+                                    ? const Color(0xFFE3F3E5)
+                                    : status == 'En curso'
+                                        ? const Color(0xFFFFF3DE)
+                                        : const Color(0xFFF1E7FF);
                             return InkWell(
                               onTap: () => _showClaseSheet(c),
                               child: Padding(
@@ -3370,6 +3442,31 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                           Expanded(child: _SegmentButton(label: 'Horarios fijos', selected: _showFixed, onTap: () => setState(() { _showFixed = true; _seleccionMultiple = false; _seleccionadas.clear(); }))),
                           Expanded(child: _SegmentButton(label: 'Clases cargadas', selected: !_showFixed, onTap: () => setState(() => _showFixed = false))),
                         ]),
+                      ),
+                      // La pestaña decide el alcance de editar/borrar: la serie
+                      // entera o una sola fecha. Sin este renglón el estudio no
+                      // tiene forma de saberlo (pedido en la revisión del 25/8).
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(6, 8, 6, 0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.info_outline_rounded,
+                                size: 14, color: Color(0xFF9A928B)),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                _showFixed
+                                    ? 'Acá editás o borrás el horario semanal: cambia todas sus clases futuras. Las que ya pasaron no se tocan.'
+                                    : 'Acá editás o cancelás una clase puntual: sólo esa fecha, sin tocar el resto de la semana.',
+                                style: const TextStyle(
+                                    color: Color(0xFF6E6761),
+                                    fontSize: 12,
+                                    height: 1.3),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                     // F5 — filtro "Ver por profe" (solo para el estudio admin,
@@ -4844,30 +4941,6 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         ),
         IconButton(onPressed: () => setState(() => _weekAnchor = _weekAnchor.add(const Duration(days: 7))), icon: const Icon(Icons.chevron_right_rounded)),
       ]),
-      const SizedBox(height: 10),
-      Align(
-        alignment: Alignment.centerRight,
-        child: SizedBox(
-          height: 40,
-          child: ElevatedButton.icon(
-            onPressed: _publishingWeek ? null : _generateWeek,
-            icon: _publishingWeek
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.white,
-                    ),
-                  )
-                : const Icon(Icons.auto_awesome_rounded, size: 18),
-            label: Text(_publishingWeek ? 'Generando…' : 'Generar 3 meses'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-            ),
-          ),
-        ),
-      ),
       const SizedBox(height: 12),
       SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -5014,7 +5087,9 @@ class _StudioClassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dt = DateTime.tryParse(clase['fecha']?.toString() ?? '');
-    final time = dt != null ? DateFormat('hh:mm a').format(dt) : '07:00 AM';
+    // 24 h a proposito: en 12 h una clase de las 13:30 se leia "1:30" y ya
+    // confundio a un estudio (Tiwar, 25/8). Item 20 de la Tanda C.
+    final time = dt != null ? DateFormat('HH:mm').format(dt) : '07:00';
     final instructor = clase['instructor']?.toString() ?? 'Sin instructor';
     final total = (clase['lugares_total'] as num?)?.toInt() ?? 20;
     final disp = (clase['_disponibles_real'] as num?)?.toInt() ??
@@ -5102,6 +5177,8 @@ class _StudioClassCard extends StatelessWidget {
   }
 
   String _status(Map<String, dynamic> c) {
+    // 2026-08-25: la clase cancelada por el estudio se ve como tal.
+    if (c['cancelada'] == true) return 'Cancelada';
     final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
     if (dt == null) return 'Programada';
     final now = DateTime.now();
@@ -5112,6 +5189,8 @@ class _StudioClassCard extends StatelessWidget {
 
   Color _statusColor(String s) {
     switch (s) {
+      case 'Cancelada':
+        return const Color(0xFFF1F1F1);
       case 'Confirmada':
         return const Color(0xFFE3F3E5);
       case 'En curso':
@@ -5804,9 +5883,11 @@ class _ClaseDetalleSheet extends StatelessWidget {
   final Map<String, dynamic> clase;
   final VoidCallback onEdit, onCancel;
   final VoidCallback? onAvisar;
+  /// Solo se muestra si la clase está cancelada: la vuelve reservable.
+  final VoidCallback? onReactivar;
   // false para la profe: solo edita, no puede cancelar (borrar) la clase.
   final bool puedeEditar;
-  const _ClaseDetalleSheet({required this.clase, required this.onEdit, required this.onCancel, this.onAvisar, this.puedeEditar = true});
+  const _ClaseDetalleSheet({required this.clase, required this.onEdit, required this.onCancel, this.onAvisar, this.onReactivar, this.puedeEditar = true});
 
   @override
   Widget build(BuildContext context) {
@@ -5858,6 +5939,28 @@ class _ClaseDetalleSheet extends StatelessWidget {
           ),
           const SizedBox(height: 4),
         ],
+        // Una clase cancelada no se edita: editarla la dejaba igual de
+        // cancelada e irreservable, y el estudio creía que la había
+        // "arreglado" (revisión del 25/8). Se reactiva explícitamente.
+        if (clase['cancelada'] == true) ...[
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Esta clase está cancelada: nadie puede reservarla. Si querés volver a ofrecerla, reactivala (las alumnas que ya recibieron sus créditos tienen que anotarse de nuevo).',
+              style: TextStyle(color: Color(0xFF8F877F), fontSize: 12, height: 1.35),
+            ),
+          ),
+          if (puedeEditar && onReactivar != null)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: onReactivar,
+                icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                label: const Text('Reactivar clase'),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF43A047), foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 14)),
+              ),
+            ),
+        ] else
         Row(children: [
           Expanded(
             child: OutlinedButton.icon(
@@ -6753,6 +6856,19 @@ class _ClaseGridCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
+          if (clase['cancelada'] == true)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 4),
+              child: Text(
+                'CANCELADA',
+                style: TextStyle(
+                  color: Color(0xFF8F877F),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
           Text(
             nombre,
             maxLines: 2,
@@ -6993,3 +7109,456 @@ class _WorkshopPrecioField extends StatelessWidget {
     );
   }
 }
+
+
+// ─── Grilla: horarios por día ────────────────────────────────────────────────
+
+const Map<int, String> _kDiaCorto = {
+  1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb', 7: 'Dom',
+};
+
+int _minutoDe(TimeOfDay t) => t.hour * 60 + t.minute;
+
+String _hhmmTop(TimeOfDay t) =>
+    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+/// Primera hora cargada (para el precio "de arranque" del formulario). Si no
+/// hay ninguna todavía, 08:00: es solo un valor inicial, el trigger de la base
+/// le pone a cada horario el precio de su propia franja.
+TimeOfDay _primeraHora(Set<int> dias, Map<int, List<TimeOfDay>> horarios) {
+  for (final d in dias.toList()..sort()) {
+    final l = horarios[d];
+    if (l != null && l.isNotEmpty) {
+      final copia = List<TimeOfDay>.of(l)
+        ..sort((a, b) => _minutoDe(a).compareTo(_minutoDe(b)));
+      return copia.first;
+    }
+  }
+  return const TimeOfDay(hour: 8, minute: 0);
+}
+
+int _totalHorarios(Set<int> dias, Map<int, List<TimeOfDay>> horarios) {
+  var n = 0;
+  for (final d in dias) {
+    n += (horarios[d] ?? const []).map(_minutoDe).toSet().length;
+  }
+  return n;
+}
+
+/// Time picker SIEMPRE en 24 h, sin importar el locale del teléfono. En 12 h
+/// una clase de las 13:30 se lee "1:30" y ya confundió a un estudio (25/8).
+Widget _builder24h(BuildContext c, Widget? child) => MediaQuery(
+      data: MediaQuery.of(c).copyWith(alwaysUse24HourFormat: true),
+      child: child ?? const SizedBox.shrink(),
+    );
+
+Future<TimeOfDay?> _pickHora24(BuildContext ctx, TimeOfDay initial) {
+  return showTimePicker(
+    context: ctx,
+    initialTime: initial,
+    builder: _builder24h,
+  );
+}
+
+/// Una fila de chips por día marcado, con "+ agregar" y "copiar a…", más el
+/// atajo "Completar un rango…" que rellena las filas. Muta [horarios] en el
+/// lugar y avisa con [onChanged] para que el sheet se redibuje.
+class _HorariosPorDiaEditor extends StatelessWidget {
+  final List<int> dias;
+  final Map<int, List<TimeOfDay>> horarios;
+  final int duracionMin;
+  final VoidCallback onChanged;
+  /// Texto del chip. Por defecto la hora; el formulario le pasa hora + precio
+  /// por franja para que el estudio VEA el ajuste pico/valle antes de crear.
+  final String Function(int dia, TimeOfDay t)? etiqueta;
+  const _HorariosPorDiaEditor({
+    required this.dias,
+    required this.horarios,
+    required this.duracionMin,
+    required this.onChanged,
+    this.etiqueta,
+  });
+
+  List<TimeOfDay> _lista(int d) => horarios.putIfAbsent(d, () => []);
+
+  void _agregar(int d, TimeOfDay t) {
+    final l = _lista(d);
+    if (l.any((x) => _minutoDe(x) == _minutoDe(t))) return;
+    l.add(t);
+    l.sort((a, b) => _minutoDe(a).compareTo(_minutoDe(b)));
+    onChanged();
+  }
+
+  Future<void> _copiarA(BuildContext ctx, int origen) async {
+    final destinos = dias.where((d) => d != origen).toList();
+    if (destinos.isEmpty) return;
+    final elegidos = <int>{...destinos};
+    final ok = await showDialog<bool>(
+      context: ctx,
+      builder: (dctx) => StatefulBuilder(builder: (dctx, setS) {
+        return AlertDialog(
+          title: Text('Copiar ${_kDiaCorto[origen]} a…'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final d in destinos)
+                CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  activeColor: AppColors.primary,
+                  value: elegidos.contains(d),
+                  title: Text(_kDiaCorto[d] ?? ''),
+                  subtitle: (horarios[d] ?? const []).isEmpty
+                      ? null
+                      : const Text('reemplaza lo que tiene',
+                          style: TextStyle(fontSize: 11)),
+                  onChanged: (v) => setS(() {
+                    if (v == true) {
+                      elegidos.add(d);
+                    } else {
+                      elegidos.remove(d);
+                    }
+                  }),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dctx, false),
+                child: const Text('Volver')),
+            ElevatedButton(
+              onPressed:
+                  elegidos.isEmpty ? null : () => Navigator.pop(dctx, true),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white),
+              child: const Text('Copiar'),
+            ),
+          ],
+        );
+      }),
+    );
+    if (ok != true) return;
+    final src = List<TimeOfDay>.of(_lista(origen));
+    for (final d in elegidos) {
+      horarios[d] = List<TimeOfDay>.of(src);
+    }
+    onChanged();
+  }
+
+  Future<void> _completarRango(BuildContext ctx) async {
+    if (dias.isEmpty) return;
+    var desde = const TimeOfDay(hour: 7, minute: 0);
+    var hasta = const TimeOfDay(hour: 21, minute: 0);
+    var cada = duracionMin;
+    final elegidos = <int>{...dias};
+    int franjas() {
+      final a = _minutoDe(desde), b = _minutoDe(hasta);
+      if (cada <= 0 || b <= a) return 0;
+      var n = 0;
+      for (var t = a; t + cada <= b; t += cada) {
+        n++;
+      }
+      return n;
+    }
+
+    final ok = await showDialog<bool>(
+      context: ctx,
+      builder: (dctx) => StatefulBuilder(builder: (dctx, setS) {
+        final n = franjas();
+        return AlertDialog(
+          title: const Text('Completar un rango'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Agrega una clase cada X minutos entre dos horas. Después podés sacar las que no quieras.',
+                  style: TextStyle(color: AppColors.grey, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(
+                    child: _AuraTapField(
+                      label: 'Desde',
+                      value: _hhmmTop(desde),
+                      icon: Icons.schedule_rounded,
+                      onTap: () async {
+                        final p = await _pickHora24(dctx, desde);
+                        if (p != null) setS(() => desde = p);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _AuraTapField(
+                      label: 'Hasta',
+                      value: _hhmmTop(hasta),
+                      icon: Icons.schedule_rounded,
+                      onTap: () async {
+                        final p = await _pickHora24(dctx, hasta);
+                        if (p != null) setS(() => hasta = p);
+                      },
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 10),
+                _AuraDropdown<int>(
+                  label: 'Una clase cada',
+                  value: cada,
+                  items: const [
+                    DropdownMenuItem(value: 30, child: Text('30 min')),
+                    DropdownMenuItem(value: 45, child: Text('45 min')),
+                    DropdownMenuItem(value: 60, child: Text('60 min')),
+                    DropdownMenuItem(value: 75, child: Text('75 min')),
+                    DropdownMenuItem(value: 90, child: Text('90 min')),
+                    DropdownMenuItem(value: 120, child: Text('2 h')),
+                  ],
+                  onChanged: (v) => setS(() => cada = v ?? cada),
+                ),
+                const SizedBox(height: 10),
+                const Text('Para',
+                    style: TextStyle(
+                        color: Color(0xFF6E6761),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final d in dias)
+                      FilterChip(
+                        label: Text(_kDiaCorto[d] ?? ''),
+                        selected: elegidos.contains(d),
+                        selectedColor: const Color(0xFFFFF1E8),
+                        checkmarkColor: AppColors.primary,
+                        onSelected: (v) => setS(() {
+                          if (v) {
+                            elegidos.add(d);
+                          } else {
+                            elegidos.remove(d);
+                          }
+                        }),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  n == 0
+                      ? 'Con esos valores no entra ninguna clase.'
+                      : '$n clase${n != 1 ? 's' : ''} por día: ${_hhmmTop(desde)}'
+                          '${n > 1 ? ' … ${_hhmmTop(TimeOfDay(hour: (_minutoDe(desde) + cada * (n - 1)) ~/ 60, minute: (_minutoDe(desde) + cada * (n - 1)) % 60))}' : ''}',
+                  style: TextStyle(
+                    color: n == 0 ? Colors.red : AppColors.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dctx, false),
+                child: const Text('Volver')),
+            ElevatedButton(
+              onPressed: (n == 0 || elegidos.isEmpty)
+                  ? null
+                  : () => Navigator.pop(dctx, true),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white),
+              child: Text(n == 0 ? 'Completar' : 'Agregar $n por día'),
+            ),
+          ],
+        );
+      }),
+    );
+    if (ok != true) return;
+    final a = _minutoDe(desde), b = _minutoDe(hasta);
+    for (final d in elegidos) {
+      for (var t = a; t + cada <= b; t += cada) {
+        _agregar(d, TimeOfDay(hour: t ~/ 60, minute: t % 60));
+      }
+    }
+    onChanged();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Horarios',
+                style: TextStyle(
+                  color: Color(0xFF6E6761),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (dias.isNotEmpty)
+              TextButton.icon(
+                onPressed: () => _completarRango(context),
+                icon: const Icon(Icons.playlist_add_rounded, size: 18),
+                label: const Text('Completar un rango…'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+          ],
+        ),
+        if (dias.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Text('Marcá al menos un día.',
+                style: TextStyle(color: Color(0xFF9A928B), fontSize: 13)),
+          ),
+        for (final d in dias) ...[
+          const SizedBox(height: 8),
+          _FilaDia(
+            dia: d,
+            horarios: List<TimeOfDay>.of(_lista(d)),
+            etiqueta: (t) => etiqueta?.call(d, t) ?? _hhmmTop(t),
+            puedeCopiar: dias.length > 1,
+            onAgregar: () async {
+              final l = _lista(d);
+              final p = await _pickHora24(
+                  context,
+                  l.isEmpty
+                      ? const TimeOfDay(hour: 8, minute: 0)
+                      : l.last);
+              if (p != null) _agregar(d, p);
+            },
+            onQuitar: (t) {
+              _lista(d).removeWhere((x) => _minutoDe(x) == _minutoDe(t));
+              onChanged();
+            },
+            onCopiar: () => _copiarA(context, d),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _FilaDia extends StatelessWidget {
+  final int dia;
+  final List<TimeOfDay> horarios;
+  final String Function(TimeOfDay) etiqueta;
+  final bool puedeCopiar;
+  final VoidCallback onAgregar;
+  final void Function(TimeOfDay) onQuitar;
+  final VoidCallback onCopiar;
+  const _FilaDia({
+    required this.dia,
+    required this.horarios,
+    required this.etiqueta,
+    required this.puedeCopiar,
+    required this.onAgregar,
+    required this.onQuitar,
+    required this.onCopiar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final vacio = horarios.isEmpty;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: _kFieldFill,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: vacio ? const Color(0xFFF2B8A5) : const Color(0xFFE5E0DA)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 40,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _kDiaCorto[dia] ?? '',
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: vacio
+                ? const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text('sin horarios',
+                        style: TextStyle(
+                            color: Color(0xFFC0392B), fontSize: 13)),
+                  )
+                : Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final t in horarios)
+                        InputChip(
+                          label: Text(etiqueta(t)),
+                          labelStyle: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.black),
+                          backgroundColor: AppColors.white,
+                          side: const BorderSide(color: Color(0xFFE5E0DA)),
+                          visualDensity: VisualDensity.compact,
+                          deleteIconColor: const Color(0xFF9A928B),
+                          onDeleted: () => onQuitar(t),
+                        ),
+                    ],
+                  ),
+          ),
+          IconButton(
+            tooltip: 'Agregar horario',
+            onPressed: onAgregar,
+            icon: const Icon(Icons.add_circle_outline_rounded,
+                color: AppColors.primary),
+            visualDensity: VisualDensity.compact,
+          ),
+          if (puedeCopiar)
+            IconButton(
+              tooltip: 'Copiar a otros días',
+              onPressed: vacio ? null : onCopiar,
+              icon: const Icon(Icons.copy_all_rounded),
+              color: const Color(0xFF6E6761),
+              visualDensity: VisualDensity.compact,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// SOLO PARA TESTS: expone el editor privado de horarios por día para
+/// poder pumpearlo en un widget test sin levantar la pantalla entera.
+@visibleForTesting
+Widget debugHorariosPorDiaEditor({
+  required List<int> dias,
+  required Map<int, List<TimeOfDay>> horarios,
+  int duracionMin = 60,
+  VoidCallback? onChanged,
+}) =>
+    _HorariosPorDiaEditor(
+      dias: dias,
+      horarios: horarios,
+      duracionMin: duracionMin,
+      onChanged: onChanged ?? () {},
+    );

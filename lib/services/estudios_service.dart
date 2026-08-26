@@ -115,6 +115,8 @@ class EstudiosService {
         .from(AppConstants.tableClases)
         .select()
         .eq('estudio_id', estudioId)
+        // 2026-08-25: las canceladas no se muestran a la alumna.
+        .eq('cancelada', false)
         .neq('tipo', 'workshop')
         .gte('fecha', _toSupaDate(ahora))
         .lte('fecha', _toSupaDate(semanasAdelante))
@@ -137,6 +139,7 @@ class EstudiosService {
         .from(AppConstants.tableClases)
         .select()
         .eq('estudio_id', estudioId)
+        .eq('cancelada', false)
         .eq('tipo', 'workshop')
         .gte('fecha', _toSupaDate(ahora))
         .lte('fecha', _toSupaDate(hasta))

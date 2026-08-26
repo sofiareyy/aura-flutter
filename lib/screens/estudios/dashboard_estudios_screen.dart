@@ -15,7 +15,8 @@ class DashboardEstudiosScreen extends StatefulWidget {
   const DashboardEstudiosScreen({super.key});
 
   @override
-  State<DashboardEstudiosScreen> createState() => _DashboardEstudiosScreenState();
+  State<DashboardEstudiosScreen> createState() =>
+      _DashboardEstudiosScreenState();
 }
 
 class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
@@ -106,13 +107,13 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                   ),
                   subtitle: Text(
                     rolLabel,
-                    style: const TextStyle(
-                      color: AppColors.grey,
-                      fontSize: 12,
-                    ),
+                    style: const TextStyle(color: AppColors.grey, fontSize: 12),
                   ),
                   trailing: isActive
-                      ? const Icon(Icons.check_rounded, color: AppColors.primary)
+                      ? const Icon(
+                          Icons.check_rounded,
+                          color: AppColors.primary,
+                        )
                       : null,
                   onTap: () => Navigator.pop(ctx, id),
                 );
@@ -163,7 +164,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
       builder: (_) => _TutorialSheet(
         onCompletado: () async {
           await _service.marcarTutorialCompletado();
-            },
+        },
       ),
     );
   }
@@ -192,8 +193,9 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
         final estudioId = (estudio['id'] as num?)?.toInt();
         if (estudioId != null) {
           try {
-            unread = await NotificacionesEstudioService.instance
-                .getUnreadCount(estudioId);
+            unread = await NotificacionesEstudioService.instance.getUnreadCount(
+              estudioId,
+            );
           } catch (_) {}
           final metricas = await _service.getMetricasEstudio(estudioId);
           favoritos = metricas.favoritos;
@@ -255,7 +257,9 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                 label: 'Ingresos mes (total)',
                 accent: AppColors.white,
                 change: _formatChange(_ingresosMes, _ingresosMesAnterior),
-                changeColor: _colorForDelta(_ingresosMes - _ingresosMesAnterior),
+                changeColor: _colorForDelta(
+                  _ingresosMes - _ingresosMesAnterior,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -322,19 +326,51 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                             children: [
                               // Table header
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
                                 decoration: const BoxDecoration(
                                   color: Color(0xFFF7F5F2),
-                                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(16),
+                                  ),
                                 ),
                                 child: const Row(
                                   children: [
-                                    SizedBox(width: 56, child: Text('Hora', style: _kTableHeader)),
+                                    SizedBox(
+                                      width: 56,
+                                      child: Text('Hora', style: _kTableHeader),
+                                    ),
                                     SizedBox(width: 16),
-                                    Expanded(child: Text('Clase', style: _kTableHeader)),
-                                    SizedBox(width: 140, child: Text('Instructor', style: _kTableHeader)),
-                                    SizedBox(width: 120, child: Text('Ocupación', style: _kTableHeader)),
-                                    SizedBox(width: 90, child: Text('Estado', style: _kTableHeader, textAlign: TextAlign.center)),
+                                    Expanded(
+                                      child: Text(
+                                        'Clase',
+                                        style: _kTableHeader,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 140,
+                                      child: Text(
+                                        'Instructor',
+                                        style: _kTableHeader,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 120,
+                                      child: Text(
+                                        'Ocupación',
+                                        style: _kTableHeader,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 90,
+                                      child: Text(
+                                        'Estado',
+                                        style: _kTableHeader,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -346,13 +382,20 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                                 return Container(
                                   decoration: BoxDecoration(
                                     border: Border(
-                                      top: BorderSide(color: Colors.grey.shade100),
+                                      top: BorderSide(
+                                        color: Colors.grey.shade100,
+                                      ),
                                     ),
                                     borderRadius: i == clasesHoy.length - 1
-                                        ? const BorderRadius.vertical(bottom: Radius.circular(16))
+                                        ? const BorderRadius.vertical(
+                                            bottom: Radius.circular(16),
+                                          )
                                         : null,
                                   ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 14,
+                                  ),
                                   child: Row(
                                     children: [
                                       SizedBox(
@@ -369,8 +412,13 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                                       const SizedBox(width: 16),
                                       Expanded(
                                         child: Text(
-                                          clase['nombre']?.toString() ?? 'Clase',
-                                          style: const TextStyle(fontSize: 14, color: AppColors.black, fontWeight: FontWeight.w600),
+                                          clase['nombre']?.toString() ??
+                                              'Clase',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            color: AppColors.black,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -378,8 +426,12 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                                       SizedBox(
                                         width: 140,
                                         child: Text(
-                                          clase['instructor']?.toString() ?? '—',
-                                          style: const TextStyle(fontSize: 13, color: Color(0xFF8F877F)),
+                                          clase['instructor']?.toString() ??
+                                              '—',
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Color(0xFF8F877F),
+                                          ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -387,13 +439,17 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                                       SizedBox(
                                         width: 120,
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             ClipRRect(
-                                              borderRadius: BorderRadius.circular(4),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
                                               child: LinearProgressIndicator(
                                                 value: progress,
-                                                backgroundColor: const Color(0xFFF0EDE9),
+                                                backgroundColor: const Color(
+                                                  0xFFF0EDE9,
+                                                ),
                                                 color: AppColors.primary,
                                                 minHeight: 6,
                                               ),
@@ -401,7 +457,10 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                                             const SizedBox(height: 4),
                                             Text(
                                               _spotsLabel(clase),
-                                              style: const TextStyle(fontSize: 11, color: Color(0xFF8F877F)),
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color: Color(0xFF8F877F),
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -410,14 +469,22 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                                         width: 90,
                                         child: Center(
                                           child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 4,
+                                            ),
                                             decoration: BoxDecoration(
                                               color: _colorForStatus(status),
-                                              borderRadius: BorderRadius.circular(999),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
                                             ),
                                             child: Text(
                                               status,
-                                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.black),
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.black,
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -469,7 +536,10 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                                     Expanded(
                                       child: Text(
                                         item['label'] as String,
-                                        style: const TextStyle(color: Color(0xFF625C57), fontSize: 13),
+                                        style: const TextStyle(
+                                          color: Color(0xFF625C57),
+                                          fontSize: 13,
+                                        ),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -477,7 +547,10 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                                     const SizedBox(width: 8),
                                     Text(
                                       item['time'] as String,
-                                      style: const TextStyle(color: Color(0xFFB0A8A0), fontSize: 11),
+                                      style: const TextStyle(
+                                        color: Color(0xFFB0A8A0),
+                                        fontSize: 11,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -512,7 +585,9 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
       return Scaffold(
         backgroundColor: AppColors.background,
         body: _loading
-            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
             : RefreshIndicator(
                 onRefresh: _cargar,
                 color: AppColors.primary,
@@ -554,7 +629,8 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                                     children: [
                                       Flexible(
                                         child: Text(
-                                          _estudio?['nombre']?.toString() ?? 'Estudio',
+                                          _estudio?['nombre']?.toString() ??
+                                              'Estudio',
                                           style: const TextStyle(
                                             color: AppColors.black,
                                             fontSize: 18,
@@ -597,8 +673,8 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                                 color: Color(0xFF5F5953),
                               ),
                               onPressed: () {
-                                final estudioId =
-                                    (_estudio?['id'] as num?)?.toInt();
+                                final estudioId = (_estudio?['id'] as num?)
+                                    ?.toInt();
                                 if (estudioId == null) return;
                                 showNotificacionesEstudioSheet(
                                   context,
@@ -654,28 +730,44 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                     if (_error == null) ...[
                       Row(
                         children: [
-                          _StatBox(
-                            value: _reservasHoy.toString(),
-                            label: 'Reservas hoy',
-                            accent: const Color(0xFFDBF3E0),
-                            change: _formatChange(_reservasHoy, _reservasAyer),
-                            changeColor: _colorForDelta(_reservasHoy - _reservasAyer),
+                          Expanded(
+                            child: _StatBox(
+                              value: _reservasHoy.toString(),
+                              label: 'Reservas hoy',
+                              accent: const Color(0xFFDBF3E0),
+                              change: _formatChange(
+                                _reservasHoy,
+                                _reservasAyer,
+                              ),
+                              changeColor: _colorForDelta(
+                                _reservasHoy - _reservasAyer,
+                              ),
+                            ),
                           ),
                           const SizedBox(width: 8),
-                          _StatBox(
-                            value: _moneyCompact(_ingresosMes),
-                            label: 'Ingresos mes (total)',
-                            accent: AppColors.white,
-                            change: _formatChange(_ingresosMes, _ingresosMesAnterior),
-                            changeColor: _colorForDelta(_ingresosMes - _ingresosMesAnterior),
+                          Expanded(
+                            child: _StatBox(
+                              value: _moneyCompact(_ingresosMes),
+                              label: 'Ingresos mes (total)',
+                              accent: AppColors.white,
+                              change: _formatChange(
+                                _ingresosMes,
+                                _ingresosMesAnterior,
+                              ),
+                              changeColor: _colorForDelta(
+                                _ingresosMes - _ingresosMesAnterior,
+                              ),
+                            ),
                           ),
                           const SizedBox(width: 8),
-                          _StatBox(
-                            value: '${_ocupacionHoy}%',
-                            label: 'Ocupación hoy',
-                            accent: AppColors.white,
-                            footer: '${clasesHoy.length} clases',
-                            footerColor: AppColors.primary,
+                          Expanded(
+                            child: _StatBox(
+                              value: '${_ocupacionHoy}%',
+                              label: 'Ocupación hoy',
+                              accent: AppColors.white,
+                              footer: '${clasesHoy.length} clases',
+                              footerColor: AppColors.primary,
+                            ),
                           ),
                         ],
                       ),
@@ -704,9 +796,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                                 padding: EdgeInsets.all(16),
                                 child: Text(
                                   'No hay clases cargadas para hoy.',
-                                  style: TextStyle(
-                                    color: Color(0xFF8F877F),
-                                  ),
+                                  style: TextStyle(color: Color(0xFF8F877F)),
                                 ),
                               )
                             : Column(
@@ -716,8 +806,12 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                                     padding: const EdgeInsets.only(bottom: 10),
                                     child: _TodayClassRow(
                                       hora: _timeForClass(clase),
-                                      nombre: clase['nombre']?.toString() ?? 'Clase',
-                                      instructor: clase['instructor']?.toString() ?? 'Sin instructor',
+                                      nombre:
+                                          clase['nombre']?.toString() ??
+                                          'Clase',
+                                      instructor:
+                                          clase['instructor']?.toString() ??
+                                          'Sin instructor',
                                       progress: _progressForClass(clase),
                                       status: status,
                                       statusColor: _colorForStatus(status),
@@ -802,7 +896,9 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                         ),
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                         ),
                       ),
                     ),
@@ -820,8 +916,11 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
           dt.year == day.year &&
           dt.month == day.month &&
           dt.day == day.day;
-    }).toList()
-      ..sort((a, b) => (a['fecha']?.toString() ?? '').compareTo(b['fecha']?.toString() ?? ''));
+    }).toList()..sort(
+      (a, b) => (a['fecha']?.toString() ?? '').compareTo(
+        b['fecha']?.toString() ?? '',
+      ),
+    );
   }
 
   int get _reservasHoy => _reservasDelDia(DateTime.now()).length;
@@ -854,10 +953,9 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
   }
 
   List<Map<String, dynamic>> _reservasDelDia(DateTime day) {
-    final classIds = _clasesDelDia(day)
-        .map((c) => (c['id'] as num?)?.toInt())
-        .whereType<int>()
-        .toSet();
+    final classIds = _clasesDelDia(
+      day,
+    ).map((c) => (c['id'] as num?)?.toInt()).whereType<int>().toSet();
     return _reservas.where((reserva) {
       final claseId = (reserva['clase_id'] as num?)?.toInt();
       final estado = reserva['estado']?.toString();
@@ -875,7 +973,9 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
   /// reembolsados) y `pre_confirmada` (todavía sin consumir) como ingreso.
   List<Map<String, dynamic>> _reservasDelMes(DateTime date) {
     return _reservas.where((reserva) {
-      final created = DateTime.tryParse(reserva['created_at']?.toString() ?? '');
+      final created = DateTime.tryParse(
+        reserva['created_at']?.toString() ?? '',
+      );
       final estado = reserva['estado']?.toString();
       return created != null &&
           created.year == date.year &&
@@ -917,7 +1017,8 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
   ) {
     final classMap = {
       for (final clase in clases)
-        ((clase['id'] as num?)?.toInt()): clase['nombre']?.toString() ?? 'Clase'
+        ((clase['id'] as num?)?.toInt()):
+            clase['nombre']?.toString() ?? 'Clase',
     };
 
     return reservas.take(8).map((reserva) {
@@ -977,7 +1078,9 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
     final dt = DateTime.tryParse(clase['fecha']?.toString() ?? '');
     if (dt == null) return 'Programada';
     final now = DateTime.now();
-    final end = dt.add(Duration(minutes: (clase['duracion_min'] as num?)?.toInt() ?? 60));
+    final end = dt.add(
+      Duration(minutes: (clase['duracion_min'] as num?)?.toInt() ?? 60),
+    );
     if (dt.isBefore(now) && end.isAfter(now)) return 'Activa';
     if (dt.isAfter(now) && dt.difference(now).inHours < 3) return 'Próxima';
     return 'Programada';
@@ -1046,8 +1149,11 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                   color: AppColors.primaryLight,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.groups_2_outlined,
-                    color: AppColors.primary, size: 20),
+                child: const Icon(
+                  Icons.groups_2_outlined,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               const Expanded(
@@ -1115,11 +1221,14 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
     final claseCounts = <int, int>{};
     for (final r in _reservas) {
       final claseId = (r['clase_id'] as num?)?.toInt();
-      if (claseId != null) claseCounts[claseId] = (claseCounts[claseId] ?? 0) + 1;
+      if (claseId != null)
+        claseCounts[claseId] = (claseCounts[claseId] ?? 0) + 1;
     }
     String clasePopular = 'Sin datos';
     if (claseCounts.isNotEmpty) {
-      final topId = claseCounts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+      final topId = claseCounts.entries
+          .reduce((a, b) => a.value >= b.value ? a : b)
+          .key;
       final topClase = _clases.firstWhere(
         (c) => (c['id'] as num?)?.toInt() == topId,
         orElse: () => {},
@@ -1139,8 +1248,9 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
           (x) => (x['id'] as num?)?.toInt() == e.key,
           orElse: () => <String, dynamic>{},
         );
-        final nombre =
-            c.isNotEmpty ? (c['nombre']?.toString() ?? 'Clase') : 'Clase';
+        final nombre = c.isNotEmpty
+            ? (c['nombre']?.toString() ?? 'Clase')
+            : 'Clase';
         top3.add((nombre: nombre, reservas: e.value));
       }
     }
@@ -1159,7 +1269,9 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
     }
     String horarioPico = 'Sin datos';
     if (horaCounts.isNotEmpty) {
-      final topHora = horaCounts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+      final topHora = horaCounts.entries
+          .reduce((a, b) => a.value >= b.value ? a : b)
+          .key;
       horarioPico = '${topHora.toString().padLeft(2, '0')}:00 hs';
     }
 
@@ -1183,8 +1295,9 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
       final cid = (r['clase_id'] as num?)?.toInt();
       if (cid != null && idsMes.contains(cid)) reservasMes++;
     }
-    final tasaOcupacion =
-        cuposMes > 0 ? (reservasMes / cuposMes * 100).clamp(0, 100) : 0.0;
+    final tasaOcupacion = cuposMes > 0
+        ? (reservasMes / cuposMes * 100).clamp(0, 100)
+        : 0.0;
 
     // ── Reservas por día de semana (mes actual) ──────────────────────────────
     // Build clase fecha map
@@ -1216,9 +1329,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
         // Favoritos + vistas del perfil (FIX 4).
         Row(
           children: [
-            Expanded(
-              child: _miniStatCard('❤️', '$_favoritos', 'En favoritos'),
-            ),
+            Expanded(child: _miniStatCard('❤️', '$_favoritos', 'En favoritos')),
             const SizedBox(width: 8),
             Expanded(
               child: _miniStatCard('👁️', '$_vistasMes', 'Vistas del mes'),
@@ -1239,10 +1350,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '⭐',
-                      style: TextStyle(fontSize: 18),
-                    ),
+                    const Text('⭐', style: TextStyle(fontSize: 18)),
                     const SizedBox(height: 6),
                     Text(
                       clasePopular,
@@ -1274,10 +1382,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '🕐',
-                      style: TextStyle(fontSize: 18),
-                    ),
+                    const Text('🕐', style: TextStyle(fontSize: 18)),
                     const SizedBox(height: 6),
                     Text(
                       horarioPico,
@@ -1307,10 +1412,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '📈',
-                      style: TextStyle(fontSize: 18),
-                    ),
+                    const Text('📈', style: TextStyle(fontSize: 18)),
                     const SizedBox(height: 6),
                     Text(
                       '${tasaOcupacion.round()}%',
@@ -1434,7 +1536,10 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                         padding: EdgeInsets.symmetric(vertical: 16),
                         child: Text(
                           'Sin datos este mes',
-                          style: TextStyle(color: Color(0xFF8F877F), fontSize: 13),
+                          style: TextStyle(
+                            color: Color(0xFF8F877F),
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     )
@@ -1443,7 +1548,9 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: List.generate(7, (i) {
                         final count = diasCount[i];
-                        final barHeight = maxDia > 0 ? (count / maxDia) * 60.0 : 0.0;
+                        final barHeight = maxDia > 0
+                            ? (count / maxDia) * 60.0
+                            : 0.0;
                         final isMax = count == maxDia && maxDia > 0;
                         return Expanded(
                           child: Padding(
@@ -1570,10 +1677,7 @@ class _HeroSummary extends StatelessWidget {
                 padding: EdgeInsets.only(bottom: 10),
                 child: Text(
                   'clases hoy',
-                  style: TextStyle(
-                    color: Color(0xFFA7A09A),
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: Color(0xFFA7A09A), fontSize: 16),
                 ),
               ),
             ],
@@ -1605,53 +1709,51 @@ class _StatBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: accent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    // Sin Expanded acá: quien lo pone en un Row decide el flex. Antes lo
+    // devolvía envuelto y ADEMÁS los callers lo envolvían -> "Incorrect use
+    // of ParentDataWidget" en debug (medido el 25/8 en el build web).
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: accent,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: AppColors.black,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(color: Color(0xFF8F877F), fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          if (change != null)
             Text(
-              value,
-              style: const TextStyle(
-                color: AppColors.black,
-                fontSize: 18,
+              change!,
+              style: TextStyle(
+                color: changeColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          else if (footer != null)
+            Text(
+              footer!,
+              style: TextStyle(
+                color: footerColor,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF8F877F),
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (change != null)
-              Text(
-                change!,
-                style: TextStyle(
-                  color: changeColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              )
-            else if (footer != null)
-              Text(
-                footer!,
-                style: TextStyle(
-                  color: footerColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -1708,7 +1810,10 @@ class _TodayClassRow extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.blackSoft,
                   borderRadius: BorderRadius.circular(8),
@@ -1746,7 +1851,10 @@ class _TodayClassRow extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor,
                   borderRadius: BorderRadius.circular(999),
@@ -1779,10 +1887,7 @@ class _TodayClassRow extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 spots,
-                style: const TextStyle(
-                  color: Color(0xFF6A635D),
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: Color(0xFF6A635D), fontSize: 13),
               ),
             ],
           ),
@@ -1811,19 +1916,22 @@ class _TutorialSheetState extends State<_TutorialSheet> {
     _PasoData(
       icono: Icons.check_circle_rounded,
       titulo: '¡Bienvenido a Aura! 🧡',
-      cuerpo: 'En 3 pasos rápidos te mostramos cómo empezar a recibir reservas y cobrar.',
+      cuerpo:
+          'En 3 pasos rápidos te mostramos cómo empezar a recibir reservas y cobrar.',
       boton: 'Empezar →',
     ),
     _PasoData(
       icono: Icons.calendar_month_rounded,
       titulo: 'Cargá tu primera clase',
-      cuerpo: 'Tocá el botón "+" y elegí "Nueva clase" (o "Nuevo workshop").\nElegí el horario, los cupos y listo.\nTus clases aparecen para todos los usuarios de Aura en Buenos Aires.',
+      cuerpo:
+          'Tocá el botón "+" y elegí "Nueva clase" (o "Nuevo workshop").\nElegí el horario, los cupos y listo.\nTus clases aparecen para todos los usuarios de Aura en Buenos Aires.',
       boton: 'Entendido →',
     ),
     _PasoData(
       icono: Icons.qr_code_scanner_rounded,
       titulo: 'El día de la clase',
-      cuerpo: 'Abrí Asistencia, escaneá el QR del alumno y confirmá su presencia.\nTambién podés marcar manualmente tocando su nombre en la lista.',
+      cuerpo:
+          'Abrí Asistencia, escaneá el QR del alumno y confirmá su presencia.\nTambién podés marcar manualmente tocando su nombre en la lista.',
       boton: 'Ir al panel →',
     ),
   ];
@@ -1873,11 +1981,7 @@ class _TutorialSheetState extends State<_TutorialSheet> {
               color: const Color(0xFFE8763A),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              paso.icono,
-              color: Colors.white,
-              size: 32,
-            ),
+            child: Icon(paso.icono, color: Colors.white, size: 32),
           ),
           const SizedBox(height: 20),
           // Título
@@ -1988,10 +2092,7 @@ class _DashboardError extends StatelessWidget {
       ),
       child: Text(
         message,
-        style: const TextStyle(
-          color: AppColors.black,
-          fontSize: 14,
-        ),
+        style: const TextStyle(color: AppColors.black, fontSize: 14),
       ),
     );
   }
@@ -2106,10 +2207,7 @@ class _DesgloseFila extends StatelessWidget {
               ),
               Text(
                 '$reservas reserva${reservas == 1 ? '' : 's'}',
-                style: const TextStyle(
-                  color: Color(0xFF8F877F),
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: Color(0xFF8F877F), fontSize: 12),
               ),
             ],
           ),

@@ -36,8 +36,8 @@ class _ConnectivityBannerState extends State<ConnectivityBanner>
   }
 
   void _onChanged(List<ConnectivityResult> results) {
-    final noRed = results.isEmpty ||
-        results.every((r) => r == ConnectivityResult.none);
+    final noRed =
+        results.isEmpty || results.every((r) => r == ConnectivityResult.none);
     if (noRed == _offline) return;
     setState(() => _offline = noRed);
     if (noRed) {
@@ -56,42 +56,50 @@ class _ConnectivityBannerState extends State<ConnectivityBanner>
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        widget.child,
-        SizeTransition(
-          sizeFactor: _slide,
-          axisAlignment: -1,
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              width: double.infinity,
-              color: const Color(0xFFB71C1C),
-              padding: EdgeInsets.fromLTRB(
-                16,
-                MediaQuery.of(context).padding.top + 8,
-                16,
-                10,
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.wifi_off_rounded, color: Colors.white, size: 16),
-                  SizedBox(width: 8),
-                  Text(
-                    'Sin conexión a internet',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+    // Este widget envuelve a MaterialApp, así que vive POR ENCIMA de quien
+    // provee Directionality. Sin esto, en debug el Stack tira
+    // "No Directionality widget found" y la app entera sale en rojo
+    // (medido el 25/8 abriendo el build web en Safari). En release el assert
+    // no corre, por eso nunca se vio en el teléfono.
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Stack(
+        children: [
+          widget.child,
+          SizeTransition(
+            sizeFactor: _slide,
+            axisAlignment: -1,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                width: double.infinity,
+                color: const Color(0xFFB71C1C),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  MediaQuery.of(context).padding.top + 8,
+                  16,
+                  10,
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.wifi_off_rounded, color: Colors.white, size: 16),
+                    SizedBox(width: 8),
+                    Text(
+                      'Sin conexión a internet',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

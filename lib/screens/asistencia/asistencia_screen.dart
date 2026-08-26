@@ -55,7 +55,10 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     _bannerTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
-    _syncTimer = Timer.periodic(const Duration(seconds: 15), (_) => _checkSync());
+    _syncTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _checkSync(),
+    );
     _searchCtrl.addListener(() => setState(() {}));
   }
 
@@ -141,22 +144,31 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     DateTime now,
   ) {
     if (clases.isEmpty) return null;
-    final ahora = clases.where((c) => _bucketDeClase(c, now) == 'ahora').toList();
+    final ahora = clases
+        .where((c) => _bucketDeClase(c, now) == 'ahora')
+        .toList();
     if (ahora.isNotEmpty) return ahora.first;
     final hoy = clases.where((c) => _bucketDeClase(c, now) == 'hoy').toList();
     if (hoy.isNotEmpty) return hoy.first;
-    final proximas =
-        clases.where((c) => _bucketDeClase(c, now) == 'proximas').toList();
+    final proximas = clases
+        .where((c) => _bucketDeClase(c, now) == 'proximas')
+        .toList();
     if (proximas.isNotEmpty) return proximas.first;
     return clases.first;
   }
 
   // ── Cache ─────────────────────────────────────────────────────────────────
 
-  Future<void> _guardarCache(int claseId, List<Map<String, dynamic>> asistentes) async {
+  Future<void> _guardarCache(
+    int claseId,
+    List<Map<String, dynamic>> asistentes,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('asistencia_cache_$claseId', jsonEncode(asistentes));
+      await prefs.setString(
+        'asistencia_cache_$claseId',
+        jsonEncode(asistentes),
+      );
     } catch (_) {}
   }
 
@@ -176,8 +188,13 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString('pendientes_sync') ?? '[]';
-      final lista = (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
-      lista.add({'codigo_qr': codigoQr, 'timestamp': DateTime.now().toIso8601String()});
+      final lista = (jsonDecode(raw) as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      lista.add({
+        'codigo_qr': codigoQr,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
       await prefs.setString('pendientes_sync', jsonEncode(lista));
     } catch (_) {}
   }
@@ -187,16 +204,21 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString('pendientes_sync');
       if (raw == null || raw == '[]') return;
-      final lista = (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      final lista = (jsonDecode(raw) as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
       if (lista.isEmpty) return;
 
       for (final item in lista) {
         final codigo = item['codigo_qr']?.toString() ?? '';
         if (codigo.isEmpty) continue;
-        await Supabase.instance.client.from('reservas').update({
-          'estado': 'presente',
-          'checked_in_at': DateTime.now().toIso8601String(),
-        }).eq('codigo_qr', codigo);
+        await Supabase.instance.client
+            .from('reservas')
+            .update({
+              'estado': 'presente',
+              'checked_in_at': DateTime.now().toIso8601String(),
+            })
+            .eq('codigo_qr', codigo);
       }
 
       await prefs.setString('pendientes_sync', '[]');
@@ -209,7 +231,9 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
             content: const Text('✓ Cambios sincronizados correctamente'),
             backgroundColor: const Color(0xFF43A047),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -226,7 +250,11 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
         // No pending, just try to reload
         try {
           final attendees = await _cargarAsistentes(_claseSeleccionada);
-          if (mounted) setState(() { _asistentes = attendees; _isOffline = false; });
+          if (mounted)
+            setState(() {
+              _asistentes = attendees;
+              _isOffline = false;
+            });
         } catch (_) {}
         return;
       }
@@ -253,10 +281,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
             .select('nombre,email')
             .eq('id', r['usuario_id'])
             .maybeSingle();
-        result.add({
-          ...Map<String, dynamic>.from(r),
-          'usuario': usuario,
-        });
+        result.add({...Map<String, dynamic>.from(r), 'usuario': usuario});
       }
       // Save to cache on success
       await _guardarCache(claseId, result);
@@ -308,7 +333,11 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
   String? _verificarVentanaGracia(DateTime fechaClase) {
     final ahora = _ahoraAr();
     final hoyDia = DateTime(ahora.year, ahora.month, ahora.day);
-    final claseDia = DateTime(fechaClase.year, fechaClase.month, fechaClase.day);
+    final claseDia = DateTime(
+      fechaClase.year,
+      fechaClase.month,
+      fechaClase.day,
+    );
 
     if (claseDia.isAfter(hoyDia)) return 'futura';
     if (claseDia.isBefore(hoyDia)) return 'tarde';
@@ -327,8 +356,10 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     String titulo;
     String mensaje;
     if (kind == 'futura') {
-      final fmt = DateFormat("EEEE d 'de' MMMM 'a las' HH:mm 'hs'", 'es')
-          .format(fechaClase);
+      final fmt = DateFormat(
+        "EEEE d 'de' MMMM 'a las' HH:mm 'hs'",
+        'es',
+      ).format(fechaClase);
       titulo = 'La clase es a futuro';
       mensaje =
           'Esta clase es el $fmt. ¿Estás seguro que querés confirmar ahora?';
@@ -341,9 +372,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           titulo,
           style: const TextStyle(
@@ -379,8 +408,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
             child: const Text(
               'Confirmar igual',
@@ -397,8 +425,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
   ///   `AURA-<8 hex mayus>-<clase_id>-<timestamp_ms>-<random 4>`.
   /// Cualquier cosa fuera de este patron no es un QR de Aura y se ignora
   /// para que el scanner no procese basura random capturada por la camara.
-  static final RegExp _kQrPattern =
-      RegExp(r'^AURA-[A-Z0-9]{8}-\d+-\d+-\d{4}$');
+  static final RegExp _kQrPattern = RegExp(r'^AURA-[A-Z0-9]{8}-\d+-\d+-\d{4}$');
 
   /// Throttle para no spamear el mismo "no es QR Aura" en cada frame
   /// mientras la camara sigue viendo el mismo codigo invalido.
@@ -422,7 +449,8 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     //    feedback liviano y dejar la camara escaneando.
     if (!_kQrPattern.hasMatch(normalizado)) {
       final ahora = DateTime.now();
-      final repetido = _ultimoInvalido == normalizado &&
+      final repetido =
+          _ultimoInvalido == normalizado &&
           _ultimoInvalidoAt != null &&
           ahora.difference(_ultimoInvalidoAt!).inSeconds < 3;
       _ultimoInvalido = normalizado;
@@ -452,8 +480,10 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       _debugResult = 'buscando…';
       _debugAt = DateTime.now();
     });
-    debugPrint('[QR scan] raw="$codigo" len=${codigo.length} '
-        'normalized="$normalizado" len=${normalizado.length}');
+    debugPrint(
+      '[QR scan] raw="$codigo" len=${codigo.length} '
+      'normalized="$normalizado" len=${normalizado.length}',
+    );
 
     final claseId = (_claseSeleccionada?['id'] as num?)?.toInt();
 
@@ -507,8 +537,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
               'Este QR pertenece a una reserva de otra clase (estado: ${otherClassEstado ?? '?'}).';
         } else if (countAll > 0) {
           titulo = 'Reserva no disponible';
-          subtitulo =
-              'La reserva existe pero no está en estado confirmada.';
+          subtitulo = 'La reserva existe pero no está en estado confirmada.';
         } else {
           titulo = 'QR inválido';
           subtitulo = 'No se encontró una reserva activa\n$normalizado';
@@ -522,8 +551,10 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
         return;
       }
 
-      setState(() => _debugResult =
-          'OK (id=${reserva['id']}, clase_id=${reserva['clase_id']}, estado=${reserva['estado']})');
+      setState(
+        () => _debugResult =
+            'OK (id=${reserva['id']}, clase_id=${reserva['clase_id']}, estado=${reserva['estado']})',
+      );
 
       final usuario = await Supabase.instance.client
           .from('usuarios')
@@ -551,17 +582,22 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
           );
           if (!mounted) return;
           if (!confirmar) {
-            setState(() => _debugResult =
-                'cancelado por estudio (fuera de ventana: $fueraDeVentana)');
+            setState(
+              () => _debugResult =
+                  'cancelado por estudio (fuera de ventana: $fueraDeVentana)',
+            );
             return;
           }
         }
       }
 
-      await Supabase.instance.client.from('reservas').update({
-        'estado': 'presente',
-        'checked_in_at': DateTime.now().toIso8601String(),
-      }).eq('codigo_qr', normalizado);
+      await Supabase.instance.client
+          .from('reservas')
+          .update({
+            'estado': 'presente',
+            'checked_in_at': DateTime.now().toIso8601String(),
+          })
+          .eq('codigo_qr', normalizado);
 
       if (!mounted) return;
 
@@ -578,9 +614,12 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       setState(() => _debugResult = 'EXCEPTION: $e');
       if (!mounted) return;
       // Offline fallback: search locally
-      final match = _asistentes.where(
-        (a) => _normalizarQr(a['codigo_qr']?.toString() ?? '') == normalizado,
-      ).toList();
+      final match = _asistentes
+          .where(
+            (a) =>
+                _normalizarQr(a['codigo_qr']?.toString() ?? '') == normalizado,
+          )
+          .toList();
 
       if (match.isNotEmpty) {
         final asistente = match.first;
@@ -591,7 +630,8 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
         setState(() {
           _isOffline = true;
           _asistentes = _asistentes.map((a) {
-            if (_normalizarQr(a['codigo_qr']?.toString() ?? '') == normalizado) {
+            if (_normalizarQr(a['codigo_qr']?.toString() ?? '') ==
+                normalizado) {
               return {...a, ...update};
             }
             return a;
@@ -606,7 +646,11 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
         );
       } else {
         setState(() => _isOffline = true);
-        _mostrarPopup(exito: false, titulo: 'Sin conexión', subtitulo: 'QR no encontrado en caché');
+        _mostrarPopup(
+          exito: false,
+          titulo: 'Sin conexión',
+          subtitulo: 'QR no encontrado en caché',
+        );
       }
     } finally {
       if (mounted) setState(() => _procesando = false);
@@ -622,7 +666,8 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _ResultPopup(exito: exito, titulo: titulo, subtitulo: subtitulo),
+      builder: (_) =>
+          _ResultPopup(exito: exito, titulo: titulo, subtitulo: subtitulo),
     ).then((_) {
       if (_usarCamara) {
         _cameraController?.start();
@@ -736,8 +781,8 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     final tsStr = ts == null
         ? ''
         : '${ts.hour.toString().padLeft(2, '0')}:'
-            '${ts.minute.toString().padLeft(2, '0')}:'
-            '${ts.second.toString().padLeft(2, '0')}';
+              '${ts.minute.toString().padLeft(2, '0')}:'
+              '${ts.second.toString().padLeft(2, '0')}';
     return Container(
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.all(12),
@@ -778,8 +823,11 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                   _debugResult = null;
                   _debugAt = null;
                 }),
-                child: const Icon(Icons.close_rounded,
-                    color: Color(0xFF8F877F), size: 14),
+                child: const Icon(
+                  Icons.close_rounded,
+                  color: Color(0xFF8F877F),
+                  size: 14,
+                ),
               ),
             ],
           ),
@@ -838,24 +886,49 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
               // Class selector card
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 child: Row(
                   children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('CLASE ACTIVA', style: TextStyle(color: Color(0xFFB0A8A0), fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1)),
+                          const Text(
+                            'CLASE ACTIVA',
+                            style: TextStyle(
+                              color: Color(0xFFB0A8A0),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1,
+                            ),
+                          ),
                           const SizedBox(height: 6),
                           Text(
-                            _claseSeleccionada?['nombre']?.toString() ?? 'Sin clase',
-                            style: const TextStyle(color: AppColors.black, fontSize: 18, fontWeight: FontWeight.w600),
+                            _claseSeleccionada?['nombre']?.toString() ??
+                                'Sin clase',
+                            style: const TextStyle(
+                              color: AppColors.black,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
                     ),
                     if (_clases.length > 1)
-                      TextButton(onPressed: _mostrarSelectorClases, child: const Text('Cambiar', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600))),
+                      TextButton(
+                        onPressed: _mostrarSelectorClases,
+                        child: const Text(
+                          'Cambiar',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -864,23 +937,41 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
               if (_isOffline) ...[
                 Container(
                   margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFF3E0),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Row(
                     children: [
-                      Icon(Icons.wifi_off_rounded, color: Color(0xFFE8763A), size: 18),
+                      Icon(
+                        Icons.wifi_off_rounded,
+                        color: Color(0xFFE8763A),
+                        size: 18,
+                      ),
                       SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Sin conexión — escaneando en modo offline',
-                              style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 13, fontWeight: FontWeight.w600)),
-                            Text('Los cambios se sincronizan al reconectarte',
-                              style: TextStyle(color: Color(0xFF8F877F), fontSize: 12)),
+                            Text(
+                              'Sin conexión — escaneando en modo offline',
+                              style: TextStyle(
+                                color: Color(0xFF1A1A1A),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              'Los cambios se sincronizan al reconectarte',
+                              style: TextStyle(
+                                color: Color(0xFF8F877F),
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -891,24 +982,53 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
               // Scanner
               Container(
                 padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(color: AppColors.blackSoft, borderRadius: BorderRadius.circular(16)),
+                decoration: BoxDecoration(
+                  color: AppColors.blackSoft,
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 child: Column(
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(_usarCamara ? 'Cámara' : 'Lector USB', style: const TextStyle(color: Color(0xFF9A928B), fontSize: 13, fontWeight: FontWeight.w600)),
+                        Text(
+                          _usarCamara ? 'Cámara' : 'Lector USB',
+                          style: const TextStyle(
+                            color: Color(0xFF9A928B),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         GestureDetector(
                           onTap: _cambiarModo,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(color: const Color(0xFF2A2A2A), borderRadius: BorderRadius.circular(20)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2A2A2A),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(_usarCamara ? Icons.keyboard_rounded : Icons.camera_alt_rounded, color: AppColors.primary, size: 14),
+                                Icon(
+                                  _usarCamara
+                                      ? Icons.keyboard_rounded
+                                      : Icons.camera_alt_rounded,
+                                  color: AppColors.primary,
+                                  size: 14,
+                                ),
                                 const SizedBox(width: 6),
-                                Text(_usarCamara ? 'Usar lector' : 'Usar cámara', style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                                Text(
+                                  _usarCamara ? 'Usar lector' : 'Usar cámara',
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -921,7 +1041,11 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                       child: SizedBox(
                         height: 260,
                         child: _usarCamara
-                            ? _CameraScanner(controller: _cameraController!, procesando: _procesando, onDetect: _validarQR)
+                            ? _CameraScanner(
+                                controller: _cameraController!,
+                                procesando: _procesando,
+                                onDetect: _validarQR,
+                              )
                             : _USBScanner(
                                 controller: _qrController,
                                 focusNode: _qrFocusNode,
@@ -936,8 +1060,13 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      _usarCamara ? 'Apuntá la cámara al QR del usuario' : 'Pasá el lector QR por el código del usuario',
-                      style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
+                      _usarCamara
+                          ? 'Apuntá la cámara al QR del usuario'
+                          : 'Pasá el lector QR por el código del usuario',
+                      style: const TextStyle(
+                        color: Color(0xFF8F877F),
+                        fontSize: 13,
+                      ),
                     ),
                     _buildDebugQrPanel(),
                   ],
@@ -955,21 +1084,55 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
               // Stats row
               Row(
                 children: [
-                  Expanded(child: _CountBox(value: _presentes.toString(), label: 'Presentes', color: const Color(0xFFE3F3E5), valueColor: const Color(0xFF43A047))),
+                  Expanded(
+                    child: _CountBox(
+                      value: _presentes.toString(),
+                      label: 'Presentes',
+                      color: const Color(0xFFE3F3E5),
+                      valueColor: const Color(0xFF43A047),
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  Expanded(child: _CountBox(value: _pendientes.toString(), label: 'Pendientes', color: const Color(0xFFFFF3DE), valueColor: AppColors.primary)),
+                  Expanded(
+                    child: _CountBox(
+                      value: _pendientes.toString(),
+                      label: 'Pendientes',
+                      color: const Color(0xFFFFF3DE),
+                      valueColor: AppColors.primary,
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  Expanded(child: _CountBox(value: _ausentes.toString(), label: 'Ausentes', color: const Color(0xFFF1F1F1), valueColor: const Color(0xFF6E6761))),
+                  Expanded(
+                    child: _CountBox(
+                      value: _ausentes.toString(),
+                      label: 'Ausentes',
+                      color: const Color(0xFFF1F1F1),
+                      valueColor: const Color(0xFF6E6761),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 14),
               // Attendees table
-              const Text('LISTA DE ASISTENTES', style: TextStyle(color: Color(0xFF8F877F), fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1)),
+              const Text(
+                'LISTA DE ASISTENTES',
+                style: TextStyle(
+                  color: Color(0xFF8F877F),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1,
+                ),
+              ),
               const SizedBox(height: 10),
               if (_asistentes.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(24),
-                  child: Center(child: Text('Sin reservas para esta clase', style: TextStyle(color: Color(0xFF9A928B)))),
+                  child: Center(
+                    child: Text(
+                      'Sin reservas para esta clase',
+                      style: TextStyle(color: Color(0xFF9A928B)),
+                    ),
+                  ),
                 )
               else ...[
                 _AsistentesSearchField(controller: _searchCtrl),
@@ -977,105 +1140,185 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                 if (_asistentesFiltrados.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(24),
-                    child: Center(child: Text('Sin coincidencias', style: TextStyle(color: Color(0xFF9A928B)))),
+                    child: Center(
+                      child: Text(
+                        'Sin coincidencias',
+                        style: TextStyle(color: Color(0xFF9A928B)),
+                      ),
+                    ),
                   )
                 else
-                Container(
-                  decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: const BoxDecoration(color: Color(0xFFF7F5F2), borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-                        child: const Row(
-                          children: [
-                            Expanded(child: Text('Nombre', style: TextStyle(color: Color(0xFF888888), fontSize: 11, fontWeight: FontWeight.w700))),
-                            SizedBox(width: 90, child: Text('Estado', style: TextStyle(color: Color(0xFF888888), fontSize: 11, fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
-                          ],
-                        ),
-                      ),
-                      ..._asistentesFiltrados.asMap().entries.map((e) {
-                        final a = e.value;
-                        final user = a['usuario'] as Map<String, dynamic>?;
-                        final nombre = user?['nombre']?.toString() ?? 'Sin nombre';
-                        final estado = a['estado']?.toString() ?? 'confirmada';
-                        final esPresente = estado == 'presente';
-                        final esAusente = estado == 'ausente';
-                        final badgeColor = esPresente
-                            ? const Color(0xFFE3F3E5)
-                            : esAusente
-                                ? const Color(0xFFFFEBEE)
-                                : const Color(0xFFFFF3DE);
-                        final badgeTextColor = esPresente
-                            ? const Color(0xFF43A047)
-                            : esAusente
-                                ? const Color(0xFFE53935)
-                                : AppColors.primary;
-                        final badgeLabel = esPresente
-                            ? 'Presente'
-                            : esAusente
-                                ? 'Ausente'
-                                : 'Pendiente';
-                        return InkWell(
-                          borderRadius: e.key == _asistentesFiltrados.length - 1
-                              ? const BorderRadius.vertical(bottom: Radius.circular(16))
-                              : null,
-                          onTap: () => _mostrarAccionesAsistente(a),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              border: Border(top: BorderSide(color: Colors.grey.shade100)),
-                              borderRadius: e.key == _asistentesFiltrados.length - 1 ? const BorderRadius.vertical(bottom: Radius.circular(16)) : null,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF7F5F2),
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(16),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 32, height: 32,
-                                  decoration: BoxDecoration(color: _avatarColor(nombre), shape: BoxShape.circle),
-                                  child: Center(child: Text(_initials(nombre), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700))),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(nombre, style: const TextStyle(color: AppColors.black, fontSize: 14, fontWeight: FontWeight.w500)),
-                                      if (esPresente)
-                                        Text(
-                                          'Ingreso ${_horaIngreso(a)}',
-                                          style: const TextStyle(color: Color(0xFF9A928B), fontSize: 11),
-                                        ),
-                                    ],
+                          ),
+                          child: const Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Nombre',
+                                  style: TextStyle(
+                                    color: Color(0xFF888888),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                                SizedBox(
-                                  width: 90,
-                                  child: Center(
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: badgeColor,
-                                        borderRadius: BorderRadius.circular(999),
-                                      ),
+                              ),
+                              SizedBox(
+                                width: 90,
+                                child: Text(
+                                  'Estado',
+                                  style: TextStyle(
+                                    color: Color(0xFF888888),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ..._asistentesFiltrados.asMap().entries.map((e) {
+                          final a = e.value;
+                          final user = a['usuario'] as Map<String, dynamic>?;
+                          final nombre =
+                              user?['nombre']?.toString() ?? 'Sin nombre';
+                          final estado =
+                              a['estado']?.toString() ?? 'confirmada';
+                          final esPresente = estado == 'presente';
+                          final esAusente = estado == 'ausente';
+                          final badgeColor = esPresente
+                              ? const Color(0xFFE3F3E5)
+                              : esAusente
+                              ? const Color(0xFFFFEBEE)
+                              : const Color(0xFFFFF3DE);
+                          final badgeTextColor = esPresente
+                              ? const Color(0xFF43A047)
+                              : esAusente
+                              ? const Color(0xFFE53935)
+                              : AppColors.primary;
+                          final badgeLabel = esPresente
+                              ? 'Presente'
+                              : esAusente
+                              ? 'Ausente'
+                              : 'Pendiente';
+                          return InkWell(
+                            borderRadius:
+                                e.key == _asistentesFiltrados.length - 1
+                                ? const BorderRadius.vertical(
+                                    bottom: Radius.circular(16),
+                                  )
+                                : null,
+                            onTap: () => _mostrarAccionesAsistente(a),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  top: BorderSide(color: Colors.grey.shade100),
+                                ),
+                                borderRadius:
+                                    e.key == _asistentesFiltrados.length - 1
+                                    ? const BorderRadius.vertical(
+                                        bottom: Radius.circular(16),
+                                      )
+                                    : null,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: _avatarColor(nombre),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Center(
                                       child: Text(
-                                        badgeLabel,
-                                        style: TextStyle(
-                                          color: badgeTextColor,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
+                                        _initials(nombre),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          nombre,
+                                          style: const TextStyle(
+                                            color: AppColors.black,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        if (esPresente)
+                                          Text(
+                                            'Ingreso ${_horaIngreso(a)}',
+                                            style: const TextStyle(
+                                              color: Color(0xFF9A928B),
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 90,
+                                    child: Center(
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: badgeColor,
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          badgeLabel,
+                                          style: TextStyle(
+                                            color: badgeTextColor,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      }),
-                    ],
+                          );
+                        }),
+                      ],
+                    ),
                   ),
-                ),
               ],
             ],
           ),
@@ -1092,11 +1335,15 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
 
     if (isDesktop) {
       return GestureDetector(
-        onTap: () { if (!_usarCamara && !_procesando) _qrFocusNode.requestFocus(); },
+        onTap: () {
+          if (!_usarCamara && !_procesando) _qrFocusNode.requestFocus();
+        },
         child: Scaffold(
           backgroundColor: AppColors.background,
           body: _loading
-              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                )
               : RefreshIndicator(
                   onRefresh: _cargar,
                   color: AppColors.primary,
@@ -1117,7 +1364,9 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: _loading
-            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
             : SafeArea(
                 child: RefreshIndicator(
                   color: AppColors.primary,
@@ -1157,23 +1406,41 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                       if (_isOffline) ...[
                         Container(
                           margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFF3E0),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Row(
                             children: [
-                              Icon(Icons.wifi_off_rounded, color: Color(0xFFE8763A), size: 18),
+                              Icon(
+                                Icons.wifi_off_rounded,
+                                color: Color(0xFFE8763A),
+                                size: 18,
+                              ),
                               SizedBox(width: 10),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Sin conexión — escaneando en modo offline',
-                                      style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 13, fontWeight: FontWeight.w600)),
-                                    Text('Los cambios se sincronizan al reconectarte',
-                                      style: TextStyle(color: Color(0xFF8F877F), fontSize: 12)),
+                                    Text(
+                                      'Sin conexión — escaneando en modo offline',
+                                      style: TextStyle(
+                                        color: Color(0xFF1A1A1A),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Los cambios se sincronizan al reconectarte',
+                                      style: TextStyle(
+                                        color: Color(0xFF8F877F),
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1232,7 +1499,9 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                               ),
                             ),
                             TextButton(
-                              onPressed: _clases.isEmpty ? null : _mostrarSelectorClases,
+                              onPressed: _clases.isEmpty
+                                  ? null
+                                  : _mostrarSelectorClases,
                               child: const Text(
                                 'Cambiar',
                                 style: TextStyle(
@@ -1271,7 +1540,10 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                                 GestureDetector(
                                   onTap: _cambiarModo,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFF2A2A2A),
                                       borderRadius: BorderRadius.circular(20),
@@ -1288,7 +1560,9 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
-                                          _usarCamara ? 'Usar lector' : 'Usar cámara',
+                                          _usarCamara
+                                              ? 'Usar lector'
+                                              : 'Usar cámara',
                                           style: const TextStyle(
                                             color: AppColors.primary,
                                             fontSize: 12,
@@ -1345,25 +1619,31 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                       // Contadores
                       Row(
                         children: [
-                          _CountBox(
-                            value: _presentes.toString(),
-                            label: 'Presentes',
-                            color: const Color(0xFFE3F3E5),
-                            valueColor: const Color(0xFF43A047),
+                          Expanded(
+                            child: _CountBox(
+                              value: _presentes.toString(),
+                              label: 'Presentes',
+                              color: const Color(0xFFE3F3E5),
+                              valueColor: const Color(0xFF43A047),
+                            ),
                           ),
                           const SizedBox(width: 8),
-                          _CountBox(
-                            value: _pendientes.toString(),
-                            label: 'Pendientes',
-                            color: const Color(0xFFFFF3DE),
-                            valueColor: AppColors.primary,
+                          Expanded(
+                            child: _CountBox(
+                              value: _pendientes.toString(),
+                              label: 'Pendientes',
+                              color: const Color(0xFFFFF3DE),
+                              valueColor: AppColors.primary,
+                            ),
                           ),
                           const SizedBox(width: 8),
-                          _CountBox(
-                            value: _ausentes.toString(),
-                            label: 'Ausentes',
-                            color: const Color(0xFFF1F1F1),
-                            valueColor: const Color(0xFF6E6761),
+                          Expanded(
+                            child: _CountBox(
+                              value: _ausentes.toString(),
+                              label: 'Ausentes',
+                              color: const Color(0xFFF1F1F1),
+                              valueColor: const Color(0xFF6E6761),
+                            ),
                           ),
                         ],
                       ),
@@ -1411,9 +1691,12 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                             ),
                             child: Column(
                               children: _asistentesFiltrados.map((a) {
-                                final user = a['usuario'] as Map<String, dynamic>?;
-                                final nombre = user?['nombre']?.toString() ?? 'Sin nombre';
-                                final estado = a['estado']?.toString() ?? 'confirmada';
+                                final user =
+                                    a['usuario'] as Map<String, dynamic>?;
+                                final nombre =
+                                    user?['nombre']?.toString() ?? 'Sin nombre';
+                                final estado =
+                                    a['estado']?.toString() ?? 'confirmada';
                                 final esPresente = estado == 'presente';
                                 final esAusente = estado == 'ausente';
                                 return _AttendeeRow(
@@ -1421,20 +1704,20 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                                   subtitle: esPresente
                                       ? 'Ingreso ${_horaIngreso(a)}'
                                       : esAusente
-                                          ? 'Ausente'
-                                          : 'Pendiente',
+                                      ? 'Ausente'
+                                      : 'Pendiente',
                                   initials: _initials(nombre),
                                   color: _avatarColor(nombre),
                                   icon: esPresente
                                       ? Icons.check_circle_rounded
                                       : esAusente
-                                          ? Icons.cancel_rounded
-                                          : Icons.access_time_rounded,
+                                      ? Icons.cancel_rounded
+                                      : Icons.access_time_rounded,
                                   iconColor: esPresente
                                       ? const Color(0xFF43A047)
                                       : esAusente
-                                          ? const Color(0xFFE53935)
-                                          : const Color(0xFFB0A8A0),
+                                      ? const Color(0xFFE53935)
+                                      : const Color(0xFFB0A8A0),
                                   onTap: () => _mostrarAccionesAsistente(a),
                                 );
                               }).toList(),
@@ -1458,7 +1741,8 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     final codigoQr = asistente['codigo_qr']?.toString();
     if (codigoQr == null || codigoQr.isEmpty) return;
 
-    final nombre = (asistente['usuario'] as Map<String, dynamic>?)?['nombre']
+    final nombre =
+        (asistente['usuario'] as Map<String, dynamic>?)?['nombre']
             ?.toString() ??
         'Alumno';
 
@@ -1495,29 +1779,27 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       final msg = nuevoEstado == 'presente'
           ? '✓ $nombre marcado como presente'
           : nuevoEstado == 'ausente'
-              ? '$nombre marcado como ausente'
-              : '$nombre marcado como pendiente';
+          ? '$nombre marcado como ausente'
+          : '$nombre marcado como pendiente';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg),
           backgroundColor: const Color(0xFF1A1A1A),
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     }
   }
 
-  Future<void> _mostrarAccionesAsistente(
-    Map<String, dynamic> asistente,
-  ) async {
+  Future<void> _mostrarAccionesAsistente(Map<String, dynamic> asistente) async {
     final user = asistente['usuario'] as Map<String, dynamic>?;
     final nombre = user?['nombre']?.toString() ?? 'Sin nombre';
     final estado = asistente['estado']?.toString() ?? 'confirmada';
-    final claseNombre =
-        _claseSeleccionada?['nombre']?.toString() ?? 'Clase';
+    final claseNombre = _claseSeleccionada?['nombre']?.toString() ?? 'Clase';
     final fecha = DateTime.tryParse(
       _claseSeleccionada?['fecha']?.toString() ?? '',
     );
@@ -1580,17 +1862,16 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
               // Clase y horario
               Text(
                 '$claseNombre · $horario',
-                style: const TextStyle(
-                  color: Color(0xFF9A928B),
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: Color(0xFF9A928B), fontSize: 13),
               ),
               const SizedBox(height: 24),
               if (estado == 'presente') ...[
                 // Badge presente
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE3F3E5),
                     borderRadius: BorderRadius.circular(999),
@@ -1626,8 +1907,10 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
               ] else if (estado == 'ausente') ...[
                 // Badge ausente
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFEBEE),
                     borderRadius: BorderRadius.circular(999),
@@ -1655,9 +1938,12 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       textStyle: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w700),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     child: const Text('Cambiar a presente'),
                   ),
@@ -1677,9 +1963,12 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       textStyle: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w700),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     child: const Text('✓  Marcar como presente'),
                   ),
@@ -1726,23 +2015,28 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
 
                 bool matchesQuery(Map<String, dynamic> c) {
                   if (q.isEmpty) return true;
-                  return (c['nombre']?.toString() ?? '')
-                      .toLowerCase()
-                      .contains(q);
+                  return (c['nombre']?.toString() ?? '').toLowerCase().contains(
+                    q,
+                  );
                 }
 
                 final ahora = _clases
-                    .where((c) =>
-                        _bucketDeClase(c, now) == 'ahora' && matchesQuery(c))
+                    .where(
+                      (c) =>
+                          _bucketDeClase(c, now) == 'ahora' && matchesQuery(c),
+                    )
                     .toList();
                 final hoy = _clases
-                    .where((c) =>
-                        _bucketDeClase(c, now) == 'hoy' && matchesQuery(c))
+                    .where(
+                      (c) => _bucketDeClase(c, now) == 'hoy' && matchesQuery(c),
+                    )
                     .toList();
                 final proximas = _clases
-                    .where((c) =>
-                        _bucketDeClase(c, now) == 'proximas' &&
-                        matchesQuery(c))
+                    .where(
+                      (c) =>
+                          _bucketDeClase(c, now) == 'proximas' &&
+                          matchesQuery(c),
+                    )
                     .toList();
 
                 return Padding(
@@ -1784,8 +2078,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                                 hoy.isEmpty &&
                                 proximas.isEmpty)
                               const Padding(
-                                padding:
-                                    EdgeInsets.symmetric(vertical: 28),
+                                padding: EdgeInsets.symmetric(vertical: 28),
                                 child: Center(
                                   child: Text(
                                     'No hay clases que coincidan.',
@@ -1798,36 +2091,42 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                               ),
                             if (ahora.isNotEmpty) ...[
                               const _SeccionLabel('AHORA', accent: true),
-                              ...ahora.map((c) => _ClaseSelectorTile(
-                                    clase: c,
-                                    highlight: true,
-                                    onTap: () {
-                                      Navigator.pop(sheetCtx);
-                                      _seleccionarClase(c);
-                                    },
-                                  )),
+                              ...ahora.map(
+                                (c) => _ClaseSelectorTile(
+                                  clase: c,
+                                  highlight: true,
+                                  onTap: () {
+                                    Navigator.pop(sheetCtx);
+                                    _seleccionarClase(c);
+                                  },
+                                ),
+                              ),
                               const SizedBox(height: 14),
                             ],
                             if (hoy.isNotEmpty) ...[
                               const _SeccionLabel('HOY'),
-                              ...hoy.map((c) => _ClaseSelectorTile(
-                                    clase: c,
-                                    onTap: () {
-                                      Navigator.pop(sheetCtx);
-                                      _seleccionarClase(c);
-                                    },
-                                  )),
+                              ...hoy.map(
+                                (c) => _ClaseSelectorTile(
+                                  clase: c,
+                                  onTap: () {
+                                    Navigator.pop(sheetCtx);
+                                    _seleccionarClase(c);
+                                  },
+                                ),
+                              ),
                               const SizedBox(height: 14),
                             ],
                             if (proximas.isNotEmpty) ...[
                               const _SeccionLabel('PRÓXIMAS'),
-                              ...proximas.map((c) => _ClaseSelectorTile(
-                                    clase: c,
-                                    onTap: () {
-                                      Navigator.pop(sheetCtx);
-                                      _seleccionarClase(c);
-                                    },
-                                  )),
+                              ...proximas.map(
+                                (c) => _ClaseSelectorTile(
+                                  clase: c,
+                                  onTap: () {
+                                    Navigator.pop(sheetCtx);
+                                    _seleccionarClase(c);
+                                  },
+                                ),
+                              ),
                             ],
                           ],
                         ),
@@ -1847,8 +2146,14 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
   int get _presentes =>
       _asistentes.where((a) => a['estado'] == 'presente').length;
 
-  int get _pendientes =>
-      _asistentes.where((a) => a['estado'] != 'presente' && a['estado'] != 'cancelada' && a['estado'] != 'ausente').length;
+  int get _pendientes => _asistentes
+      .where(
+        (a) =>
+            a['estado'] != 'presente' &&
+            a['estado'] != 'cancelada' &&
+            a['estado'] != 'ausente',
+      )
+      .length;
 
   int get _ausentes =>
       _asistentes.where((a) => a['estado'] == 'ausente').length;
@@ -1860,7 +2165,10 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
   }
 
   String _initials(String name) {
-    final parts = name.split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
+    final parts = name
+        .split(RegExp(r'\s+'))
+        .where((e) => e.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return '??';
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
     return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
@@ -1904,9 +2212,21 @@ class _CameraScanner extends StatelessWidget {
         ),
         // Esquinas del viewfinder
         const Positioned(top: 16, left: 16, child: _ScannerCorner()),
-        const Positioned(top: 16, right: 16, child: _ScannerCorner(flipX: true)),
-        const Positioned(bottom: 16, left: 16, child: _ScannerCorner(flipY: true)),
-        const Positioned(bottom: 16, right: 16, child: _ScannerCorner(flipX: true, flipY: true)),
+        const Positioned(
+          top: 16,
+          right: 16,
+          child: _ScannerCorner(flipX: true),
+        ),
+        const Positioned(
+          bottom: 16,
+          left: 16,
+          child: _ScannerCorner(flipY: true),
+        ),
+        const Positioned(
+          bottom: 16,
+          right: 16,
+          child: _ScannerCorner(flipX: true, flipY: true),
+        ),
         // Overlay mientras procesa
         if (procesando)
           Container(
@@ -2060,13 +2380,17 @@ class _USBScanner extends StatelessWidget {
                       ? Icons.hourglass_top_rounded
                       : Icons.qr_code_scanner_rounded,
                   size: 64,
-                  color: procesando ? AppColors.primary : const Color(0xFF595959),
+                  color: procesando
+                      ? AppColors.primary
+                      : const Color(0xFF595959),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   procesando ? 'Validando...' : 'Esperando QR...',
                   style: TextStyle(
-                    color: procesando ? AppColors.primary : const Color(0xFF8F877F),
+                    color: procesando
+                        ? AppColors.primary
+                        : const Color(0xFF8F877F),
                     fontSize: 14,
                     fontWeight: procesando ? FontWeight.w600 : FontWeight.w400,
                   ),
@@ -2075,9 +2399,21 @@ class _USBScanner extends StatelessWidget {
             ),
           ),
           const Positioned(top: 16, left: 16, child: _ScannerCorner()),
-          const Positioned(top: 16, right: 16, child: _ScannerCorner(flipX: true)),
-          const Positioned(bottom: 16, left: 16, child: _ScannerCorner(flipY: true)),
-          const Positioned(bottom: 16, right: 16, child: _ScannerCorner(flipX: true, flipY: true)),
+          const Positioned(
+            top: 16,
+            right: 16,
+            child: _ScannerCorner(flipX: true),
+          ),
+          const Positioned(
+            bottom: 16,
+            left: 16,
+            child: _ScannerCorner(flipY: true),
+          ),
+          const Positioned(
+            bottom: 16,
+            right: 16,
+            child: _ScannerCorner(flipX: true, flipY: true),
+          ),
         ],
       ),
     );
@@ -2130,10 +2466,7 @@ class _ResultPopup extends StatelessWidget {
               Text(
                 subtitulo,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF6E6761),
-                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF6E6761)),
               ),
             ],
           ],
@@ -2186,30 +2519,30 @@ class _CountBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                color: valueColor,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
+    // Sin Expanded acá: los callers lo envuelven (y algunos ya lo hacían,
+    // lo que daba "Incorrect use of ParentDataWidget" en debug, 25/8).
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(color: Color(0xFF6E6761), fontSize: 12),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(color: Color(0xFF6E6761), fontSize: 12),
+          ),
+        ],
       ),
     );
   }
@@ -2240,49 +2573,49 @@ class _AttendeeRow extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: color,
-            child: Text(
-              initials,
-              style: const TextStyle(
-                color: Color(0xFF4473B9),
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: color,
+              child: Text(
+                initials,
+                style: const TextStyle(
+                  color: Color(0xFF4473B9),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  nombre,
-                  style: const TextStyle(
-                    color: AppColors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    nombre,
+                    style: const TextStyle(
+                      color: AppColors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: subtitle == 'Pendiente'
-                        ? AppColors.primary
-                        : const Color(0xFF9A928B),
-                    fontSize: 13,
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: subtitle == 'Pendiente'
+                          ? AppColors.primary
+                          : const Color(0xFF9A928B),
+                      fontSize: 13,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Icon(icon, color: iconColor),
-        ],
-      ),
+            Icon(icon, color: iconColor),
+          ],
+        ),
       ),
     );
   }
@@ -2301,20 +2634,28 @@ class _AsistentesSearchField extends StatelessWidget {
       decoration: InputDecoration(
         hintText: 'Buscar por nombre o email',
         hintStyle: const TextStyle(color: Color(0xFF9A928B), fontSize: 14),
-        prefixIcon: const Icon(Icons.search_rounded,
-            color: Color(0xFF9A928B), size: 20),
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          color: Color(0xFF9A928B),
+          size: 20,
+        ),
         suffixIcon: controller.text.isEmpty
             ? null
             : IconButton(
-                icon: const Icon(Icons.clear_rounded,
-                    color: Color(0xFF9A928B), size: 18),
+                icon: const Icon(
+                  Icons.clear_rounded,
+                  color: Color(0xFF9A928B),
+                  size: 18,
+                ),
                 onPressed: () => controller.clear(),
               ),
         filled: true,
         fillColor: AppColors.white,
         isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.shade200),
@@ -2334,10 +2675,7 @@ class _ClaseSearchField extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
 
-  const _ClaseSearchField({
-    required this.controller,
-    required this.onChanged,
-  });
+  const _ClaseSearchField({required this.controller, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -2347,13 +2685,19 @@ class _ClaseSearchField extends StatelessWidget {
       decoration: InputDecoration(
         hintText: 'Buscar por nombre de clase…',
         hintStyle: const TextStyle(color: Color(0xFF9A928B), fontSize: 14),
-        prefixIcon:
-            const Icon(Icons.search_rounded, color: Color(0xFF9A928B), size: 20),
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          color: Color(0xFF9A928B),
+          size: 20,
+        ),
         suffixIcon: controller.text.isEmpty
             ? null
             : IconButton(
-                icon: const Icon(Icons.close_rounded,
-                    color: Color(0xFF9A928B), size: 18),
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: Color(0xFF9A928B),
+                  size: 18,
+                ),
                 onPressed: () {
                   controller.clear();
                   onChanged('');
@@ -2362,8 +2706,10 @@ class _ClaseSearchField extends StatelessWidget {
         filled: true,
         fillColor: const Color(0xFFF7F5F2),
         isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFE9DED4)),
@@ -2460,8 +2806,9 @@ class _ClaseSelectorTile extends StatelessWidget {
                       style: TextStyle(
                         color: AppColors.black,
                         fontSize: 15,
-                        fontWeight:
-                            highlight ? FontWeight.w700 : FontWeight.w600,
+                        fontWeight: highlight
+                            ? FontWeight.w700
+                            : FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),

@@ -622,8 +622,43 @@ entre la primera empresa. El detalle completo está más abajo, en PASO 1.
 
 Todo junto, un solo release. ⚠️ **Antes: confirmar si el 25 ya se subió.**
 
+**✅ Hechos en el build del 25/8 (grupo 1, revisado en el build local y aprobado):**
+- **Item 0 · formulario de grilla nuevo**: lista de horarios **por día** (chips con
+  hora + precio de su franja, ej. `🌙 08:30 · 12 cr`), "+ agregar", "copiar a…",
+  "Completar un rango…", botón deshabilitado hasta que todos los días tengan
+  horario, confirmación día por día con precios y aviso de sala, sin
+  "3 meses" (dice 9 semanas). Servicio: `crearHorariosFijosEnGrilla({horariosPorDia, duracionMin, payloadBase})`
+  devuelve lo que confirmó el servidor (item 21). Test: `test/grilla_editor_smoke_test.dart`.
+  Probado creando de verdad en Hot Clic: 3 grillas exactas, 27 clases, 0 dup, limpiado.
+- **Item 20 · 24 h en todos lados**: tarjeta del panel `HH:mm` y los tres
+  selectores de hora (grilla, clase suelta, edición) sin AM/PM.
+- **"Cancelar clase" cancela la clase** (opción B, base + Dart): etiqueta
+  **Cancelada** en las tres vistas del panel (lista, tabla semanal, grilla),
+  oculta del lado alumna, mensaje legible al reservar, no se puede cancelar
+  dos veces ni **editar** una cancelada; botón **"Reactivar clase"** (verde)
+  que la vuelve reservable. RLS medida: alumna 0 filas, otro estudio 0 filas.
+- **Sin botones "Generar 3 meses"** en Clases cargadas (el panel regenera al
+  abrir y el cron cada noche).
+- **"Descripción, sala y fotos"** siempre visible (era plegable, nadie lo
+  cargaba) en los tres formularios.
+- **Renglón ⓘ debajo de las pestañas** explicando el alcance: Horarios fijos =
+  la serie, Clases cargadas = una fecha.
+- **Tres errores de debug preexistentes**: `ConnectivityBanner` metía un `Stack`
+  arriba de `MaterialApp` (sin `Directionality`, pantalla roja en cualquier
+  build local); `_StatBox` (dashboard) y `_CountBox` (asistencia) devolvían
+  `Expanded` y los callers los envolvían otra vez.
+
+**Quedaron anotados de la revisión (no hechos):**
+- "Excepción de la serie": editar UNA clase y después editar la serie pisa
+  la edición individual. Marcar la clase como editada a mano y que la
+  propagación la respete.
+- "Pausar" un horario fijo (vacaciones) sin borrarlo: el generador ya saltea
+  `activo=false`; falta el botón + cancelar sus futuras.
+- Filtro para esconder las canceladas viejas en Clases cargadas.
+- `17:30h` con la h al final, si se prefiere.
+
 **Alto impacto — el motivo del build**
-0. 🔴 **Rediseño del formulario de grilla — PRIORITARIO.** Causa clases
+0. ✅ **Rediseño del formulario de grilla — HECHO el 25/8.** Causa clases
    fantasma y quejas (Tiwar 25/8; le va a pasar a Rock Studio). Relevado el
    25/8, diseño decidido, ver `DART_FORMULARIO_GRILLA.md`. En una línea:
    **la lista de horarios, POR DÍA, es la fuente de verdad y la vista previa a
@@ -794,12 +829,12 @@ tres son Dart puro, ninguno es un guard ni toca la base)
       Funciona, pero conviene decidir cuándo debe regenerarse la grilla en vez
       de hacerlo siempre.
 
-20. **La tarjeta del panel del estudio a 24 h.** `mis_clases_screen.dart:5017`
+20. ✅ **(hecho 25/8) La tarjeta del panel del estudio a 24 h.** `mis_clases_screen.dart:5017`
     usa `DateFormat('hh:mm a')` → *"01:30 PM"*. Es el **único** lugar de la app
     en 12 h y fue lo que confundió a Tiwar (leyó 13:30 como "1:30"). Cambiar a
     `HH:mm`. Rock Studio va a tener una grilla igual de densa: hacerlo en este
     build.
-21. **El snackbar de la grilla dice "N horarios creados" con `rows.length`**
+21. ✅ **(hecho 25/8) El snackbar de la grilla dice "N horarios creados" con `rows.length`**
     (`estudio_admin_service.dart:500`), contado en el cliente antes del insert.
     Con el guard del 25/8 un lote con duplicados se rechaza entero, así que ya
     no puede mentir por partes — pero el estudio ve el `23505` crudo por el
