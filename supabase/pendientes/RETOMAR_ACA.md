@@ -151,6 +151,17 @@ a todos los estudios.**
 | ✅ | **El estudio no veía el nombre de sus alumnas.** `_cargarAsistentes` pide `usuarios.nombre,email` y la única policy era `usuarios_select_self` ⇒ `null` ⇒ la UI mostraba 'Alumno'. **Provisorio**: policy acotada vía helper `es_alumna_de_mi_estudio()`. | Citra ve **`malekuipers <malekuipers@gmail.com>`** ✓ · no ve a Julieta (0 filas) · lista **2 de 78** · Sculpt no ve a la alumna de Citra (0) · alumna ve 1 (ella) · anon 1 · cancelando **todas** las reservas deja de verla | `FIX_ESTUDIO_VE_NOMBRES_ALUMNAS_2026-08-25.sql` |
 | ✅ | **La campanita de reserva no le llegaba al dueño.** Sólo insertaba para `rol='profe'` con `nombre == clases.instructor`; un `admin_estudio` nunca recibía nada, y salía con 0 si la clase no tenía instructor (**277 de 1797 clases futuras**). Ahora `union` de profe (igual que antes) + dueños del estudio, dedup, excluyendo a quien reservó. | 0 → **3 campanitas** (los 3 admins de Citra) con el texto correcto, en una clase **sin instructor** · la dueña reservando en su propia clase → **0** · reserva ajena (guard 20/8) → **0** · otro estudio → **0** | `FIX_CAMPANITA_RESERVA_AL_DUENO_2026-08-25.sql` |
 
+### Tres más de la revisión del formulario en Chrome/Safari (misma tarde)
+
+| | Qué | Medición | Archivo |
+|---|---|---|---|
+| ✅ | **La sala distingue horarios.** El guard de grillas y el generador iban por `(estudio, día, hora)` sin mirar `sala`: un estudio con dos salones no podía tener dos clases al mismo minuto. Clave con `lower(trim(coalesce(sala,'')))` en los dos. El mensaje del guard pide cargar la sala si es otra. | lun 08:00 en Sala 1 **y** Sala 2 → pasan · misma sala (con mayúsculas/espacios distintos) → rechazado · sin sala dos veces (caso Tiwar) → rechazado · generador publica **las dos** · Tiwar y Citra sin cambios | `FIX_SALA_EN_CLAVES_Y_SIN_PASADAS_2026-08-25.sql` |
+| ✅ | **El generador no publica el pasado.** La semana arranca el lunes: crear una grilla un martes publicaba las del lunes anterior (medido: 3 clases del 24/8). Se saltean, cuentan como omitidas. | clases en el pasado: **0** | idem |
+| ✅ | **"Cancelar clase" cancela la CLASE.** `estudio_cancelar_clase` devolvía créditos y cancelaba reservas pero no tocaba la fila: la clase seguía publicada y **reservable**, y el panel la mostraba igual. Opción B (decidida): columna `clases.cancelada`; el RPC la marca, vacía su lista de espera y es idempotente; `reservar_clase` y `confirm_pre_reserva` la rechazan; la waitlist no promueve; el generador no la recrea (ocupa su minuto); el candado permite borrarla después. **Dart en este build:** etiqueta CANCELADA en el panel, ocultas en Explorar/detalle de estudio, mensaje legible al reservar. | cancelar → `cancelada=true`, reservas `cancelada_por_estudio`, lista de espera 0, saldo devuelto · cancelar de nuevo → `ya_cancelada` · reservar → `clase_cancelada` · confirmar pre-reserva → `clase_cancelada` · promote → `skipped` · cron no la recrea · alumna no la des-cancela (0 filas) · estudio la borra después ✓ | `FIX_CLASE_CANCELADA_2026-08-25.sql` |
+
+**Hot Clic** (estudio de prueba, no real) quedó con **0 clases y 0 reservas**: se
+borraron 7 clases pasadas de junio y las 3 reservas canceladas de prueba.
+
 ### El mail sí se envió — es spam, y hay algo real que arreglar
 
 `delivered` a Citra (confirmado en Resend); el bounce era una casilla de prueba
