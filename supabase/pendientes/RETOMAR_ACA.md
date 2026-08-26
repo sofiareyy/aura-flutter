@@ -18,7 +18,7 @@
 | ✅ | **Incidente Tiwar 25/8** — "las clases se duplican / horarios raros" | **no era zona horaria**: reloj de 12 h en el panel + grilla cargada 2 veces como rango · guard aplicado · **limpieza de Tiwar espera confirmación del estudio** |
 | ✅ | **Tanda C** — build de Dart | **cerrada 26/8 = build 26** (1.0.6+26), archivado y subido. El build 25 sí se había archivado el 21/8 (dos `.xcarchive`, `1.0.6 (25)`). |
 | ⬜ | **Tanda D** — Modelo C de precios | arrancar por el DISEÑO de reglas, no por código |
-| ⬜ | **Tanda E** — experiencias, facturación/CASCADE, keys legacy | **lo próximo** · el ítem gordo es preservar facturación |
+| 🟡 | **Tanda E** — experiencias, keys legacy | **preservar facturación: la mitad urgente CERRADA el 26/8.** Queda el estudio dado de baja, que espera decisión con la contadora |
 | ⬜ | **8 menores de la auditoría fresca** | ninguno urgente · re-medidos el 26/8, los 8 siguen abiertos |
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia · mail de confirmación |
 
@@ -795,6 +795,48 @@ formato; el contenido está.
 > · **Marcar asistencia antes de tiempo.** Se puede marcar recién cuando la
 >   alumna ya no puede cancelar (12 h antes por defecto). Si no, se le trabaría
 >   la cancelación y perdería créditos que le corresponden.
+
+## ✅ Preservar facturación — la mitad urgente, CERRADA el 26/8
+
+**El agujero grave está tapado: una alumna que borra su cuenta ya no se lleva
+puesta la plata del estudio.** Dos arreglos, los dos en producción:
+
+1. **`delete-account` v10** (edge function, `a70c3cc`). En vez de borrar la fila
+   de `usuarios` y pelear contra 12 CASCADE, la **anonimiza** (lápida,
+   `rol = 'eliminado'`) y borra la cuenta de `auth.users`, que es el borrado
+   real. Se van nombre, email, foto, códigos de referido y lo de suscripción;
+   quedan válidas las reservas, los pagos y el ledger. También se limpian
+   `pagos.gift_email` y `gift_mensaje`, que son dato personal de OTRA persona.
+   Y se tapó el segundo agujero: cuando quien borra es dueña de un estudio, si
+   una clase tiene reservas liquidables ya **no se borra, se cancela**.
+2. **Las FK a `SET NULL`** (`aca4c76`, `FIX_CASCADE_FACTURACION_paso3_2026-08-26.sql`).
+   `reservas.usuario_id`, `pagos.user_id`, `creditos_movimientos.user_id` y
+   `admin_activity_logs.admin_user_id`. Es la red para el borrado por SQL
+   directo. Incluyó un prerrequisito que apareció midiendo: sin él,
+   `estudio_cancelar_clase` se caía con `p_user_id es null` y el estudio no
+   podía cancelar una clase con una reserva de cuenta borrada.
+
+**Viaje completo medido contra producción el 26/8:** cuenta real creada →
+reservó con la RPC real → completada → borró su cuenta por la edge function →
+**el estudio conserva sus 12 créditos por cobrar**, la reserva figura a nombre
+de "Anónimo", y la cuenta no puede iniciar sesión (`invalid_credentials`, y el
+JWT viejo da `user_not_found`).
+
+### 🟡 Lo que NO cierra — para hablar con la contadora, NO re-proponer como bug
+
+**`admin_delete_estudio` sigue destruyendo la facturación**, por una puerta
+distinta de la que cerramos: hace `delete from public.clases where estudio_id`,
+y **`reservas.clase_id` es otro `ON DELETE CASCADE`** (no el de `usuario_id`).
+Encima hace `delete from public.liquidaciones`.
+Medido el 26/8 con Citra en una transacción con rollback: **sus 36 créditos por
+cobrar pasan a 0 y sus 2 reservas desaparecen.**
+
+**Decisión de la usuaria, no técnica** (26/8): borrar un estudio es una acción
+rara y deliberada de superadmin. Lo que hay que definir con la contadora es si
+el histórico de facturación de un estudio dado de baja tiene que sobrevivir —
+por ejemplo si se le quedó debiendo plata, o por obligación fiscal.
+Las dos salidas, cuando esté decidido: `reservas.clase_id` a `SET NULL`, o que
+`admin_delete_estudio` archive en vez de borrar.
 
 ## ⬜ Tanda D — Modelo C de precios
 
