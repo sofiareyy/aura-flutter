@@ -639,10 +639,10 @@ class _CobrosScreenState extends State<CobrosScreen> {
 
     final Map<String, String> userNames = {};
     if (userIds.isNotEmpty) {
+      // 2026-08-25 (item 22): nombres vía RPC (solo id/nombre/email de alumnas
+      // con reserva en clases del estudio); leer `usuarios` directo lo niega RLS.
       final data = await client
-          .from('usuarios')
-          .select('id, nombre')
-          .inFilter('id', userIds);
+          .rpc('estudio_nombres_alumnas', params: {'p_ids': userIds});
       for (final row in (data as List)) {
         final id = row['id']?.toString();
         if (id != null) userNames[id] = row['nombre']?.toString() ?? '—';

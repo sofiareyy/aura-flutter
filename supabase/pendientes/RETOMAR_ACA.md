@@ -648,6 +648,30 @@ Todo junto, un solo release. ⚠️ **Antes: confirmar si el 25 ya se subió.**
   build local); `_StatBox` (dashboard) y `_CountBox` (asistencia) devolvían
   `Expanded` y los callers los envolvían otra vez.
 
+**✅ Grupo 2 del build (25/8, revisado y aprobado):**
+- **Item 14 · Asistencia**: se sacó el filtro "solo HOY" del Build 20; la
+  sección PRÓXIMAS vuelve a mostrar clases (6 de 11 estudios no tenían clase
+  hoy y veían la lista vacía).
+- **Item 17 · errores legibles**: los 4 puntos que mostraban el `PostgresException`
+  crudo al estudio ahora muestran "Hubo un problema… escribinos a aura.hola.app@gmail.com"
+  y el detalle va a `debugPrint`. Los borrados muestran el mensaje de la base
+  (que ya viene en castellano).
+- **Item 17b · `_deleteFixed`/`_eliminarGrillaCompleta` no se tragan errores**:
+  función compartida `_borrarClasesDeHorario`; si una clase no se puede borrar
+  (candado), el horario NO se toca y un diálogo dice cuál y por qué. Simulado
+  en base: con una clase protegida, grilla conservada y 0 huérfanas.
+- **Item 22 · RPC de nombres**: `estudio_nombres_alumnas(uuid[])` devuelve solo
+  (id, nombre, email, **avatar_url**) de alumnas con reserva en clases del
+  estudio; **la policy provisoria `usuarios_select_alumnas_de_mis_clases` se
+  dropeó**. La usan Asistencia (lista + escaneo) y Cobros. En Asistencia cada
+  asistente muestra foto + nombre + email. RLS medida: alumna 0, otro estudio 0,
+  anon 401. Archivos: `FIX_RPC_NOMBRES_ALUMNAS_2026-08-25.sql` (v1) y
+  `FIX_RPC_NOMBRES_ALUMNAS_v2_avatar_2026-08-25.sql` (suma avatar_url).
+- **"Mis Alumnos" (modo gestión) escondido del menú del estudio**: hoy no lo
+  usa nadie (0 estudios en gestión, 0 filas en estudio_alumnos) y confundía. La
+  ruta, la pantalla y el servicio quedan intactos; reactivar = descomentar el
+  `_NavItem` en `estudio_sidebar.dart`.
+
 **Quedaron anotados de la revisión (no hechos):**
 - "Excepción de la serie": editar UNA clase y después editar la serie pisa
   la edición individual. Marcar la clase como editada a mano y que la
@@ -706,7 +730,7 @@ Todo junto, un solo release. ⚠️ **Antes: confirmar si el 25 ya se subió.**
 **Hallazgos del 24/8 probando en el teléfono** (los encontró la usuaria; los
 tres son Dart puro, ninguno es un guard ni toca la base)
 
-14. **(b) El listado de clases abajo del QR en Asistencia — REGRESIÓN.**
+✅ (hecho 25/8) 14. **(b) El listado de clases abajo del QR en Asistencia — REGRESIÓN.**
     `asistencia_screen.dart`, `_cargar()`. El Build 20 (`9459ffb`) arregló un
     bug real —antes hacía `from('clases')` sin filtro y traía clases de TODO el
     marketplace— pero de paso metió un filtro de **solo HOY**:
@@ -740,7 +764,7 @@ tres son Dart puro, ninguno es un guard ni toca la base)
     mostrar *quiénes* esperan, eso necesita una RPC nueva —no reabrir la
     policy—, y es decisión de producto (ver las 3 de abajo).
 
-17. **Que el panel no le muestre al estudio el error crudo de Postgres.**
+✅ (hecho 25/8) 17. **Que el panel no le muestre al estudio el error crudo de Postgres.**
     Lo que hizo feo el incidente del 24/8: YN Pilates vio en pantalla
     `PostgresException, message: "no autorizado", code: P0001`. Un estudio no
     puede hacer nada con eso, y encima asusta.

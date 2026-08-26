@@ -21,6 +21,20 @@ import '../../services/admin_service.dart';
 const String _kPrefsClasesGridView = 'mis_clases_grid_view';
 const String _kPrefsClasesShowPast = 'mis_clases_show_past';
 
+/// Texto que ve el estudio cuando algo de base falla. El detalle técnico va
+/// a debugPrint: un estudio no puede hacer nada con un P0001 en pantalla, y
+/// encima asusta (YN Pilates, 24/8). Ojo: NO tapar el error, solo traducirlo.
+const String kMsgErrorCarga =
+    'Hubo un problema al cargar. Escribinos a aura.hola.app@gmail.com';
+
+/// Mensaje legible de un error: los de la base ya vienen en castellano
+/// (candados, guards), el resto se traduce a un texto genérico.
+String _mensajeDeError(Object e) {
+  if (e is PostgrestException) return e.message;
+  final t = e.toString();
+  return t.length > 160 || t.contains('Exception') ? 'Hubo un problema' : t;
+}
+
 String _toSupaDate(DateTime dt) {
   return '${dt.year.toString().padLeft(4, '0')}-'
       '${dt.month.toString().padLeft(2, '0')}-'
@@ -1217,9 +1231,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       await _service.generarProximasSemanasDesdeHorarios(weeks: kGrillaSemanas);
     } catch (e) {
       if (mounted) {
+        debugPrint('[generarProximasSemanas] $e');
         setState(() {
           _tablaOk = false;
-          _error = 'Error al generar clases: ${e.toString()}';
+          _error = kMsgErrorCarga;
         });
       }
     }
@@ -1284,11 +1299,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       // —por ejemplo, después de borrar clases— lo volvemos a pedir.
       if (_showPast) await _cargarHistorial(_mesHistorial);
     } catch (e) {
+      debugPrint('[_loadStudio] $e');
       if (!mounted) return;
       setState(() {
         _loading = false;
         _tablaOk = false;
-        _error = e.toString();
+        _error = kMsgErrorCarga;
       });
     }
   }
@@ -1301,9 +1317,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     if (!_puedeGestionarClases) return;
     final edit = item != null;
     final messenger = ScaffoldMessenger.of(context);
-    final categoriasDisponibles = await _loadCategoriasDisponibles(
-      item == null ? const [] : _parseCategorias(item),
-    );
+    List<String> categoriasDisponibles;
+    try {
+      categoriasDisponibles = await _loadCategoriasDisponibles(
+        item == null ? const [] : _parseCategorias(item),
+      );
+    } catch (e) {
+      debugPrint('[_openForm categorias] $e');
+      _snack(kMsgErrorCarga);
+      return;
+    }
     final n = TextEditingController(text: item?['nombre']?.toString() ?? '');
     final i = TextEditingController(text: item?['instructor']?.toString() ?? '');
     final iDesc = TextEditingController(
@@ -2052,7 +2075,14 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     // navegación que no haya quedado gateado.
     if (!_puedeEditar) return;
     final messenger = ScaffoldMessenger.of(context);
-    final categoriasDisponibles = await _loadCategoriasDisponibles();
+    List<String> categoriasDisponibles;
+    try {
+      categoriasDisponibles = await _loadCategoriasDisponibles();
+    } catch (e) {
+      debugPrint('[_openGridForm categorias] $e');
+      _snack(kMsgErrorCarga);
+      return;
+    }
     final n = TextEditingController();
     final i = TextEditingController();
     final iDesc = TextEditingController();
@@ -2764,6 +2794,70 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   /// Antes esto solo borraba la fila de `horarios_fijos`: las clases ya
   /// publicadas quedaban dando vueltas sin horario padre, imposibles de sacar
   /// salvo una por una. Ahora se limpian juntas, devolviendo créditos.
+  /// Cancela (con devolución) y borra cada clase. Devuelve las que NO se
+  /// pudieron borrar, con el motivo legible. Nunca se traga un error.
+  Future<List<String>> _borrarClasesDeHorario(
+    List<Map<String, dynamic>> clases,
+    void Function(int devueltos) onDevueltos,
+  ) async {
+    final fallidas = <String>[];
+    final f = DateFormat("EEE d/M HH:mm", 'es');
+    for (final c in clases) {
+      final cid = (c['id'] as num?)?.toInt();
+      if (cid == null) continue;
+      final nom = c['nombre']?.toString() ?? 'la clase';
+      final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
+      final etiqueta = dt == null ? nom : '$nom · ${f.format(dt)}';
+      try {
+        onDevueltos(await _reservasService.cancelarClaseConDevolucion(cid, nom));
+      } catch (e) {
+        debugPrint('[borrarClasesDeHorario cancelar $cid] $e');
+        fallidas.add('$etiqueta — ${_mensajeDeError(e)}');
+        continue;
+      }
+      try {
+        await _service.eliminarClaseRow(cid);
+      } catch (e) {
+        debugPrint('[borrarClasesDeHorario borrar $cid] $e');
+        fallidas.add('$etiqueta — ${_mensajeDeError(e)}');
+      }
+    }
+    return fallidas;
+  }
+
+  Future<void> _avisarClasesNoBorradas(List<String> fallidas) {
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('No se eliminó el horario'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${fallidas.length} clase${fallidas.length != 1 ? 's' : ''} no se '
+                'pud${fallidas.length != 1 ? 'ieron' : 'o'} borrar. El horario queda '
+                'como estaba; las demás clases sí se borraron.',
+                style: const TextStyle(fontSize: 13, height: 1.35),
+              ),
+              const SizedBox(height: 10),
+              for (final t in fallidas)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text('• $t',
+                      style: const TextStyle(fontSize: 12, height: 1.3)),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Entendido')),
+        ],
+      ),
+    );
+  }
+
   Future<void> _deleteFixed(int id) async {
     final messenger = ScaffoldMessenger.of(context);
 
@@ -2802,16 +2896,18 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
     int devueltos = 0;
     try {
-      for (final c in futuras) {
-        final cid = (c['id'] as num?)?.toInt();
-        if (cid == null) continue;
-        final nom = c['nombre']?.toString() ?? 'la clase';
-        try {
-          devueltos += await _reservasService.cancelarClaseConDevolucion(cid, nom);
-        } catch (_) {}
-        try {
-          await _service.eliminarClaseRow(cid);
-        } catch (_) {}
+      // 2026-08-25: antes cada paso iba en try{}catch(_){} y la grilla se
+      // borraba PASE LO QUE PASE. Si el candado (reserva presente/completada)
+      // u otro error frenaba una clase, quedaba HUÉRFANA (horario_fijo_id
+      // null por el SET NULL), publicada e invisible en "Horarios fijos": el
+      // estudio creía que la había borrado. Ahora: si alguna falla, se
+      // informa cuál y por qué, y el horario NO se toca.
+      final fallidas = await _borrarClasesDeHorario(futuras, (n) => devueltos += n);
+      if (fallidas.isNotEmpty) {
+        await _loadStudio();
+        if (!mounted) return;
+        await _avisarClasesNoBorradas(fallidas);
+        return;
       }
       await _service.eliminarHorarioFijo(id);
       await _loadStudio();
@@ -2828,7 +2924,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('No se pudo eliminar el horario: $e')),
+        SnackBar(content: Text('No se pudo eliminar el horario: ${_mensajeDeError(e)}')),
       );
     }
   }
@@ -4714,17 +4810,15 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
       // 2) Para cada una: devolver creditos + eliminar la fila.
       int totalDevueltos = 0;
-      for (final c in futuras) {
-        final cid = (c['id'] as num?)?.toInt();
-        final nom = c['nombre']?.toString() ?? 'la clase';
-        if (cid == null) continue;
-        try {
-          totalDevueltos +=
-              await _reservasService.cancelarClaseConDevolucion(cid, nom);
-        } catch (_) {}
-        try {
-          await _service.eliminarClaseRow(cid);
-        } catch (_) {}
+      // Mismo criterio que _deleteFixed: si una clase no se pudo borrar, el
+      // horario no se toca y se informa cuál.
+      final fallidas =
+          await _borrarClasesDeHorario(futuras, (n) => totalDevueltos += n);
+      if (fallidas.isNotEmpty) {
+        await _loadStudio();
+        if (!mounted) return;
+        await _avisarClasesNoBorradas(fallidas);
+        return;
       }
 
       // 3) Eliminar el horario fijo mismo.
@@ -4744,7 +4838,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo eliminar la grilla: $e')),
+        SnackBar(content: Text('No se pudo eliminar la grilla: ${_mensajeDeError(e)}')),
       );
     }
   }

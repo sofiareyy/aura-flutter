@@ -18,7 +18,12 @@ class EstudioSidebar extends StatelessWidget {
     _NavItem(Icons.calendar_today_rounded, 'Mis Clases', '/estudio/clases'),
     _NavItem(Icons.qr_code_scanner_rounded, 'Asistencia', '/estudio/asistencia'),
     _NavItem(Icons.payments_outlined, 'Cobros', '/estudio/cobros'),
-    _NavItem(Icons.group_outlined, 'Mis Alumnos', '/estudio/gestion'),
+    // 2026-08-25: "Mis Alumnos" (modo gestión, padrón de alumnos directos)
+    // se escondió del menú a pedido de la usuaria: hoy no lo usa nadie
+    // (0 estudios en modo gestión, 0 filas en estudio_alumnos) y confundía.
+    // La ruta /estudio/gestion, la pantalla y el servicio siguen intactos:
+    // para reactivarlo, volver a agregar este ítem.
+    // _NavItem(Icons.group_outlined, 'Mis Alumnos', '/estudio/gestion'),
     _NavItem(Icons.storefront_outlined, 'Perfil del estudio', '/estudio/perfil'),
   ];
 

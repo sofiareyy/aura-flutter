@@ -98,11 +98,11 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     // "Clases activas" = las de HOY del estudio activo. Si no hay ninguna hoy,
     // _claseSeleccionada queda null y la UI muestra "Sin clases activas": no
     // auto-seleccionamos una clase de otro día (ni de otro estudio).
-    final hoyDia = DateTime(now.year, now.month, now.day);
-    final mapped = List<Map<String, dynamic>>.from(clases).where((c) {
-      final f = DateTime.tryParse(c['fecha']?.toString() ?? '');
-      return f != null && DateTime(f.year, f.month, f.day) == hoyDia;
-    }).toList();
+    // 2026-08-25 (item 14): el Build 20 filtraba SOLO HOY y dejaba la sección
+    // PROXIMAS siempre vacía; 6 de 11 estudios no tenían clases hoy y veían
+    // la lista en blanco. getClasesDeEstudio(from: hoy) ya recorta a
+    // hoy-en-adelante, que es lo que esperan los buckets AHORA/HOY/PROXIMAS.
+    final mapped = List<Map<String, dynamic>>.from(clases);
     final selected = _autoSeleccionarClase(mapped, now);
     final attendees = await _cargarAsistentes(selected);
 
@@ -274,14 +274,28 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
           .eq('clase_id', clase['id'])
           .neq('estado', 'cancelada');
 
+      // 2026-08-25 (item 22): una sola RPC que devuelve SOLO nombre/email de
+      // alumnas con reserva en clases del estudio. Antes leía `usuarios`
+      // directo, fila por fila, y la RLS lo negaba: todas salían 'Alumno'.
+      // La policy provisoria de esa mañana se dropeó con esta RPC.
+      final rows = List<Map<String, dynamic>>.from(reservas as List);
+      final ids = rows
+          .map((r) => r['usuario_id']?.toString())
+          .whereType<String>()
+          .toSet()
+          .toList();
+      final nombres = <String, Map<String, dynamic>>{};
+      if (ids.isNotEmpty) {
+        final res = await Supabase.instance.client
+            .rpc('estudio_nombres_alumnas', params: {'p_ids': ids});
+        for (final u in (res as List)) {
+          final m = Map<String, dynamic>.from(u as Map);
+          nombres[m['id'].toString()] = m;
+        }
+      }
       final result = <Map<String, dynamic>>[];
-      for (final r in (reservas as List)) {
-        final usuario = await Supabase.instance.client
-            .from('usuarios')
-            .select('nombre,email')
-            .eq('id', r['usuario_id'])
-            .maybeSingle();
-        result.add({...Map<String, dynamic>.from(r), 'usuario': usuario});
+      for (final r in rows) {
+        result.add({...r, 'usuario': nombres[r['usuario_id']?.toString()]});
       }
       // Save to cache on success
       await _guardarCache(claseId, result);
@@ -556,11 +570,15 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
             'OK (id=${reserva['id']}, clase_id=${reserva['clase_id']}, estado=${reserva['estado']})',
       );
 
-      final usuario = await Supabase.instance.client
-          .from('usuarios')
-          .select('nombre')
-          .eq('id', reserva['usuario_id'])
-          .maybeSingle();
+      final usuarioRows = await Supabase.instance.client.rpc(
+        'estudio_nombres_alumnas',
+        params: {
+          'p_ids': [reserva['usuario_id'].toString()]
+        },
+      );
+      final usuario = (usuarioRows as List).isEmpty
+          ? null
+          : Map<String, dynamic>.from(usuarioRows.first as Map);
 
       final clase = await Supabase.instance.client
           .from('clases')
@@ -1695,12 +1713,17 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                                     a['usuario'] as Map<String, dynamic>?;
                                 final nombre =
                                     user?['nombre']?.toString() ?? 'Sin nombre';
+                                final email = user?['email']?.toString();
+                                final avatarUrl =
+                                    user?['avatar_url']?.toString();
                                 final estado =
                                     a['estado']?.toString() ?? 'confirmada';
                                 final esPresente = estado == 'presente';
                                 final esAusente = estado == 'ausente';
                                 return _AttendeeRow(
                                   nombre: nombre,
+                                  email: email,
+                                  avatarUrl: avatarUrl,
                                   subtitle: esPresente
                                       ? 'Ingreso ${_horaIngreso(a)}'
                                       : esAusente
@@ -2550,6 +2573,8 @@ class _CountBox extends StatelessWidget {
 
 class _AttendeeRow extends StatelessWidget {
   final String nombre;
+  final String? email;
+  final String? avatarUrl;
   final String subtitle;
   final String initials;
   final Color color;
@@ -2559,6 +2584,8 @@ class _AttendeeRow extends StatelessWidget {
 
   const _AttendeeRow({
     required this.nombre,
+    this.email,
+    this.avatarUrl,
     required this.subtitle,
     required this.initials,
     required this.color,
@@ -2579,14 +2606,21 @@ class _AttendeeRow extends StatelessWidget {
             CircleAvatar(
               radius: 18,
               backgroundColor: color,
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  color: Color(0xFF4473B9),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-              ),
+              // La foto de la alumna si la tiene; si no, sus iniciales.
+              backgroundImage:
+                  (avatarUrl != null && avatarUrl!.trim().isNotEmpty)
+                      ? NetworkImage(avatarUrl!)
+                      : null,
+              child: (avatarUrl != null && avatarUrl!.trim().isNotEmpty)
+                  ? null
+                  : Text(
+                      initials,
+                      style: const TextStyle(
+                        color: Color(0xFF4473B9),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -2601,6 +2635,16 @@ class _AttendeeRow extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if (email != null && email!.trim().isNotEmpty)
+                    Text(
+                      email!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF9A928B),
+                        fontSize: 12,
+                      ),
+                    ),
                   Text(
                     subtitle,
                     style: TextStyle(
