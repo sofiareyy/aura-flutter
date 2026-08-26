@@ -543,54 +543,49 @@ cambiar las 4 a `es_miembro_de_estudio(estudio_id)`. Ver
 
 ---
 
-## ⏳ Esperando confirmación del ESTUDIO — Tiwar Fitness
+## ✅ Tiwar Fitness — RESUELTO el 26/8, y el ÍNDICE ÚNICO ya está puesto
 
-**No tocar hasta que el dueño confirme qué horarios quiere de verdad.** Puede
-que quiera *menos* horarios, no sólo deduplicar: hoy tiene una clase por hora
-de 08:30 a 21:30, L-V, y probablemente no era la intención.
+**Fue un reset, no un dedupe.** Tenía 130 grillas para 70 slots (60 duplicados
+del doble envío del formulario de rango del 25/8), pero además los horarios
+cargados no eran los que dicta: una clase por hora de 08:30 a 21:30 L-V,
+incluida **16:30 que era "Open Box"** (no va a Aura) y toda la franja
+10:30–14:30 que no existe; y le faltaba el sábado.
 
-| Medido al 25/8 | |
+| | |
 |---|---|
-| grillas | 130 para 70 slots · **60 slots con 2 filas idénticas** |
-| clases | 1158 · **534 de más** cuelgan de las grillas sobrantes |
-| reservas | **0** (ninguna, en ningún estado) |
-| si sólo se deduplica | quedan **70 grillas y 624 clases**, exactamente L-V 08:30→21:30 |
+| borradas | **1158 clases · 130 grillas** (0 reservas, en ningún estado) |
+| cargadas | **37 grillas · 318 clases** (26/8 → 24/10) |
+| horarios L-V | 08:30, 09:30, 15:30, 17:30, 18:30, 19:30, 20:30 |
+| sábado | 11:30, 12:30 · domingo cerrado |
+| nombre / cupo | `Cross / Funct / Hyrox`, sin instructor, cupo 12 (Tiwar lo ajusta) |
+| verificado | 0 duplicadas · 0 en el pasado · 0 precios desviados · sin 16:30 ni domingo |
 
-**Cuando confirme, en la misma migración:** ⚠️ **`clases.horario_fijo_id` es
-`ON DELETE SET NULL`, no CASCADE** (medido el 25/8 al limpiar Yessi): borrar
-sólo la grilla deja sus clases huérfanas y publicadas. Entonces: borrar las
-clases de las grillas sobrantes **primero y explícitamente** → borrar las
-grillas sobrantes (la de menor `id` por slot se queda; el candado
-`trg_clases_bloquear_borrado` no interviene porque no hay reservas) → y
-recién ahí **`create unique index on horarios_fijos (estudio_id, dia_semana,
-hora_inicio)`**. Plantilla: `FIX_YESSI_GRILLA_DUPLICADA_2026-08-25.sql`.
-**Es el ÚNICO bloqueo que queda para el índice**: 0 grillas con `dia_semana`
-o `hora_inicio` NULL, y ningún otro estudio con duplicados.
+`FIX_TIWAR_RESET_E_INDICE_UNICO_2026-08-26.sql`
 
-**Yessi Funes: resuelto el 25/8** (la dueña confirmó que reordena sus clases
-igual). Miércoles 18:00 tenía dos grillas distintas; quedó la de menor `id`
-(165, Natalia) y se borró la 173 (Tomás) **con sus 10 clases**, 0 reservas.
-Verificado: 0 huérfanas, una clase por miércoles, el generador no la recrea.
-`FIX_YESSI_GRILLA_DUPLICADA_2026-08-25.sql`.
+⚠️ **Pendiente comercial, NO técnico — las franjas de Tiwar parecen invertidas.**
+Su config de valle son las horas **8, 9, 19 y 20**, o sea que **08:30, 09:30,
+19:30 y 20:30 salen a 11 cr** (las baratas) y el mediodía a 14. En un box esas
+cuatro suelen ser las horas **pico**. Comparación: YN tiene valle 11–15
+(mediodía, coherente); Sculpt lo tiene mezclado. **Si Tiwar decide invertirlo,
+es un solo `admin_set_pricing_estudio`: recalcula las clases futuras solo, NO
+hay que recargar la grilla.**
 
-## 🔴 A DIAGNOSTICAR — el reset de contraseña de los estudios
+### 🔒 Índice único — puesto el 26/8
 
-**Sin diagnosticar. Reportado el 25/8, no se miró nada todavía.**
+```sql
+create unique index horarios_fijos_slot_uidx
+  on public.horarios_fijos (estudio_id, dia_semana, hora_inicio, (lower(trim(coalesce(sala,'')))));
+```
 
-Un estudio intenta cambiar su contraseña, toca para cambiarla, y **le aparece
-la pantalla de iniciar sesión**. No se sabe si es el deep link
-(`aura://reset-password`, `login_screen.dart:126`), la allowlist de Redirect
-URLs del dashboard, el manejo del token de recuperación, o la sesión que se
-pierde al volver a la app.
+Con la sala en la clave, mismo criterio que el trigger del 25/8. **Ya no queda
+ningún duplicado en toda la base.** Medido después de crearlo: repetir un
+horario → 23505 (Tiwar y Rock Studio); re-mandar el lote entero del caso 25/8 →
+rechazado entero, siguen 37; **como `postgres` tampoco se puede** (el índice no
+depende del trigger); y lo legítimo pasa: horario nuevo ✓, mismo slot en otra
+**sede** ✓, mismo slot en otra **sala** ✓.
 
-**Por dónde empezar:** `login_screen.dart:126` (`resetPasswordForEmail` con
-`redirectTo`), `cambiar_contrasena_screen.dart`, el handler de deep links en
-`main.dart`, y la lista de Redirect URLs en el dashboard de Supabase. Ojo con
-lo ya aprendido: la URL de la web **termina en `/` a propósito** y tiene que
-estar en la allowlist — ver `AppConstants.auraWebUrl`.
-
-**Importa para Rock Studio:** si un estudio no puede recuperar su contraseña,
-queda afuera de su propio panel.
+**Yessi** ya se había resuelto el 25/8 (miércoles 18:00 tenía dos grillas
+distintas; quedó la de menor id con sus clases).
 
 ## 🟡 Menores de la auditoría fresca — por prioridad, ninguno urgente
 
@@ -866,9 +861,17 @@ tres son Dart puro, ninguno es un guard ni toca la base)
     base (*"Ya tenés un horario fijo el lunes a las 08:00…"*): mostrarlo tal
     cual.
 
-**3 decisiones de producto antes de tocar código:** cuál "gratis" gana · si el
-cartel de espera muestra la posición exacta · si debe existir el mail de
-confirmación de reserva.
+**Decisiones de producto — 2 de 3 CERRADAS el 25/8, no volver a preguntarlas:**
+- ✅ **Cuál "gratis" gana: no hay conflicto.** Se usa el texto "gratis" para
+  precio 0, sin definir precedencia, porque `_esGratuita` es de **modo
+  gestión** y hoy no aplica a nadie (0 estudios en gestión, 0 filas en
+  `estudio_alumnos`, 0 clases con `creditos = 0`). Los dos "gratis" no pueden
+  coexistir en ninguna pantalla. Al implementarlo, dejar claro en el código
+  que son cosas distintas: `_esGratuita` = "vos ya le pagás al estudio" (por
+  usuaria) vs precio 0 = "esta clase es gratis para todos" (por clase).
+- ✅ **El cartel de lista de espera SÍ muestra la posición exacta** (item 3).
+- ⬜ Si debe existir el mail de confirmación de reserva → sigue abierta, en
+  NEGOCIO.
 
 ## 📘 Para el instructivo de los estudios
 
