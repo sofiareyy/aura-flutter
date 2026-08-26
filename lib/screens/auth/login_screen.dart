@@ -120,32 +120,22 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await Supabase.instance.client.auth.resetPasswordForEmail(
         email,
-        // En mobile el mail abre la APP vía deep link y main.dart escucha el
-        // evento passwordRecovery. En web usa el Site URL por defecto.
-        //
-        // ⚠️ NO cambiar `aura://reset-password` por una URL https:// "para que
-        // abra en cualquier lado" (2026-08-26: se propuso y se descartó al
-        // medirlo). El SDK usa PKCE por defecto (gotrue 2.19: flowType =
-        // AuthFlowType.pkce) y `resetPasswordForEmail` guarda el code verifier
-        // en el almacenamiento del cliente QUE PIDIÓ el reset. El canje del
-        // `?code=` solo funciona en ESE cliente.
-        // Con https:// el link abriría el NAVEGADOR y no la app —iOS no tiene
-        // associated-domains y el App Link de Android solo cubre
-        // /payment-result—, así que el verifier quedaría en la app y el canje
-        // fallaría: rompería el único caso que hoy SÍ anda (pedirlo en la app
-        // y abrir el mail en el mismo teléfono).
-        // El arreglo device-independent es TokenHash + verifyOTP, que no
-        // necesita verifier. Anotado en RETOMAR, no es este build.
+        // El link del mail NO depende de esto: la plantilla de Supabase apunta
+        // fija a https://somosaurapass.com/#/reset-password?token_hash=…
+        // (2026-08-26). Esa pantalla canjea el token con
+        // `verifyOTP(type: recovery)`, que NO usa el code verifier de PKCE, así
+        // que el reset funciona desde cualquier dispositivo o navegador —
+        // medido: un token pedido en un navegador se canjeó desde otro.
+        // `redirectTo` queda porque el SDK lo manda igual, pero la plantilla
+        // lo ignora.
         redirectTo: kIsWeb ? null : 'aura://reset-password',
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Te enviamos un mail a $email. Abrí el link desde ESTE mismo '
-              '${kIsWeb ? 'navegador' : 'teléfono'}: si lo abrís en otro lado, '
-              'el enlace no va a funcionar. Revisá spam.'),
-          duration: const Duration(seconds: 8),
+              'Te enviamos un mail a $email para recuperar tu contraseña. '
+              'Revisá tu casilla o spam.'),
           backgroundColor: AppColors.success,
         ),
       );

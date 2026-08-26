@@ -7,10 +7,20 @@ import '../../services/auth_service.dart';
 
 /// Pantalla a la que se llega desde el mail de "olvidé mi contraseña".
 ///
-/// El deep link `aura://reset-password` lo procesa el SDK de Supabase, que
-/// establece una sesión de recuperación y dispara `AuthChangeEvent.passwordRecovery`
-/// (lo escucha main.dart y navega acá). Con esa sesión activa, `updateUser` puede
-/// setear la contraseña nueva sin pedir la anterior.
+/// **Dos caminos de entrada, los dos terminan en una sesión de recuperación:**
+///
+/// 1. **`token_hash` en la URL (el camino nuevo, 2026-08-26).** El mail apunta a
+///    `https://somosaurapass.com/#/reset-password?token_hash=…&type=recovery`
+///    y esta pantalla lo canjea con `verifyOTP(type: OtpType.recovery)`. Ese
+///    canje **NO usa el code verifier de PKCE**, así que funciona desde
+///    CUALQUIER dispositivo o navegador, sin importar dónde se pidió el reset.
+///    Es lo que arregla el bloqueo que reportaron los estudios.
+/// 2. **Sesión ya establecida** (deep link `aura://reset-password` en la app,
+///    que el SDK procesa por PKCE y dispara `passwordRecovery`). Se conserva
+///    para que las apps ya instaladas sigan andando.
+///
+/// Con la sesión activa, `updateUser` setea la contraseña sin pedir la anterior
+/// (`security_update_password_require_reauthentication = false`).
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
 
@@ -24,6 +34,62 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _confirmCtrl = TextEditingController();
   bool _saving = false;
 
+  /// Mientras se canjea el `token_hash` del link.
+  bool _verificando = true;
+
+  /// Si el canje falló (link vencido, ya usado o inválido).
+  String? _errorLink;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _canjearTokenSiHay());
+  }
+
+  /// Canjea el `token_hash` del link por una sesión de recuperación.
+  ///
+  /// Lee el parámetro de dos lugares porque el link puede llegar de las dos
+  /// formas: dentro del hash routing de Flutter web
+  /// (`/#/reset-password?token_hash=…`, que es lo que manda el mail) o como
+  /// query normal antes del `#`, si algún cliente de mail reescribe la URL.
+  Future<void> _canjearTokenSiHay() async {
+    final auth = Supabase.instance.client.auth;
+
+    String? tokenHash = GoRouterState.of(context).uri.queryParameters['token_hash'];
+    tokenHash ??= Uri.base.queryParameters['token_hash'];
+
+    if (tokenHash == null || tokenHash.isEmpty) {
+      // Camino 2: sin token en la URL, esperamos la sesión del deep link.
+      if (mounted) {
+        setState(() {
+          _verificando = false;
+          _errorLink = auth.currentUser == null
+              ? 'Abrí el link desde el mail para poder cambiar tu contraseña.'
+              : null;
+        });
+      }
+      return;
+    }
+
+    try {
+      await auth.verifyOTP(tokenHash: tokenHash, type: OtpType.recovery);
+      if (!mounted) return;
+      setState(() {
+        _verificando = false;
+        _errorLink = null;
+      });
+    } catch (e) {
+      debugPrint('[resetPassword verifyOTP] $e');
+      if (!mounted) return;
+      setState(() {
+        _verificando = false;
+        _errorLink =
+            'Este link ya no sirve: vence a las 24 horas y se usa una sola vez. '
+            'Pedí uno nuevo desde "Olvidé mi contraseña".';
+      });
+    }
+  }
+
   @override
   void dispose() {
     _passwordCtrl.dispose();
@@ -34,17 +100,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Sin sesión de recuperación activa no se puede actualizar: el link pudo
-    // haber vencido o ya haberse usado.
+    // Sin sesión de recuperación no se puede actualizar: el link venció, ya
+    // se usó, o nunca se canjeó.
     if (Supabase.instance.client.auth.currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'El enlace no es válido acá. Puede que haya vencido, que ya se '
-              'haya usado, o que lo hayas abierto en otro dispositivo del que '
-              'lo pediste. Pedí uno nuevo desde "Olvidé mi contraseña" y abrilo '
-              'en el mismo lugar.'),
-          duration: Duration(seconds: 8),
+              'Este link ya no sirve: vence a las 24 horas y se usa una sola '
+              'vez. Pedí uno nuevo desde "Olvidé mi contraseña".'),
+          duration: Duration(seconds: 6),
           backgroundColor: AppColors.error,
         ),
       );
@@ -97,6 +161,42 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_verificando) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+    if (_errorLink != null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Nueva contraseña')),
+        body: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.link_off_rounded, size: 48, color: AppColors.grey),
+              const SizedBox(height: 16),
+              Text(
+                _errorLink!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.grey, height: 1.5),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => context.go('/login'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Volver al inicio'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Nueva contraseña')),
