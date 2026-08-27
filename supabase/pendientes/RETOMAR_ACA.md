@@ -83,6 +83,58 @@ Ojo: una `completada` **sin** `checked_in_at` es alguien que nunca fue
 escaneada y la cerró el cron — ésa no es una asistencia confirmada. Vale
 distinguirlas por `checked_in_at`.
 
+### 📋 CUANDO APRUEBEN EL BUILD 26 — en este orden
+
+**1. Arreglar el push (APNs / Firebase).** Es **el cuello de TODAS las
+notificaciones**, no de una feature suelta. Hoy: los únicos tokens de la base
+son 3 de `aura.hola.app@gmail.com` y los tres fallan con
+`401 THIRD_PARTY_AUTH_ERROR` — **ninguna alumna tiene dispositivo registrado**.
+Mientras esto no se arregle, cualquier push del servidor no le llega a nadie.
+Típicamente es la clave de APNs mal cargada en Firebase o del entorno
+equivocado (ojo con `aps-environment`, acá abajo).
+
+**2. Avisarles a los estudios que actualicen la app.** Cartel / mail. Sin esto
+siguen en el build 25 y no tienen ninguna de las mejoras.
+
+**3. Cerrar la policy temporal de nombres — PERO NO todavía.**
+⚠️ **Recién cuando los estudios ADOPTEN el build 26, no cuando Apple lo
+apruebe.** Si se cierra con estudios todavía en el 25, vuelven a ver "Usuario"
+en vez del nombre de la alumna. La señal es *aprobado **y** adoptado*.
+El SQL y el detalle: `FIX_REPONER_POLICY_NOMBRES_TEMPORAL_2026-08-26.sql`.
+
+**4. Correr el DROP de la columna fantasma (item 7).**
+`supabase/FIX_COLUMNA_FANTASMA_2026-08-26.sql`. Es la mitad irreversible; la
+del Dart ya salió en el build 26.
+
+**5. Recién ahí, armar el BUILD 27** con todo el Dart acumulado. Lo que ya hay
+en la cola:
+- `completada` se muestra como "Pendiente" (ver más abajo)
+- congelar la comisión en la pantalla de liquidaciones
+- pantalla de reseñas en el panel del estudio
+- mostrar clase + fecha en cada reseña
+- lo que salga de servicios de precio fijo (Tanda D)
+
+### ⭐ Reseñas — decisiones tomadas el 27/8
+
+**Cómo se avisa:** **campanita + mail** (los dos funcionan hoy) **y push cuando
+APNs esté arreglado**. A todos lados. La campanita y el push salen de la misma
+fila en `notificaciones_usuario`, así que el push se suma solo cuando el punto
+1 esté hecho.
+
+**Una reseña por `(estudio, usuario, clase)`** — que Juanita pueda reseñar
+Barre y Yoga por separado sin pisarse. Hoy hay un
+`UNIQUE (estudio_id, usuario_id)` que hay que reemplazar.
+
+⚠️ **La trampa, medida el 27/8:** `clase_id` es NULLABLE, y Postgres trata los
+NULL como **distintos** en un índice único. Probado: un único por `(a,b,c)`
+deja entrar **3 filas repetidas** si `c` es NULL. Y **las 2 reseñas que existen
+hoy tienen `clase_id = NULL`**, así que un índice ingenuo dejaría reseñar
+infinitas veces sin clase.
+**Salida:** Postgres es **17.6**, así que soporta
+`UNIQUE NULLS NOT DISTINCT (estudio_id, usuario_id, clase_id)` — con eso las
+sin-clase colapsan a una sola por persona y las con-clase quedan una por clase.
+La otra opción es exigir `clase_id NOT NULL` de acá en adelante.
+
 ### 🔴 `aps-environment` — mirar ANTES de cualquier build de iOS
 
 `ios/Runner/Runner.entitlements` está en **`production`** desde el 26/8, para
