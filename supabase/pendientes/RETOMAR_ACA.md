@@ -951,15 +951,21 @@ por ejemplo si se le quedó debiendo plata, o por obligación fiscal.
 Las dos salidas, cuando esté decidido: `reservas.clase_id` a `SET NULL`, o que
 `admin_delete_estudio` archive en vez de borrar.
 
-## 🟢 Tanda D — servicios de precio fijo · **DISEÑO CERRADO, listo para construir**
+## 🟢 Tanda D — servicios de precio fijo · **BASE EN PRODUCCIÓN desde el 27/8; falta el Dart (build 27)**
 
 **9 decisiones cerradas, 0 abiertas.** Todo el diseño está en
 `supabase/pendientes/SERVICIOS_PRECIO_FIJO_relevamiento.md`: el caso real de la
 usuaria, las 9 decisiones, cómo lo ve el estudio al cargar, el reparto
 base/Dart, la trampa del orden y el plan de construcción paso a paso.
 
-**No re-relevar ni re-decidir nada.** La sesión de construcción arranca por la
-sección **6c (PLAN DE CONSTRUCCIÓN)** de ese archivo.
+**La BASE ya está aplicada y verificada** (`FEAT_SERVICIOS_PRECIO_FIJO_2026-08-27.sql`,
+huellas idénticas, las 8 puntas medidas — el detalle en la sección 6c del
+archivo). **Lo que falta es SOLO el Dart del build 27** (tabla azul de 6b:
+chips, renglón "precio único", pantalla del backoffice, `TipoPrecio.servicio`,
+Explorar sin badge para 'servicio').
+⚠️ **NO entregarle el alta de servicios a ningún estudio hasta ese build** — el
+espejo del panel todavía calcula por franja. Si hace falta antes, la grilla la
+carga Aura desde el backoffice.
 
 Tres cosas que conviene saber antes de abrirlo:
 - **Es aditivo**: un *early return* en `calcular_precio_clase`. La tabla arranca

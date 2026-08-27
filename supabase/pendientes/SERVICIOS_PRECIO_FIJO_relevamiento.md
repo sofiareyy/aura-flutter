@@ -258,7 +258,40 @@ backoffice**: el precio queda bien y el estudio nunca ve el número equivocado.
 categorías (decisión 9). No depende de nada más y mejora la app que los
 estudios ya tienen instalada.
 
-## 6c. PLAN DE CONSTRUCCIÓN — para la sesión dedicada
+## 6c. PLAN DE CONSTRUCCIÓN — ✅ PASOS 1 y 2 HECHOS el 27/8 (la BASE está en producción)
+
+**Aplicado:** `supabase/FEAT_SERVICIOS_PRECIO_FIJO_2026-08-27.sql` — los 8
+ítems del paso 1, en orden. **El paso 2 (verificación) pasó entero:**
+
+- **Huellas md5 idénticas** antes y después (clases futuras `3f7315d0…`, 977
+  filas; horarios `314261c6…`, 115): ningún precio existente se movió. Además
+  se corrió `admin_recalcular_precios_estudio` sobre los 11 estudios en una
+  transacción descartada: mismo resultado.
+- Con servicio "Spa" a 14 en Hot Clic: el horario nace a **14**, la clase nace
+  a **14 · `tipo_precio='servicio'`**, y el **generador** crea sus clases a
+  14/'servicio' (la etiqueta ya no pisa).
+- **Dos servicios → rechazo** con el mensaje exacto: *"Elegiste dos servicios
+  con precio fijo: Recovery (10 cr) y Spa (14 cr). Dejá uno solo, o pedile a
+  Aura una categoría combinada."*
+- Estudio **sin** servicio (Tiwar): la franja sigue mandando, trigger y regla
+  coinciden.
+- **Gratis:** servicio a 0 → la clase nace 0/'servicio' (running club listo
+  del lado base).
+- **Decisión 4:** un estudio sin créditos configurados no puede cargar
+  ("Falta configurar…"), pero **con** un servicio sí — a su precio.
+- **Filtro de categorías (decisión 9):** Tiwar no ve "Sauna PRUEBA", el admin
+  de Hot Clic sí, el superadmin ve todas. **Ya rige para la app instalada.**
+- **RPC `admin_set_servicio_precio`:** upsert + recalcula futuras SIN reserva
+  (12→14/'servicio') y **respeta** la que tiene reserva (queda 12/'normal').
+- Nada quedó suelto: 0 servicios cargados, 0 categorías de prueba, ledger
+  87=87.
+
+**⚠️ Sigue vigente la regla 3:** NO entregarle el alta de servicios a ningún
+estudio hasta el build 27 — el espejo del panel todavía calcula por franja y
+le mostraría un número equivocado mientras carga. Si hace falta uno antes, la
+grilla la carga Aura desde el backoffice (el precio queda bien).
+
+### El plan original (referencia)
 
 **El proyecto está 100% definido: no queda ninguna decisión abierta.** Esta
 sección es el orden de trabajo, no una lista de cosas a decidir.
