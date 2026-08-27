@@ -148,7 +148,38 @@ clavados en 1000.**
 | Tiwar (null) | 1000 | **1200** ← acompaña |
 | YN (null) | 1000 | **1200** ← acompaña |
 
-## La decisión de fondo (es de negocio, no técnica)
+## ✅ RESUELTO el 27/8 — opción (a), aplicada
+
+**Decisión de la usuaria: NULL = seguí el global; el valor propio es SÓLO para
+una excepción negociada.**
+
+Aplicado (`FIX_VALOR_CREDITO_SIGUE_AL_GLOBAL_2026-08-27.sql`):
+- Tiwar y YN se dejaron en NULL: estaban bien.
+- Los 9 que tenían **1000 en duro** se limpiaron a NULL. **Verificado antes de
+  tocar: los 11 eran 2 en NULL + 9 en exactamente 1000, y CERO con un valor
+  negociado distinto**, así que no se pisó ninguna excepción. El `= global` del
+  WHERE es el seguro por si alguno tuviera otro número.
+- La columna quedó **documentada en la base** con `comment on column`, para que
+  el próximo que lea un NULL sepa que es intencional y no un alta incompleta.
+
+Tres puntas medidas:
+- **Hoy liquidan igual:** los 11 dan 1000. Citra sigue en 54 créditos =
+  $54.000 bruto = **$37.800** al 30%, el mismo número que antes.
+- **Si el global sube a 1200: los 11 acompañan** (antes sólo lo hacían 2).
+- **El override sigue funcionando:** con un valor negociado de 1500, Citra
+  ignora el global y los demás lo siguen.
+
+### ⚠️ Lo que queda pendiente de esto
+
+El trigger `crear_datos_cobro_estudio` sigue insertando sólo `estudio_id`, o
+sea que **un estudio nuevo sigue naciendo con `valor_credito` NULL — y ahora
+eso es exactamente lo correcto**. No hay que "arreglarlo".
+Lo que SÍ conviene, si alguna vez se negocia un valor distinto: que el
+backoffice tenga dónde cargarlo. Hoy `admin_upsert_estudio` **no tiene
+parámetro para `valor_credito`**, así que una excepción negociada sólo se puede
+cargar por SQL.
+
+## La decisión de fondo (era de negocio, no técnica)
 
 **(a) NULL = "tarifa estándar", override sólo para excepciones.** Es el diseño
 actual y funciona. Entonces **no hay que tocar Tiwar ni YN**, y lo que conviene
@@ -162,5 +193,4 @@ o que el trigger lo complete con `valor_credito_global()`.
 fila de cobro nazca con un valor sensato en vez de NULL, o que quede
 documentado que NULL es intencional.
 
-**No se aplicó nada:** cambiar esto mueve plata futura y la decisión es de la
-usuaria.
+**Resuelto arriba.** Se aplicó la opción (a) el 27/8.
