@@ -54,6 +54,35 @@ Archivo: `supabase/FIX_REPONER_POLICY_NOMBRES_TEMPORAL_2026-08-26.sql`.
 **actualicen**. Si se cierra con estudios todavía en el build 25, vuelven a
 ver "Usuario".
 
+### 🟡 BUILD 27 — `completada` se muestra como "Pendiente" (confunde a los estudios)
+
+**Le pasó a la usuaria el 27/8 con su primer cliente real** y creyó que el
+escaneo había fallado. No había fallado: la reserva estaba `completada` con su
+check-in registrado.
+
+**El bug:** `asistencia_screen.dart` sólo conoce dos estados y todo lo demás
+cae en el `else`:
+
+```dart
+final esPresente = estado == 'presente';
+final esAusente  = estado == 'ausente';
+badgeLabel = esPresente ? 'Presente' : esAusente ? 'Ausente' : 'Pendiente';
+```
+
+Y `_pendientes` cuenta todo lo que no sea `presente` / `cancelada` / `ausente`.
+**`completada` no figura en ningún lado.** Como el cron `completar-reservas`
+pasa `presente → completada` 3 h después de la clase, el cartel dice "Presente"
+un rato y después **cambia solo a "Pendiente"**, sin que pase nada malo.
+
+⚠️ **Está también en el build 26**: la clasificación no cambió. Hay que
+arreglarlo en el 27.
+
+**Arreglo:** que `completada` cuente y se muestre como asistencia (etiqueta
+"Asistió" o "Presente", en verde), y que salga del contador de pendientes.
+Ojo: una `completada` **sin** `checked_in_at` es alguien que nunca fue
+escaneada y la cerró el cron — ésa no es una asistencia confirmada. Vale
+distinguirlas por `checked_in_at`.
+
 ### 🔴 `aps-environment` — mirar ANTES de cualquier build de iOS
 
 `ios/Runner/Runner.entitlements` está en **`production`** desde el 26/8, para
