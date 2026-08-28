@@ -797,11 +797,13 @@ abierta a propósito por el gate pre-login) · **7** (policy `using(true)` de
 horarios_fijos dropeada; el estudio ve las suyas y nadie más) · **8** (las 5
 funciones con search_path; quedan 0 sin él).
 
-**Quedan 3, todos esperando decisión:** **1** (la huérfana de YN Pilates —
-data de un estudio real, decide la usuaria) · **3** (`admin_link_estudio_access`
-fallback legacy: ¿borrarla o hacer que escriba `estudio_admins`?) · **5** (las
-RPC de bienvenida: ¿aplicar la migración o borrar las 3 llamadas? — borrarlas
-toca Dart ⇒ build 27).
+**28/8, más tarde — 7 de 8 cerrados:** la huérfana de YN se **borró** (4 FK
+pre-chequeadas, la gemela de grilla sigue) y `admin_link_estudio_access` ahora
+**escribe `estudio_admins` también** (decisión: no borrarla, hacerla
+consistente; mismo insert acumulativo que la función moderna).
+**Queda 1:** las RPC de bienvenida — ⏸️ **decisión de producto** (qué recibe un
+usuario nuevo), la usuaria la toma con calma. Si se decide borrar las llamadas
+es Dart ⇒ build 27.
 
 **Ninguno bloquea a Rock Studio ni a nada de hoy.**
 

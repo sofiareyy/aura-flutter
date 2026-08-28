@@ -17,11 +17,11 @@ base** (varias notas viejas ya no valían: se marcan abajo).
 ### Los 8 menores de la auditoría fresca (re-medidos el 26/8: los 8 siguen)
 | | Qué |
 |---|---|
-| 4 | Clase huérfana de YN Pilates (id **2439**, 31/08 11:00, 0 reservas) — decisión suya, es data real |
+| 4 | ✅ **HECHO 28/8** · huérfana 2439 borrada. Pre-chequeadas las 4 FK: 0 reservas, 0 lista de espera, 0 reseñas, 0 avisos. La gemela de grilla (2441) sigue: queda 1 clase en ese horario |
 | 5 | ✅ **HECHO 28/8** · policies DELETE en los 3 buckets (cada quien su carpeta) + superadmin en todos. Probado por la Storage API: borra lo suyo, 403 a lo ajeno |
-| 6 | `admin_link_estudio_access` (fallback legacy) escribe sólo el puntero, no `estudio_admins` |
+| 6 | ✅ **HECHO 28/8** · decisión: NO borrarla (el backoffice la tiene como fallback vivo), hacerla consistente. Ahora escribe también `estudio_admins` con el mismo insert acumulativo de `studio_promote_user_to_admin`. Idempotente, medida en 3 puntas |
 | 7 | ✅ **HECHO 28/8** · eran **4** columnas libres (+`mp_subscription_id`, `renewal_date`), cerradas en el guard. El webhook (service_role) sigue pasando |
-| 8 | **Las 3 RPC de bienvenida no existen** — `acreditar_bienvenida` se llama **en cada login** y falla siempre |
+| 8 | ⏸️ **DECISIÓN DE PRODUCTO, no menor técnico** (28/8): qué recibe un usuario nuevo la decide la usuaria con calma. Borrar las 3 llamadas toca Dart ⇒ **build 27**; aplicar la migración es la alternativa. Mientras tanto: una RPC fallida por login, tragada por el catch |
 | 9 | ✅ **HECHO 28/8** · renombrada a "config global: lectura publica (la lee el gate de version pre-login)" — sigue abierta a propósito |
 | 10 | ✅ **HECHO 28/8** · dropeada. Quedan las 4 por `es_miembro_de_estudio`: el estudio ve las suyas, otro estudio y las alumnas 0 (medido) |
 | 11 | ✅ **HECHO 28/8** · las 5 con `search_path=public`. Quedan **0** funciones sin search_path en todo public |
