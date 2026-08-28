@@ -113,6 +113,13 @@ en la cola:
 - pantalla de reseñas en el panel del estudio
 - mostrar clase + fecha en cada reseña
 - lo que salga de servicios de precio fijo (Tanda D)
+- **reseñas: sacar `usuario_id` (y el embed de email) del `select` de
+  `reviews_service.dart`** + en base restringir columnas a `anon` (29/8:
+  aplicarlo hoy rompe el modo visita — el invitado carga reseñas sin
+  try/catch)
+- **borrar las 3 llamadas de bienvenida** (`acreditar_bienvenida` en cada
+  login, `bienvenida_esta_activa`, `admin_apagar_bienvenida`) — decisión 29/8:
+  no se regalan créditos por ahora
 
 ### ⭐ Reseñas — decisiones tomadas el 27/8
 

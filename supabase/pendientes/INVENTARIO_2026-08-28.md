@@ -21,7 +21,7 @@ base** (varias notas viejas ya no valían: se marcan abajo).
 | 5 | ✅ **HECHO 28/8** · policies DELETE en los 3 buckets (cada quien su carpeta) + superadmin en todos. Probado por la Storage API: borra lo suyo, 403 a lo ajeno |
 | 6 | ✅ **HECHO 28/8** · decisión: NO borrarla (el backoffice la tiene como fallback vivo), hacerla consistente. Ahora escribe también `estudio_admins` con el mismo insert acumulativo de `studio_promote_user_to_admin`. Idempotente, medida en 3 puntas |
 | 7 | ✅ **HECHO 28/8** · eran **4** columnas libres (+`mp_subscription_id`, `renewal_date`), cerradas en el guard. El webhook (service_role) sigue pasando |
-| 8 | ⏸️ **DECISIÓN DE PRODUCTO, no menor técnico** (28/8): qué recibe un usuario nuevo la decide la usuaria con calma. Borrar las 3 llamadas toca Dart ⇒ **build 27**; aplicar la migración es la alternativa. Mientras tanto: una RPC fallida por login, tragada por el catch |
+| 8 | ✅ **DECIDIDO 29/8: descartado por ahora** — no se regalan créditos a usuarios nuevos. ⇒ borrar las 3 llamadas del Dart va al **build 27** (saca la RPC fallida de cada login) |
 | 9 | ✅ **HECHO 28/8** · renombrada a "config global: lectura publica (la lee el gate de version pre-login)" — sigue abierta a propósito |
 | 10 | ✅ **HECHO 28/8** · dropeada. Quedan las 4 por `es_miembro_de_estudio`: el estudio ve las suyas, otro estudio y las alumnas 0 (medido) |
 | 11 | ✅ **HECHO 28/8** · las 5 con `search_path=public`. Quedan **0** funciones sin search_path en todo public |
@@ -38,12 +38,12 @@ base** (varias notas viejas ya no valían: se marcan abajo).
 | | Qué |
 |---|---|
 | 16 | **`crear-pago-pack` y `email-confirmacion` están en el repo y NO desplegadas** (verificado hoy) |
-| 17 | `estudio_vistas` con `CHECK true`: se pueden insertar vistas sin límite |
-| 18 | `study_reviews` con `using (true)` expone `usuario_id` a `anon` (bajo impacto) |
-| 19 | Firma del webhook de Mercado Pago: se calcula y se descarta |
-| 20 | Log de cambios de estado en `reservas` — **el 26/8 mordió**: 3 reservas desaparecieron y no se pudo saber quién |
+| 17 | ✅ **HECHO 29/8** · la vista es tuya (`usuario_id = auth.uid()`) y máx. 1 por estudio por hora, vía helper SECURITY DEFINER (`vista_reciente`; un `not exists` directo en el check corría bajo RLS y veía 0 filas — medido). Spoofear rechazado; otro estudio en la misma hora entra |
+| 18 | 🔴 **NO es base-only → build 27.** La mecánica correcta es revoke de tabla + grant por columnas (el revoke por columna sola es no-op si hay grant de tabla — medido). PERO `reviews_service.dart` pide `usuario_id` explícito y el invitado carga reseñas sin try/catch ⇒ aplicarlo hoy rompe el detalle de estudio en modo visita. Va junto al cambio de `select` del Dart |
+| 19 | ⏸️ **Decisión 29/8: NO tocar por ahora.** Mitigado (verifica contra la API de MP después). Es segunda capa opcional; reforzar cuando haya volumen. No tocar el camino de pagos con plata real sin necesidad |
+| 20 | ✅ **HECHO 29/8** · `reservas_estado_log` + trigger: registra CREADA, cada ESTADO y BORRADA (el caso del 26/8 fue un DELETE), con quién (`auth.uid()`) y como qué rol. **Sin FKs a propósito**: la historia sobrevive a la reserva/clase/usuaria. RLS sin policies: cero acceso desde el cliente (verificado). Viaje completo medido |
 | 21 | Salir de las keys legacy (paso 1: publicar con la nueva). Medido: la publishable **funciona** |
-| 22 | `admin_upsert_estudio` **no tiene parámetro `valor_credito`** ⇒ una excepción negociada sólo se carga por SQL |
+| 22 | ✅ **HECHO 29/8** · `p_valor_credito` con default -1 (=no tocar; null=seguir global; >0=negociado). La firma vieja se DROPeó antes de recrear (dos firmas = PGRST203 y el backoffice roto). Medido: llamada vieja no pisa, 1500 fija, null limpia, 0 rechazado |
 | 23 | ⏸️ **Modo gestión**: las 4 policies de `estudio_alumnos` con el mismo error de categoría que tenía `horarios_fijos`. Dormido (0 estudios en gestión) |
 
 ---
