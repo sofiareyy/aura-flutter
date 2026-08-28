@@ -1,4 +1,37 @@
-# Tres relevamientos del 2026-08-27 — **nada construido**
+# Tres relevamientos del 2026-08-27 — estado al 28/8
+
+## ✅ CONSTRUIDO el 28/8 (lote de base):
+- **A · Comisión congelada**: columnas `comision_aplicada` /
+  `valor_credito_aplicado` / `comision_workshop_aplicada` en `liquidaciones`,
+  selladas por trigger al marcar PAGADO y nunca re-estampadas. La gracia se
+  evalúa con la fecha del pago (Citra pagada el 5/9 sella 0%; el 5/10, 30%).
+  La fila ya pagada se rellenó derivando de sus propios montos (8400/12000 ⇒
+  30%). Falta SOLO el Dart del build 27: que la pantalla muestre el congelado.
+  `FEAT_COMISION_CONGELADA_2026-08-28.sql`.
+- **B3 · Aviso de reseña al estudio**: trigger AFTER INSERT en `study_reviews`
+  ⇒ campanita a los admins (sin profes, sin la autora) + mail vía la edge
+  function nueva `resena-email`. Editar la propia reseña NO re-spamea (medido).
+- **B4 · Pedido de reseña post-clase**: cron `pedir-resenas-15min` (*/15) ⇒
+  `pedir_resenas_post_clase()`: SOLO quien tiene `checked_in_at`, clase
+  terminada hace 15-45 min, dedup por `reservas.resena_pedida_at`, saltea
+  lápidas y a quien ya reseñó ese estudio. Campanita tipo
+  `recordatorio_resena` (ya ruteado en la app instalada) + mail con botón a
+  la pantalla del estudio. Medido: pide a quien asistió; sin check-in o con
+  reseña previa, nada; segunda corrida no duplica.
+  El push se suma solo cuando APNs esté: la misma fila dispara el trigger de push.
+
+## 🔴 B-UNIQUE · NO se aplicó — bloqueante medido, va al build 27
+El plan era `UNIQUE NULLS NOT DISTINCT (estudio_id, usuario_id, clase_id)`.
+**Probado el 28/8: rompe la app instalada.** El upsert del build 25/26 manda
+`on conflict (estudio_id, usuario_id)`, y sin ese índice exacto Postgres
+devuelve **42P10** ⇒ nadie podría crear NI editar reseñas hasta actualizar.
+**Va al build 27 como cambio conjunto**: el índice nuevo en base + el Dart
+cambiando a `onConflict: 'estudio_id,usuario_id,clase_id'` (y pasando el
+`claseId`, que el service ya acepta). Aplicar la base recién con adopción.
+
+---
+
+# El relevamiento original (27/8)
 
 ---
 
