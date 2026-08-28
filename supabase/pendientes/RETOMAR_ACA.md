@@ -1048,6 +1048,30 @@ No son tareas técnicas. Están acá para que no se pierdan.
 | ⬜ | **¿Los usuarios deberían recibir mail de confirmación de reserva?** | `email-confirmacion` existe en el repo y **nunca se deployó**. Decisión de producto. |
 | ⬜ | **Categorías faltantes** | Avisarle a Yessi (112 clases) y Ambra (77) que las completen. O que el form las exija (Dart). |
 
+## ⬜ WEB / INICIO — mejoras, no urgentes (anotadas el 28/8)
+
+| | Qué | Nota |
+|---|---|---|
+| 1 | **Verificar si se arregló el contador de clases** | No recordamos si quedó resuelto. **Medir antes de tocar** |
+| 2 | **Las tarjetas de clase se ven estiradas en desktop** | Optimizar responsive en pantalla grande |
+| 3 | **Categorías ordenadas alfabéticamente** en el inicio | |
+| 4 | **El inicio está medio vacío** | Hoy sólo "cerca de ti", estudios y clases de hoy. Enriquecerlo. Cuando haya **running clubs**, mostrarlos ahí. Experiencias queda vacío hasta que haya |
+| 5 | **Explorar no está optimizado para buscar experiencias** | Está pensado para clases. Se cruza con la feature en diseño "Experiencias: categorías y buscador propios" |
+
+Todo Dart ⇒ build 27 o posterior.
+
+## ⬜ Sección BEAUTY — a validar, NO construir (28/8)
+
+Dos lugares (**uñas** y **cosmetología**) quieren entrar por promoción.
+**Decisiones abiertas antes de sumar nada:**
+- Validar que haya demanda real.
+- Definir la comisión (¿la de clase, o una propia como la de workshop?).
+- Cómo se implementa: ¿categoría común, o **servicio de precio fijo**? Ojo que
+  la Tanda D ya resuelve "precio único sin franja", que es probablemente lo que
+  necesita un servicio de belleza.
+
+**No sumar todavía.**
+
 ## ⬜ Mantenimiento
 
 Sanear los docs de esta carpeta · escribir el doc de eventos gratis (no existe;
