@@ -18,13 +18,13 @@ base** (varias notas viejas ya no valían: se marcan abajo).
 | | Qué |
 |---|---|
 | 4 | Clase huérfana de YN Pilates (id **2439**, 31/08 11:00, 0 reservas) — decisión suya, es data real |
-| 5 | **`storage.objects` sin policy DELETE** en ningún bucket: nadie puede borrar lo que sube, ni Aura |
+| 5 | ✅ **HECHO 28/8** · policies DELETE en los 3 buckets (cada quien su carpeta) + superadmin en todos. Probado por la Storage API: borra lo suyo, 403 a lo ajeno |
 | 6 | `admin_link_estudio_access` (fallback legacy) escribe sólo el puntero, no `estudio_admins` |
-| 7 | `plan` y `subscription_status` **auto-escribibles** por la usuaria (efecto: badge falso) |
+| 7 | ✅ **HECHO 28/8** · eran **4** columnas libres (+`mp_subscription_id`, `renewal_date`), cerradas en el guard. El webhook (service_role) sigue pasando |
 | 8 | **Las 3 RPC de bienvenida no existen** — `acreditar_bienvenida` se llama **en cada login** y falla siempre |
-| 9 | `"Admins leen config"` es `using (true)`: el nombre miente. **Renombrar, no cerrar** (el gate de versión la lee antes del login) |
-| 10 | `horarios_fijos` conserva `"todos pueden ver horarios"` con `using (true)` |
-| 11 | 5 funciones sin `search_path` (las 5 trigger *invoker*, 0 SECURITY DEFINER) |
+| 9 | ✅ **HECHO 28/8** · renombrada a "config global: lectura publica (la lee el gate de version pre-login)" — sigue abierta a propósito |
+| 10 | ✅ **HECHO 28/8** · dropeada. Quedan las 4 por `es_miembro_de_estudio`: el estudio ve las suyas, otro estudio y las alumnas 0 (medido) |
+| 11 | ✅ **HECHO 28/8** · las 5 con `search_path=public`. Quedan **0** funciones sin search_path en todo public |
 
 ### Features con diseño cerrado, falta construir
 | | Qué |

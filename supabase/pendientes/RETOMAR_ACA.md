@@ -788,7 +788,20 @@ verificado con un token falso → muestra la pantalla de link inválido.
   Authentication → Users → Reset password (requiere la `service_role` key, que
   no está en el vault). **De acá en adelante puede resetear sola.**
 
-## 🟡 Menores de la auditoría fresca — por prioridad, ninguno urgente
+## 🟡 Menores de la auditoría fresca — **5 de 8 CERRADOS el 28/8**
+
+**Cerrados** (`FIX_MENORES_AUDITORIA_2026-08-28.sql`, dos puntas medidas):
+**2** (DELETE en storage, probado por la Storage API) · **4** (plan/suscripción
+— eran 4 columnas libres, no 2) · **6** (policy de config renombrada, sigue
+abierta a propósito por el gate pre-login) · **7** (policy `using(true)` de
+horarios_fijos dropeada; el estudio ve las suyas y nadie más) · **8** (las 5
+funciones con search_path; quedan 0 sin él).
+
+**Quedan 3, todos esperando decisión:** **1** (la huérfana de YN Pilates —
+data de un estudio real, decide la usuaria) · **3** (`admin_link_estudio_access`
+fallback legacy: ¿borrarla o hacer que escriba `estudio_admins`?) · **5** (las
+RPC de bienvenida: ¿aplicar la migración o borrar las 3 llamadas? — borrarlas
+toca Dart ⇒ build 27).
 
 **Ninguno bloquea a Rock Studio ni a nada de hoy.**
 
