@@ -55,7 +55,7 @@ base** (varias notas viejas ya no valían: se marcan abajo).
 | 1 | **`completada` se muestra como "Pendiente"** | El bug que la confundió el 27/8. Ojo: distinguir por `checked_in_at` |
 | 2 | **Servicios de precio fijo — las 8 piezas de UI** | Chips con precio, chips de horario sin franja, renglón "precio único", pantalla del backoffice, `TipoPrecio.servicio`, cargar servicios en `_loadStudio`, mensaje de rechazo, Explorar sin badge |
 | 3 | **Comisión congelada en pantalla** | Mostrar el guardado si `estado='pagado'` |
-| 4 | **Pantalla de reseñas en el panel del estudio** | No existe ninguna. Los datos ya están y ya son legibles |
+| 4 | **Pantalla de reseñas en el panel del estudio** | No existe ninguna. Los datos ya están y ya son legibles. **Diseño de la tarjeta ya decidido (28/8)**: nombre izq + estrellas der arriba · clase y fecha en itálica · texto abajo. Ver `COMISION_CONGELADA_y_RESENAS.md` |
 | 5 | **Clase + fecha en cada reseña** | *"Juanita · Barre · 27 ago 2026"* |
 | 6 | **Pasar `claseId` al dejar reseña** | El service ya lo acepta; quien lo llama no se lo pasa |
 | 7 | **Notificación de reseña**: offset +2h → +15min, tap a dejar reseña, y que ande en web | Hoy es local y va a `/estudio/:id` |

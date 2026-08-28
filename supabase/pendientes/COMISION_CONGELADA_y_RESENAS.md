@@ -20,6 +20,31 @@
   reseña previa, nada; segunda corrida no duplica.
   El push se suma solo cuando APNs esté: la misma fila dispara el trigger de push.
 
+## 🎨 BUILD 27 · Cómo se ve una reseña en el panel del estudio (diseño de Sofía, 28/8)
+
+Orden exacto pedido, de arriba abajo:
+
+```
+┌──────────────────────────────────────────────┐
+│  Juanita                        ⭐⭐⭐⭐⭐   │   ← nombre izq · estrellas der (arriba)
+│  Barre · 27 ago 2026                          │   ← EN ITÁLICA: clase que tomó + fecha
+│                                               │
+│  La clase muy dinámica, la profe súper        │   ← el texto de la reseña
+│  atenta y muy amorosa. El lugar bellísimo.    │
+└──────────────────────────────────────────────┘
+```
+
+1. **Nombre** a la izquierda, **estrellas** a la derecha, en la misma línea de arriba.
+2. Debajo, **en itálica**: la clase que tomó **·** la fecha de la reseña.
+3. Debajo de eso, el **texto** de la reseña.
+
+⚠️ Depende de dos cosas que hoy faltan y ya están anotadas:
+- La **clase** sale de `study_reviews.clase_id`, que hoy es NULL en todas
+  porque el Dart no lo manda (el service ya lo acepta). Si no hay clase, la
+  línea en itálica muestra sólo la fecha.
+- Esta tarjeta va en la **pantalla de reseñas del panel del estudio**, que
+  **no existe todavía** (es el ítem 4 de la tabla azul del build 27).
+
 ## 🔴 B-UNIQUE · NO se aplicó — bloqueante medido, va al build 27
 El plan era `UNIQUE NULLS NOT DISTINCT (estudio_id, usuario_id, clase_id)`.
 **Probado el 28/8: rompe la app instalada.** El upsert del build 25/26 manda

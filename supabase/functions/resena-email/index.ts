@@ -5,6 +5,10 @@
 // La dispara la base (trigger de study_reviews / cron pedir_resenas_post_clase)
 // vía pg_net, con el mismo secreto compartido que nueva-reserva-estudio-email.
 // Auth: header `x-notif-secret` == NOTIF_TRIGGER_SECRET (fail-closed).
+//
+// MODO TEST: si el body trae `test_email`, manda SOLO a esa casilla e ignora
+// los destinatarios reales. Mismo patrón que nueva-reserva-estudio-email:
+// sirve para revisar el render sin escribirle a un estudio de verdad.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
@@ -25,6 +29,9 @@ Deno.serve(async (req: Request) => {
 
     const body = await req.json().catch(() => null)
     const kind = body?.kind
+    const testEmail = typeof body?.test_email === 'string'
+      ? body.test_email.trim().toLowerCase()
+      : ''
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
     if (kind === 'nueva') {
@@ -63,7 +70,7 @@ Deno.serve(async (req: Request) => {
           emails.push(email)
         }
       }
-      const destinatarios = [...new Set(emails)]
+      const destinatarios = testEmail ? [testEmail] : [...new Set(emails)]
       if (destinatarios.length === 0) return json({ ok: true, enviados: 0 })
 
       const estrellas = '⭐'.repeat(Math.max(1, Math.min(5, Number(r.rating) || 0)))
@@ -85,8 +92,11 @@ Deno.serve(async (req: Request) => {
       const claseNombre = String(body?.clase_nombre ?? 'tu clase')
       if (!usuarioId || !estudioId) return json({ error: 'Faltan datos' }, 400)
 
-      const { data: u } = await admin.auth.admin.getUserById(usuarioId)
-      const email = u?.user?.email?.trim().toLowerCase()
+      let email = testEmail
+      if (!email) {
+        const { data: u } = await admin.auth.admin.getUserById(usuarioId)
+        email = u?.user?.email?.trim().toLowerCase() ?? ''
+      }
       if (!email || !email.includes('@') || email.endsWith('@cuenta-eliminada.aura')) {
         return json({ ok: true, enviados: 0, motivo: 'sin_email' })
       }
@@ -94,11 +104,22 @@ Deno.serve(async (req: Request) => {
         .from('estudios').select('nombre').eq('id', estudioId).maybeSingle()
       const estudioNombre = estudio?.nombre ?? 'el estudio'
 
+      // "Citra barre" (la clase) EN "Citra Barre" (el estudio) repetía el
+      // nombre. La clase se nombra sólo si aporta algo distinto; si es la
+      // misma palabra, o una contiene a la otra, alcanza con el estudio.
+      const norm = (x: string) => x.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+      const nc = norm(claseNombre), ne = norm(estudioNombre)
+      const claseAporta = nc.length > 0 && ne.length > 0
+        && nc !== ne && !ne.includes(nc) && !nc.includes(ne)
+
       const subject = `¿Qué te pareció tu clase en ${estudioNombre}?`
       const html = plantilla(
         'TU OPINIÓN VALE',
-        `¡Gracias por venir a <strong>${escape(claseNombre)}</strong> en <strong>${escape(estudioNombre)}</strong>! 🧡`,
-        `Contanos cómo estuvo: tu reseña ayuda a otras personas a descubrir este lugar.`,
+        claseAporta
+          ? `¡Qué bueno tenerte en <strong>${escape(claseNombre)}</strong>, en <strong>${escape(estudioNombre)}</strong>! 🧡`
+          : `¡Qué bueno tenerte en <strong>${escape(estudioNombre)}</strong>! 🧡`,
+        `Esperamos que la hayas pasado bien 🌿<br>Contanos cómo estuvo: tu reseña ayuda a que otras personas descubran este lugar.`,
         `<a href="https://somosaurapass.com/#/estudio/${estudioId}" style="display:inline-block;background:#E8763A;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;">Dejar mi reseña</a>`,
         'Recibís este mail porque asististe a una clase reservada por Aura.',
       )
