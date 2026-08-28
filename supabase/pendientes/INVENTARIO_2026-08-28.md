@@ -37,7 +37,7 @@ base** (varias notas viejas ya no valían: se marcan abajo).
 ### Deuda que nadie está mirando
 | | Qué |
 |---|---|
-| 16 | **`crear-pago-pack` y `email-confirmacion` están en el repo y NO desplegadas** (verificado hoy) |
+| 16 | 🟡 **`email-confirmacion`: HECHA 29/8** — refactorizada al patrón de secreto + trigger en base (`trg_notif_email_confirmacion_alumna`), texto aprobado por la usuaria, activa para todas. Dispara SOLO en INSERT confirmada y pre→confirmada (el deshacer check-in NO re-manda, medido). **`crear-pago-pack` sigue sin desplegar** (nadie la llama; decidir si se borra del repo) |
 | 17 | ✅ **HECHO 29/8** · la vista es tuya (`usuario_id = auth.uid()`) y máx. 1 por estudio por hora, vía helper SECURITY DEFINER (`vista_reciente`; un `not exists` directo en el check corría bajo RLS y veía 0 filas — medido). Spoofear rechazado; otro estudio en la misma hora entra |
 | 18 | 🔴 **NO es base-only → build 27.** La mecánica correcta es revoke de tabla + grant por columnas (el revoke por columna sola es no-op si hay grant de tabla — medido). PERO `reviews_service.dart` pide `usuario_id` explícito y el invitado carga reseñas sin try/catch ⇒ aplicarlo hoy rompe el detalle de estudio en modo visita. Va junto al cambio de `select` del Dart |
 | 19 | ⏸️ **Decisión 29/8: NO tocar por ahora.** Mitigado (verifica contra la API de MP después). Es segunda capa opcional; reforzar cuando haya volumen. No tocar el camino de pagos con plata real sin necesidad |

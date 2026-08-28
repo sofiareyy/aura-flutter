@@ -1067,7 +1067,7 @@ No son tareas técnicas. Están acá para que no se pierdan.
 |---|---|---|
 | ✅ | **Alumnas anotadas cuando el estudio toca la grilla — RESUELTO el 28/8** | La usuaria eligió **BLOQUEAR**: una clase con anotadas no se mueve (ni en grilla ni suelta), el cupo no baja por debajo de las anotadas, borrar la grilla cancela con devolución en vez de dejar huérfanas, y la colisión al mover está guardada. 12 puntas medidas. Ver `GRILLA_CON_ANOTADAS_relevamiento.md` y `FEAT_GRILLA_BLOQUEAR_CON_ANOTADAS_2026-08-28.sql`. Al build 27 sólo va la mejora de UX (avisar antes de intentar). |
 | ⬜ | **Avisar el fin de la gracia** | **Citra el 13/9.** 6 estudios entre el 13/9 y el 30/9. Transición automática; falta la conversación. |
-| ⬜ | **¿Los usuarios deberían recibir mail de confirmación de reserva?** | `email-confirmacion` existe en el repo y **nunca se deployó**. Decisión de producto. |
+| ✅ | **Mail de confirmación de reserva — DECIDIDO Y ACTIVO desde el 29/8** | Cableado por base (trigger al confirmarse), texto aprobado ("fitness y experiencias", línea del código). Le llega a todas las alumnas ya. |
 | ⬜ | **Categorías faltantes** | Avisarle a Yessi (112 clases) y Ambra (77) que las completen. O que el form las exija (Dart). |
 
 ## ⬜ WEB / INICIO — mejoras, no urgentes (anotadas el 28/8)
