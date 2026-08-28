@@ -29,10 +29,10 @@ base** (varias notas viejas ya no valían: se marcan abajo).
 ### Features con diseño cerrado, falta construir
 | | Qué |
 |---|---|
-| 12 | **Comisión congelada**: 3 columnas de constancia en `liquidaciones` (`comision_aplicada`, `valor_credito_aplicado`, workshop) + llenarlas al registrar el pago |
-| 13 | **Reseñas — aviso al estudio**: trigger que inserte en `notificaciones_usuario` (da campanita + push) |
-| 14 | **Reseñas — una por (estudio, usuario, clase)**: reemplazar el `UNIQUE` actual por `UNIQUE NULLS NOT DISTINCT` (PG 17.6 lo soporta) |
-| 15 | **Notificación de reseña post-clase**: cron `*/15` que busque check-ins de clases terminadas hace 15-30 min |
+| 12 | ✅ **HECHO 28/8 · Comisión congelada** (`FEAT_COMISION_CONGELADA_2026-08-28.sql`) — falta sólo el Dart de pantalla (build 27) |
+| 13 | ✅ **HECHO 28/8 · Aviso de reseña al estudio** — campanita + mail (`resena-email`); editar no re-spamea |
+| 14 | 🔴 **UNIQUE de reseñas: BLOQUEADO para base-sola, va al build 27.** Medido: el upsert de la app instalada usa `on conflict (estudio_id, usuario_id)` y con el índice nuevo da 42P10 ⇒ rompería crear/editar reseñas. Base + Dart (`onConflict` nuevo + pasar `claseId`) juntos, con adopción |
+| 15 | ✅ **HECHO 28/8 · Pedido de reseña post-clase** — cron `pedir-resenas-15min`, sólo a quien asistió, dedup por `resena_pedida_at` |
 
 ### Deuda que nadie está mirando
 | | Qué |
