@@ -1,7 +1,58 @@
 # Qué le pasa a la alumna anotada cuando el estudio toca la grilla
 
-Relevado y **medido contra la base el 2026-08-28**. Nada construido.
-🔴 **Urgente: antes del 13/9**, que es cuando arrancan las reservas reales.
+## ✅ CONSTRUIDO Y EN PRODUCCIÓN el 28/8 — enfoque BLOQUEAR (decisión de la usuaria)
+
+`supabase/FEAT_GRILLA_BLOQUEAR_CON_ANOTADAS_2026-08-28.sql`. Tres piezas:
+
+1. **`trg_clases_guard_cambios_anotadas`** (BEFORE UPDATE en `clases`): bloquea
+   cambiar el horario de una clase con anotadas, bloquea bajar el cupo por
+   debajo de las anotadas, y bloquea la **colisión** (dos clases del estudio en
+   el mismo minuto/sala — misma clave que el generador). Corre también durante
+   el movimiento en bloque, así que cubre los dos caminos.
+2. **`horarios_fijos_mover_clases`** suma el guard de grilla: si alguna clase
+   futura tiene anotadas, rechaza TODO el movimiento con el detalle:
+   *"No podés mover esta grilla: 1 clase(s) tienen alumnas anotadas — jueves
+   03/09 (2 anotadas). Cancelá esa(s) clase(s) —se les devuelven los créditos
+   y se les avisa solo— y después movela."*
+3. **`trg_horarios_fijos_borrar_ordenado`** (BEFORE DELETE): al borrar una
+   grilla, las clases futuras CON reservas se **cancelan con devolución y
+   campanita** (reusa `estudio_cancelar_clase`, el camino probado) y las
+   vacías se borran. Ya no quedan huérfanas vivas.
+
+**Las 12 puntas medidas** (cada guard en sus dos sentidos, con cuentas reales):
+grilla con anotadas bloqueada con el mensaje exacto ✓ · sin anotadas se mueve ✓
+· clase suelta con anotadas bloqueada ✓ · sin anotadas se mueve ✓ · borrar
+grilla con anotada: reserva `cancelada_por_estudio`, saldo devuelto (0→12),
+campanita creada, vacías borradas, grilla borrada ✓ · borrar grilla vacía:
+limpio, 0 huérfanas ✓ · cupo 1 con 3 anotadas bloqueado con los números ✓ ·
+cupo por encima pasa ✓ · colisión sobre clase suelta bloqueada nombrando la
+clase ✓ · a hueco libre pasa ✓ · reservar y cancelar siguen andando ✓ · nada
+persistió (ledger 87=87; las +50 clases del chequeo son "Barre Estudio", un
+estudio real cargado hoy) ✓
+
+**Colisión — respuesta a la pregunta de la usuaria: SÍ seguía siendo posible
+con el enfoque de bloquear** (una grilla *sin* anotadas igual podía caer encima
+de una clase suelta ocupada), así que el guard se agregó. Queda probado en los
+dos sentidos.
+
+Los guards eximen a `current_user` fuera de `authenticated`/`anon`: las RPC,
+el cron y las correcciones por SQL de Aura pasan.
+
+### Para el build 27 (Dart, mejora de experiencia — lo esencial ya rige)
+- Avisar ANTES de intentar: "esta grilla tiene 3 anotadas, ¿seguís?"
+- Los mensajes de los guards ya llegan legibles por el manejo de errores del
+  25/8; pulir presentación si se quiere.
+- En "Mis reservas", destacar una clase cancelada por el estudio.
+- Ojo `_propagarHorarioFijoAClasesFuturas`: si el guard de cupo frena la
+  propagación, el horario ya quedó guardado con el cupo nuevo y las clases con
+  el viejo (no es transaccional). Un pre-chequeo en Dart lo evita.
+
+---
+
+## El relevamiento original (28/8, antes de construir)
+
+Relevado y **medido contra la base el 2026-08-28**.
+🔴 Urgente: antes del 13/9, que es cuando arrancan las reservas reales.
 
 ## Estado hoy: 0 exposición, pero el gatillo está armado
 

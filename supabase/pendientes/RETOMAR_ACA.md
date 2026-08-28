@@ -1043,7 +1043,7 @@ No son tareas técnicas. Están acá para que no se pierdan.
 
 | | Qué | Cuándo |
 |---|---|---|
-| 🔴 | **Qué pasa con las alumnas ya anotadas cuando el estudio mueve una grilla** | **Antes del 13/9** (cuando arranquen las reservas reales). Desde el 24/8 editar el día/hora de una grilla **mueve** las clases futuras, que es lo correcto — pero eso le cambia el horario a quien ya se anotó. Hoy no muerde: medido, **0 clases futuras de grilla con reservas activas**. Opciones: **(2) mover + campanita automática** —la preferida por la usuaria, y el patrón ya existe desde el aviso de cancelación— o **(3) rechazar el cambio si hay anotadas**. Ver `FIX_GRILLA_MOVER_CLASES_2026-08-24.sql`. |
+| ✅ | **Alumnas anotadas cuando el estudio toca la grilla — RESUELTO el 28/8** | La usuaria eligió **BLOQUEAR**: una clase con anotadas no se mueve (ni en grilla ni suelta), el cupo no baja por debajo de las anotadas, borrar la grilla cancela con devolución en vez de dejar huérfanas, y la colisión al mover está guardada. 12 puntas medidas. Ver `GRILLA_CON_ANOTADAS_relevamiento.md` y `FEAT_GRILLA_BLOQUEAR_CON_ANOTADAS_2026-08-28.sql`. Al build 27 sólo va la mejora de UX (avisar antes de intentar). |
 | ⬜ | **Avisar el fin de la gracia** | **Citra el 13/9.** 6 estudios entre el 13/9 y el 30/9. Transición automática; falta la conversación. |
 | ⬜ | **¿Los usuarios deberían recibir mail de confirmación de reserva?** | `email-confirmacion` existe en el repo y **nunca se deployó**. Decisión de producto. |
 | ⬜ | **Categorías faltantes** | Avisarle a Yessi (112 clases) y Ambra (77) que las completen. O que el form las exija (Dart). |
