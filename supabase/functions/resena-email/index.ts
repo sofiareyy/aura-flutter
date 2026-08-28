@@ -104,22 +104,15 @@ Deno.serve(async (req: Request) => {
         .from('estudios').select('nombre').eq('id', estudioId).maybeSingle()
       const estudioNombre = estudio?.nombre ?? 'el estudio'
 
-      // "Citra barre" (la clase) EN "Citra Barre" (el estudio) repetía el
-      // nombre. La clase se nombra sólo si aporta algo distinto; si es la
-      // misma palabra, o una contiene a la otra, alcanza con el estudio.
-      const norm = (x: string) => x.toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
-      const nc = norm(claseNombre), ne = norm(estudioNombre)
-      const claseAporta = nc.length > 0 && ne.length > 0
-        && nc !== ne && !ne.includes(nc) && !nc.includes(ne)
-
+      // Sin saludo previo: el mail abre con la pregunta, que es lo que se
+      // quiere responder. No se nombra la clase — "tu clase" evita repetir el
+      // nombre del estudio cuando la clase se llama igual (era el caso de
+      // "Citra barre" en "Citra Barre").
       const subject = `¿Qué te pareció tu clase en ${estudioNombre}?`
       const html = plantilla(
         'TU OPINIÓN VALE',
-        claseAporta
-          ? `¡Qué bueno tenerte en <strong>${escape(claseNombre)}</strong>, en <strong>${escape(estudioNombre)}</strong>! 🧡`
-          : `¡Qué bueno tenerte en <strong>${escape(estudioNombre)}</strong>! 🧡`,
-        `Esperamos que la hayas pasado bien 🌿<br>Contanos cómo estuvo: tu reseña ayuda a que otras personas descubran este lugar.`,
+        `¿Qué te pareció tu clase en <strong>${escape(estudioNombre)}</strong>? 🧡`,
+        `Contanos cómo estuvo: tu reseña ayuda a que otras personas descubran este lugar.`,
         `<a href="https://somosaurapass.com/#/estudio/${estudioId}" style="display:inline-block;background:#E8763A;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;">Dejar mi reseña</a>`,
         'Recibís este mail porque asististe a una clase reservada por Aura.',
       )
