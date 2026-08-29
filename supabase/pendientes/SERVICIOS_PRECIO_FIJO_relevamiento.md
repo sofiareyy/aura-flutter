@@ -286,8 +286,19 @@ estudios ya tienen instalada.
 - Nada quedó suelto: 0 servicios cargados, 0 categorías de prueba, ledger
   87=87.
 
-**⚠️ Sigue vigente la regla 3:** NO entregarle el alta de servicios a ningún
-estudio hasta el build 27 — el espejo del panel todavía calcula por franja y
+**⚠️ Sigue vigente la regla 3** (build 27 = **1.0.7**, el versionado que usa la
+usuaria): NO entregarle el alta de servicios a ningún estudio hasta ese build.
+
+✅ **Y que quede claro cuál NO es el motivo:** el 29/8 se verificó que
+`tipo_precio = 'servicio'` **NO rompe las apps viejas**. El build 24 lee ese
+campo como string suelto en un `if/else` de `==`, así que `'servicio'` cae en
+el else y la clase se muestra sin badge. El `enum TipoPrecio` con su `switch`
+nunca se construye desde esa columna (sale de `estudios.tipo_precio`, que es
+`'fijo'`/`'rango'`), y no hay ningún `byName` que pudiera lanzar. **Ninguna
+sesión debe frenar la carga de servicios por ese miedo.** El detalle en
+RETOMAR.
+
+El motivo real, el único: el espejo del panel todavía calcula por franja y
 le mostraría un número equivocado mientras carga. Si hace falta uno antes, la
 grilla la carga Aura desde el backoffice (el precio queda bien).
 

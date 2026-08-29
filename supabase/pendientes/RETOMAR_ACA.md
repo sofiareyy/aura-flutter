@@ -84,12 +84,55 @@ un estudio en la 26 que rechace el permiso de push seguiría en 🔴.
 - ⚠️ **Dos asteriscos:**
   1. Los **guards nuevos** devuelven `PostgresException` crudo en el build 24
      (el manejo de errores legible entró el 25/8). Feo, no roto.
-  2. 🔴 **`tipo_precio = 'servicio'` NO está en el enum del build 24**
-     (`{fijo, pico, valle, normal, experiencia}`, con `switch`). Hoy no hay
-     exposición (`estudio_servicios_precio` está vacía), pero **el día que se
-     cargue el primer servicio de precio fijo, una app vieja podría romper**.
-     ⇒ Refuerza la regla ya escrita: no entregar servicios hasta que la UI esté
-     en la 1.0.7 **y los estudios hayan adoptado**.
+  2. ✅ **`tipo_precio = 'servicio'` NO rompe las apps viejas — VERIFICADO
+     el 29/8.** La nota original de este archivo decía lo contrario; era un
+     **error de análisis** y se corrigió.
+
+     **El modo de falla real, medido en el código del build 24:**
+     `clases.tipo_precio` se consume en **un solo lugar**
+     (`explorar_screen.dart:946`), como **string suelto**, en una cadena
+     `if/else` de comparaciones `==`:
+
+     ```dart
+     if (esWorkshop) ...
+     else if (tipoPrecio == 'pico') ...
+     else if (tipoPrecio == 'normal' || tipoPrecio == 'valle') ...
+     // 'servicio' cae acá: no dibuja badge y sigue de largo
+     ```
+
+     `'servicio'` **cae en el else vacío**: la tarjeta se muestra **sin badge**
+     y la app no se cae. Es, además, el comportamiento deseado.
+
+     **De dónde salió la falsa alarma:** el `enum TipoPrecio {fijo, pico,
+     valle, normal, experiencia}` con su `switch` existe, pero **nunca se
+     construye desde `clases.tipo_precio`** — se arma en código desde
+     `estudios.tipo_precio` (que es `'fijo'`/`'rango'`, otra columna) asignando
+     valores literales. **No hay `byName` ni `values.firstWhere`** en ninguna
+     parte, que son las funciones que sí lanzarían con un valor desconocido.
+     Sin conversión string→enum no hay crash posible.
+
+     ⇒ **Ninguna sesión futura debe frenar la carga de servicios de precio fijo
+     por miedo a romper apps viejas.** Ese riesgo no existe.
+
+### 🟡 Servicios de precio fijo: por qué esperar la 1.0.7 (el motivo correcto)
+
+La regla **sigue vigente**, pero por **un solo motivo**, y conviene tenerlo
+claro para no confundirlo con el falso riesgo de arriba:
+
+**El motivo real y medido:** el espejo del panel (`PricingCalculator`) todavía
+calcula **por franja**. Si un estudio carga una grilla con un servicio de
+precio fijo, el formulario le muestra `⚡ 19:30 · 18 cr` mientras la base
+guarda **14** — y la confirmación día por día, que lista los precios antes de
+crear, le miente. Al recargar el panel aparece el 14 (correcto), pero ya vio
+el número equivocado.
+
+**NO es por riesgo de crash de apps viejas** — ese riesgo se verificó y no
+existe (ver arriba).
+
+**Qué se puede hacer mientras tanto, sin esperar nada:** si hace falta un
+estudio con servicios andando antes de la 1.0.7, **la grilla la carga Aura
+desde el backoffice**. El precio queda bien y el estudio nunca ve el número
+equivocado. La base está completa y verificada desde el 27/8.
 
 ### 📋 Para rehacerlo bien (cuando se coordine)
 
