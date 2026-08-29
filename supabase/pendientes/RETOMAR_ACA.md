@@ -108,9 +108,10 @@ apruebe.** Si se cierra con estudios todavía en el 25, vuelven a ver "Usuario"
 en vez del nombre de la alumna. La señal es *aprobado **y** adoptado*.
 El SQL y el detalle: `FIX_REPONER_POLICY_NOMBRES_TEMPORAL_2026-08-26.sql`.
 
-**4. Correr el DROP de la columna fantasma (item 7).**
-`supabase/FIX_COLUMNA_FANTASMA_2026-08-26.sql`. Es la mitad irreversible; la
-del Dart ya salió en el build 26.
+**4. ✅ DROP de la columna fantasma — HECHO el 29/8**, con el build 26
+confirmado andando desde el App Store. Re-medido antes de correr: 0 valores en
+las 1369 filas. `clases` quedó con `lugares_disponibles` y `lugares_total`
+solamente; smoke de lectura y de `reservar_clase` OK después del drop.
 
 **5. Recién ahí, armar el BUILD 27** con todo el Dart acumulado. Lo que ya hay
 en la cola:

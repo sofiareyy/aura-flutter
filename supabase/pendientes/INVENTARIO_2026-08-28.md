@@ -11,7 +11,7 @@ base** (varias notas viejas ya no valían: se marcan abajo).
 | | Qué | Nota |
 |---|---|---|
 | 1 | ✅ **ARREGLADO 29/8** · la credencial en Firebase estaba como "de desarrollo" y la app manda tokens de producción (verificado en el `.ipa`: `aps-environment=production`). Re-subida el `.p8` como Auth Key → `enviados: 3 · fallidos: 0`. Todas las notificaciones cableadas quedaron vivas |
-| 2 | **DROP de la columna fantasma** | `FIX_COLUMNA_FANTASMA_2026-08-26.sql`, listo sin correr |
+| 2 | ✅ **HECHO 29/8** · dropeada con el 26 confirmado en la tienda; 0 valores re-medidos antes; smoke de lectura y reserva OK |
 | 3 | **Cerrar la policy temporal de nombres** | Sólo cuando los estudios **adopten** el 26, no al aprobarse |
 
 ### Los 8 menores de la auditoría fresca (re-medidos el 26/8: los 8 siguen)
