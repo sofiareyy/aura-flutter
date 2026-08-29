@@ -22,29 +22,55 @@
 | ⬜ | **8 menores de la auditoría fresca** | ninguno urgente · re-medidos el 26/8, los 8 siguen abiertos |
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia · mail de confirmación |
 
-### ✅ Policy temporal de nombres — CERRADA el 29/8
+### 🔴 29/8 — DOS CAMBIOS REVERTIDOS: la premisa era falsa
 
-La `usuarios_select_alumnas_de_mis_clases` (repuesta el 26/8 para que la app
-vieja mostrara nombres) **se dropeó**. Los estudios ven los nombres por la RPC
-limpia `estudio_nombres_alumnas`, que devuelve sólo (id, nombre, email,
-avatar_url) en vez de habilitar la fila entera.
+Se activó el force-update (`min_build_ios=26`) y se cerró la policy de nombres,
+las dos apoyadas en la conclusión de que **ningún estudio usaba la app nativa**.
+**Esa conclusión estaba MAL** y las dos se revirtieron el mismo día.
 
-**Por qué ya no había riesgo — los tres caminos verificados:**
-- **iOS nativo**: `min_build_ios = 26` ⇒ cualquier build viejo queda bloqueado
-  en el cartel de actualizar. O tienen la 26 (que usa la RPC), o no pueden usar
-  la app.
-- **Android**: no está publicado y hay **0 dispositivos Android** en la base.
-- **Web**: verificado en el bundle en vivo de somosaurapass.com — usa
-  `estudio_nombres_alumnas` y **no** el camino viejo. Está así desde el 25/8,
-  porque cada push a `main` la despliega.
+**El error de método:** se dedujo "usan web" de que `dispositivos` estaba vacía
+para los estudios. Pero esa tabla **sólo registra a quien ACEPTÓ el permiso de
+push** — no a quien usa la app.
 
-**Medido al cerrar:** Citra sigue viendo `Juanita · juanitasosamartin@gmail.com`
-por la RPC ✓, y leyendo `usuarios` directo ve **sólo su propia fila** (queda
-únicamente `usuarios_select_self`) ✓.
+**La señal correcta es `auth.sessions.user_agent`:**
+- `Dart/3.11 (dart:io)` ⇒ **app nativa**
+- `Mozilla/...` ⇒ **web**
 
-**Dato de contexto:** ningún estudio real tiene dispositivo con push
-registrado — todos trabajan por **web**. Los únicos tokens son de la cuenta de
-administración y de una alumna nueva.
+**Medido: 5 estudios SÍ usan la app nativa** — Citra (27/8), Sculpt Club (27/8),
+Ambra (27/8), Barre Estudio (27/8) y YN Pilates (28/8). Y **ninguno de los 5
+tiene dispositivo registrado**, lo que confirma que la tabla `dispositivos` no
+sirve como censo de uso.
+
+**Por qué era peligroso:** el build 26 se aprobó el 29/8, así que esas sesiones
+del 26-28/8 eran de un build **anterior**. Con `min_build_ios=26`, los 5
+habrían quedado trabados en el cartel bloqueante la próxima vez que abrieran la
+app — Citra incluida, a dos semanas de arrancar reservas reales. Por suerte
+ninguno abrió la app entre la activación y la reversión.
+
+**Y el segundo cambio empeoraba el primero:** al cerrar la policy de nombres, un
+estudio en build 25 (que lee `usuarios` directo, no la RPC) vuelve a ver
+"Usuario" en vez del nombre de la alumna.
+
+**Estado tras revertir:** `min_build_ios=1`, `min_build_android=1`, policy
+`usuarios_select_alumnas_de_mis_clases` repuesta. Verificado: Citra con la app
+vieja vuelve a ver `Juanita · juanitasosamartin@gmail.com`.
+
+### 📋 Para rehacerlo bien (cuando se coordine)
+
+1. **Avisar a los 5 estudios que actualicen** desde el App Store.
+2. **Verificar adopción con la consulta de `user_agent` + `app_version`**, no
+   con `dispositivos` sola.
+3. Recién con los 5 en la 26: activar el force-update y cerrar la policy.
+
+```sql
+-- quién usa app vs web, y con qué versión si registró push
+select u.email,
+       case when s.user_agent ilike '%dart%' then 'APP' else 'WEB' end as cliente,
+       s.updated_at,
+       (select max(d.app_version) from public.dispositivos d where d.usuario_id=u.id) as version
+  from auth.sessions s join public.usuarios u on u.id=s.user_id
+ order by s.updated_at desc;
+```
 
 ### 🔴 `aps-environment` — mirar ANTES de cualquier build de iOS
 
