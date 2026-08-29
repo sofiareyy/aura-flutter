@@ -10,7 +10,7 @@ base** (varias notas viejas ya no valían: se marcan abajo).
 ### Esperando el visto bueno del build 26
 | | Qué | Nota |
 |---|---|---|
-| 1 | **Arreglar APNs / Firebase** | `THIRD_PARTY_AUTH_ERROR`. **Cuello de TODAS las notificaciones.** Verificado: sólo hay 3 tokens y son de la cuenta de Aura; **ninguna alumna tiene dispositivo** |
+| 1 | ✅ **ARREGLADO 29/8** · la credencial en Firebase estaba como "de desarrollo" y la app manda tokens de producción (verificado en el `.ipa`: `aps-environment=production`). Re-subida el `.p8` como Auth Key → `enviados: 3 · fallidos: 0`. Todas las notificaciones cableadas quedaron vivas |
 | 2 | **DROP de la columna fantasma** | `FIX_COLUMNA_FANTASMA_2026-08-26.sql`, listo sin correr |
 | 3 | **Cerrar la policy temporal de nombres** | Sólo cuando los estudios **adopten** el 26, no al aprobarse |
 

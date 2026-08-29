@@ -85,13 +85,19 @@ distinguirlas por `checked_in_at`.
 
 ### 📋 CUANDO APRUEBEN EL BUILD 26 — en este orden
 
-**1. Arreglar el push (APNs / Firebase).** Es **el cuello de TODAS las
-notificaciones**, no de una feature suelta. Hoy: los únicos tokens de la base
-son 3 de `aura.hola.app@gmail.com` y los tres fallan con
-`401 THIRD_PARTY_AUTH_ERROR` — **ninguna alumna tiene dispositivo registrado**.
-Mientras esto no se arregle, cualquier push del servidor no le llega a nadie.
-Típicamente es la clave de APNs mal cargada en Firebase o del entorno
-equivocado (ojo con `aps-environment`, acá abajo).
+**1. ✅ Push (APNs / Firebase) — ARREGLADO el 29/8.** Medido: `enviados: 3 ·
+fallidos: 0` en los 3 tokens (antes: tres `401 THIRD_PARTY_AUTH_ERROR`).
+**La causa raíz**: la credencial en Firebase estaba cargada como "de
+DESARROLLO" (probablemente en el slot de certificados, que sí tiene carril)
+mientras la app manda tokens de **producción** — verificado extrayendo los
+entitlements del `.ipa` real: `aps-environment = production`. La usuaria borró
+lo mal cargado y re-subió el `.p8` en la sección **APNs Authentication Key**
+(Key ID `Z29C8RY2V2`, Team `VN5MLA84RD`), que no tiene carril y cubre los dos
+entornos. **Con esto quedaron vivas TODAS las notificaciones ya cableadas**:
+reservas, reseñas, pedido post-clase y cancelaciones — el push sale de la
+misma fila de `notificaciones_usuario` que la campanita.
+Nota: ninguna alumna tiene dispositivo registrado todavía; los tokens llegan
+cuando instalen/abran la app nativa y acepten notificaciones.
 
 **2. Avisarles a los estudios que actualicen la app.** Cartel / mail. Sin esto
 siguen en el build 25 y no tienen ninguna de las mejoras.
