@@ -55,6 +55,42 @@ estudio en build 25 (que lee `usuarios` directo, no la RPC) vuelve a ver
 `usuarios_select_alumnas_de_mis_clases` repuesta. Verificado: Citra con la app
 vieja vuelve a ver `Juanita · juanitasosamartin@gmail.com`.
 
+### 🚦 Semáforo de adopción — `supabase/pendientes/SEMAFORO_ADOPCION.sql`
+
+Correr cada par de días. **Verde = seguro** (el build 26 registra push al abrir);
+🔴 = usa la app y no dio señal de la 26; 🌐 = sólo web (nada que hacer, la web
+siempre es la última).
+
+**Estado al 29/8:** 5 en 🔴 — Citra, Sculpt Club, Ambra, Barre Estudio y YN
+Pilates. Tiwar, Yessi y BB (x2) van por **web**.
+
+⚠️ El semáforo confirma a quien SÍ actualizó, pero **no prueba lo contrario**:
+un estudio en la 26 que rechace el permiso de push seguiría en 🔴.
+
+### ⚠️ Riesgo de los builds MUY viejos (medido el 29/8)
+
+- **El `1.0.6+22` nunca existió.** El historial va `1.0.5+19/20/21` → salto →
+  `1.0.6+24` → `+25` → `+26`. El "22" de los nombres de archivo es una tanda
+  interna, no un build.
+- **El gate de versión nació el 21/08 00:49** ⇒ el **24 y anteriores NO lo
+  tienen**: el force-update no los alcanza. Sólo bloquea al 25.
+- **Una app vieja SIGUE FUNCIONANDO** con la base de hoy. Repasado uno por uno:
+  el DROP de la fantasma (leen la real primero), las policies de horarios (las
+  4 acotadas alcanzan), el tope de vistas (insert fire-and-forget), el trigger
+  de `checked_in_at` (les arregla la hora), las columnas nuevas de
+  `liquidaciones` (Dart ignora claves desconocidas), y
+  `admin_upsert_estudio` con el parámetro nuevo (verificado: la llamada vieja
+  funciona). Nada rompe.
+- ⚠️ **Dos asteriscos:**
+  1. Los **guards nuevos** devuelven `PostgresException` crudo en el build 24
+     (el manejo de errores legible entró el 25/8). Feo, no roto.
+  2. 🔴 **`tipo_precio = 'servicio'` NO está en el enum del build 24**
+     (`{fijo, pico, valle, normal, experiencia}`, con `switch`). Hoy no hay
+     exposición (`estudio_servicios_precio` está vacía), pero **el día que se
+     cargue el primer servicio de precio fijo, una app vieja podría romper**.
+     ⇒ Refuerza la regla ya escrita: no entregar servicios hasta que la UI esté
+     en la 1.0.7 **y los estudios hayan adoptado**.
+
 ### 📋 Para rehacerlo bien (cuando se coordine)
 
 1. **Avisar a los 5 estudios que actualicen** desde el App Store.
