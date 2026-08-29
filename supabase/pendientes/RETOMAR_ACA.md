@@ -99,8 +99,29 @@ misma fila de `notificaciones_usuario` que la campanita.
 Nota: ninguna alumna tiene dispositivo registrado todavía; los tokens llegan
 cuando instalen/abran la app nativa y acepten notificaciones.
 
-**2. Avisarles a los estudios que actualicen la app.** Cartel / mail. Sin esto
-siguen en el build 25 y no tienen ninguna de las mejoras.
+**2. ✅ FORCE-UPDATE ACTIVADO el 29/8 — sólo iOS.**
+`configuracion_global.min_build_ios: 1 → 26`. **`min_build_android` queda en 1
+a propósito**: Android todavía no está publicado, y poner 26 haría que su
+primer build naciera bloqueado contra sí mismo. Se toca recién al publicar
+Android, con el número que corresponda entonces.
+
+**Cómo funciona** (`lib/services/version_gate.dart`, ya presente desde el
+build 25):
+- Corre en el splash **antes** de resolver sesión, y otra vez **cada vez que la
+  app vuelve del background** ⇒ no hace falta que reinstalen ni reinicien.
+- Es **bloqueante**: `PopScope(canPop: false)`, sin "ahora no". El único botón
+  lleva a la tienda. Un deep link que intente saltearla queda atrapado en el
+  re-chequeo.
+- **Fail-open**: red caída, dato ilegible o más de 4 s de demora ⇒ NO bloquea.
+- **La web nunca se bloquea** (`if (kIsWeb) return false`): siempre sirve la
+  última desde somosaurapass.com.
+- ⚠️ El texto del cartel está **hardcodeado en el Dart**, no en config: no se
+  puede ajustar para quien tiene la 25. Mejorable de la 1.0.7 en adelante.
+
+**REVERTIR** (efecto en segundos, al próximo foreground):
+```sql
+update public.configuracion_global set valor='1' where clave='min_build_ios';
+```
 
 **3. Cerrar la policy temporal de nombres — PERO NO todavía.**
 ⚠️ **Recién cuando los estudios ADOPTEN el build 26, no cuando Apple lo
