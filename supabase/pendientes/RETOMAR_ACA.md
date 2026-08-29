@@ -22,153 +22,29 @@
 | ⬜ | **8 menores de la auditoría fresca** | ninguno urgente · re-medidos el 26/8, los 8 siguen abiertos |
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia · mail de confirmación |
 
-### ⏳ REPONER TEMPORAL — cerrar cuando Apple apruebe el BUILD 26
+### ✅ Policy temporal de nombres — CERRADA el 29/8
 
-**Policy `usuarios_select_alumnas_de_mis_clases` repuesta el 26/8.** Es
-temporal y hay que volver a cerrarla.
+La `usuarios_select_alumnas_de_mis_clases` (repuesta el 26/8 para que la app
+vieja mostrara nombres) **se dropeó**. Los estudios ven los nombres por la RPC
+limpia `estudio_nombres_alumnas`, que devuelve sólo (id, nombre, email,
+avatar_url) en vez de habilitar la fila entera.
 
-**Por qué se repuso:** el arreglo de nombres tiene dos mitades. La app vieja
-(build 25, la que los estudios tienen instalada) lee `public.usuarios`
-**directo**, sujeta a RLS; el build 26 usa la RPC limpia
-`estudio_nombres_alumnas`. Al crear la RPC el 25/8 se dropeó la policy, y eso
-dejó a la app vieja **sin nombres**: medido el 26/8, la consulta del build 25
-como Citra devolvía **0 filas** y el cartel del escaneo decía "Usuario".
-Con el primer cliente real entrando el 27/8, se repuso.
+**Por qué ya no había riesgo — los tres caminos verificados:**
+- **iOS nativo**: `min_build_ios = 26` ⇒ cualquier build viejo queda bloqueado
+  en el cartel de actualizar. O tienen la 26 (que usa la RPC), o no pueden usar
+  la app.
+- **Android**: no está publicado y hay **0 dispositivos Android** en la base.
+- **Web**: verificado en el bundle en vivo de somosaurapass.com — usa
+  `estudio_nombres_alumnas` y **no** el camino viejo. Está así desde el 25/8,
+  porque cada push a `main` la despliega.
 
-**El costo, asumido:** una policy habilita la **fila entera**, así que el
-estudio ve también `creditos`, `plan`, `codigo_referido`, `empresa_id` y
-`avatar_url` de las alumnas con reserva en sus clases. **No hay datos de cobro
-ni CBU en esa tabla.** Es más de lo que la pantalla necesita, y por eso existe
-la RPC.
+**Medido al cerrar:** Citra sigue viendo `Juanita · juanitasosamartin@gmail.com`
+por la RPC ✓, y leyendo `usuarios` directo ve **sólo su propia fila** (queda
+únicamente `usuarios_select_self`) ✓.
 
-**👉 Qué hacer cuando el build 26 esté aprobado Y adoptado:**
-
-```sql
-drop policy usuarios_select_alumnas_de_mis_clases on public.usuarios;
-```
-
-y verificar que Asistencia siga mostrando nombres (ya por la RPC).
-Archivo: `supabase/FIX_REPONER_POLICY_NOMBRES_TEMPORAL_2026-08-26.sql`.
-
-⚠️ **No cerrarla apenas Apple apruebe**: hay que esperar a que los estudios
-**actualicen**. Si se cierra con estudios todavía en el build 25, vuelven a
-ver "Usuario".
-
-### 🟡 BUILD 27 — `completada` se muestra como "Pendiente" (confunde a los estudios)
-
-**Le pasó a la usuaria el 27/8 con su primer cliente real** y creyó que el
-escaneo había fallado. No había fallado: la reserva estaba `completada` con su
-check-in registrado.
-
-**El bug:** `asistencia_screen.dart` sólo conoce dos estados y todo lo demás
-cae en el `else`:
-
-```dart
-final esPresente = estado == 'presente';
-final esAusente  = estado == 'ausente';
-badgeLabel = esPresente ? 'Presente' : esAusente ? 'Ausente' : 'Pendiente';
-```
-
-Y `_pendientes` cuenta todo lo que no sea `presente` / `cancelada` / `ausente`.
-**`completada` no figura en ningún lado.** Como el cron `completar-reservas`
-pasa `presente → completada` 3 h después de la clase, el cartel dice "Presente"
-un rato y después **cambia solo a "Pendiente"**, sin que pase nada malo.
-
-⚠️ **Está también en el build 26**: la clasificación no cambió. Hay que
-arreglarlo en el 27.
-
-**Arreglo:** que `completada` cuente y se muestre como asistencia (etiqueta
-"Asistió" o "Presente", en verde), y que salga del contador de pendientes.
-Ojo: una `completada` **sin** `checked_in_at` es alguien que nunca fue
-escaneada y la cerró el cron — ésa no es una asistencia confirmada. Vale
-distinguirlas por `checked_in_at`.
-
-### 📋 CUANDO APRUEBEN EL BUILD 26 — en este orden
-
-**1. ✅ Push (APNs / Firebase) — ARREGLADO el 29/8.** Medido: `enviados: 3 ·
-fallidos: 0` en los 3 tokens (antes: tres `401 THIRD_PARTY_AUTH_ERROR`).
-**La causa raíz**: la credencial en Firebase estaba cargada como "de
-DESARROLLO" (probablemente en el slot de certificados, que sí tiene carril)
-mientras la app manda tokens de **producción** — verificado extrayendo los
-entitlements del `.ipa` real: `aps-environment = production`. La usuaria borró
-lo mal cargado y re-subió el `.p8` en la sección **APNs Authentication Key**
-(Key ID `Z29C8RY2V2`, Team `VN5MLA84RD`), que no tiene carril y cubre los dos
-entornos. **Con esto quedaron vivas TODAS las notificaciones ya cableadas**:
-reservas, reseñas, pedido post-clase y cancelaciones — el push sale de la
-misma fila de `notificaciones_usuario` que la campanita.
-Nota: ninguna alumna tiene dispositivo registrado todavía; los tokens llegan
-cuando instalen/abran la app nativa y acepten notificaciones.
-
-**2. ✅ FORCE-UPDATE ACTIVADO el 29/8 — sólo iOS.**
-`configuracion_global.min_build_ios: 1 → 26`. **`min_build_android` queda en 1
-a propósito**: Android todavía no está publicado, y poner 26 haría que su
-primer build naciera bloqueado contra sí mismo. Se toca recién al publicar
-Android, con el número que corresponda entonces.
-
-**Cómo funciona** (`lib/services/version_gate.dart`, ya presente desde el
-build 25):
-- Corre en el splash **antes** de resolver sesión, y otra vez **cada vez que la
-  app vuelve del background** ⇒ no hace falta que reinstalen ni reinicien.
-- Es **bloqueante**: `PopScope(canPop: false)`, sin "ahora no". El único botón
-  lleva a la tienda. Un deep link que intente saltearla queda atrapado en el
-  re-chequeo.
-- **Fail-open**: red caída, dato ilegible o más de 4 s de demora ⇒ NO bloquea.
-- **La web nunca se bloquea** (`if (kIsWeb) return false`): siempre sirve la
-  última desde somosaurapass.com.
-- ⚠️ El texto del cartel está **hardcodeado en el Dart**, no en config: no se
-  puede ajustar para quien tiene la 25. Mejorable de la 1.0.7 en adelante.
-
-**REVERTIR** (efecto en segundos, al próximo foreground):
-```sql
-update public.configuracion_global set valor='1' where clave='min_build_ios';
-```
-
-**3. Cerrar la policy temporal de nombres — PERO NO todavía.**
-⚠️ **Recién cuando los estudios ADOPTEN el build 26, no cuando Apple lo
-apruebe.** Si se cierra con estudios todavía en el 25, vuelven a ver "Usuario"
-en vez del nombre de la alumna. La señal es *aprobado **y** adoptado*.
-El SQL y el detalle: `FIX_REPONER_POLICY_NOMBRES_TEMPORAL_2026-08-26.sql`.
-
-**4. ✅ DROP de la columna fantasma — HECHO el 29/8**, con el build 26
-confirmado andando desde el App Store. Re-medido antes de correr: 0 valores en
-las 1369 filas. `clases` quedó con `lugares_disponibles` y `lugares_total`
-solamente; smoke de lectura y de `reservar_clase` OK después del drop.
-
-**5. Recién ahí, armar el BUILD 27** con todo el Dart acumulado. Lo que ya hay
-en la cola:
-- `completada` se muestra como "Pendiente" (ver más abajo)
-- congelar la comisión en la pantalla de liquidaciones
-- pantalla de reseñas en el panel del estudio
-- mostrar clase + fecha en cada reseña
-- lo que salga de servicios de precio fijo (Tanda D)
-- **reseñas: sacar `usuario_id` (y el embed de email) del `select` de
-  `reviews_service.dart`** + en base restringir columnas a `anon` (29/8:
-  aplicarlo hoy rompe el modo visita — el invitado carga reseñas sin
-  try/catch)
-- **borrar las 3 llamadas de bienvenida** (`acreditar_bienvenida` en cada
-  login, `bienvenida_esta_activa`, `admin_apagar_bienvenida`) — decisión 29/8:
-  no se regalan créditos por ahora
-
-### ⭐ Reseñas — decisiones tomadas el 27/8
-
-**Cómo se avisa:** **campanita + mail** (los dos funcionan hoy) **y push cuando
-APNs esté arreglado**. A todos lados. La campanita y el push salen de la misma
-fila en `notificaciones_usuario`, así que el push se suma solo cuando el punto
-1 esté hecho.
-
-**Una reseña por `(estudio, usuario, clase)`** — que Juanita pueda reseñar
-Barre y Yoga por separado sin pisarse. Hoy hay un
-`UNIQUE (estudio_id, usuario_id)` que hay que reemplazar.
-
-⚠️ **La trampa, medida el 27/8:** `clase_id` es NULLABLE, y Postgres trata los
-NULL como **distintos** en un índice único. Probado: un único por `(a,b,c)`
-deja entrar **3 filas repetidas** si `c` es NULL. Y **las 2 reseñas que existen
-hoy tienen `clase_id = NULL`**, así que un índice ingenuo dejaría reseñar
-infinitas veces sin clase.
-**Salida:** Postgres es **17.6**, así que soporta
-`UNIQUE NULLS NOT DISTINCT (estudio_id, usuario_id, clase_id)` — con eso las
-sin-clase colapsan a una sola por persona y las con-clase quedan una por clase.
-La otra opción es exigir `clase_id NOT NULL` de acá en adelante.
+**Dato de contexto:** ningún estudio real tiene dispositivo con push
+registrado — todos trabajan por **web**. Los únicos tokens son de la cuenta de
+administración y de una alumna nueva.
 
 ### 🔴 `aps-environment` — mirar ANTES de cualquier build de iOS
 
