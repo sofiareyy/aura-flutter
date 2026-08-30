@@ -389,11 +389,28 @@ El espejo del panel ya da **el mismo número que la base** para cualquier caso.
 
 `flutter analyze` 0 errores · 16 tests OK · web compila.
 
-**Lo que sigue (piezas 2–8):** chips con precio · chips de horario sin ícono de
-franja (⚠️ ya sale solo: `_etiquetaHorario` no pone ícono para `servicio`) ·
-renglón "precio único" · pantalla del backoffice · cargar servicios (✅ ya
-viene en el embed) · mensaje de rechazo (✅ el campo ya lo muestra; falta el
-snackbar al guardar) · Explorar sin badge para `'servicio'`.
+### ✅ 30/8 — Piezas 2 y 3 HECHAS: chips con precio + renglón "precio único"
+
+- **`CategoriasChecklist`** recibe `precios: {servicio → créditos}` (sale de
+  `PricingCalculator.preciosServiciosDe(estudio)`, sólo activos). La categoría
+  que es servicio se dibuja `Sauna · 14 cr`, en color primario, con el ícono
+  🏷️ (`sell_outlined`) mientras no está marcada — marcada, el tilde lo
+  reemplaza. **Con `precios` vacío el código es el de siempre**: los 3 usos del
+  panel lo pasan; el backoffice y el perfil del estudio no lo pasan y no cambian.
+- **`_ServicioPrecioBanner`** arriba de `_HorariosPorDiaEditor` en el form de
+  grilla: `🏷️ Sauna · 14 créditos · precio único` + el `detalle` de
+  `PricingResult`. Sin servicio no dibuja nada (`SizedBox.shrink`).
+- **Cabo suelto de la pieza 1, cerrado:** el editor de horarios recibía
+  `_etiquetaHorario` como tear-off, así que sus chips de hora NO tenían las
+  categorías (el resumen sí). Ahora `etiqueta: (d, t) => _etiquetaHorario(d, t, cats)`.
+- `test/categorias_checklist_test.dart` (5 tests): **el caso normal sin
+  servicios muestra sólo los nombres, sin " cr" ni ícono**; con servicio, sólo
+  ese chip cambia. 21 tests OK · analyze 0 · web compila.
+
+**Lo que sigue (piezas 4–8):** pantalla del backoffice para cargar
+servicio+precio · snackbar de rechazo al guardar (el campo ya muestra el
+conflicto) · Explorar sin badge "precio reducido" para `'servicio'` · chips de
+horario sin ícono (✅ ya sale solo) · cargar servicios (✅ ya viene en el embed).
 
 ## 6d. ⏸️ Explorar busca por ESTUDIO, no por clase — decisión de diseño aparte (30/8)
 
