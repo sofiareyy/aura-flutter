@@ -351,6 +351,89 @@ sección es el orden de trabajo, no una lista de cosas a decidir.
 
 **Paso 3 — Dart (build 27):** las 8 piezas de la tabla azul de 6b.
 
+### ✅ 30/8 — Pieza 1 HECHA: `PricingCalculator` usa las categorías
+
+El espejo del panel ya da **el mismo número que la base** para cualquier caso.
+`lib/utils/pricing.dart`:
+
+- `calcular(...)` recibe `categorias` (el array de los chips). Antes de todo
+  —incluido el "falta configurar"— busca un servicio de precio fijo entre esas
+  categorías en `estudio['estudio_servicios_precio']`, espejo exacto de
+  `servicio_precio_fijo`: 0 → sigue como siempre · 1 → ese precio, tipo
+  `servicio` · 2+ → `PricingResult.conflicto` con el **mismo texto** que lanza
+  la base (no se lanza: corre dentro de `build()`).
+- **Los servicios viajan dentro del row del estudio**, como `horarios_config`:
+  `getCurrentStudio()` embebe `estudio_servicios_precio(servicio,creditos,activo)`
+  por la FK real. RLS medida: la dueña de Hot Clic ve su fila, Citra ve 0.
+- `TipoPrecio.servicio` con `badge` "Precio único" / `detalle` "Este servicio
+  no cambia por horario. Lo configura Aura."
+- Plomería en `mis_clases_screen.dart`: los 4 formularios pasan `cats` a
+  `_precioDe`, `_creditosFinal`, `_PrecioCalculadoField` y al resumen día por
+  día de la grilla. El campo de precio calcula ANTES de mirar la config (mismo
+  orden que la base) y muestra el texto del conflicto si hay dos servicios.
+
+**Verificado contra la base, no contra notas** — `test/pricing_test.dart`,
+14 tests, con los números que devolvió producción el 30/8:
+
+| Caso | Base | Espejo |
+|---|---|---|
+| Hot Clic + `['Spa']` (8) | 8 / servicio | 8 / servicio |
+| `['Pilates','Spa']` | 8 / servicio | 8 / servicio |
+| `['Pilates']` · `[]` · `null` · servicio inactivo · `'spa'` | 12 / normal | 12 / fijo |
+| `['Spa','Recovery']` | excepción P0001 | `conflicto` con el mismo texto |
+| sin `creditos_min` + `['Spa']` | 8 / servicio | 8 / servicio |
+| experiencia + genérica / + servicio | 12 / experiencia · 8 / servicio | idem |
+| Sculpt lun 09:15 · 19:00 · sáb 09:00 · 08:59 | 14 · 16 · 16 · 16 | idem |
+| Citra mié 18:00 · Tiwar lun 08:30 · 12:30 | 18 · 11 · 14 | idem |
+| **974 clases futuras reales** (foto en `test/fixtures/`) | lo guardado | **974 de 974** |
+
+`flutter analyze` 0 errores · 16 tests OK · web compila.
+
+**Lo que sigue (piezas 2–8):** chips con precio · chips de horario sin ícono de
+franja (⚠️ ya sale solo: `_etiquetaHorario` no pone ícono para `servicio`) ·
+renglón "precio único" · pantalla del backoffice · cargar servicios (✅ ya
+viene en el embed) · mensaje de rechazo (✅ el campo ya lo muestra; falta el
+snackbar al guardar) · Explorar sin badge para `'servicio'`.
+
+## 6d. ⏸️ Explorar busca por ESTUDIO, no por clase — decisión de diseño aparte (30/8)
+
+Relevado el 30/8, **no se construye en esta tanda**. Sofía quiere que la
+alumna pueda buscar "sauna" y encontrar los turnos. Hoy no funciona, y no es
+un bug: Explorar fue diseñado para buscar **estudios**.
+
+**Cómo es el modelo hoy:**
+- Servicio y categoría **son la misma cosa** (decisión 1). "Sauna" es una fila
+  de `study_categories` a la que Aura le colgó un precio para un estudio.
+  El match del precio es `esp.servicio = any(clases.categorias)`.
+- El estudio **elige, no escribe**: `CategoriasChecklist` son `FilterChip`s,
+  no hay campo de texto. Y `admin_set_servicio_precio` rechaza un nombre que
+  no esté en el catálogo. El string es idéntico por construcción.
+- **Los chips de categoría de Explorar/Inicio/Mapa** salen de
+  `study_categories` **sin filtro** (`estudios_service.getCategorias()`):
+  "Sauna" aparecería como chip para todas las alumnas apenas exista.
+- **Pero el filtro mira `estudios.categorias`** (el perfil del estudio), no
+  `clases.categorias` (`explorar_screen.dart:154`, `mapa_screen.dart:78`). La
+  lista de clases sólo se filtra por "clases de los estudios que pasaron"
+  (`_clasesConEstudio`) + día + horario. La búsqueda de texto tampoco lee
+  clases.
+- **Ya está desincronizado hoy sin servicios:** Yessi declara "Fitness" y sus
+  168 clases son "Gym / Funcional" ⇒ tocar ese chip no la muestra. Sculpt y YN,
+  igual.
+- Agujero menor de la decisión 9: el estudio edita las categorías de su
+  **perfil** con `getCategorias()` sin filtro (`perfil_estudio_screen.dart:547`)
+  ⇒ el de yoga puede tildar "Sauna" en el perfil.
+
+**Los dos caminos, para la sesión de diseño:**
+- **A · parche de base, sin build:** `admin_set_servicio_precio` suma el
+  servicio a `estudios.categorias`. El chip "Sauna" muestra al estudio (con
+  todas sus clases). Coherente con el modelo actual. **Se ve cuando se activen
+  servicios, no antes.**
+- **B · el diseño real (Dart):** Explorar filtra y busca **también por
+  `clase.categorias` y `clase.nombre`**. Es decidir qué es Explorar (¿estudios,
+  turnos, o las dos?). **Se piensa UNA vez para servicios + experiencias +
+  running juntos.** La pregunta concreta para Sofía: *"cuando tocás Sauna,
+  ¿querés ver estudios o querés ver turnos?"*
+
 **Paso 4 — después del build:** recién ahí, entregarle el alta de servicios a
 los estudios.
 

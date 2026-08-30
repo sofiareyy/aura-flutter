@@ -1021,7 +1021,14 @@ por ejemplo si se le quedó debiendo plata, o por obligación fiscal.
 Las dos salidas, cuando esté decidido: `reservas.clase_id` a `SET NULL`, o que
 `admin_delete_estudio` archive en vez de borrar.
 
-## 🟢 Tanda D — servicios de precio fijo · **BASE EN PRODUCCIÓN desde el 27/8; falta el Dart (build 27)**
+## 🟢 Tanda D — servicios de precio fijo · **BASE EN PRODUCCIÓN desde el 27/8 · Dart: pieza 1 de 8 HECHA el 30/8**
+
+**30/8 — `PricingCalculator` ya calcula igual que la base** (servicio de
+precio fijo antes que todo, conflicto de dos servicios con el mismo texto).
+Verificado contra producción: 14 tests, 974 clases reales de 974. El detalle y
+lo que sigue está en la sección 6c del relevamiento. **Y en 6d quedó anotada
+la decisión de diseño de Explorar** (busca por estudio, no por clase): sesión
+propia, junto con experiencias y running. No entra en esta tanda.
 
 **9 decisiones cerradas, 0 abiertas.** Todo el diseño está en
 `supabase/pendientes/SERVICIOS_PRECIO_FIJO_relevamiento.md`: el caso real de la
@@ -1237,6 +1244,17 @@ Lo medido:
 `Running` y `GRATIS` **ya existen** en `study_categories`. Pero hoy son chips
 muertos: ningún estudio los tiene y el filtro mira estudios. Bloqueado por el
 mismo habilitador que las experiencias, más el Modelo C para el precio 0.
+
+## 5. Explorar: buscar por CLASE, no sólo por estudio (anotado el 30/8)
+
+Hoy el chip de categoría y la búsqueda de texto filtran **estudios** por
+`estudios.categorias`; las clases sólo aparecen si su estudio pasó. Un servicio
+de precio fijo ("Sauna"), una experiencia o un running club se buscan **por lo
+que son**, no por quién los da ⇒ no se encuentran. Ya pasa hoy con Yessi
+("Fitness" en el perfil, 168 clases "Gym / Funcional"). **Decisión de producto
+grande, sesión de diseño propia, pensada UNA vez para servicios + experiencias
++ running.** Modelo completo y los dos caminos (A parche de base / B Dart) en
+`SERVICIOS_PRECIO_FIJO_relevamiento.md` § 6d.
 
 ## 4. Cartel de "clase gratis" + consumo aparte
 
