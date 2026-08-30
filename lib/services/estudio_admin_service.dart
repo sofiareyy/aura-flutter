@@ -99,9 +99,13 @@ class EstudioAdminService {
     // Trae tambien los datos de cobro (CBU, comisiones, valor_credito), que
     // viven en estudios_datos_cobro. Se aplanan para que las pantallas del
     // panel sigan leyendo estudio['cbu'] igual que antes. Ver DatosCobro.
+    // Y los servicios de precio fijo del estudio (embed por la FK real de
+    // estudio_servicios_precio.estudio_id), que PricingCalculator lee del
+    // mismo mapa para que el panel muestre el precio que la base va a guardar.
     final rows = await _client
         .from('estudios')
-        .select(DatosCobro.embedTodo)
+        .select('${DatosCobro.embedTodo}, '
+            'estudio_servicios_precio(servicio,creditos,activo)')
         .eq('id', studioId)
         .limit(1);
     if (rows.isNotEmpty) {

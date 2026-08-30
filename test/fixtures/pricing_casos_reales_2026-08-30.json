@@ -1,0 +1,9465 @@
+{
+ "generado": "2026-08-30 18:33:47.704031+00",
+ "nota": "Foto de produccion del 30/8/2026: estudios reales con su config de precio y TODAS sus clases futuras no-workshop con el precio que la base guardo. El test exige que el espejo Dart de el mismo numero en cada una.",
+ "estudios": [
+  {
+   "id": 4,
+   "nombre": "Citra Barre",
+   "tipo_estudio": "fitness",
+   "tipo_precio": "fijo",
+   "creditos_min": 18,
+   "creditos_max": 18,
+   "precio_config": {
+    "max": 18,
+    "min": 18,
+    "pico_multiplier": 1
+   },
+   "horarios_config": {
+    "valle": []
+   },
+   "estudio_servicios_precio": []
+  },
+  {
+   "id": 6,
+   "nombre": "BB Estudio Colegiales",
+   "tipo_estudio": "fitness",
+   "tipo_precio": "fijo",
+   "creditos_min": 18,
+   "creditos_max": 18,
+   "precio_config": {},
+   "horarios_config": {
+    "valle": []
+   },
+   "estudio_servicios_precio": []
+  },
+  {
+   "id": 7,
+   "nombre": "BB Estudio Urquiza",
+   "tipo_estudio": "fitness",
+   "tipo_precio": "fijo",
+   "creditos_min": 18,
+   "creditos_max": 18,
+   "precio_config": {},
+   "horarios_config": {
+    "valle": []
+   },
+   "estudio_servicios_precio": []
+  },
+  {
+   "id": 8,
+   "nombre": "Ambra Espacio Holístico",
+   "tipo_estudio": "fitness",
+   "tipo_precio": "fijo",
+   "creditos_min": 18,
+   "creditos_max": 18,
+   "precio_config": {},
+   "horarios_config": {
+    "valle": []
+   },
+   "estudio_servicios_precio": []
+  },
+  {
+   "id": 9,
+   "nombre": "Sculpt Club",
+   "tipo_estudio": "fitness",
+   "tipo_precio": "rango",
+   "creditos_min": 14,
+   "creditos_max": 16,
+   "precio_config": {},
+   "horarios_config": {
+    "valle": [
+     {
+      "dia": 1,
+      "hora": 9
+     },
+     {
+      "dia": 1,
+      "hora": 10
+     },
+     {
+      "dia": 1,
+      "hora": 11
+     },
+     {
+      "dia": 2,
+      "hora": 9
+     },
+     {
+      "dia": 2,
+      "hora": 10
+     },
+     {
+      "dia": 2,
+      "hora": 11
+     },
+     {
+      "dia": 3,
+      "hora": 9
+     },
+     {
+      "dia": 3,
+      "hora": 10
+     },
+     {
+      "dia": 3,
+      "hora": 11
+     },
+     {
+      "dia": 4,
+      "hora": 9
+     },
+     {
+      "dia": 4,
+      "hora": 10
+     },
+     {
+      "dia": 4,
+      "hora": 11
+     },
+     {
+      "dia": 5,
+      "hora": 9
+     },
+     {
+      "dia": 5,
+      "hora": 10
+     },
+     {
+      "dia": 5,
+      "hora": 11
+     },
+     {
+      "dia": 1,
+      "hora": 14
+     },
+     {
+      "dia": 2,
+      "hora": 14
+     },
+     {
+      "dia": 3,
+      "hora": 14
+     },
+     {
+      "dia": 4,
+      "hora": 14
+     },
+     {
+      "dia": 5,
+      "hora": 14
+     },
+     {
+      "dia": 1,
+      "hora": 18
+     },
+     {
+      "dia": 2,
+      "hora": 18
+     },
+     {
+      "dia": 3,
+      "hora": 18
+     },
+     {
+      "dia": 4,
+      "hora": 18
+     },
+     {
+      "dia": 5,
+      "hora": 18
+     },
+     {
+      "dia": 1,
+      "hora": 20
+     },
+     {
+      "dia": 2,
+      "hora": 20
+     },
+     {
+      "dia": 3,
+      "hora": 20
+     },
+     {
+      "dia": 4,
+      "hora": 20
+     },
+     {
+      "dia": 5,
+      "hora": 20
+     }
+    ]
+   },
+   "estudio_servicios_precio": []
+  },
+  {
+   "id": 10,
+   "nombre": "Yessi Funes Fitness",
+   "tipo_estudio": "fitness",
+   "tipo_precio": "fijo",
+   "creditos_min": 11,
+   "creditos_max": 11,
+   "precio_config": {},
+   "horarios_config": {
+    "valle": []
+   },
+   "estudio_servicios_precio": []
+  },
+  {
+   "id": 17,
+   "nombre": "Tiwar Fitness",
+   "tipo_estudio": "fitness",
+   "tipo_precio": "rango",
+   "creditos_min": 11,
+   "creditos_max": 14,
+   "precio_config": {},
+   "horarios_config": {
+    "valle": [
+     {
+      "dia": 1,
+      "hora": 8
+     },
+     {
+      "dia": 1,
+      "hora": 9
+     },
+     {
+      "dia": 2,
+      "hora": 8
+     },
+     {
+      "dia": 2,
+      "hora": 9
+     },
+     {
+      "dia": 3,
+      "hora": 8
+     },
+     {
+      "dia": 3,
+      "hora": 9
+     },
+     {
+      "dia": 4,
+      "hora": 8
+     },
+     {
+      "dia": 4,
+      "hora": 9
+     },
+     {
+      "dia": 5,
+      "hora": 8
+     },
+     {
+      "dia": 5,
+      "hora": 9
+     },
+     {
+      "dia": 6,
+      "hora": 8
+     },
+     {
+      "dia": 6,
+      "hora": 9
+     },
+     {
+      "dia": 7,
+      "hora": 8
+     },
+     {
+      "dia": 7,
+      "hora": 9
+     },
+     {
+      "dia": 6,
+      "hora": 19
+     },
+     {
+      "dia": 6,
+      "hora": 20
+     },
+     {
+      "dia": 7,
+      "hora": 19
+     },
+     {
+      "dia": 7,
+      "hora": 20
+     },
+     {
+      "dia": 5,
+      "hora": 19
+     },
+     {
+      "dia": 5,
+      "hora": 20
+     },
+     {
+      "dia": 4,
+      "hora": 19
+     },
+     {
+      "dia": 4,
+      "hora": 20
+     },
+     {
+      "dia": 3,
+      "hora": 19
+     },
+     {
+      "dia": 3,
+      "hora": 20
+     },
+     {
+      "dia": 2,
+      "hora": 19
+     },
+     {
+      "dia": 2,
+      "hora": 20
+     },
+     {
+      "dia": 1,
+      "hora": 19
+     },
+     {
+      "dia": 1,
+      "hora": 20
+     }
+    ]
+   },
+   "estudio_servicios_precio": []
+  },
+  {
+   "id": 18,
+   "nombre": "YN Pilates Studio",
+   "tipo_estudio": "fitness",
+   "tipo_precio": "rango",
+   "creditos_min": 11,
+   "creditos_max": 13,
+   "precio_config": {},
+   "horarios_config": {
+    "valle": [
+     {
+      "dia": 1,
+      "hora": 11
+     },
+     {
+      "dia": 1,
+      "hora": 12
+     },
+     {
+      "dia": 1,
+      "hora": 13
+     },
+     {
+      "dia": 1,
+      "hora": 14
+     },
+     {
+      "dia": 1,
+      "hora": 15
+     },
+     {
+      "dia": 3,
+      "hora": 11
+     },
+     {
+      "dia": 3,
+      "hora": 12
+     },
+     {
+      "dia": 3,
+      "hora": 13
+     },
+     {
+      "dia": 3,
+      "hora": 14
+     },
+     {
+      "dia": 3,
+      "hora": 15
+     },
+     {
+      "dia": 5,
+      "hora": 11
+     },
+     {
+      "dia": 5,
+      "hora": 12
+     },
+     {
+      "dia": 5,
+      "hora": 13
+     },
+     {
+      "dia": 5,
+      "hora": 14
+     },
+     {
+      "dia": 5,
+      "hora": 15
+     }
+    ]
+   },
+   "estudio_servicios_precio": []
+  },
+  {
+   "id": 54,
+   "nombre": "Barre Estudio",
+   "tipo_estudio": "fitness",
+   "tipo_precio": "fijo",
+   "creditos_min": 18,
+   "creditos_max": 18,
+   "precio_config": {},
+   "horarios_config": {
+    "pico": [],
+    "valle": []
+   },
+   "estudio_servicios_precio": []
+  }
+ ],
+ "clases": [
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "13:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "13:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "13:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "13:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "13:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "12:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "12:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "12:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "12:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "12:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [
+    "Pilates"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "09:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 3,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 8,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "13:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "13:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "20:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "20:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "20:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "20:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "20:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "20:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "20:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "12:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "12:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "13:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 2,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 4,
+   "hora": "08:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "11:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 4,
+   "dia": 6,
+   "hora": "12:00",
+   "categorias": [
+    "Barre"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "20:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [
+    "Yoga"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 1,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 5,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 14,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 9,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Fitness"
+   ],
+   "creditos": 16,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "15:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "19:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "17:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 1,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 3,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 5,
+   "hora": "18:00",
+   "categorias": [
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "17:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 2,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 10,
+   "dia": 4,
+   "hora": "18:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "11:00",
+   "categorias": [
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional",
+    "Holistico / Bienestar",
+    "Meditación"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "13:00",
+   "categorias": [
+    "Pilates",
+    "Fitness",
+    "Gym / Funcional"
+   ],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 1,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 3,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 18,
+   "dia": 5,
+   "hora": "14:00",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 1,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 2,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 3,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 4,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "08:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "09:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "15:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "17:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "18:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "19:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 5,
+   "hora": "20:30",
+   "categorias": [],
+   "creditos": 11,
+   "tipo_precio": "valle"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "11:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "11:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "11:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "11:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "11:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "11:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "11:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "11:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "12:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "12:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "12:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "12:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "12:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "12:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "12:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 17,
+   "dia": 6,
+   "hora": "12:30",
+   "categorias": [],
+   "creditos": 14,
+   "tipo_precio": "pico"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Gym / Funcional",
+    "Pilates"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Gym / Funcional",
+    "Pilates"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Gym / Funcional",
+    "Pilates"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Gym / Funcional",
+    "Pilates"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Gym / Funcional",
+    "Pilates"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Gym / Funcional",
+    "Pilates"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "09:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Gym / Funcional",
+    "Pilates"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 4,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 1,
+   "hora": "19:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 3,
+   "hora": "18:30",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Gym / Funcional",
+    "Pilates"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Gym / Funcional",
+    "Pilates"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Gym / Funcional",
+    "Pilates"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Gym / Funcional",
+    "Pilates"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Gym / Funcional",
+    "Pilates"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Gym / Funcional",
+    "Pilates"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Gym / Funcional",
+    "Pilates"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 5,
+   "hora": "19:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Gym / Funcional",
+    "Pilates"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  },
+  {
+   "estudio_id": 54,
+   "dia": 6,
+   "hora": "10:00",
+   "categorias": [
+    "Barre",
+    "Fitness",
+    "Pilates",
+    "Gym / Funcional"
+   ],
+   "creditos": 18,
+   "tipo_precio": "normal"
+  }
+ ]
+}

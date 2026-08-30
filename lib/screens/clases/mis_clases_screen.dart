@@ -120,8 +120,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   /// "🌙 08:30 · 12 cr": la hora con el precio que le toca en SU franja, con
   /// la misma regla que después aplica el trigger de la base. Sin precio
   /// configurado muestra solo la hora.
-  String _etiquetaHorario(int dia, TimeOfDay t) {
-    final p = _precioDe(dia, t);
+  String _etiquetaHorario(int dia, TimeOfDay t, [List<String>? categorias]) {
+    final p = _precioDe(dia, t, categorias);
     final hhmm = _hhmm(t);
     if (!p.configurado) return hhmm;
     final ico = switch (p.tipo) {
@@ -132,11 +132,13 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     return '$ico$hhmm · ${p.creditos} cr';
   }
 
-  PricingResult _precioDe(int dia, TimeOfDay hora) =>
+  PricingResult _precioDe(int dia, TimeOfDay hora,
+          [List<String>? categorias]) =>
       PricingCalculator.calcular(
         estudio: _estudio,
         hora: _hhmm(hora),
         dia: dia,
+        categorias: categorias,
       );
 
   /// Créditos finales a guardar.
@@ -154,11 +156,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     String tipo, {
     required int dia,
     required TimeOfDay hora,
+    List<String>? categorias,
   }) {
     if (tipo == 'workshop') {
       return Liquidacion.creditosDeWorkshop(_montoWorkshop(ctrl), _estudio);
     }
-    final calculado = _precioDe(dia, hora).creditos;
+    final calculado = _precioDe(dia, hora, categorias).creditos;
     if (calculado != null) return calculado;
     return int.tryParse(ctrl.text.trim()) ?? 10;
   }
@@ -887,6 +890,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   estudio: _estudio,
                                   dia: fechaSel.weekday,
                                   hora: horaSel,
+                                  categorias: cats,
                                 ),
                             ],
                           ),
@@ -1022,7 +1026,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         // de disponibles y la clase aparecia reservable).
         if (lugaresTotal == 0) 'lugares_disponibles': 0,
         'creditos': _creditosFinal(cred, tipoClase,
-            dia: fechaSel.weekday, hora: horaSel),
+            dia: fechaSel.weekday, hora: horaSel, categorias: cats),
         // Solo incluir categoria si tiene valor — evita pisar con null si la
         // columna tiene constraint NOT NULL o si el dropdown quedo vacio.
         'categorias': cats,
@@ -1699,6 +1703,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   estudio: _estudio,
                                   dia: diaPrecio(),
                                   hora: t,
+                                  categorias: cats,
                                 ),
                             ],
                           ),
@@ -1996,7 +2001,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       'hora_inicio': '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
       'duracion_min': dur,
       'lugares_total': int.tryParse(c.text.trim()) ?? 12,
-      'creditos': _creditosFinal(cr, tipo, dia: diaPrecio(), hora: t),
+      'creditos': _creditosFinal(cr, tipo,
+          dia: diaPrecio(), hora: t, categorias: cats),
       'reserva_cierre_minutos': cierreReserva,
       'instructor': i.text.trim().isEmpty ? null : i.text.trim(),
       'instructor_descripcion':
@@ -2399,6 +2405,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 hora: _primeraHora(
                                     diasSeleccionados, horariosPorDia),
                                 porHorario: true,
+                                categorias: cats,
                               ),
                             ],
                           ),
@@ -2571,6 +2578,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
             ? 1
             : (diasSeleccionados.toList()..sort()).first,
         hora: _primeraHora(diasSeleccionados, horariosPorDia),
+        categorias: cats,
       ),
       'reserva_cierre_minutos': cierreReserva,
       'instructor': i.text.trim().isEmpty ? null : i.text.trim(),
@@ -2596,6 +2604,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       horariosPorDia: porDia,
       duracionMin: dur,
       sala: s.text.trim(),
+      categorias: cats,
     );
     if (confirmado != true || !mounted) {
       n.dispose();
@@ -2663,6 +2672,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     required Map<int, List<TimeOfDay>> horariosPorDia,
     required int duracionMin,
     String sala = '',
+    List<String>? categorias,
   }) async {
     final dias = horariosPorDia.keys.where((d) => d >= 1 && d <= 7).toList()
       ..sort();
@@ -2720,7 +2730,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 ..sort((a, b) =>
                                     (a.hour * 60 + a.minute)
                                         .compareTo(b.hour * 60 + b.minute)))
-                              .map((t) => _etiquetaHorario(d, t))
+                              .map((t) => _etiquetaHorario(d, t, categorias))
                               .join('   '),
                           style: const TextStyle(
                               color: AppColors.black,
@@ -6683,11 +6693,16 @@ class _PrecioCalculadoField extends StatelessWidget {
   final TimeOfDay hora;
   final bool porHorario;
 
+  /// Categorías tildadas en el form: si una es un servicio de precio fijo del
+  /// estudio, el precio es ese y no depende del horario.
+  final List<String>? categorias;
+
   const _PrecioCalculadoField({
     required this.estudio,
     required this.dia,
     required this.hora,
     this.porHorario = false,
+    this.categorias,
   });
 
   @override
@@ -6701,7 +6716,28 @@ class _PrecioCalculadoField extends StatelessWidget {
     }
 
     final cfg = PricingCalculator.configDe(estudio);
-    if (!cfg.configurado) {
+    final horaTxt =
+        '${hora.hour.toString().padLeft(2, '0')}:${hora.minute.toString().padLeft(2, '0')}';
+    // Se calcula ANTES de mirar la config: un servicio de precio fijo vale
+    // aunque el estudio no tenga rango configurado (mismo orden que la base).
+    final res = PricingCalculator.calcular(
+      estudio: estudio,
+      hora: horaTxt,
+      dia: dia,
+      categorias: categorias,
+    );
+
+    if (res.conflicto != null) {
+      // Dos servicios de precio fijo en la misma clase: la base va a rechazar
+      // el guardado con este mismo texto. Mejor verlo acá que en el error.
+      return _AuraReadOnlyField(
+        label: 'Créditos por clase',
+        value: '—',
+        caption: res.conflicto!,
+      );
+    }
+
+    if (!res.configurado) {
       return const _AuraReadOnlyField(
         label: 'Créditos por clase',
         value: 'Sin configurar',
@@ -6710,17 +6746,11 @@ class _PrecioCalculadoField extends StatelessWidget {
       );
     }
 
-    final horaTxt =
-        '${hora.hour.toString().padLeft(2, '0')}:${hora.minute.toString().padLeft(2, '0')}';
-    final res = PricingCalculator.calcular(
-      estudio: estudio,
-      hora: horaTxt,
-      dia: dia,
-    );
     final creditos = res.creditos ?? 0;
 
     // Grilla en modo rango: cada clase generada toma el precio de su franja.
-    final variaPorHorario = porHorario && cfg.esRango;
+    // Con un servicio de precio fijo no varía: es un solo número.
+    final variaPorHorario = porHorario && cfg.esRango && !res.esServicio;
 
     final Color badgeColor;
     switch (res.tipo) {
