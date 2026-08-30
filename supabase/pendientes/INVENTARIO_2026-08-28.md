@@ -12,7 +12,7 @@ base** (varias notas viejas ya no valían: se marcan abajo).
 |---|---|---|
 | 1 | ✅ **ARREGLADO 29/8** · la credencial en Firebase estaba como "de desarrollo" y la app manda tokens de producción (verificado en el `.ipa`: `aps-environment=production`). Re-subida el `.p8` como Auth Key → `enviados: 3 · fallidos: 0`. Todas las notificaciones cableadas quedaron vivas |
 | 2 | ✅ **HECHO 29/8** · dropeada con el 26 confirmado en la tienda; 0 valores re-medidos antes; smoke de lectura y reserva OK |
-| 3 | **Cerrar la policy temporal de nombres** | Sólo cuando los estudios **adopten** el 26, no al aprobarse |
+| 3 | **Cerrar la policy temporal de nombres** | Sólo cuando los estudios **adopten** el 26, no al aprobarse. Al 30/8: **4 en 🔴** (Citra, Sculpt, Ambra, Barre); YN Pilates ya está ✅. El force-update los va empujando solo |
 
 ### Los 8 menores de la auditoría fresca (re-medidos el 26/8: los 8 siguen)
 | | Qué |
@@ -37,7 +37,7 @@ base** (varias notas viejas ya no valían: se marcan abajo).
 ### Deuda que nadie está mirando
 | | Qué |
 |---|---|
-| 16 | 🟡 **`email-confirmacion`: HECHA 29/8** — refactorizada al patrón de secreto + trigger en base (`trg_notif_email_confirmacion_alumna`), texto aprobado por la usuaria, activa para todas. Dispara SOLO en INSERT confirmada y pre→confirmada (el deshacer check-in NO re-manda, medido). **`crear-pago-pack` sigue sin desplegar** (nadie la llama; decidir si se borra del repo) |
+| 16 | 🟡 **`email-confirmacion`: HECHA 29/8** — refactorizada al patrón de secreto + trigger en base (`trg_notif_email_confirmacion_alumna`), texto aprobado por la usuaria, activa para todas. Dispara SOLO en INSERT confirmada y pre→confirmada (el deshacer check-in NO re-manda, medido). ✅ **`crear-pago-pack` BORRADA el 30/8** — era código muerto (0 referencias en `lib/` y `web/`; el camino vivo es `crear-checkout-pack` v56). Se fueron los 3 archivos y su bloque de `config.toml` |
 | 17 | ✅ **HECHO 29/8** · la vista es tuya (`usuario_id = auth.uid()`) y máx. 1 por estudio por hora, vía helper SECURITY DEFINER (`vista_reciente`; un `not exists` directo en el check corría bajo RLS y veía 0 filas — medido). Spoofear rechazado; otro estudio en la misma hora entra |
 | 18 | 🔴 **NO es base-only → build 27.** La mecánica correcta es revoke de tabla + grant por columnas (el revoke por columna sola es no-op si hay grant de tabla — medido). PERO `reviews_service.dart` pide `usuario_id` explícito y el invitado carga reseñas sin try/catch ⇒ aplicarlo hoy rompe el detalle de estudio en modo visita. Va junto al cambio de `select` del Dart |
 | 19 | ⏸️ **Decisión 29/8: NO tocar por ahora.** Mitigado (verifica contra la API de MP después). Es segunda capa opcional; reforzar cuando haya volumen. No tocar el camino de pagos con plata real sin necesidad |
@@ -77,11 +77,11 @@ base** (varias notas viejas ya no valían: se marcan abajo).
 | 2 | **Avisar el fin de la gracia** | **Citra el 13/9**, 6 estudios hasta el 30/9 |
 | 3 | **`admin_delete_estudio` destruye la facturación del estudio** | Charla con la contadora: ¿archivar o borrar? |
 | 4 | **Archivar clases viejas** | Misma charla |
-| 5 | **¿Mail de confirmación de reserva a la alumna?** | La función existe y nunca se desplegó |
+| 5 | ✅ **RESUELTO** — mail de confirmación **decidido, desplegado y activo desde el 29/8**. Cableado por base (trigger), texto aprobado. Le llega a todas las alumnas | |
 | 6 | **Categorías faltantes**: Yessi (112 clases) y Ambra (77) | O que el formulario las exija |
 | 7 | **Franjas de Tiwar aparentemente invertidas** (8, 9, 19, 20 en valle) | Un `admin_set_pricing_estudio`, sin recargar |
 | 8 | **YN Pilates: `creditos_max` 13 sin ninguna clase ahí** | Mismo olor |
-| 9 | **Estado del build 25/26 en App Store Connect** | No tengo acceso |
+| 9 | ✅ **RESUELTO 30/8** — Sofía confirmó que **los builds 25 y 26 están publicados**. Cierra 8 días de "estado desconocido" en `BUILD_IOS_pendiente.md` | |
 | 10 | ⏭️ **Tanda B — verificación de mail** | Salteada hasta la primera empresa |
 | 11 | **Sanear los docs de esta carpeta** + escribir el doc de eventos gratis | `SANEAR_ESTOS_DOCS.md` |
 

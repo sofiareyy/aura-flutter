@@ -20,40 +20,71 @@
 | ⬜ | **Tanda D** — Modelo C de precios | arrancar por el DISEÑO de reglas, no por código |
 | 🟡 | **Tanda E** — experiencias, keys legacy | **preservar facturación: la mitad urgente CERRADA el 26/8.** Queda el estudio dado de baja, que espera decisión con la contadora |
 | ⬜ | **8 menores de la auditoría fresca** | ninguno urgente · re-medidos el 26/8, los 8 siguen abiertos |
-| ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia · mail de confirmación |
+| 🟢 | **Force-update** (`min_build_ios = 26`) | **ACTIVO a propósito** desde el 29/8 · builds 25 y 26 publicados · **no revertir** |
+| ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia |
 
-### 🔴 29/8 — DOS CAMBIOS REVERTIDOS: la premisa era falsa
+### 🟢 FORCE-UPDATE ACTIVO en la 26 — decisión de Sofía (confirmada el 30/8)
 
-Se activó el force-update (`min_build_ios=26`) y se cerró la policy de nombres,
-las dos apoyadas en la conclusión de que **ningún estudio usaba la app nativa**.
-**Esa conclusión estaba MAL** y las dos se revirtieron el mismo día.
+**Estado real en producción, medido el 30/8:** `min_build_ios = 26`,
+`min_build_android = 1`, policy `usuarios_select_alumnas_de_mis_clases`
+**repuesta**.
 
-**El error de método:** se dedujo "usan web" de que `dispositivos` estaba vacía
-para los estudios. Pero esa tabla **sólo registra a quien ACEPTÓ el permiso de
-push** — no a quien usa la app.
+**Es a propósito.** El cartel bloqueante es justamente el mecanismo para que
+quien tenga una versión vieja se entere y actualice. **Los builds 25 y 26 están
+publicados** en la App Store. **No revertir.**
+
+⚠️ **Corrección a lo que decía este documento el 29/8.** La nota anterior
+afirmaba que se habían revertido *dos* cambios. **Sólo se revirtió uno.**
+
+| Cambio del 29/8 | Lo que decía la nota | Lo que pasó de verdad |
+|---|---|---|
+| `min_build_ios` = 26 | "revertido a 1" | ❌ **nunca se revirtió** — sigue en 26, y así se queda |
+| policy de nombres cerrada | "repuesta" | ✅ correcto, la policy volvió |
+
+El commit `bbce0ed` **sólo tocó este `.md`**: el `UPDATE` de `min_build_ios` a 1
+jamás corrió. `min_build_android` está en 1 porque nunca se activó, no porque se
+haya revertido. Se detectó el 30/8 midiendo `configuracion_global` contra las
+notas.
+
+**Alcance del gate** (`lib/services/version_gate.dart:56`, bloquea si
+`instalado < minimo`):
+
+- Builds **≤24 no tienen el gate** (nació el 21/08 00:49) ⇒ **no los alcanza**.
+- Build **25 sí lo tiene** ⇒ ve el cartel de actualizar. **Ese es el efecto
+  buscado.**
+- **Web nunca se bloquea** (`kIsWeb` ⇒ `false`), y el gate es **fail-open**:
+  error de red, timeout, fila ausente o valor ilegible ⇒ no bloquea a nadie.
+
+### ✅ Lo que SÍ sigue vigente del 29/8: el error de método
+
+Lo que se revirtió con razón fue **la policy de nombres**, y la lección de cómo
+se midió sigue valiendo entera:
+
+**El error:** se dedujo "usan web" de que `dispositivos` estaba vacía para los
+estudios. Pero esa tabla **sólo registra a quien ACEPTÓ el permiso de push** —
+no a quien usa la app.
 
 **La señal correcta es `auth.sessions.user_agent`:**
 - `Dart/3.11 (dart:io)` ⇒ **app nativa**
 - `Mozilla/...` ⇒ **web**
 
-**Medido: 5 estudios SÍ usan la app nativa** — Citra (27/8), Sculpt Club (27/8),
-Ambra (27/8), Barre Estudio (27/8) y YN Pilates (28/8). Y **ninguno de los 5
-tiene dispositivo registrado**, lo que confirma que la tabla `dispositivos` no
-sirve como censo de uso.
+**Medido: 5 estudios SÍ usaban la app nativa** — Citra, Sculpt Club, Ambra,
+Barre Estudio (27/8) y YN Pilates (28/8). Y **ninguno tenía dispositivo
+registrado**, lo que confirma que `dispositivos` no sirve como censo de uso.
 
-**Por qué era peligroso:** el build 26 se aprobó el 29/8, así que esas sesiones
-del 26-28/8 eran de un build **anterior**. Con `min_build_ios=26`, los 5
-habrían quedado trabados en el cartel bloqueante la próxima vez que abrieran la
-app — Citra incluida, a dos semanas de arrancar reservas reales. Por suerte
-ninguno abrió la app entre la activación y la reversión.
+**Por eso la policy sigue abierta:** un estudio en build 25 lee `usuarios`
+directo (no la RPC), así que al cerrarla vuelve a ver "Usuario" en vez del
+nombre de la alumna. **Esa mitad espera adopción, el force-update no.**
 
-**Y el segundo cambio empeoraba el primero:** al cerrar la policy de nombres, un
-estudio en build 25 (que lee `usuarios` directo, no la RPC) vuelve a ver
-"Usuario" en vez del nombre de la alumna.
-
-**Estado tras revertir:** `min_build_ios=1`, `min_build_android=1`, policy
-`usuarios_select_alumnas_de_mis_clases` repuesta. Verificado: Citra con la app
-vieja vuelve a ver `Juanita · juanitasosamartin@gmail.com`.
+```sql
+-- quién usa app vs web, y con qué versión si registró push
+select u.email,
+       case when s.user_agent ilike '%dart%' then 'APP' else 'WEB' end as cliente,
+       s.updated_at,
+       (select max(d.app_version) from public.dispositivos d where d.usuario_id=u.id) as version
+  from auth.sessions s join public.usuarios u on u.id=s.user_id
+ order by s.updated_at desc;
+```
 
 ### 🚦 Semáforo de adopción — `supabase/pendientes/SEMAFORO_ADOPCION.sql`
 
@@ -61,8 +92,12 @@ Correr cada par de días. **Verde = seguro** (el build 26 registra push al abrir
 🔴 = usa la app y no dio señal de la 26; 🌐 = sólo web (nada que hacer, la web
 siempre es la última).
 
-**Estado al 29/8:** 5 en 🔴 — Citra, Sculpt Club, Ambra, Barre Estudio y YN
-Pilates. Tiwar, Yessi y BB (x2) van por **web**.
+**Estado al 30/8:** **YN Pilates ya está ✅ EN LA 26** (actualizó el 30/8 a las
+14:50). Quedan **4 en 🔴** — Citra, Sculpt Club, Ambra y Barre Estudio, las
+cuatro sin abrir la app desde el 27/8. Tiwar, Yessi y BB (x2) van por **web**.
+
+Con el force-update activo, un 🔴 que abra la app **ve el cartel y actualiza**:
+el semáforo pasa de ser una alerta a ser el seguimiento de esa transición.
 
 ⚠️ El semáforo confirma a quien SÍ actualizó, pero **no prueba lo contrario**:
 un estudio en la 26 que rechace el permiso de push seguiría en 🔴.
@@ -134,12 +169,16 @@ estudio con servicios andando antes de la 1.0.7, **la grilla la carga Aura
 desde el backoffice**. El precio queda bien y el estudio nunca ve el número
 equivocado. La base está completa y verificada desde el 27/8.
 
-### 📋 Para rehacerlo bien (cuando se coordine)
+### 📋 Lo que queda por coordinar (sólo la policy)
 
-1. **Avisar a los 5 estudios que actualicen** desde el App Store.
+El force-update ya está activo y se queda. **Lo único que espera adopción es
+cerrar la policy de nombres:**
+
+1. **Avisar a los 4 en 🔴 que actualicen** desde el App Store — aunque ahora el
+   cartel lo hace solo cuando abren la app.
 2. **Verificar adopción con la consulta de `user_agent` + `app_version`**, no
    con `dispositivos` sola.
-3. Recién con los 5 en la 26: activar el force-update y cerrar la policy.
+3. Recién con los 4 en la 26: **cerrar la policy** `usuarios_select_alumnas_de_mis_clases`.
 
 ```sql
 -- quién usa app vs web, y con qué versión si registró push
@@ -1113,9 +1152,15 @@ ya hay material: la medición end-to-end con saldo 0 está hecha).
 ## 💡 Cosas aprendidas que conviene no volver a descubrir
 
 - **La trampa del `config.toml`:** aparecio dos veces. Una edge function no
-  declarada ahi cambia su `verify_jwt` en silencio al deployar. Quedaron
-  declaradas `aviso-cobro-manana`, `reporte-mensual-estudios`,
-  `aviso-alumnos-email` y `email-regalo`. **Chequear antes de cada deploy.**
+  declarada ahi cambia su `verify_jwt` en silencio al deployar. **Chequear antes
+  de cada deploy.** Al 30/8 hay **11 declaradas**: `delete-account`,
+  `cleanup-lista-espera`, `regenerar-grillas`, `acreditar-creditos-corporativos`,
+  `aviso-alumnos-email`, `email-regalo`, `aviso-cobro-manana`,
+  `reporte-mensual-estudios`, `mp-webhook`, `nueva-reserva-estudio-email` y
+  `push-enviar`.
+  ⚠️ **`email-confirmacion` y `resena-email` estan desplegadas y NO declaradas**
+  (las dos con `verify_jwt = true`, que es lo que necesitan porque las invoca un
+  trigger con el anon key). Si alguna vez se re-deployan, declararlas primero.
 - **Arranque en frio:** la primera invocacion despues de un deploy corta a los
   5s por el default de `pg_net`. No rompe el cron; para ver la respuesta hay
   que pasar `timeout_milliseconds := 30000`.

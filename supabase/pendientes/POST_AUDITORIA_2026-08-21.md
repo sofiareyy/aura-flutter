@@ -69,8 +69,13 @@ en el GET.
   fecha con `valid_days`). Riesgo de vencimiento mal calculado según qué firma
   resuelva. Unificar.
 - **Bucket `avatares`**: público y vacío. Ver abajo, está roto.
-- **`crear-pago-pack` y `email-confirmacion`** existen en el repo pero **no
-  están desplegadas**.
+- ~~**`crear-pago-pack` y `email-confirmacion`** existen en el repo pero **no
+  están desplegadas**.~~ **DESACTUALIZADO — cerrado el 30/8.**
+  `email-confirmacion` está **desplegada** (v1, 28/8) y **cableada por base**
+  con el trigger `trg_notif_email_confirmacion_alumna`.
+  `crear-pago-pack` era **código muerto** (0 referencias en `lib/` y `web/`; el
+  camino vivo es `crear-checkout-pack`): **borrada del repo y del `config.toml`
+  el 30/8.**
 
 ---
 
