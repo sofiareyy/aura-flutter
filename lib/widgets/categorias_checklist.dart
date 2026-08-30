@@ -19,13 +19,26 @@ class CategoriasChecklist extends StatelessWidget {
 
   final String label;
 
+  /// Servicios de precio fijo del estudio: `{categoría → créditos}`. Las que
+  /// están acá se dibujan con el precio adentro (`Sauna · 14 cr`) y un ícono,
+  /// para que el estudio vea ANTES de elegir que ese precio no es por franja.
+  /// Vacío (el default) ⇒ los chips se ven exactamente como siempre.
+  final Map<String, int> precios;
+
   const CategoriasChecklist({
     super.key,
     required this.disponibles,
     required this.seleccionadas,
     required this.onToggle,
     this.label = 'Categorías',
+    this.precios = const {},
   });
+
+  /// Texto del chip: la categoría, o `categoría · N cr` si es un servicio.
+  String etiquetaDe(String cat) {
+    final precio = precios[cat];
+    return precio == null ? cat : '$cat · $precio cr';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,20 +62,31 @@ class CategoriasChecklist extends StatelessWidget {
           runSpacing: 8,
           children: opciones.map((cat) {
             final marcada = seleccionadas.contains(cat);
+            final esServicio = precios.containsKey(cat);
             return FilterChip(
-              label: Text(cat),
+              label: Text(etiquetaDe(cat)),
+              // El ícono de etiqueta de precio distingue al servicio del
+              // resto aun sin leer el número. Sólo cuando NO está marcado:
+              // marcado ya lleva el tilde adelante.
+              avatar: esServicio && !marcada
+                  ? const Icon(Icons.sell_outlined,
+                      size: 16, color: AppColors.primary)
+                  : null,
               selected: marcada,
               onSelected: (value) => onToggle(cat, value),
               showCheckmark: true,
               selectedColor: AppColors.primary.withValues(alpha: 0.15),
               checkmarkColor: AppColors.primary,
               labelStyle: TextStyle(
-                color: marcada ? AppColors.primary : AppColors.black,
+                color: marcada || esServicio
+                    ? AppColors.primary
+                    : AppColors.black,
                 fontSize: 13,
-                fontWeight: marcada ? FontWeight.w600 : FontWeight.w400,
+                fontWeight:
+                    marcada || esServicio ? FontWeight.w600 : FontWeight.w400,
               ),
               side: BorderSide(
-                color: marcada
+                color: marcada || esServicio
                     ? AppColors.primary
                     : const Color(0xFFEDE7E1),
               ),

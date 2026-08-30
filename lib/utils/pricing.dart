@@ -206,6 +206,13 @@ class PricingCalculator {
     return out;
   }
 
+  /// `{servicio → créditos}` de los servicios ACTIVOS, para pintar los chips.
+  static Map<String, int> preciosServiciosDe(Map<String, dynamic>? estudio) =>
+      {
+        for (final s in serviciosDe(estudio))
+          if (s.activo) s.servicio: s.creditos,
+      };
+
   /// Espejo de `servicio_precio_fijo(estudio, categorias)`: qué servicio de
   /// precio fijo (si hay uno) aplica a una clase con estas categorías.
   ///

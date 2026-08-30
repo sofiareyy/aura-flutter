@@ -866,6 +866,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                       '$kMaxCategoriasClase)',
                                   disponibles: categoriasDisponibles,
                                   seleccionadas: cats,
+                                  precios: PricingCalculator
+                                      .preciosServiciosDe(_estudio),
                                   onToggle: (c, marcada) => setD(() {
                                     if (marcada) {
                                       if (cats.length >=
@@ -1679,6 +1681,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                       '$kMaxCategoriasClase)',
                                   disponibles: categoriasDisponibles,
                                   seleccionadas: cats,
+                                  precios: PricingCalculator
+                                      .preciosServiciosDe(_estudio),
                                   onToggle: (c, marcada) => setD(() {
                                     if (marcada) {
                                       if (cats.length >=
@@ -2316,12 +2320,20 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 onChanged: (v) => setD(() => dur = v ?? dur),
                               ),
                               const SizedBox(height: 14),
+                              // Con un servicio de precio fijo tildado, un
+                              // renglón fijo arriba de los horarios: el precio
+                              // es uno solo y no depende de la hora.
+                              _ServicioPrecioBanner(
+                                estudio: _estudio,
+                                categorias: cats,
+                              ),
                               _HorariosPorDiaEditor(
                                 dias: (diasSeleccionados.toList()..sort()),
                                 horarios: horariosPorDia,
                                 duracionMin: dur,
                                 onChanged: () => setD(() {}),
-                                etiqueta: _etiquetaHorario,
+                                etiqueta: (d, t) =>
+                                    _etiquetaHorario(d, t, cats),
                               ),
                             ],
                           ),
@@ -2380,6 +2392,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                       '$kMaxCategoriasClase)',
                                   disponibles: categoriasDisponibles,
                                   seleccionadas: cats,
+                                  precios: PricingCalculator
+                                      .preciosServiciosDe(_estudio),
                                   onToggle: (c, marcada) => setD(() {
                                     if (marcada) {
                                       if (cats.length >=
@@ -6687,6 +6701,76 @@ String _fmtPesosCr(int v) {
 /// [porHorario] es para el form de grilla, donde se generan clases en varios
 /// días y franjas: ahí no hay un número único que mostrar, así que explicamos
 /// la regla.
+/// Renglón fijo que aparece arriba de la lista de horarios de la grilla cuando
+/// una de las categorías tildadas es un servicio de precio fijo del estudio:
+///
+///   🏷️  Sauna · 14 créditos · precio único
+///       Este servicio no cambia por horario. Lo configura Aura.
+///
+/// Sin servicio (el caso de todos los estudios de hoy) no dibuja nada.
+class _ServicioPrecioBanner extends StatelessWidget {
+  final Map<String, dynamic>? estudio;
+  final List<String> categorias;
+
+  const _ServicioPrecioBanner({
+    required this.estudio,
+    required this.categorias,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final servicio =
+        PricingCalculator.servicioDe(estudio, categorias).servicio;
+    if (servicio == null) return const SizedBox.shrink();
+    final detalle = PricingResult(
+      creditos: servicio.creditos,
+      tipo: TipoPrecio.servicio,
+    ).detalle;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF1E8),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.sell_outlined,
+                size: 18, color: AppColors.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${servicio.servicio} · ${servicio.creditos} créditos · '
+                    'precio único',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    detalle,
+                    style: const TextStyle(
+                        color: AppColors.grey, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _PrecioCalculadoField extends StatelessWidget {
   final Map<String, dynamic>? estudio;
   final int dia; // isodow 1=lunes..7=domingo
