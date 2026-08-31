@@ -231,15 +231,25 @@ class PricingCalculator {
         .toList()
       ..sort((a, b) => a.servicio.compareTo(b.servicio));
     if (matches.isEmpty) return ServicioBusqueda.ninguno;
-    if (matches.length == 1) {
-      return ServicioBusqueda._(servicio: matches.first);
-    }
     final lista =
         matches.map((s) => '${s.servicio} (${s.creditos} cr)').join(' y ');
-    return ServicioBusqueda._(
-      conflicto: 'Elegiste dos servicios con precio fijo: $lista. '
-          'Dejá uno solo, o pedile a Aura una categoría combinada.',
-    );
+    if (matches.length >= 2) {
+      return ServicioBusqueda._(
+        conflicto: 'Elegiste dos servicios con precio fijo: $lista. '
+            'Dejá uno solo, o pedile a Aura una categoría combinada.',
+      );
+    }
+    // REGLA A (30/8): el servicio es la ÚNICA categoría de la clase. Cierra
+    // el agujero de tildar el servicio caro en una clase común. El form ya
+    // destilda solo; esto es el espejo del rechazo de la base para lo demás.
+    if (categorias.length > 1) {
+      return ServicioBusqueda._(
+        conflicto: 'Un servicio de precio fijo va solo: $lista no se puede '
+            'mezclar con otras categorías. Dejá esa sola, o pedile a Aura '
+            'una categoría combinada.',
+      );
+    }
+    return ServicioBusqueda._(servicio: matches.first);
   }
 
   /// estudio: row de `estudios` (con `estudio_servicios_precio` embebido).

@@ -868,17 +868,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   seleccionadas: cats,
                                   precios: PricingCalculator
                                       .preciosServiciosDe(_estudio),
-                                  onToggle: (c, marcada) => setD(() {
-                                    if (marcada) {
-                                      if (cats.length >=
-                                          kMaxCategoriasClase) {
-                                        return;
-                                      }
-                                      if (!cats.contains(c)) cats.add(c);
-                                    } else {
-                                      cats.remove(c);
-                                    }
-                                  }),
+                                  onToggle: (c, marcada) => setD(
+                                    () => CategoriasChecklist.aplicarToggle(
+                                      cats,
+                                      c,
+                                      marcada,
+                                      precios: PricingCalculator
+                                          .preciosServiciosDe(_estudio),
+                                      max: kMaxCategoriasClase,
+                                    ),
+                                  ),
                                 ),
                               const SizedBox(height: 12),
                               if (tipoClase == 'workshop')
@@ -1683,17 +1682,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   seleccionadas: cats,
                                   precios: PricingCalculator
                                       .preciosServiciosDe(_estudio),
-                                  onToggle: (c, marcada) => setD(() {
-                                    if (marcada) {
-                                      if (cats.length >=
-                                          kMaxCategoriasClase) {
-                                        return;
-                                      }
-                                      if (!cats.contains(c)) cats.add(c);
-                                    } else {
-                                      cats.remove(c);
-                                    }
-                                  }),
+                                  onToggle: (c, marcada) => setD(
+                                    () => CategoriasChecklist.aplicarToggle(
+                                      cats,
+                                      c,
+                                      marcada,
+                                      precios: PricingCalculator
+                                          .preciosServiciosDe(_estudio),
+                                      max: kMaxCategoriasClase,
+                                    ),
+                                  ),
                                 ),
                               const SizedBox(height: 12),
                               if (tipo == 'workshop')
@@ -2394,17 +2392,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   seleccionadas: cats,
                                   precios: PricingCalculator
                                       .preciosServiciosDe(_estudio),
-                                  onToggle: (c, marcada) => setD(() {
-                                    if (marcada) {
-                                      if (cats.length >=
-                                          kMaxCategoriasClase) {
-                                        return;
-                                      }
-                                      if (!cats.contains(c)) cats.add(c);
-                                    } else {
-                                      cats.remove(c);
-                                    }
-                                  }),
+                                  onToggle: (c, marcada) => setD(
+                                    () => CategoriasChecklist.aplicarToggle(
+                                      cats,
+                                      c,
+                                      marcada,
+                                      precios: PricingCalculator
+                                          .preciosServiciosDe(_estudio),
+                                      max: kMaxCategoriasClase,
+                                    ),
+                                  ),
                                 ),
                               const SizedBox(height: 12),
                               // La grilla genera clases en varios días y

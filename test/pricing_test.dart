@@ -58,10 +58,11 @@ void main() {
       expect(r.conflicto, isNull);
     });
 
-    test('servicio + genérica → gana el servicio, 8', () {
+    test('servicio + genérica → RECHAZO por regla A (antes daba 8; cambió el 30/8)',
+        () {
       final r = calc(hotClic(), ['Pilates', 'Spa']);
-      expect(r.creditos, 8);
-      expect(r.tipo, TipoPrecio.servicio);
+      expect(r.creditos, isNull);
+      expect(r.conflicto, contains('va solo'));
     });
 
     test('genérica sola → precio del estudio, 12', () {
@@ -84,6 +85,35 @@ void main() {
     test('match exacto de string: "spa" no es "Spa"', () {
       expect(calc(hotClic(), ['spa']).creditos, 12);
       expect(calc(hotClic(), ['Spa ']).creditos, 12);
+    });
+
+    test('REGLA A: servicio mezclado con una común → conflicto, texto de la base',
+        () {
+      // Medido en producción el 30/8: crear ['Yoga','Spa'] en Hot Clic
+      // rechaza con exactamente este mensaje.
+      final r = calc(hotClic(), ['Yoga', 'Spa']);
+      expect(r.creditos, isNull);
+      expect(r.tipo, TipoPrecio.servicio);
+      expect(
+        r.conflicto,
+        'Un servicio de precio fijo va solo: Spa (8 cr) no se puede mezclar '
+        'con otras categorías. Dejá esa sola, o pedile a Aura una categoría '
+        'combinada.',
+      );
+    });
+
+    test('REGLA A: running club a 0 créditos como única categoría → 0/servicio',
+        () {
+      // Medido el 30/8: categoría global 'Running club' con precio 0 para el
+      // estudio; la clase nace a 0 con tipo 'servicio' (reservar con 0 ya
+      // estaba soportado, medido el 22/8).
+      final e = hotClic();
+      (e['estudio_servicios_precio'] as List)
+          .add({'servicio': 'Running club', 'creditos': 0, 'activo': true});
+      final r = calc(e, ['Running club']);
+      expect(r.creditos, 0);
+      expect(r.tipo, TipoPrecio.servicio);
+      expect(r.configurado, isTrue);
     });
 
     test('dos servicios → conflicto, mismo texto que la base', () {

@@ -40,6 +40,37 @@ class CategoriasChecklist extends StatelessWidget {
     return precio == null ? cat : '$cat · $precio cr';
   }
 
+  /// Aplica un toggle sobre [seleccionadas] respetando la REGLA A (30/8):
+  /// un servicio de precio fijo es la ÚNICA categoría de la clase.
+  ///
+  /// - Tildar un servicio destilda todo lo demás.
+  /// - Tildar una común con un servicio tildado destilda el servicio.
+  /// - Tope de [max] categorías (espejo del trigger `sync_categorias_clase`).
+  ///
+  /// La base rechaza la mezcla de todos modos (`servicio_precio_fijo`); esto
+  /// es la UX para que el estudio nunca vea ese error.
+  static void aplicarToggle(
+    List<String> seleccionadas,
+    String categoria,
+    bool marcada, {
+    required Map<String, int> precios,
+    int max = 5,
+  }) {
+    if (!marcada) {
+      seleccionadas.remove(categoria);
+      return;
+    }
+    if (precios.containsKey(categoria)) {
+      // Un servicio va solo.
+      seleccionadas.clear();
+    } else {
+      // Una común echa al servicio que hubiera.
+      seleccionadas.removeWhere(precios.containsKey);
+      if (seleccionadas.length >= max) return;
+    }
+    if (!seleccionadas.contains(categoria)) seleccionadas.add(categoria);
+  }
+
   @override
   Widget build(BuildContext context) {
     final opciones =

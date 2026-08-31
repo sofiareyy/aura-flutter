@@ -65,6 +65,45 @@ void main() {
     expect(find.textContaining(' cr'), findsNothing);
   });
 
+  group('aplicarToggle — regla A: el servicio va solo', () {
+    const precios = {'Spa': 8, 'Recovery': 5};
+
+    test('tildar un servicio destilda todo lo demás', () {
+      final cats = ['Yoga', 'Pilates'];
+      CategoriasChecklist.aplicarToggle(cats, 'Spa', true, precios: precios);
+      expect(cats, ['Spa']);
+    });
+
+    test('tildar una común con un servicio tildado destilda el servicio', () {
+      final cats = ['Spa'];
+      CategoriasChecklist.aplicarToggle(cats, 'Yoga', true, precios: precios);
+      expect(cats, ['Yoga']);
+    });
+
+    test('tildar otro servicio reemplaza al anterior', () {
+      final cats = ['Spa'];
+      CategoriasChecklist.aplicarToggle(cats, 'Recovery', true,
+          precios: precios);
+      expect(cats, ['Recovery']);
+    });
+
+    test('destildar saca y nada más', () {
+      final cats = ['Spa'];
+      CategoriasChecklist.aplicarToggle(cats, 'Spa', false, precios: precios);
+      expect(cats, isEmpty);
+    });
+
+    test('sin servicios: se comporta como siempre, con tope', () {
+      final cats = ['A', 'B', 'C', 'D', 'E'];
+      CategoriasChecklist.aplicarToggle(cats, 'F', true,
+          precios: const {}, max: 5);
+      expect(cats, ['A', 'B', 'C', 'D', 'E']); // tope respetado
+      CategoriasChecklist.aplicarToggle(cats, 'B', false, precios: const {});
+      CategoriasChecklist.aplicarToggle(cats, 'F', true, precios: const {});
+      expect(cats, ['A', 'C', 'D', 'E', 'F']);
+    });
+  });
+
   test('etiquetaDe', () {
     final w = CategoriasChecklist(
       disponibles: const [],
