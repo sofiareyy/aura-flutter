@@ -407,6 +407,40 @@ El espejo del panel ya da **el mismo número que la base** para cualquier caso.
   servicios muestra sólo los nombres, sin " cr" ni ícono**; con servicio, sólo
   ese chip cambia. 21 tests OK · analyze 0 · web compila.
 
+### ✅ 30/8 — REGLA A: el servicio es la ÚNICA categoría (agujero cerrado)
+
+**El agujero (catch de la usuaria, medido con la cuenta real de Hot Clic):**
+el estudio podía tildar su servicio en cualquier clase — `['Yoga','Spa']` — y
+cobrar el precio del servicio en una clase que no lo es. En las dos
+direcciones: caro = la alumna paga de más; barato = baja la comisión (%) de
+Aura. Era la única palanca de precio en manos del estudio.
+
+**La regla, confirmada:** si hay servicio, es la única categoría. Sin atar el
+nombre (texto libre, no participa del precio, atarlo no protege nada).
+
+- **Base:** `FEAT_SERVICIO_CATEGORIA_UNICA_2026-08-30.sql` — el rechazo vive en
+  `servicio_precio_fijo`, por donde pasan los 3 caminos (clase, grilla,
+  recálculo). Aplicada y verificada 8/8: crear y editar `['Yoga','Spa']` →
+  rechazo con mensaje claro · `['Spa']` sola → 8/servicio · `['Yoga','Pilates']`
+  común → 12 como siempre · dos servicios → el mensaje del 27/8 intacto ·
+  grilla mezclada → rechazo, sola → pasa · **huellas md5 idénticas** antes y
+  después (974 clases, 121 horarios: ningún precio se movió).
+- **Running club, decidido:** categoría **global** "Running club" con precio
+  **0 por estudio** (la PK de la tabla puente ya es (estudio, servicio): el
+  nombre nombra la cosa, el precio va aparte). Medido punta a punta en
+  rollback: categoría + `admin_set_servicio_precio(_, 'Running club', 0)` +
+  clase del estudio → **0 créditos · 'servicio'**. Nada de "GRATIS" pegado a
+  otra categoría.
+- **"GRATIS" desactivada del catálogo** (30/8, por `admin_toggle_studio_category`,
+  0 usos medidos antes). Obsoleta con este diseño y peligrosa tildable.
+- **Dart:** `servicioDe` espeja el rechazo con el mismo texto (test con el
+  mensaje literal de producción), y el form **destilda solo**:
+  `CategoriasChecklist.aplicarToggle` — tildar un servicio destilda lo demás,
+  tildar una común destilda al servicio, tope de 5 intacto. 5 tests de la
+  regla + 2 nuevos de pricing (mezcla → conflicto · running club a 0).
+  ⚠️ El test "servicio + genérica → 8" del 30/8 a la mañana quedó obsoleto
+  por la regla y ahora espera el rechazo — no es una regresión, es el cambio.
+
 **Lo que sigue (piezas 4–8):** pantalla del backoffice para cargar
 servicio+precio · snackbar de rechazo al guardar (el campo ya muestra el
 conflicto) · Explorar sin badge "precio reducido" para `'servicio'` · chips de

@@ -1023,6 +1023,12 @@ Las dos salidas, cuando esté decidido: `reservas.clase_id` a `SET NULL`, o que
 
 ## 🟢 Tanda D — servicios de precio fijo · **BASE EN PRODUCCIÓN desde el 27/8 · Dart: pieza 1 de 8 HECHA el 30/8**
 
+**30/8 — REGLA A en producción: un servicio de precio fijo es la ÚNICA
+categoría de la clase.** Cierra el agujero (catch de la usuaria) de tildar el
+servicio caro en clases comunes. Base + espejo + destildado automático en el
+form. Y decidido: running club = categoría global "Running club" a 0 por
+estudio; **"GRATIS" desactivada del catálogo**. Detalle en el relevamiento.
+
 **30/8 — `PricingCalculator` ya calcula igual que la base** (servicio de
 precio fijo antes que todo, conflicto de dos servicios con el mismo texto).
 Verificado contra producción: 14 tests, 974 clases reales de 974. El detalle y
