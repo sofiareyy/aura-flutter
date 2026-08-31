@@ -1023,6 +1023,12 @@ Las dos salidas, cuando esté decidido: `reservas.clase_id` a `SET NULL`, o que
 
 ## 🟢 Tanda D — servicios de precio fijo · **BASE EN PRODUCCIÓN desde el 27/8 · Dart: pieza 1 de 8 HECHA el 30/8**
 
+**👉 PRÓXIMA SESIÓN de Tanda D: la pantalla del backoffice** para cargar
+servicio + precio por estudio (hoy es por RPC/SQL). Después quedan: snackbar
+de rechazo al guardar y Explorar sin badge "precio reducido" para `'servicio'`.
+El estado completo y lo verificado vive en
+`SERVICIOS_PRECIO_FIJO_relevamiento.md` (secciones 6c y 6d).
+
 **30/8 — REGLA A en producción: un servicio de precio fijo es la ÚNICA
 categoría de la clase.** Cierra el agujero (catch de la usuaria) de tildar el
 servicio caro en clases comunes. Base + espejo + destildado automático en el

@@ -441,6 +441,22 @@ nombre (texto libre, no participa del precio, atarlo no protege nada).
   ⚠️ El test "servicio + genérica → 8" del 30/8 a la mañana quedó obsoleto
   por la regla y ahora espera el rechazo — no es una regresión, es el cambio.
 
+### ✅ 30/8 — Renglón "precio único" reubicado (opción C) · Spa de prueba APAGADO
+
+- El renglón estaba en la card "Horario", ARRIBA de los chips de categorías
+  (que son la última card) — el estudio tildaba y el aviso quedaba scrolleado.
+  **Opción C, decidida por la usuaria:** ahora está en DOS lugares en los 3
+  formularios — arriba de todo el form (se ve primero al reabrir para editar)
+  y pegado al checklist, entre los chips y el campo de precio. Sin servicio
+  tildado no dibuja nada, como antes.
+- Queda anotada la **opción D** (reordenar el form: categorías antes que
+  horarios — elegir QUÉ es antes de CUÁNDO es) como mejora de fondo, sin apuro.
+- **El Spa · 8 de prueba de Hot Clic quedó `activo=false`** (30/8, por la RPC).
+  0 clases y 0 grillas de prueba quedaron. Con Spa inactiva vuelve a ser
+  genérica: los demás estudios la ven de nuevo en su lista (medido con Citra).
+  La fila queda como referencia; para re-probar: `admin_set_servicio_precio(3,
+  'Spa', 8, true)`.
+
 **Lo que sigue (piezas 4–8):** pantalla del backoffice para cargar
 servicio+precio · snackbar de rechazo al guardar (el campo ya muestra el
 conflicto) · Explorar sin badge "precio reducido" para `'servicio'` · chips de
