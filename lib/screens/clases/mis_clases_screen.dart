@@ -738,6 +738,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                       child: Column(
                         children: [
+                          _ServicioPrecioBanner(
+                            estudio: _estudio,
+                            categorias: cats,
+                          ),
                           // Card 1: Información básica
                           _SectionCard(
                             title: 'Información básica',
@@ -886,13 +890,18 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   estudio: _estudio,
                                   onChanged: () => setD(() {}),
                                 )
-                              else
+                              else ...[
+                                _ServicioPrecioBanner(
+                                  estudio: _estudio,
+                                  categorias: cats,
+                                ),
                                 _PrecioCalculadoField(
                                   estudio: _estudio,
                                   dia: fechaSel.weekday,
                                   hora: horaSel,
                                   categorias: cats,
                                 ),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -1546,6 +1555,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                             ),
                             const SizedBox(height: 12),
                           ],
+                          _ServicioPrecioBanner(
+                            estudio: _estudio,
+                            categorias: cats,
+                          ),
                           // Card 1: Información básica
                           _SectionCard(
                             title: 'Información básica',
@@ -1700,13 +1713,18 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   estudio: _estudio,
                                   onChanged: () => setD(() {}),
                                 )
-                              else
+                              else ...[
+                                _ServicioPrecioBanner(
+                                  estudio: _estudio,
+                                  categorias: cats,
+                                ),
                                 _PrecioCalculadoField(
                                   estudio: _estudio,
                                   dia: diaPrecio(),
                                   hora: t,
                                   categorias: cats,
                                 ),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -2196,6 +2214,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
+                          _ServicioPrecioBanner(
+                            estudio: _estudio,
+                            categorias: cats,
+                          ),
                           // Card 1: Información básica
                           _SectionCard(
                             title: 'Información básica',
@@ -2318,13 +2340,6 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 onChanged: (v) => setD(() => dur = v ?? dur),
                               ),
                               const SizedBox(height: 14),
-                              // Con un servicio de precio fijo tildado, un
-                              // renglón fijo arriba de los horarios: el precio
-                              // es uno solo y no depende de la hora.
-                              _ServicioPrecioBanner(
-                                estudio: _estudio,
-                                categorias: cats,
-                              ),
                               _HorariosPorDiaEditor(
                                 dias: (diasSeleccionados.toList()..sort()),
                                 horarios: horariosPorDia,
@@ -2404,6 +2419,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   ),
                                 ),
                               const SizedBox(height: 12),
+                              _ServicioPrecioBanner(
+                                estudio: _estudio,
+                                categorias: cats,
+                              ),
                               // La grilla genera clases en varios días y
                               // horarios: en modo rango cada una toma el precio
                               // de su propia franja, así que mostramos la regla
@@ -6698,8 +6717,10 @@ String _fmtPesosCr(int v) {
 /// [porHorario] es para el form de grilla, donde se generan clases en varios
 /// días y franjas: ahí no hay un número único que mostrar, así que explicamos
 /// la regla.
-/// Renglón fijo que aparece arriba de la lista de horarios de la grilla cuando
-/// una de las categorías tildadas es un servicio de precio fijo del estudio:
+/// Renglón fijo que aparece cuando la categoría tildada es un servicio de
+/// precio fijo del estudio — en dos lugares por decisión del 30/8 (opción C):
+/// arriba de todo el formulario (se ve primero al reabrir para editar) y
+/// pegado al checklist de categorías (donde acaba de tildar):
 ///
 ///   🏷️  Sauna · 14 créditos · precio único
 ///       Este servicio no cambia por horario. Lo configura Aura.
