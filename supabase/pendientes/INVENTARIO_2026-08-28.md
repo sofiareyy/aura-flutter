@@ -66,6 +66,7 @@ base** (varias notas viejas ya no valían: se marcan abajo).
 | 12 | Premio 50 clases — Fase B (canje real) | |
 | 13 | Devoluciones / cancelación flexible | `BUILD22_cancelacion_flexible.md` |
 | 14 | "Excepción de la serie", "pausar un horario", filtro de canceladas viejas | Salieron de la revisión del formulario de grilla |
+| 15 | **Cartel "estás inactivo" en el panel del estudio** | Desde el 30/8 un estudio con `activo=false` no se muestra en la app (RLS). Su panel sigue andando, pero si carga clases nadie las ve: avisarle "contactá a Aura para activarte" antes de que cargue en vano. El dato ya viaja (`getCurrentStudio` trae `activo`) |
 
 ---
 

@@ -1161,6 +1161,38 @@ Dos lugares (**uñas** y **cosmetología**) quieren entrar por promoción.
 
 **No sumar todavía.**
 
+## ✅ Estudio inactivo — desde el 30/8 NO se muestra en la app
+
+**El bug:** el botón "inactivo" del backoffice guardaba bien (`activo=false`)
+pero **nadie miraba el campo**: `estudios` y `clases` tenían policies
+`USING (true)`, la app no filtra y el modelo Dart ni parsea `activo`. Un
+estudio desactivado seguía entero en Inicio/Explorar/Mapa con sus clases
+reservables. Caso de uso (usuaria): "inactivo" = "no mostrar en Aura"
+(pruebas, o sin clases cargadas), NO una baja; verifica que no haya reservas
+antes de desactivar.
+
+**El arreglo, EN BASE** (vale para todas las apps, incluidas las viejas):
+`FIX_ESTUDIO_INACTIVO_NO_SE_MUESTRA_2026-08-30.sql` — las policies de SELECT
+de `estudios` y **también `clases`** (esconder sólo el estudio dejaba las
+clases huérfanas listándose: medido con Citra, 184 seguían) pasan a
+`activo or es_miembro_de_estudio(...)`. Más un **grant a `anon`** de
+`es_miembro_de_estudio` que faltaba y sin el cual el modo visita se caía con
+42501 (lo cazó la verificación).
+
+**Medido en 5 puntas:** 11 activos → la alumna y el anónimo ven lo mismo de
+siempre (11/974) · Citra inactiva (rollback) → desaparecen ella y sus 184
+clases · su propia cuenta sigue viendo el panel completo · anon idem alumna.
+
+**Hot Clic quedó inactivo de verdad** (era la intención: es de prueba). La
+alumna y el anónimo ven 10 estudios; la dueña sigue viendo su panel.
+💡 Clic Pilates (id 1, también de prueba, 0 clases) es candidato al mismo
+toggle — lo decide la usuaria desde el backoffice, ya funciona.
+
+⚠️ Si algún día se desactiva un estudio CON reservas vivas: la alumna dejaría
+de ver esa clase en "mis reservas". La salida está anotada en el `.sql` (sumar
+`or exists (reservas…)` a la policy de clases). Y el **cartel "estás
+inactivo"** en el panel va al build 27 (item 15 del inventario).
+
 ## ⬜ Mantenimiento
 
 Sanear los docs de esta carpeta · escribir el doc de eventos gratis (no existe;
