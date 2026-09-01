@@ -14,6 +14,33 @@
   ul, ol { color: #cccccc; padding-left: 22px; }
   a { color: #E8763A; }
   .nota { border-left: 3px solid #E8763A; padding-left: 14px; margin-top: 28px; }
+
+/* ── Footer comun ────────────────────────────────────────────────────────── */
+.aura-footer{
+  margin-top:64px; padding:32px 20px 40px;
+  border-top:1px solid rgba(245,240,232,.12);
+  background:transparent; font-family:inherit;
+}
+.aura-footer__inner{ max-width:800px; margin:0 auto; text-align:center; }
+.aura-footer__brand{
+  color:#E8763A; font-size:15px; font-weight:800; letter-spacing:4px;
+  margin-bottom:16px;
+}
+.aura-footer__links{
+  display:flex; flex-wrap:wrap; justify-content:center;
+  gap:10px 22px; margin-bottom:18px;
+}
+.aura-footer__links a{
+  color:#B8B0A9; font-size:13px; text-decoration:none; line-height:1.5;
+}
+.aura-footer__links a:hover,
+.aura-footer__links a:focus-visible{ color:#E8763A; text-decoration:underline; }
+.aura-footer__links a:focus-visible{ outline:2px solid #E8763A; outline-offset:3px; border-radius:3px; }
+.aura-footer__legal{ margin:0; color:#6E6761; font-size:11px; }
+@media (max-width:480px){
+  .aura-footer{ margin-top:44px; padding:26px 16px 32px; }
+  .aura-footer__links{ gap:10px 16px; }
+}
 </style>
 </head>
 <body>
@@ -84,5 +111,27 @@ nuestros <a href="https://somosaurapass.com/terms.html">Términos y
 Condiciones</a>.</p>
 </div>
 
+
+<!-- ── Footer comun de somosaurapass.com ─────────────────────────────────────
+     Mismo bloque en todas las paginas estaticas: terminos, privacidad y
+     contacto siempre a mano. Sobrio y al pie, sin robarle protagonismo al
+     contenido. Los links viven en el dominio propio (nada de github.io).
+     Si cambia algo, cambiarlo en TODAS: no hay includes en paginas estaticas.
+-->
+<footer class="aura-footer">
+  <div class="aura-footer__inner">
+    <div class="aura-footer__brand">AURA.</div>
+    <nav class="aura-footer__links" aria-label="Enlaces de Aura">
+      <a href="https://www.instagram.com/somosaura.app" target="_blank" rel="noopener">Instagram</a>
+      <a href="https://apps.apple.com/app/apple-store/id6764207399?pt=128832642&amp;ct=footer_web&amp;mt=8" target="_blank" rel="noopener">App Store</a>
+      <a href="https://ar.linkedin.com/company/aura-aurapass" target="_blank" rel="noopener">LinkedIn</a>
+      <a href="/support.html">Soporte</a>
+      <a href="mailto:aura.hola.app@gmail.com">Contacto</a>
+      <a href="/terms.html">Términos y Condiciones</a>
+      <a href="/privacy.html">Política de Privacidad</a>
+    </nav>
+    <p class="aura-footer__legal">© 2026 Aura Pass · Buenos Aires</p>
+  </div>
+</footer>
 </body>
 </html>
