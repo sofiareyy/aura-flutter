@@ -1193,6 +1193,43 @@ de ver esa clase en "mis reservas". La salida está anotada en el `.sql` (sumar
 `or exists (reservas…)` a la policy de clases). Y el **cartel "estás
 inactivo"** en el panel va al build 27 (item 15 del inventario).
 
+## ✅ E1 del rediseño de Explorar — HECHA el 1/9 (base, sin build)
+
+**Diseño aprobado:** "Explorar busca planes, no estudios" — 5 etapas, dos ejes
+de categorías (cobro vs búsqueda). La propuesta completa está en el artifact
+que revisó la usuaria. E5 incluye además **ver estudios en el mapa**.
+
+**E1 = la vidriera dice la verdad.** El chip de categoría filtraba por
+`estudios.categorias` (lo declarado), no por lo que el estudio dicta: Yessi
+declaraba "Fitness" con 70 clases de "Gym / Funcional" y no aparecía.
+
+- `FIX_BACKFILL_CATEGORIAS_2026-09-01.sql` — **una vez.** 536 clases futuras y
+  **61 grillas** sin ninguna categoría, sembradas con `estudios.categorias[1]`.
+  ⚠️ Las grillas iban SÍ o SÍ: `generar_clases_estudio` **copia `categorias` de
+  la grilla** (medido), así que sin esa mitad el cron de las 03:00 recreaba
+  clases sin categoría cada noche y el arreglo se deshacía solo.
+- `FEAT_SYNC_VIDRIERA_ESTUDIOS_2026-09-01.sql` — `sync_vidriera_estudios()`
+  + **cron `sync-vidriera-estudios` a las 03:30** (media hora después de
+  regenerar-grillas). **Sólo suma, agrega al final** ⇒ `categorias[1]` (la
+  etiqueta visible de la card) no cambia nunca.
+
+**Medido, las dos puntas:** precios **idénticos** antes/después (huellas md5 de
+1064 clases y 121 grillas — los triggers de precio salen por `current_user` al
+correr como postgres) · las clases que ya tenían categorías **no se pisaron**
+(Yessi conservó sus 70 de Gym/Funcional y sumó 115 de Fitness) · assert de los
+12 estudios: **ninguno perdió una categoría declarada y ninguna etiqueta [1]
+cambió** · **Yessi ya aparece bajo el chip "Gym / Funcional"** leído como
+`anon` · idempotente (segunda corrida: 0) · Hot Clic inactivo sigue oculto.
+
+**Sumaron:** Yessi +Gym/Funcional · Sculpt +Fitness · YN +4 · Barre +3.
+
+⚠️ **Consecuencia a conocer:** si sacás a mano una categoría que el estudio
+SIGUE dictando, el cron la vuelve a sumar esa noche. La limpieza a mano es para
+lo que ya no dicta.
+
+👉 **Sigue E2+E3** (experiencias al feed + filtro por clase), que son web y
+app: la web sale con un push, la app va en la 1.0.7.
+
 ## ⬜ Mantenimiento
 
 Sanear los docs de esta carpeta · escribir el doc de eventos gratis (no existe;
