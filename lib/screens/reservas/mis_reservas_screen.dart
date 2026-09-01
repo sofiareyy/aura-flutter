@@ -1045,8 +1045,20 @@ class _HistorialCompactCard extends StatelessWidget {
     Color estadoFg;
     Color estadoBg;
     String estadoLabel;
+    // `completada` NO significa que haya ido: el cron horario
+    // `completar_reservas_vencidas` pasa a completada TODO lo que era
+    // 'confirmada' o 'presente' 3 h después de la clase, sin mirar el
+    // check-in. Lo único que prueba asistencia es `checked_in_at`, que sella
+    // el escáner de QR. Sin esta distinción la app le decía "Presente" a
+    // quien nunca apareció.
+    final asistio = reserva['checked_in_at'] != null;
     switch (estado) {
       case 'completada':
+        estadoFg = asistio ? _successFg : AppColors.grey;
+        estadoBg = asistio ? _successBg : AppColors.lightGrey;
+        estadoLabel = asistio ? 'Presente' : 'Finalizada';
+        break;
+      case 'presente':
         estadoFg = _successFg;
         estadoBg = _successBg;
         estadoLabel = 'Presente';
