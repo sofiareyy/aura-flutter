@@ -11,6 +11,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/auth_service.dart';
+import '../../utils/destino_post_login.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -162,6 +163,10 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _loginWithGoogle() async {
     setState(() => _loadingGoogle = true);
     try {
+      // OAuth destruye esta pantalla (en web recarga la página, en la app sale
+      // al navegador), así que el `?volver=` de la ruta no sobrevive: se deja
+      // guardado y lo consume el callback en main.dart.
+      await DestinoPostLogin.recordar(_volver);
       final launched = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: kIsWeb
@@ -203,15 +208,18 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       // iOS: flujo NATIVO (hoja de Apple, sin navegador ni redirect).
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        final volver = _volver;
         await _authService.signInWithAppleNative();
         if (!mounted) return;
         final destino = await _authService.destinoInicial();
         if (!mounted) return;
-        context.go(destino);
+        context.go(DestinoPostLogin.resolver(destino, volver));
         return;
       }
 
-      // Web / Android: OAuth web (main.dart maneja el callback).
+      // Web / Android: OAuth web (main.dart maneja el callback). Igual que en
+      // Google, la pantalla se destruye: el destino se deja guardado.
+      await DestinoPostLogin.recordar(_volver);
       final launched = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.apple,
         redirectTo: kIsWeb
@@ -256,6 +264,12 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// La clase (u otra ruta) desde la que la invitada llegó al login, puesta
+  /// por el muro del modo visita como `?volver=`. Sólo se usa si el rol no
+  /// manda a otro lado — ver [DestinoPostLogin.resolver].
+  String? get _volver =>
+      GoRouterState.of(context).uri.queryParameters['volver'];
+
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
@@ -280,7 +294,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // rompemos el login: caemos a /home.
         }
       }
-      if (mounted) context.go(destino);
+      if (mounted) context.go(DestinoPostLogin.resolver(destino, _volver));
     } catch (e) {
       if (!mounted) return;
       // Caso especial: cuenta sin confirmar. Va un diálogo con explicación

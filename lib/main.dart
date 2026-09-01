@@ -15,6 +15,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/app_provider.dart';
 import 'services/auth_service.dart';
+import 'utils/destino_post_login.dart';
 import 'services/notificaciones_service.dart';
 import 'services/valor_credito.dart';
 import 'services/version_gate.dart';
@@ -341,9 +342,15 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
       // Crear usuario si es primera vez con OAuth (Google o Apple) y resolver
       // el destino según los accesos (usuario / estudio / profe / selector).
       final destino = await _authService.destinoInicial();
+      // Vuelta de OAuth: la pantalla de login ya no existe, así que el destino
+      // que dejó guardado se consume acá. `tomar()` borra siempre (es de un
+      // solo uso) y `resolver` sólo lo aplica si el rol daba el /home
+      // genérico: un estudio o una profe van igual a su panel.
+      final volver = await DestinoPostLogin.tomar();
+      final destinoFinal = DestinoPostLogin.resolver(destino, volver);
       Future.delayed(const Duration(milliseconds: 200), () {
         if (!mounted) return;
-        appRouter.go(destino);
+        appRouter.go(destinoFinal);
       });
     } catch (e) {
       // No pudimos crear/leer la fila en usuarios: cerramos la sesión a
