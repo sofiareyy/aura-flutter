@@ -25,6 +25,12 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
 
   List<Estudio> _estudios = [];
   List<Map<String, dynamic>> _clases = [];
+
+  /// E2 (arreglo 1/9): las experiencias llegan por su propia query COMPLETA,
+  /// no compiten con las clases por la paginación (con ~1000 clases en 60
+  /// días, una experiencia del sábado caía en la posición ~97 del feed y el
+  /// filtro "Experiencias" arrancaba vacío). Se mezclan por fecha al mostrar.
+  List<Map<String, dynamic>> _experiencias = [];
   List<String> _categorias = const ['Todos'];
   String _categoriaSeleccionada = 'Todos';
   bool _loading = true;
@@ -84,11 +90,8 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
 
     final results = await Future.wait([
       _estudiosService.getEstudios(),
-      _clasesService.getProximasClases(
-          limit: _pageSize,
-          offset: 0,
-          incluirExperiencias: true,
-          diasVentana: 60),
+      _clasesService.getProximasClases(limit: _pageSize, offset: 0),
+      _clasesService.getProximasExperiencias(limit: 100),
       _estudiosService.getCategorias(),
     ]);
 
@@ -108,9 +111,12 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
     setState(() {
       _estudios = results[0] as List<Estudio>;
       _clases = nuevasClases;
+      _experiencias = List<Map<String, dynamic>>.from(
+        results[2] as List<Map<String, dynamic>>,
+      );
       _clasesOffset = nuevasClases.length;
       _hasMoreClases = nuevasClases.length == _pageSize;
-      _categorias = results[2] as List<String>;
+      _categorias = results[3] as List<String>;
       if (!_categorias.contains(_categoriaSeleccionada)) {
         _categoriaSeleccionada = 'Todos';
       }
@@ -125,8 +131,6 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
       final mas = await _clasesService.getProximasClases(
         limit: _pageSize,
         offset: _clasesOffset,
-        incluirExperiencias: true,
-        diasVentana: 60,
       );
       if (!mounted) return;
       final merged = [..._clases, ...mas];
@@ -193,7 +197,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
     // bajo ese chip. El predicado es puro y esta testeado contra una foto de
     // produccion en test/explorar_filtros_test.dart.
     final query = _searchCtrl.text.trim().toLowerCase();
-    final filtered = _clases.where((clase) {
+    final filtered = mezclarFeed(_clases, _experiencias).where((clase) {
       if (!planVisible(clase,
           categoria: _categoriaSeleccionada, query: query)) {
         return false;

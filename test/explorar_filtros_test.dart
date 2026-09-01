@@ -92,6 +92,31 @@ void main() {
       expect(experiencia['creditos'] as int, lessThanOrEqualTo(100));
     });
 
+    test('PRIMERA PANTALLA: la experiencia aparece sin paginar (el bug del 1/9)',
+        () {
+      // El agujero medido en producción: con el stream unificado, la
+      // experiencia del sábado quedaba en la posición 97 de 1049 y hacían
+      // falta 4 "Cargar más" para verla. Con los dos streams, el cliente la
+      // tiene desde la primera página.
+      final clasesOrdenadas = [...planes]..sort((a, b) =>
+          (a['id'] as int).compareTo(b['id'] as int));
+      final primeraPagina = clasesOrdenadas.take(20).toList();
+      final feed = mezclarFeed(primeraPagina, [experiencia]);
+
+      expect(feed.any((p) => p['id'] == 9999), isTrue,
+          reason: 'la experiencia tiene que estar en lo que el cliente ve');
+      expect(feed.length, 21);
+      // Y el filtro Experiencias ya no arranca vacío:
+      expect(feed.where((p) => tipoVisible(p, 'experiencias')).length, 1);
+    });
+
+    test('mezclarFeed: ordena por fecha y dedup por id', () {
+      final a = {'id': 1, 'fecha': '2026-09-03 10:00:00'};
+      final b = {'id': 2, 'fecha': '2026-09-01 10:00:00'};
+      final feed = mezclarFeed([a, b], [b, {'id': 3, 'fecha': '2026-09-02 09:00:00'}]);
+      expect(feed.map((p) => p['id']).toList(), [2, 3, 1]);
+    });
+
     test('etiquetas (E4) pisan a las categorías cuando existan, con fallback',
         () {
       final conEtiquetas = {

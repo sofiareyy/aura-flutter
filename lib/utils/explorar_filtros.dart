@@ -66,3 +66,28 @@ bool tipoVisible(Map<String, dynamic> clase, String tipoFiltro) {
   final esExperiencia = clase['tipo']?.toString() == 'workshop';
   return tipoFiltro == 'experiencias' ? esExperiencia : !esExperiencia;
 }
+
+/// E2, arreglo del 1/9: el feed se alimenta de DOS streams — las clases
+/// paginadas y las experiencias completas de una (son decenas contra ~1000
+/// clases: si compiten por la paginación, la experiencia del sábado queda en
+/// la posición ~97 y nadie la ve; medido en producción). Acá se mezclan por
+/// fecha, con dedup por id por si algún stream trae repetidos.
+List<Map<String, dynamic>> mezclarFeed(
+  List<Map<String, dynamic>> clases,
+  List<Map<String, dynamic>> experiencias,
+) {
+  final vistos = <Object?>{};
+  final out = <Map<String, dynamic>>[];
+  for (final p in [...clases, ...experiencias]) {
+    if (vistos.add(p['id'])) out.add(p);
+  }
+  out.sort((a, b) {
+    final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
+    final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
+    if (fa == null && fb == null) return 0;
+    if (fa == null) return 1;
+    if (fb == null) return -1;
+    return fa.compareTo(fb);
+  });
+  return out;
+}

@@ -13,11 +13,12 @@ String _toSupaDate(DateTime dt) {
 class ClasesService {
   final _supabase = Supabase.instance.client;
 
-  /// [incluirExperiencias]: Explorar (E2, 1/9/2026) mezcla los workshops en
-  /// el feed cronológico. El default en `false` es para Home, que tiene su
-  /// sección de Experiencias aparte y las duplicaría.
-  /// [diasVentana]: Explorar mira 60 días (una experiencia se anuncia con más
-  /// anticipación que una clase); Home conserva sus 30.
+  /// [incluirExperiencias]: mezcla los workshops en el resultado. OJO (1/9):
+  /// Explorar ya NO lo usa — con ~1000 clases, una experiencia competía por la
+  /// paginación y caía en la posición ~97; el feed ahora trae las experiencias
+  /// completas por `getProximasExperiencias` y las mezcla al mostrar. El
+  /// parámetro queda por si un llamador futuro quiere el stream unificado.
+  /// [diasVentana]: ventana hacia adelante (Home usa el default de 30).
   Future<List<Map<String, dynamic>>> getProximasClases({
     int limit = 20,
     int offset = 0,
