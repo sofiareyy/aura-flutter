@@ -3020,6 +3020,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _EstudioInactivoBanner(estudio: _estudio),
         // ── Header row ────────────────────────────────────────────────────
         Row(
           children: [
@@ -3497,6 +3498,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
                   children: [
+                    if (_studio)
+                      _EstudioInactivoBanner(estudio: _estudio),
                     Row(children: [
                       const Expanded(
                         child: Text(
@@ -6717,6 +6720,67 @@ String _fmtPesosCr(int v) {
 /// [porHorario] es para el form de grilla, donde se generan clases en varios
 /// días y franjas: ahí no hay un número único que mostrar, así que explicamos
 /// la regla.
+/// Cartel para el estudio con `activo = false`: desde el 30/8 la RLS lo
+/// oculta de Inicio/Explorar/Mapa (él sigue viendo su panel por ser miembro),
+/// así que todo lo que cargue es invisible para las alumnas. Sin este aviso
+/// cargaría clases en vano sin entender por qué nadie las ve.
+class _EstudioInactivoBanner extends StatelessWidget {
+  final Map<String, dynamic>? estudio;
+  const _EstudioInactivoBanner({required this.estudio});
+
+  @override
+  Widget build(BuildContext context) {
+    // `activo` viaja en getCurrentStudio desde el 30/8. Null = cuenta vieja
+    // o carga a medias: no se muestra nada (nunca un falso positivo).
+    if (estudio == null || estudio!['activo'] != false) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1E8),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.35)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.visibility_off_outlined,
+              size: 20, color: AppColors.primary),
+          SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tu estudio está oculto en Aura',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Las alumnas no ven tu perfil ni tus clases por ahora. '
+                  'Podés seguir cargando tranquila: cuando se active, '
+                  'aparece todo. Escribinos a aura.hola.app@gmail.com '
+                  'para activarlo.',
+                  style: TextStyle(
+                      color: Color(0xFF6E5140), fontSize: 13, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Renglón fijo que aparece cuando la categoría tildada es un servicio de
 /// precio fijo del estudio — en dos lugares por decisión del 30/8 (opción C):
 /// arriba de todo el formulario (se ve primero al reabrir para editar) y
