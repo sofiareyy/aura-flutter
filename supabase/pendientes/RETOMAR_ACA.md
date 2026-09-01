@@ -1300,6 +1300,39 @@ que usa la web) se enteraba recién al abrir la app. Ahora también va mail.
   `cancelada_por_estudio` y clase marcada cancelada. Antes, dry run con 3
   anotadas: 3 mails bien formados, 0 enviados. Datos de prueba borrados.
 
+## ✅ Tanda de cortos para la 1.0.7 — los 9 HECHOS el 2/9 (Dart, sin pushear)
+
+1. `completada` sin check-in ya no dice "Presente": dice **"Finalizada"** (el
+   cron completa sin mirar asistencia; sólo `checked_in_at` la prueba).
+2. **Dirección clickeable** → abre el mapa (clase y estudio; lat/lng si hay,
+   guard de 0,0 para no mandar a nadie al Golfo de Guinea).
+3. **Cobros lee liquidaciones REALES** — el grande de la tanda: policy nueva
+   "estudio ve sus liquidaciones" (APLICADA, medida con 3 cuentas), meses
+   pagados con valores SELLADOS + "comisión X%" visible, estados honestos
+   ("En curso" / "A cobrar el 5" / "Pagado" de verdad — se acabó el Pagado
+   inventado de cobros_screen:1052). Probado: comisión 30→20 y el mes pagado
+   sigue en $8.400/30%. Citra medida con su cuenta: todo correcto.
+4. **Cartel "Tu estudio está oculto"** para inactivos (mobile y desktop; sólo
+   con `activo == false` explícito).
+5. **Compartir clase con fallback**: sin Web Share API copia el link al
+   portapapeles con aviso (era el "botón mudo"; en localhost SIEMPRE falla,
+   la API exige contexto seguro).
+6. `ITSAppUsesNonExemptEncryption=false` en el Info.plist.
+7. **Feature de bienvenida borrada entera** (decisión 29/8): las 3 llamadas a
+   RPCs inexistentes (una fallaba EN CADA login), el popup y la card del
+   backoffice.
+8. **Los guards P0001 se muestran al guardar** (6 seg), no se tapan con
+   "Intentá de nuevo": cubre regla A, dos servicios y clase con anotadas.
+9. **Explorar: badge "PRECIO ÚNICO"** para `'servicio'`, excluido de
+   REDUCIDO y POPULAR.
+
+**Afuera del build por decisión (2/9):** keys legacy (build propio) ·
+devoluciones/cancelación flexible · badge MEJOR VALOR.
+**Siguen para la 1.0.7:** pantalla de reseñas (diseño listo) · UNIQUE reseñas
++ claseId (Dart ahora, base tras adopción) · usuario_id a anon (ídem) ·
+notificación de reseña · pantalla backoffice de servicios (3 decisiones
+pendientes de la usuaria).
+
 ## ⬜ Mantenimiento
 
 Sanear los docs de esta carpeta · escribir el doc de eventos gratis (no existe;
