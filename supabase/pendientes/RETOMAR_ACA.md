@@ -1277,6 +1277,29 @@ Explorar + los pendientes del build 27 del inventario).
 **La experiencia de prueba 6258 está BORRADA** (1/9, 0 reservas, verificado:
 0 workshops futuros en la base). El preview del 8099 está apagado.
 
+## ✅ Mail de clase cancelada — ACTIVO desde el 2/9
+
+Cancelar una clase avisaba sólo por campanita + push: una alumna sin push (o
+que usa la web) se enteraba recién al abrir la app. Ahora también va mail.
+
+- `supabase/functions/cancelacion-email/` (desplegada, **declarada en
+  `config.toml`** con `verify_jwt=true` como resena-email; verificado que el
+  deploy no cambió el `verify_jwt` de ninguna otra).
+- `FEAT_MAIL_CANCELACION_2026-09-02.sql` — `estudio_cancelar_clase` hace **UNA**
+  llamada al final, fuera del loop, y sólo si hubo reservas afectadas. El envío
+  va envuelto en un bloque que traga errores: **si el mail falla, la
+  cancelación y la devolución de créditos se completan igual.**
+- **Primer envío en LOTE.** El loop vive en la edge function: 12 anotadas = 1
+  http_post y **12 mails individuales**. Nunca un mail con N destinatarios (eso
+  filtraría los mails entre alumnas). Un fallo individual no corta el lote, y
+  saltea con motivo las cuentas borradas o sin email.
+- **Probado punta a punta el 2/9** con una cancelación real en Hot Clic:
+  reserva real por `reservar_clase` → el estudio cancela por
+  `estudio_cancelar_clase` → `enviados: 1, fallidos: 0`, mail recibido. Y lo
+  importante: **los 12 créditos volvieron igual**, reserva en
+  `cancelada_por_estudio` y clase marcada cancelada. Antes, dry run con 3
+  anotadas: 3 mails bien formados, 0 enviados. Datos de prueba borrados.
+
 ## ⬜ Mantenimiento
 
 Sanear los docs de esta carpeta · escribir el doc de eventos gratis (no existe;

@@ -173,7 +173,7 @@ function renderHtml(a: {
   creditos: number
   esExperiencia: boolean
 }): string {
-  const hola = a.nombre ? `Hola ${escape(a.nombre)}:` : 'Hola:'
+  const hola = a.nombre ? `¡Hola ${escape(a.nombre)}!` : '¡Hola!'
   const que = a.esExperiencia ? 'la experiencia' : 'la clase'
   const cuando = a.fechaStr ? ` del ${a.fechaStr} a las ${a.horaStr} hs` : ''
   const devolucion = a.creditos > 0
