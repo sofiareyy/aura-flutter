@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../services/valor_credito.dart';
 import '../../core/constants/app_constants.dart';
+import '../../utils/historial_cobros.dart';
 import '../../utils/liquidacion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/estudio_admin_service.dart';
@@ -21,6 +22,7 @@ class _CobrosScreenState extends State<CobrosScreen> {
 
   Map<String, dynamic>? _estudio;
   List<Map<String, dynamic>> _reservas = [];
+  List<Map<String, dynamic>> _liquidaciones = [];
   bool _loading = true;
   String? _error;
 
@@ -34,11 +36,13 @@ class _CobrosScreenState extends State<CobrosScreen> {
     try {
       final estudio = await _service.getCurrentStudio();
       final reservas = await _service.getReservasDeEstudio(limit: 200);
+      final liquidaciones = await _service.getLiquidacionesDeEstudio();
 
       if (!mounted) return;
       setState(() {
         _estudio = estudio;
         _reservas = reservas;
+        _liquidaciones = liquidaciones;
         _loading = false;
         _error = estudio == null ? 'No encontramos un estudio asociado.' : null;
       });
@@ -182,7 +186,8 @@ class _CobrosScreenState extends State<CobrosScreen> {
                     ),
                     ..._historial.asMap().entries.map((e) {
                       final item = e.value;
-                      final isPending = item['estado'] == 'Pendiente';
+                      final estadoItem = item['estado'] as String;
+                      final isPending = estadoItem != kEstadoPagado;
                       final statusColor = isPending ? AppColors.primary : const Color(0xFF43A047);
                       final statusBg = isPending ? const Color(0xFFFFF3DE) : const Color(0xFFE3F3E5);
                       return Container(
@@ -195,7 +200,18 @@ class _CobrosScreenState extends State<CobrosScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                         child: Row(
                           children: [
-                            Expanded(child: Text(item['mes'] as String, style: const TextStyle(color: AppColors.black, fontSize: 14, fontWeight: FontWeight.w600))),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(item['mes'] as String, style: const TextStyle(color: AppColors.black, fontSize: 14, fontWeight: FontWeight.w600)),
+                                  // La constancia del mes pagado: con qué
+                                  // comisión se liquidó, aunque hoy rija otra.
+                                  if (item['comision'] != null)
+                                    Text('comisión ${item['comision']}', style: const TextStyle(color: Color(0xFFA39B94), fontSize: 11)),
+                                ],
+                              ),
+                            ),
                             SizedBox(width: 80, child: Text('${item['reservas']}', style: const TextStyle(color: Color(0xFF8F877F), fontSize: 14), textAlign: TextAlign.center)),
                             SizedBox(width: 120, child: Text(_money(item['monto'] as int), style: TextStyle(color: statusColor, fontSize: 14, fontWeight: FontWeight.w700), textAlign: TextAlign.right)),
                             SizedBox(
@@ -409,7 +425,8 @@ class _CobrosScreenState extends State<CobrosScreen> {
                               )
                             : Column(
                                 children: _historial.map((item) {
-                                  final isPending = item['estado'] == 'Pendiente';
+                                  final estadoItem = item['estado'] as String;
+                                  final isPending = estadoItem != kEstadoPagado;
                                   final statusColor = isPending
                                       ? AppColors.primary
                                       : const Color(0xFF43A047);
@@ -1033,35 +1050,15 @@ class _CobrosScreenState extends State<CobrosScreen> {
     }).toList();
   }
 
-  List<Map<String, dynamic>> get _historial {
-    final formatter = DateFormat('MMMM yyyy', 'es');
-    final grouped = <String, Map<String, dynamic>>{};
-
-    for (final reserva in _reservasNoCanceladas) {
-      final dt = DateTime.tryParse(reserva['created_at']?.toString() ?? '');
-      if (dt == null) continue;
-
-      final key = formatter.format(dt);
-      grouped.putIfAbsent(
-        key,
-        () => {
-          'mes': toBeginningOfSentenceCase(key) ?? key,
-          'reservas': 0,
-          'monto': 0,
-          '_date': DateTime(dt.year, dt.month, 1),
-          'estado': dt.month == DateTime.now().month && dt.year == DateTime.now().year
-              ? 'Pendiente'
-              : 'Pagado',
-        },
+  /// La fila de `liquidaciones` gana sobre el cálculo en vivo: los meses
+  /// pagados muestran lo SELLADO. La lógica vive en armarHistorialCobros(),
+  /// pura y testeada — acá sólo se le pasan los datos.
+  List<Map<String, dynamic>> get _historial => armarHistorialCobros(
+        reservas: _reservas,
+        liquidaciones: _liquidaciones,
+        estudio: _estudio,
+        ahora: DateTime.now(),
       );
-      grouped[key]!['reservas'] = (grouped[key]!['reservas'] as int) + 1;
-      grouped[key]!['monto'] = (grouped[key]!['monto'] as int) + _montoReserva(reserva);
-    }
-
-    final values = grouped.values.toList();
-    values.sort((a, b) => (b['_date'] as DateTime).compareTo(a['_date'] as DateTime));
-    return values.take(4).toList();
-  }
 
   String get _mesActualCapitalizado {
     final text = DateFormat('MMMM', 'es').format(DateTime.now());

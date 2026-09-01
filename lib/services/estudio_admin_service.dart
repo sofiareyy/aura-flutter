@@ -114,6 +114,22 @@ class EstudioAdminService {
     return null;
   }
 
+  /// Liquidaciones del estudio activo, más nueva primero. Lo que Aura ya pagó
+  /// viene con los valores SELLADOS al momento del pago (comision_aplicada,
+  /// monto_a_pagar): son la constancia de lo cobrado, gane lo que gane un
+  /// recálculo con la comisión de hoy. RLS: el estudio sólo ve las suyas
+  /// (policy "estudio ve sus liquidaciones", 2/9).
+  Future<List<Map<String, dynamic>>> getLiquidacionesDeEstudio() async {
+    final estudioId = await getCurrentStudioId();
+    if (estudioId == null) return [];
+    final rows = await _client
+        .from('liquidaciones')
+        .select()
+        .eq('estudio_id', estudioId)
+        .order('mes', ascending: false);
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
   /// Lista los estudios que el usuario logueado puede administrar (M:N via
   /// estudio_admins). El campo `is_active` marca cual es el workspace
   /// actualmente seleccionado.
