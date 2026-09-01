@@ -1257,19 +1257,18 @@ al pushear; la app nativa las lleva la **1.0.7**:
   `#E2D3BF`, sólo en Explorar (Inicio no se toca). **Pendiente el visto bueno
   del ojo de la usuaria** — se construyó pero no lo revisó en el preview.
 
-👉 **LO PRIMERO DE LA PRÓXIMA SESIÓN — dos cosas chicas de Explorar:**
-1. **Que la usuaria revise el color beige** de la card (preview local:
-   `flutter run -d web-server --web-port 8090` o build release). Si no
-   convence, probar variante más rosada/terrosa — es un solo hex.
-2. **Construir "EXPERIENCIAS" destacadas arriba** — plan ya aprobado en
-   conversación, listo para ejecutar: sección horizontal entre "Destacados
-   hoy" y "Todos los resultados", con las **3 experiencias de fecha más
-   cercana** tomadas de `_clasesConEstudio` filtrado por `tipo=='workshop'`
-   (⇒ respeta chip/búsqueda/filtros gratis y desaparece con Tipo=Clases),
-   oculta si no hay ninguna, reutilizando `_ResultCard` en un
-   `SizedBox(width: ~320)` — cero widgets nuevos. Título: "EXPERIENCIAS" a
-   secas. ~25 líneas + test (con 1 experiencia aparece; con filtro Clases se
-   oculta). **Inicio NO se toca.**
+**2/9 — las dos cosas de Explorar, CERRADAS:**
+- ✅ **Color de la card elegido**: `#FDF7F0` (crema apenas más cálido que el
+  fondo `#F7F5F2`) con borde `#EFE4D8`. Se compararon tres candidatos en vivo
+  con 3 experiencias de prueba; ganó el más sutil. El `#F0E6DA` del 1/9 y las
+  otras dos opciones se borraron: queda un solo hex. **Sólo Explorar.**
+- ✅ **Sección "EXPERIENCIAS" construida**: carrusel horizontal entre
+  "Destacados hoy" y "Todos los resultados", las 3 más próximas vía
+  `experienciasDestacadas()` sobre el feed YA filtrado ⇒ respeta chip,
+  búsqueda, día, horario y créditos sin código extra, y se oculta sola con
+  Tipo=Clases o sin experiencias. Reutiliza `_ResultCard`. **Inicio intacto.**
+- Las 3 experiencias de prueba de Hot Clic quedaron **borradas** (verificado:
+  0 workshops futuros, 0 reservas huérfanas) y los servers de preview apagados.
 
 Después: E4 (etiquetas) cuando se activen servicios · E5 (cerca/fecha/gratis/
 mapa + ver estudios en el mapa) · empaquetar la **1.0.7** (todo el Dart de

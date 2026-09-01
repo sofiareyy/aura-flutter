@@ -841,10 +841,6 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                             child: _ResultCard(
                               clase: exp,
                               accentColor: AppColors.beigeCard,
-                              // PREVIEW 2/9: una opción de fondo por card
-                              // para poder compararlas de un vistazo.
-                              opcionFondo:
-                                  index % kOpcionesFondoExperiencia.length,
                               onTap: () =>
                                   context.push('/clase/${exp['id']}'),
                             ),
@@ -1040,41 +1036,24 @@ class _FeaturedExploreCard extends StatelessWidget {
   }
 }
 
-/// Fondos candidatos para la card de EXPERIENCIA en Explorar.
-///
-/// El primero (#F0E6DA) se descartó por oscuro: estas tres son más claras y
-/// más anaranjadas, para que dialoguen con el naranja del badge (#E8763A) sin
-/// ensombrecer la card. Se comparan sobre el fondo de la pantalla (#F7F5F2) y
-/// contra las cards de clase, que son blancas.
-///
-/// PREVIEW 2/9: la sección de destacados pinta una opción por card para poder
-/// elegir de un vistazo. Cuando la usuaria decida, queda una sola y esta lista
-/// se borra.
-const List<({Color fondo, Color borde})> kOpcionesFondoExperiencia = [
-  // A · durazno pastel: el más anaranjado, cálido y luminoso.
-  (fondo: Color(0xFFFDEFE4), borde: Color(0xFFF6D9C0)),
-  // B · beige claro con un toque naranja: intermedio.
-  (fondo: Color(0xFFFBF2E8), borde: Color(0xFFF1E1CE)),
-  // C · crema apenas más cálido que el fondo: el más sutil.
-  (fondo: Color(0xFFFDF7F0), borde: Color(0xFFEFE4D8)),
-];
-
-/// La que se usa en el feed mientras se decide (la intermedia).
-const _fondoExperienciaPorDefecto = 1;
+/// Fondo de la card de EXPERIENCIA en Explorar: un crema apenas más cálido
+/// que el fondo de la pantalla (#F7F5F2), elegido el 2/9 entre tres
+/// candidatos. Las cards de clase quedan blancas, así que la experiencia se
+/// reconoce de reojo sin gritar, y el crema deja respirar al naranja del
+/// badge (#E8763A). Un intento anterior (#F0E6DA) se descartó por oscuro.
+/// Sólo Explorar: la card de Inicio es otra y no se toca.
+const _fondoExperiencia = Color(0xFFFDF7F0);
+const _bordeExperiencia = Color(0xFFEFE4D8);
 
 class _ResultCard extends StatelessWidget {
   final Map<String, dynamic> clase;
   final Color accentColor;
   final VoidCallback onTap;
 
-  /// Índice en [kOpcionesFondoExperiencia]. Sólo aplica a experiencias.
-  final int opcionFondo;
-
   const _ResultCard({
     required this.clase,
     required this.accentColor,
     required this.onTap,
-    this.opcionFondo = _fondoExperienciaPorDefecto,
   });
 
   @override
@@ -1120,14 +1099,10 @@ class _ResultCard extends StatelessWidget {
           // y la experiencia convivan sin gritar. Solo en Explorar; la card
           // de Inicio es otra y no se toca.
           decoration: BoxDecoration(
-            color: esWorkshop
-                ? kOpcionesFondoExperiencia[opcionFondo].fondo
-                : AppColors.white,
+            color: esWorkshop ? _fondoExperiencia : AppColors.white,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: esWorkshop
-                  ? kOpcionesFondoExperiencia[opcionFondo].borde
-                  : AppColors.warmBorder,
+              color: esWorkshop ? _bordeExperiencia : AppColors.warmBorder,
             ),
           ),
           child: Row(
