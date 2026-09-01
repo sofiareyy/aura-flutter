@@ -35,6 +35,14 @@ String _mensajeDeError(Object e) {
   return t.length > 160 || t.contains('Exception') ? 'Hubo un problema' : t;
 }
 
+/// Un guard DELIBERADO de la base (raise exception → P0001) trae un mensaje
+/// escrito para humanos, en castellano y con la salida ("Dejá esa sola, o
+/// pedile a Aura una categoría combinada"). Ese hay que MOSTRARLO: taparlo
+/// con "Intentá de nuevo" deja al estudio reintentando a ciegas contra la
+/// regla A. Cualquier otro error sigue yendo al genérico.
+String? _mensajeDeGuard(Object e) =>
+    e is PostgrestException && e.code == 'P0001' ? e.message : null;
+
 String _toSupaDate(DateTime dt) {
   return '${dt.year.toString().padLeft(4, '0')}-'
       '${dt.month.toString().padLeft(2, '0')}-'
@@ -2084,9 +2092,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       debugPrint('Error guardando ${edit ? 'horario fijo' : 'clase individual'}: $e');
       messenger.showSnackBar(
         SnackBar(
-          content: Text(edit
-              ? 'No se pudo guardar el horario. Intentá de nuevo.'
-              : 'No se pudo crear la clase. Intentá de nuevo.'),
+          content: Text(_mensajeDeGuard(e) ??
+              (edit
+                  ? 'No se pudo guardar el horario. Intentá de nuevo.'
+                  : 'No se pudo crear la clase. Intentá de nuevo.')),
+          duration: const Duration(seconds: 6),
         ),
       );
       // Ojo: no tocamos `_tablaOk`. Que falle un guardado no significa que la
@@ -2678,8 +2688,13 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo crear la grilla: ${e.toString()}')),
+        SnackBar(
+          content: Text(
+              _mensajeDeGuard(e) ?? 'No se pudo crear la grilla. Intentá de nuevo.'),
+          duration: const Duration(seconds: 6),
+        ),
       );
+      debugPrint('Error creando grilla: $e');
     } finally {
       n.dispose();
       i.dispose();
