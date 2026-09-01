@@ -25,16 +25,48 @@ enum MuroMotivo { reservar, listaEspera, favorito, reservas, perfil }
 class RegistroMuro extends StatelessWidget {
   final MuroMotivo motivo;
 
-  const RegistroMuro({super.key, required this.motivo});
+  /// Ruta donde estaba la invitada cuando saltó el muro, para volver ahí
+  /// después de registrarse. Se captura en [mostrar] con el context de QUIEN
+  /// lo abre, no adentro del diálogo — ver [rutaActualDe].
+  final String rutaVolver;
+
+  const RegistroMuro({
+    super.key,
+    required this.motivo,
+    this.rutaVolver = '',
+  });
+
+  /// La ubicación actual, tolerante al contexto desde el que se pregunte.
+  ///
+  /// ⚠️ Acá estuvo el bug (2/9/2026): `GoRouterState.of()` **sólo funciona
+  /// dentro del subárbol de una ruta de GoRouter**, y un diálogo abierto con
+  /// `showDialog` es una ruta HERMANA en el Navigator, no cuelga de la página.
+  /// Adentro del muro lanzaba `GoError`, la excepción se comía el `onPressed`
+  /// y NINGUNO de los dos botones hacía nada: la invitada que quería reservar
+  /// no podía ni registrarse ni entrar. Por eso se pregunta desde el context
+  /// del llamador (que sí es una página) y con `GoRouter.of` de respaldo, que
+  /// funciona desde cualquier lado bajo el router.
+  static String rutaActualDe(BuildContext context) {
+    try {
+      return GoRouterState.of(context).uri.toString();
+    } catch (_) {
+      return GoRouter.of(context)
+          .routeInformationProvider
+          .value
+          .uri
+          .toString();
+    }
+  }
 
   static Future<void> mostrar(
     BuildContext context, {
     required MuroMotivo motivo,
   }) {
+    final volver = rutaActualDe(context);
     return showDialog<void>(
       context: context,
       barrierDismissible: true,
-      builder: (_) => RegistroMuro(motivo: motivo),
+      builder: (_) => RegistroMuro(motivo: motivo, rutaVolver: volver),
     );
   }
 
@@ -81,9 +113,14 @@ class RegistroMuro extends StatelessWidget {
   /// terminaba en `/home` — perdía la clase que la trajo hasta acá, que es
   /// justo el momento en que estaba por reservar.
   void _ir(BuildContext context, String ruta) {
-    final desde = GoRouterState.of(context).uri.toString();
+    // El router se toma ANTES de cerrar: después del pop este context queda
+    // desactivado y `context.push` no es confiable.
+    final router = GoRouter.of(context);
+    final destino = rutaVolver.isEmpty
+        ? ruta
+        : '$ruta?volver=${Uri.encodeComponent(rutaVolver)}';
     Navigator.of(context).pop();
-    context.push('$ruta?volver=${Uri.encodeComponent(desde)}');
+    router.push(destino);
   }
 
   @override
