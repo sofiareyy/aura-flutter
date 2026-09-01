@@ -53,6 +53,35 @@ void main() {
     });
   });
 
+  group('badge de precio: un servicio nunca dice PRECIO REDUCIDO', () {
+    // La lógica del badge (copiada de _ResultCard): reducido = cuesta menos
+    // que el techo de un estudio CON rango... salvo que sea un servicio, cuyo
+    // precio es único por definición.
+    bool esPrecioReducido(
+        {String? tipoPrecio, int? creditos, int? min, int? max}) {
+      final esServicio = tipoPrecio == 'servicio';
+      return !esServicio &&
+          creditos != null &&
+          min != null &&
+          max != null &&
+          max > min &&
+          creditos < max;
+    }
+
+    test('servicio de 14 en estudio con techo 18 → NO es "reducido"', () {
+      expect(
+          esPrecioReducido(
+              tipoPrecio: 'servicio', creditos: 14, min: 12, max: 18),
+          isFalse);
+    });
+
+    test('clase valle de 14 con techo 18 → sí es reducido (como siempre)', () {
+      expect(
+          esPrecioReducido(tipoPrecio: 'valle', creditos: 14, min: 12, max: 18),
+          isTrue);
+    });
+  });
+
   group('el mecanismo de experiencias (sintético: hoy no hay ninguna real)',
       () {
     final experiencia = {

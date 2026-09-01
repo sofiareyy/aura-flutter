@@ -1079,7 +1079,14 @@ class _ResultCard extends StatelessWidget {
     // de 997 y las tres de precio único dejan de mostrarlo.
     final crMinEstudio = (estudio?['creditos_min'] as num?)?.toInt();
     final crMaxEstudio = (estudio?['creditos_max'] as num?)?.toInt();
-    final esPrecioReducido = creditos != null &&
+    // Un SERVICIO de precio fijo no entra en el juego de franjas: su precio
+    // es único por definición. Sin esta exclusión, un sauna de 14 en un
+    // estudio con techo 18 salía "PRECIO REDUCIDO" — mintiendo un descuento
+    // donde no hay nada reducido. (Ya estaba anotado en el relevamiento de
+    // servicios; también quedan afuera de "⚡ POPULAR" por la misma razón.)
+    final esServicio = tipoPrecio == 'servicio';
+    final esPrecioReducido = !esServicio &&
+        creditos != null &&
         crMinEstudio != null &&
         crMaxEstudio != null &&
         crMaxEstudio > crMinEstudio &&
@@ -1146,6 +1153,11 @@ class _ResultCard extends StatelessWidget {
                             const _PriceBadge(
                               text: 'EXPERIENCIA',
                               color: AppColors.primary,
+                            )
+                          else if (esServicio)
+                            const _PriceBadge(
+                              text: 'PRECIO ÚNICO',
+                              color: Color(0xFF4E6F52),
                             )
                           else if (tipoPrecio == 'pico')
                             const _PriceBadge(
