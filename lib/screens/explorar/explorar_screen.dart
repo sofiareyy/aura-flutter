@@ -1046,10 +1046,19 @@ class _ResultCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         child: Ink(
           height: 112,
+          // La card de EXPERIENCIA se distingue por el fondo, no solo por el
+          // badge (pedido del 1/9): un beige calido apenas mas oscuro que el
+          // fondo de la pantalla (0xFFF7F5F2), para que la clase (blanca)
+          // y la experiencia convivan sin gritar. Solo en Explorar; la card
+          // de Inicio es otra y no se toca.
           decoration: BoxDecoration(
-            color: AppColors.white,
+            color: esWorkshop ? const Color(0xFFF0E6DA) : AppColors.white,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.warmBorder),
+            border: Border.all(
+              color: esWorkshop
+                  ? const Color(0xFFE2D3BF)
+                  : AppColors.warmBorder,
+            ),
           ),
           child: Row(
             children: [
