@@ -13,6 +13,9 @@ import '../services/auth_service.dart';
 /// `contextoEstudio` cambia el copy del dialog para advertir que tambien
 /// se eliminaran las clases del estudio. Si es null, lo detectamos
 /// automaticamente via AuthService.esAdminDeEstudio.
+/// Lo que hay que escribir para habilitar el borrado definitivo.
+const String kPalabraConfirmacion = 'ELIMINAR';
+
 class EliminarCuentaFlow {
   EliminarCuentaFlow._();
 
@@ -27,10 +30,19 @@ class EliminarCuentaFlow {
     final esEstudio = contextoEstudio ?? await auth.esAdminDeEstudio();
     if (!context.mounted) return;
 
+    // 2/9/2026: además del texto de advertencia, hay que ESCRIBIR "ELIMINAR"
+    // para habilitar el botón. Un botón se puede tocar sin querer —sobre todo
+    // pegado a "Cerrar sesión"—; escribir una palabra, no. Patrón de GitHub y
+    // Stripe para lo irreversible. El costo son 5 segundos una vez en la vida.
+    final palabraCtrl = TextEditingController();
     final confirm = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+      final habilitado =
+          palabraCtrl.text.trim().toUpperCase() == kPalabraConfirmacion;
+      return AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
@@ -79,6 +91,37 @@ class EliminarCuentaFlow {
                 ),
               ),
             ],
+            const SizedBox(height: 16),
+            const Text(
+              'Para confirmar, escribí $kPalabraConfirmacion:',
+              style: TextStyle(
+                color: AppColors.black,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: palabraCtrl,
+              autocorrect: false,
+              enableSuggestions: false,
+              textCapitalization: TextCapitalization.characters,
+              onChanged: (_) => setDialogState(() {}),
+              decoration: InputDecoration(
+                hintText: kPalabraConfirmacion,
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE0DBD6)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppColors.error),
+                ),
+              ),
+            ),
           ],
         ),
         actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -92,10 +135,13 @@ class EliminarCuentaFlow {
             ),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
+            onPressed:
+                habilitado ? () => Navigator.of(ctx).pop(true) : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
+              disabledBackgroundColor: const Color(0xFFE0DBD6),
+              disabledForegroundColor: const Color(0xFF9A928B),
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -109,8 +155,11 @@ class EliminarCuentaFlow {
             ),
           ),
         ],
+      );
+        },
       ),
     );
+    palabraCtrl.dispose();
 
     if (confirm != true || !context.mounted) return;
 

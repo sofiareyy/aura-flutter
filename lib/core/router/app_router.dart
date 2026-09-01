@@ -30,8 +30,6 @@ import '../../screens/perfil/editar_perfil_screen.dart';
 import '../../screens/perfil/cambiar_contrasena_screen.dart';
 import '../../screens/perfil/notificaciones_screen.dart';
 import '../../screens/perfil/ayuda_screen.dart';
-import '../../screens/perfil/terminos_screen.dart';
-import '../../screens/perfil/privacidad_screen.dart';
 import '../../screens/admin/admin_dashboard_screen.dart';
 import '../../screens/admin/admin_estudios_screen.dart';
 import '../../screens/admin/admin_usuarios_tabs_screen.dart';
@@ -407,14 +405,6 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/perfil/ayuda',
       builder: (context, state) => const AyudaScreen(),
-    ),
-    GoRoute(
-      path: '/perfil/terminos',
-      builder: (context, state) => const TerminosScreen(),
-    ),
-    GoRoute(
-      path: '/perfil/privacidad',
-      builder: (context, state) => const PrivacidadScreen(),
     ),
     GoRoute(
       path: '/mis-creditos',

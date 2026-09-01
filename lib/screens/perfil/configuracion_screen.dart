@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'package:provider/provider.dart';
+
+import '../../core/constants/app_constants.dart';
+import '../../providers/app_provider.dart';
+import '../../services/auth_service.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/admin_service.dart';
@@ -15,6 +23,37 @@ class ConfiguracionScreen extends StatefulWidget {
 
 class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   bool _eliminando = false;
+  String? _version;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarVersion();
+  }
+
+  /// Antes decía `Aura v1.0.0` escrito a mano: mentía desde hacía seis
+  /// versiones. Ahora sale del paquete, igual que en Mi Perfil.
+  Future<void> _cargarVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _version = 'Aura v${info.version} (${info.buildNumber})');
+    } catch (_) {
+      // En web PackageInfo puede no resolver: mejor sin versión que con una
+      // inventada.
+    }
+  }
+
+  /// Términos y privacidad viven en la web y son la ÚNICA fuente: así se
+  /// actualizan sin sacar un build, y no puede volver a pasar que la copia de
+  /// la app diga algo distinto (la vieja seguía hablando de "flujo simulado"
+  /// cuando Mercado Pago ya cobraba de verdad).
+  Future<void> _abrirWeb(String archivo) async {
+    await launchUrl(
+      Uri.parse('${AppConstants.auraWebUrl}$archivo'),
+      mode: LaunchMode.externalApplication,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,14 +69,11 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          // "Editar perfil" NO va acá: vive en Mi Perfil, pegado al header,
+          // que es donde se lo busca. Antes estaba en las dos pantallas.
           _Section(
             title: 'Cuenta',
             items: [
-              _Item(
-                icon: Icons.person_outline,
-                label: 'Editar perfil',
-                onTap: () => context.push('/perfil/editar'),
-              ),
               _Item(
                 icon: Icons.lock_outline,
                 label: 'Cambiar contraseña',
@@ -77,7 +113,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
-              'Ayuda y soporte',
+              'Ayuda',
               style: Theme.of(context)
                   .textTheme
                   .titleSmall
@@ -86,30 +122,63 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           ),
           const SoporteCard(),
           const SizedBox(height: 16),
+          // "Preguntas frecuentes" (antes "Ayuda") sale de acá: no es legal.
           _Section(
-            title: 'Información legal',
             items: [
               _Item(
                 icon: Icons.help_outline_rounded,
-                label: 'Ayuda',
+                label: 'Preguntas frecuentes',
                 onTap: () => context.push('/perfil/ayuda'),
               ),
-              _Item(
-                icon: Icons.privacy_tip_outlined,
-                label: 'Políticas de privacidad',
-                onTap: () => context.push('/perfil/privacidad'),
-              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _Section(
+            title: 'Legal',
+            items: [
               _Item(
                 icon: Icons.article_outlined,
                 label: 'Términos y condiciones',
-                onTap: () => context.push('/perfil/terminos'),
+                onTap: () => _abrirWeb('terms.html'),
+              ),
+              _Item(
+                icon: Icons.privacy_tip_outlined,
+                label: 'Política de privacidad',
+                onTap: () => _abrirWeb('privacy.html'),
               ),
             ],
           ),
           const SizedBox(height: 24),
+          // Cerrar sesión es una acción NORMAL y reversible: se ve como
+          // cualquier otra fila. Lo irreversible vive mucho más abajo.
+          _Section(
+            items: [
+              _Item(
+                icon: Icons.logout_rounded,
+                label: 'Cerrar sesión',
+                onTap: _cerrarSesion,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (_version != null)
+            Center(
+              child: Text(
+                _version!,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: AppColors.grey),
+              ),
+            ),
           // ── ZONA DE PELIGRO ────────────────────────────────────────────
-          // Requisito Apple App Store (5.1.1(v)): el usuario tiene que
-          // poder eliminar su cuenta y datos desde dentro de la app.
+          // Requisito Apple App Store (5.1.1(v)): el usuario tiene que poder
+          // eliminar su cuenta y datos desde dentro de la app.
+          //
+          // Va al final de todo y con MUCHO aire por encima, para que no
+          // quede al alcance del pulgar de alguien que venía a cerrar sesión.
+          // Además pide escribir ELIMINAR para habilitar el botón.
+          const SizedBox(height: 64),
           _DangerSection(
             child: _DangerItem(
               icon: Icons.delete_forever_rounded,
@@ -118,19 +187,38 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
               onTap: _eliminando ? null : _abrirDialogoEliminar,
             ),
           ),
-          const SizedBox(height: 32),
-          Center(
-            child: Text(
-              'Aura v1.0.0',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.grey),
-            ),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  /// Baja desde Mi Perfil: acá queda con el resto de lo que se usa poco, y
+  /// separada por 64 px de "Eliminar mi cuenta" para que no se confundan.
+  Future<void> _cerrarSesion() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cerrar sesión'),
+        content: const Text('¿Querés salir de tu cuenta?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Salir',
+                style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),
     );
+    if (confirm != true || !mounted) return;
+    await AuthService().signOut();
+    if (!mounted) return;
+    context.read<AppProvider>().limpiarUsuario();
+    context.go('/login');
   }
 
   Future<void> _abrirDialogoEliminar() async {
@@ -141,26 +229,28 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
 }
 
 class _Section extends StatelessWidget {
-  final String title;
+  /// null = sin encabezado (el bloque suelto de "Cerrar sesión").
+  final String? title;
   final List<Widget> items;
 
-  const _Section({required this.title, required this.items});
+  const _Section({this.title, required this.items});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            title,
-            style: Theme.of(context)
-                .textTheme
-                .titleSmall
-                ?.copyWith(color: AppColors.grey),
+        if (title != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              title!,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(color: AppColors.grey),
+            ),
           ),
-        ),
         Container(
           decoration: BoxDecoration(
             color: AppColors.white,

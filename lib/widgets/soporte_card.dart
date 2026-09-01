@@ -7,6 +7,7 @@ import '../providers/app_provider.dart';
 
 const String kSoporteEmail = 'aura.hola.app@gmail.com';
 const String kInstagramHandle = 'somosaura.app';
+const String kLinkedinUrl = 'https://ar.linkedin.com/company/aura-aurapass';
 
 /// Card oscura con dos filas: contacto por email y por Instagram.
 /// Pensada para reutilizarse en ConfiguracionScreen, AyudaScreen y donde
@@ -26,6 +27,11 @@ class SoporteCard extends StatelessWidget {
   Future<void> _abrirInstagram() async {
     final uri = Uri.parse('https://instagram.com/$kInstagramHandle');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _abrirLinkedin() async {
+    await launchUrl(Uri.parse(kLinkedinUrl),
+        mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -54,6 +60,17 @@ class SoporteCard extends StatelessWidget {
             title: 'Seguinos en Instagram',
             subtitle: '@$kInstagramHandle',
             onTap: _abrirInstagram,
+          ),
+          const Divider(
+            height: 1,
+            thickness: 1,
+            color: Color(0xFF252525),
+          ),
+          _SoporteRow(
+            icon: Icons.work_outline_rounded,
+            title: 'Seguinos en LinkedIn',
+            subtitle: 'Aura Pass',
+            onTap: _abrirLinkedin,
           ),
         ],
       ),

@@ -229,6 +229,11 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                   const SizedBox(height: 20),
                   _buildProfileHeader(usuario),
                   const SizedBox(height: 16),
+                  // El progreso va ARRIBA (2/9/2026): es lo motivador, lo
+                  // primero que se quiere ver al entrar. Antes estaba
+                  // enterrado abajo, después de siete filas de menú.
+                  _ProgresoCard(clasesTomadas: _clasesTomadas),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       _StatBox(
@@ -356,10 +361,10 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                     ),
                     const SizedBox(height: 16),
                   ],
-                  _ProgresoCard(clasesTomadas: _clasesTomadas),
-                  const SizedBox(height: 16),
+                  // Editar perfil vive SOLO acá, pegado a la identidad, que
+                  // es donde se lo busca. Salió de Configuración (estaba en
+                  // las dos pantallas).
                   _MenuSection(
-                    title: 'Mi cuenta',
                     items: [
                       _MenuItem(
                         icon: Icons.edit_outlined,
@@ -367,6 +372,15 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                         subtitle: 'Nombre, foto y datos básicos',
                         onTap: () => context.push('/perfil/editar'),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Toda la plata en un solo bloque: antes estaba repartida
+                  // entre los recuadros de arriba, este menú y un botón de
+                  // "Cancelar suscripción" que colgaba suelto abajo.
+                  _MenuSection(
+                    title: 'Créditos y plan',
+                    items: [
                       _MenuItem(
                         icon: Icons.bolt_rounded,
                         label: 'Mis créditos',
@@ -400,54 +414,40 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                             : 'Opcional: suscripción automática',
                         onTap: () => context.push('/cambiar-plan'),
                       ),
+                      if (usuario?.subscriptionStatus == 'active' &&
+                          (usuario?.plan ?? '').isNotEmpty)
+                        _MenuItem(
+                          icon: Icons.cancel_outlined,
+                          label: 'Cancelar suscripción',
+                          color: AppColors.error,
+                          onTap: _cancelarSuscripcion,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Mis reservas NO es plata: es tu actividad. Va con
+                  // Referidos, que tampoco tenía dónde caer y terminaba en el
+                  // cajón "Más" junto a Configuración y Cerrar sesión.
+                  _MenuSection(
+                    title: 'Mi actividad',
+                    items: [
                       _MenuItem(
                         icon: Icons.calendar_today_rounded,
                         label: 'Mis reservas',
                         onTap: () => context.push('/mis-reservas'),
                       ),
-                    ],
-                  ),
-                  if (usuario?.subscriptionStatus == 'active' &&
-                      (usuario?.plan ?? '').isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4, bottom: 4),
-                      child: Center(
-                        child: TextButton(
-                          onPressed: _cancelarSuscripcion,
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.error,
-                          ),
-                          child: const Text('Cancelar suscripción'),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-                  _FavoritosSection(
-                    estudios: _favoritos,
-                    loading: _loadingFavoritos,
-                  ),
-                  const SizedBox(height: 16),
-                  _MenuSection(
-                    title: 'Más',
-                    items: [
                       _MenuItem(
                         icon: Icons.people_outline_rounded,
                         label: 'Referidos',
                         subtitle: 'Compartí tu código y acreditá beneficios',
                         onTap: () => context.push('/referidos'),
                       ),
-                      _MenuItem(
-                        icon: Icons.settings_outlined,
-                        label: 'Configuración',
-                        onTap: () => context.push('/configuracion'),
-                      ),
-                      _MenuItem(
-                        icon: Icons.logout_rounded,
-                        label: 'Cerrar sesión',
-                        color: AppColors.error,
-                        onTap: () => _cerrarSesion(context),
-                      ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  _FavoritosSection(
+                    estudios: _favoritos,
+                    loading: _loadingFavoritos,
                   ),
                   const SizedBox(height: 16),
                   if (_appVersion != null)
@@ -1115,20 +1115,22 @@ class _ProgresoCard extends StatelessWidget {
 }
 
 class _MenuSection extends StatelessWidget {
-  final String title;
+  /// null = sin encabezado (el bloque suelto de "Editar perfil").
+  final String? title;
   final List<Widget> items;
 
-  const _MenuSection({required this.title, required this.items});
+  const _MenuSection({this.title, required this.items});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
+        if (title != null)
+          Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
-            title,
+            title!,
             style: Theme.of(context)
                 .textTheme
                 .titleSmall
