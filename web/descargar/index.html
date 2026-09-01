@@ -283,8 +283,38 @@
 
   <script>
   (function () {
-    // URL EXACTA de App Store (parámetros de tracking de campaña — NO modificar).
-    var APP_STORE_URL = "https://apps.apple.com/app/apple-store/id6764207399?pt=128832642&ct=Campaign%20links%20julio&mt=8";
+    // Link de App Store con tracking de campaña (Apple Services Performance
+    // Partner). `pt` es el proveedor y `mt=8` la tienda: fijos. Lo que cambia
+    // es `ct`, el token de campaña que despues se lee en App Store Connect.
+    //
+    // La landing se distribuye con ?c=<campana> en el anuncio de Meta:
+    //   /descargar/?c=carrusel      -> ct=meta_carrusel_sep
+    //   /descargar/?c=lanzamiento   -> ct=meta_lanzamiento_sep
+    //   /descargar/  (sin ?c=)      -> ct=organico_sep
+    //
+    // Solo se aceptan campanas de esta lista: un ?c= inventado (o basura de un
+    // scraper) cae en organico_sep en vez de crear tokens sueltos que ensucian
+    // el reporte de Apple. Sumar una campana = una linea mas aca.
+    var CAMPANAS = {
+      "carrusel": "meta_carrusel_sep",
+      "lanzamiento": "meta_lanzamiento_sep"
+    };
+    var CT_POR_DEFECTO = "organico_sep";
+
+    var ct = CT_POR_DEFECTO;
+    try {
+      var c = new URLSearchParams(window.location.search).get("c");
+      if (c) {
+        c = c.trim().toLowerCase();
+        if (Object.prototype.hasOwnProperty.call(CAMPANAS, c)) ct = CAMPANAS[c];
+      }
+    } catch (e) {
+      // Navegador sin URLSearchParams: queda el ct organico, nunca sin link.
+    }
+
+    var APP_STORE_URL =
+      "https://apps.apple.com/app/apple-store/id6764207399" +
+      "?pt=128832642&ct=" + encodeURIComponent(ct) + "&mt=8";
 
     var ua = navigator.userAgent || "";
     var isIOS = /iPad|iPhone|iPod/.test(ua) ||
