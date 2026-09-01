@@ -13,16 +13,29 @@ String _toSupaDate(DateTime dt) {
 class ClasesService {
   final _supabase = Supabase.instance.client;
 
-  Future<List<Map<String, dynamic>>> getProximasClases({int limit = 20, int offset = 0}) async {
+  /// [incluirExperiencias]: Explorar (E2, 1/9/2026) mezcla los workshops en
+  /// el feed cronológico. El default en `false` es para Home, que tiene su
+  /// sección de Experiencias aparte y las duplicaría.
+  /// [diasVentana]: Explorar mira 60 días (una experiencia se anuncia con más
+  /// anticipación que una clase); Home conserva sus 30.
+  Future<List<Map<String, dynamic>>> getProximasClases({
+    int limit = 20,
+    int offset = 0,
+    bool incluirExperiencias = false,
+    int diasVentana = 30,
+  }) async {
     final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
-    final semanasAdelante = ahora.add(const Duration(days: 30));
-    final clases = await _supabase
+    final semanasAdelante = ahora.add(Duration(days: diasVentana));
+    var query = _supabase
         .from(AppConstants.tableClases)
         .select()
-        // Excluir workshops/eventos: van en su propia sección "Experiencias".
-        .neq('tipo', 'workshop')
         // 2026-08-25: una clase cancelada por el estudio no se ofrece.
-        .eq('cancelada', false)
+        .eq('cancelada', false);
+    if (!incluirExperiencias) {
+      // Los workshops van en su propia sección "Experiencias" (Home).
+      query = query.neq('tipo', 'workshop');
+    }
+    final clases = await query
         .gte('fecha', _toSupaDate(ahora))
         .lte('fecha', _toSupaDate(semanasAdelante))
         .order('fecha', ascending: true)

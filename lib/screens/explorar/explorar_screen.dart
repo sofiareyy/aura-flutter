@@ -9,6 +9,7 @@ import '../../models/estudio.dart';
 import '../../providers/app_provider.dart';
 import '../../services/clases_service.dart';
 import '../../services/estudios_service.dart';
+import '../../utils/explorar_filtros.dart';
 
 class ExplorarScreen extends StatefulWidget {
   const ExplorarScreen({super.key});
@@ -38,10 +39,16 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   // Filtros avanzados
   Set<int> _diasFiltro = {};
   Set<String> _horarioFiltro = {};
-  int _maxCreditos = 50;
+  int _maxCreditos = 100;
+
+  /// E2: 'todo' | 'clases' | 'experiencias'.
+  String _tipoFiltro = 'todo';
 
   int get _cantFiltrosActivos =>
-      _diasFiltro.length + _horarioFiltro.length + (_maxCreditos < 50 ? 1 : 0);
+      _diasFiltro.length +
+      _horarioFiltro.length +
+      (_maxCreditos < 100 ? 1 : 0) +
+      (_tipoFiltro != 'todo' ? 1 : 0);
 
   @override
   void initState() {
@@ -77,7 +84,11 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
 
     final results = await Future.wait([
       _estudiosService.getEstudios(),
-      _clasesService.getProximasClases(limit: _pageSize, offset: 0),
+      _clasesService.getProximasClases(
+          limit: _pageSize,
+          offset: 0,
+          incluirExperiencias: true,
+          diasVentana: 60),
       _estudiosService.getCategorias(),
     ]);
 
@@ -114,6 +125,8 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
       final mas = await _clasesService.getProximasClases(
         limit: _pageSize,
         offset: _clasesOffset,
+        incluirExperiencias: true,
+        diasVentana: 60,
       );
       if (!mounted) return;
       final merged = [..._clases, ...mas];
@@ -174,12 +187,19 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   }
 
   List<Map<String, dynamic>> get _clasesConEstudio {
-    final filteredIds = _estudiosFiltrados.map((e) => e.id).toSet();
+    // E3 (1/9/2026): el chip y la busqueda evaluan LA CLASE, no el perfil del
+    // estudio. Antes una clase solo aparecia si su estudio pasaba el filtro,
+    // y Yessi (perfil "Fitness", 70 clases de Gym/Funcional) era invisible
+    // bajo ese chip. El predicado es puro y esta testeado contra una foto de
+    // produccion en test/explorar_filtros_test.dart.
+    final query = _searchCtrl.text.trim().toLowerCase();
     final filtered = _clases.where((clase) {
-      final estudio = clase['estudios'] as Map<String, dynamic>?;
-      if (filteredIds.isNotEmpty && !filteredIds.contains(estudio?['id'])) {
+      if (!planVisible(clase,
+          categoria: _categoriaSeleccionada, query: query)) {
         return false;
       }
+      // E2: filtro Todo / Clases / Experiencias.
+      if (!tipoVisible(clase, _tipoFiltro)) return false;
       // BUG 15: parsear con 'Z' fuerza UTC en vez de local del device, y
       // como las fechas en DB ya estan en hora Argentina (UTC-3) sin
       // marker, weekday/hour del DateTime UTC reflejan la hora Argentina
@@ -242,6 +262,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
         Set<int> diasTemp = Set.from(_diasFiltro);
         Set<String> horarioTemp = Set.from(_horarioFiltro);
         int creditosTemp = _maxCreditos;
+        String tipoTemp = _tipoFiltro;
 
         const diasLabels = {1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb', 7: 'Dom'};
         const horarioLabels = {
@@ -276,6 +297,52 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: AppColors.black),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text('Tipo',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF403A35))),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: const {
+                      'todo': 'Todo',
+                      'clases': 'Clases',
+                      'experiencias': 'Experiencias',
+                    }.entries.map((e) {
+                      final selected = tipoTemp == e.key;
+                      return GestureDetector(
+                        onTap: () =>
+                            setSheetState(() => tipoTemp = e.key),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? AppColors.black
+                                : AppColors.white,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: selected
+                                  ? AppColors.black
+                                  : AppColors.warmBorder,
+                            ),
+                          ),
+                          child: Text(
+                            e.value,
+                            style: TextStyle(
+                              color: selected
+                                  ? AppColors.white
+                                  : const Color(0xFF6E6761),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
                   const SizedBox(height: 18),
                   const Text('Día',
@@ -375,7 +442,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                               fontWeight: FontWeight.w700,
                               color: Color(0xFF403A35))),
                       Text(
-                        creditosTemp < 50 ? '$creditosTemp cr' : 'Todos',
+                        creditosTemp < 100 ? '$creditosTemp cr' : 'Todos',
                         style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -386,8 +453,8 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                   Slider(
                     value: creditosTemp.toDouble(),
                     min: 5,
-                    max: 50,
-                    divisions: 9,
+                    max: 100,
+                    divisions: 19,
                     activeColor: AppColors.primary,
                     inactiveColor: const Color(0xFFE0DBD6),
                     onChanged: (v) =>
@@ -402,7 +469,8 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                             setState(() {
                               _diasFiltro = {};
                               _horarioFiltro = {};
-                              _maxCreditos = 50;
+                              _maxCreditos = 100;
+                              _tipoFiltro = 'todo';
                             });
                             Navigator.of(ctx).pop();
                           },
@@ -425,6 +493,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                               _diasFiltro = diasTemp;
                               _horarioFiltro = horarioTemp;
                               _maxCreditos = creditosTemp;
+                              _tipoFiltro = tipoTemp;
                             });
                             Navigator.of(ctx).pop();
                           },
@@ -705,6 +774,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                         onPressed: () => setState(() {
                           _searchCtrl.clear();
                           _categoriaSeleccionada = 'Todos';
+                          _tipoFiltro = 'todo';
                         }),
                         icon: const Icon(Icons.refresh_rounded, size: 16),
                         label: const Text('Limpiar filtros'),
@@ -1016,7 +1086,7 @@ class _ResultCard extends StatelessWidget {
                           ),
                           if (esWorkshop)
                             const _PriceBadge(
-                              text: 'EVENTO',
+                              text: 'EXPERIENCIA',
                               color: AppColors.primary,
                             )
                           else if (tipoPrecio == 'pico')

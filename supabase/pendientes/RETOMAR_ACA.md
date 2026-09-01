@@ -1227,8 +1227,28 @@ cambió** · **Yessi ya aparece bajo el chip "Gym / Funcional"** leído como
 SIGUE dictando, el cron la vuelve a sumar esa noche. La limpieza a mano es para
 lo que ya no dicta.
 
-👉 **Sigue E2+E3** (experiencias al feed + filtro por clase), que son web y
-app: la web sale con un push, la app va en la 1.0.7.
+✅ **E2+E3 HECHAS el 1/9 (Dart)** — commit en main local, la web las recibe
+al pushear; la app nativa las lleva la **1.0.7**:
+- **E2**: `getProximasClases` gana `incluirExperiencias` (default `false`: Home
+  no duplica — tiene su sección aparte) y `diasVentana` (Explorar 60, Home 30).
+  Explorar mezcla las experiencias cronológicamente; la card ya existía (badge
+  ahora dice **EXPERIENCIA**, antes EVENTO) + filtro Tipo (Todo/Clases/
+  Experiencias) en el sheet. **Slider de créditos 50→100** (una experiencia de
+  60 cr desaparecía en silencio con el tope viejo).
+- **E3**: el feed evalúa **la clase** — `planVisible()` en
+  `lib/utils/explorar_filtros.dart` (puro, testeado): chip contra
+  `etiquetas`→fallback `categorias` de la clase; búsqueda suma nombre y
+  categorías del plan a lo actual (estudio/barrio siguen andando). El carrusel
+  de estudios sigue con `_estudiosFiltrados` (la vidriera de E1).
+- **Verificado contra producción** (`test/explorar_filtros_test.dart`, foto
+  leída como anon con la RLS real): con Todos pasa **1048 de 1048** (nada de
+  hoy se pierde) · **cada chip da el conteo exacto de la SQL** · Yessi bajo
+  Gym/Funcional: **70** · "citra" en la búsqueda: 201 · experiencias 0 = SQL
+  (hoy no hay; el mecanismo va con casos sintéticos, incluido el fallback de
+  etiquetas de E4). 37 tests OK, analyze 0, web compila.
+
+👉 **Siguen**: E4 (etiquetas) cuando se activen servicios · E5 (cerca/fecha/
+gratis/mapa + ver estudios en el mapa) · empaquetar la 1.0.7.
 
 ## ⬜ Mantenimiento
 
