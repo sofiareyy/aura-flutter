@@ -1247,8 +1247,36 @@ al pushear; la app nativa las lleva la **1.0.7**:
   (hoy no hay; el mecanismo va con casos sintéticos, incluido el fallback de
   etiquetas de E4). 37 tests OK, analyze 0, web compila.
 
-👉 **Siguen**: E4 (etiquetas) cuando se activen servicios · E5 (cerca/fecha/
-gratis/mapa + ver estudios en el mapa) · empaquetar la 1.0.7.
+**1/9 a la noche — dos ajustes más de Explorar (Dart, sin pushear):**
+- 🔴 **Fix del paginado de experiencias** (`d840a69`): el feed unificado dejaba
+  a la única experiencia en la posición 97 de 1049 (medido) y el filtro
+  "Experiencias" arrancaba vacío. Ahora son DOS streams: clases paginadas +
+  experiencias completas por `getProximasExperiencias`, mezcladas por fecha
+  (`mezclarFeed`, puro y testeado). E3 intacto.
+- 🎨 **Card de experiencia con fondo beige** (`f45da3c`): `#F0E6DA` + borde
+  `#E2D3BF`, sólo en Explorar (Inicio no se toca). **Pendiente el visto bueno
+  del ojo de la usuaria** — se construyó pero no lo revisó en el preview.
+
+👉 **LO PRIMERO DE LA PRÓXIMA SESIÓN — dos cosas chicas de Explorar:**
+1. **Que la usuaria revise el color beige** de la card (preview local:
+   `flutter run -d web-server --web-port 8090` o build release). Si no
+   convence, probar variante más rosada/terrosa — es un solo hex.
+2. **Construir "EXPERIENCIAS" destacadas arriba** — plan ya aprobado en
+   conversación, listo para ejecutar: sección horizontal entre "Destacados
+   hoy" y "Todos los resultados", con las **3 experiencias de fecha más
+   cercana** tomadas de `_clasesConEstudio` filtrado por `tipo=='workshop'`
+   (⇒ respeta chip/búsqueda/filtros gratis y desaparece con Tipo=Clases),
+   oculta si no hay ninguna, reutilizando `_ResultCard` en un
+   `SizedBox(width: ~320)` — cero widgets nuevos. Título: "EXPERIENCIAS" a
+   secas. ~25 líneas + test (con 1 experiencia aparece; con filtro Clases se
+   oculta). **Inicio NO se toca.**
+
+Después: E4 (etiquetas) cuando se activen servicios · E5 (cerca/fecha/gratis/
+mapa + ver estudios en el mapa) · empaquetar la **1.0.7** (todo el Dart de
+Explorar + los pendientes del build 27 del inventario).
+
+**La experiencia de prueba 6258 está BORRADA** (1/9, 0 reservas, verificado:
+0 workshops futuros en la base). El preview del 8099 está apagado.
 
 ## ⬜ Mantenimiento
 
