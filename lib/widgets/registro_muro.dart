@@ -1,6 +1,10 @@
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../core/constants/app_constants.dart';
 import '../core/theme/app_theme.dart';
 
 /// Por qué se le pide cuenta al invitado. Define el texto del muro.
@@ -35,6 +39,28 @@ class RegistroMuro extends StatelessWidget {
     required this.motivo,
     this.rutaVolver = '',
   });
+
+  /// ¿Corresponde ofrecerle descargar la app a quien está viendo el muro?
+  ///
+  /// Tres casos y sólo uno dice que sí:
+  ///  · **Web desde iPhone** → SÍ. Puede instalarla y le sirve.
+  ///  · **Web desde Android o escritorio** → NO. Android todavía no está en
+  ///    Play ([AppConstants.androidPublicado]) y en escritorio no hay app:
+  ///    ofrecer algo que no existe sólo frustra.
+  ///  · **Dentro de la app nativa** → NO, obviamente: ya la tiene.
+  ///
+  /// Cuando Android se publique, alcanza con poner `androidPublicado = true`.
+  static ({String url, String tienda})? descargaPara(TargetPlatform plataforma,
+      {required bool esWeb, bool androidPublicado = AppConstants.androidPublicado}) {
+    if (!esWeb) return null; // ya está adentro de la app
+    if (plataforma == TargetPlatform.iOS) {
+      return (url: AppConstants.appStoreUrlMuro, tienda: 'App Store');
+    }
+    if (plataforma == TargetPlatform.android && androidPublicado) {
+      return (url: AppConstants.playStoreUrl, tienda: 'Google Play');
+    }
+    return null;
+  }
 
   /// La ubicación actual, tolerante al contexto desde el que se pregunte.
   ///
@@ -126,6 +152,7 @@ class RegistroMuro extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final texto = _texto;
+    final descarga = descargaPara(defaultTargetPlatform, esWeb: kIsWeb);
 
     return Dialog(
       backgroundColor: AppColors.white,
@@ -201,6 +228,46 @@ class RegistroMuro extends StatelessWidget {
                   ),
                 ),
               ),
+              // Descargar la app va TERCERA y en contorno, no arriba: quien
+              // abrió el muro vino a reservar y está a un toque de lograrlo.
+              // Mandarla al App Store la obliga a instalar, esperar y volver
+              // a entrar — eso cuesta reservas. Disponible, sin competir.
+              if (descarga != null) ...[
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Expanded(child: Divider(color: Color(0xFFEDE7E1))),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('o',
+                          style: TextStyle(
+                              color: AppColors.grey, fontSize: 13)),
+                    ),
+                    const Expanded(child: Divider(color: Color(0xFFEDE7E1))),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: () => launchUrl(
+                      Uri.parse(descarga.url),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                    icon: const Icon(Icons.ios_share_rounded, size: 17),
+                    label: Text('Descargá Aura en ${descarga.tienda}'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.black,
+                      side: const BorderSide(color: Color(0xFFEDE7E1)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      textStyle: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

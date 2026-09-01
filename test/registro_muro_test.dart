@@ -4,6 +4,7 @@
 // onPressed. Era conversión perdida: la invitada que quería reservar no podía
 // ni registrarse ni entrar.
 import 'package:aura_app/widgets/registro_muro.dart';
+import 'package:flutter/foundation.dart' show TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -53,6 +54,59 @@ Future<void> _abrirMuro(WidgetTester tester, List<String> visitadas) async {
 }
 
 void main() {
+  group('descargar la app: SOLO en web desde iPhone', () {
+    // La regla de los tres casos. Se prueba la función pura, así no depende
+    // de simular navegadores.
+    test('web + iPhone → ofrece App Store con el ct del muro', () {
+      final d = RegistroMuro.descargaPara(TargetPlatform.iOS, esWeb: true);
+      expect(d, isNotNull);
+      expect(d!.tienda, 'App Store');
+      expect(d.url, contains('ct=muro_web'));
+      expect(d.url, contains('pt=128832642'));
+      expect(d.url, contains('id6764207399'));
+    });
+
+    test('web + Android → NO ofrece nada (Play todavía no está publicado)',
+        () {
+      expect(
+        RegistroMuro.descargaPara(TargetPlatform.android,
+            esWeb: true, androidPublicado: false),
+        isNull,
+      );
+    });
+
+    test('web + escritorio → NO ofrece nada (no hay app)', () {
+      for (final p in [
+        TargetPlatform.macOS,
+        TargetPlatform.windows,
+        TargetPlatform.linux,
+      ]) {
+        expect(RegistroMuro.descargaPara(p, esWeb: true), isNull, reason: '$p');
+      }
+    });
+
+    test('DENTRO de la app nativa → NO ofrece descargarla, ya la tiene', () {
+      for (final p in [TargetPlatform.iOS, TargetPlatform.android]) {
+        expect(RegistroMuro.descargaPara(p, esWeb: false), isNull,
+            reason: '$p nativo');
+      }
+    });
+
+    test('cuando Android se publique, alcanza con el booleano', () {
+      final d = RegistroMuro.descargaPara(TargetPlatform.android,
+          esWeb: true, androidPublicado: true);
+      expect(d, isNotNull);
+      expect(d!.tienda, 'Google Play');
+      // Y el iPhone sigue igual.
+      expect(
+        RegistroMuro.descargaPara(TargetPlatform.iOS,
+                esWeb: true, androidPublicado: true)!
+            .tienda,
+        'App Store',
+      );
+    });
+  });
+
   testWidgets('"Crear cuenta" navega a /register y NO tira excepción',
       (tester) async {
     final visitadas = <String>[];

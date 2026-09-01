@@ -32,6 +32,20 @@ class AppConstants {
   /// funciona recién cuando la app esté publicada en Play.
   static const String appStoreUrl =
       'https://apps.apple.com/app/id6764207399';
+
+  /// ¿Android ya está publicado en Google Play?
+  ///
+  /// Mientras esté en `false`, ningún lugar de la app le ofrece descargar a
+  /// alguien en Android: no se frustra a nadie ofreciéndole algo que todavía
+  /// no existe. **Publicar Android = poner esto en `true` y sacar un build.**
+  static const bool androidPublicado = false;
+
+  /// Link de tienda para el muro de invitados, con su propio `ct`: así se
+  /// puede medir cuánta gente instaló POR EL MURO, aparte de lo que trae la
+  /// pauta. Mismo `pt` que la landing de descarga.
+  static const String appStoreUrlMuro =
+      'https://apps.apple.com/app/apple-store/id6764207399'
+      '?pt=128832642&ct=muro_web&mt=8';
   static const String playStoreUrl =
       'https://play.google.com/store/apps/details?id=app.somosaura.aura';
   static const String supabaseAnonKey =

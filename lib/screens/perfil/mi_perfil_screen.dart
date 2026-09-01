@@ -449,6 +449,21 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                     estudios: _favoritos,
                     loading: _loadingFavoritos,
                   ),
+                  // Cerrar sesión cierra la pantalla: separada por aire, en su
+                  // propio bloque y en rojo suave. Es reversible, así que NO
+                  // va con lo destructivo — eliminar la cuenta sigue en
+                  // Configuración, lejos y con su campo de confirmación.
+                  const SizedBox(height: 32),
+                  _MenuSection(
+                    items: [
+                      _MenuItem(
+                        icon: Icons.logout_rounded,
+                        label: 'Cerrar sesión',
+                        color: AppColors.error,
+                        onTap: () => _cerrarSesion(context),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
                   if (_appVersion != null)
                     Center(

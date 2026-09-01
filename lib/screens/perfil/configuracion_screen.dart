@@ -3,11 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:provider/provider.dart';
-
 import '../../core/constants/app_constants.dart';
-import '../../providers/app_provider.dart';
-import '../../services/auth_service.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/admin_service.dart';
@@ -148,19 +144,8 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          // Cerrar sesión es una acción NORMAL y reversible: se ve como
-          // cualquier otra fila. Lo irreversible vive mucho más abajo.
-          _Section(
-            items: [
-              _Item(
-                icon: Icons.logout_rounded,
-                label: 'Cerrar sesión',
-                onTap: _cerrarSesion,
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 28),
+          // Cerrar sesión vive en Mi Perfil, como cierre de esa pantalla.
           if (_version != null)
             Center(
               child: Text(
@@ -193,33 +178,6 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
-  /// Baja desde Mi Perfil: acá queda con el resto de lo que se usa poco, y
-  /// separada por 64 px de "Eliminar mi cuenta" para que no se confundan.
-  Future<void> _cerrarSesion() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cerrar sesión'),
-        content: const Text('¿Querés salir de tu cuenta?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Salir',
-                style: TextStyle(color: AppColors.error)),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true || !mounted) return;
-    await AuthService().signOut();
-    if (!mounted) return;
-    context.read<AppProvider>().limpiarUsuario();
-    context.go('/login');
-  }
 
   Future<void> _abrirDialogoEliminar() async {
     setState(() => _eliminando = true);
