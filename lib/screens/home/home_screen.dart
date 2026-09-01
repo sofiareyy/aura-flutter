@@ -89,56 +89,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _cargar();
     _checkBannerDismissed();
     _restaurarUbicacionSiPermitida();
-    _maybeMostrarBienvenida();
-  }
-
-  /// Pop-up de bienvenida la PRIMERA vez que se abre el home, solo si la
-  /// feature de créditos de bienvenida está encendida (hoy: apagada, así que
-  /// no aparece). Se muestra una sola vez por dispositivo.
-  Future<void> _maybeMostrarBienvenida() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      if (prefs.getBool('bienvenida_popup_visto') == true) return;
-
-      final activa = await Supabase.instance.client
-          .rpc('bienvenida_esta_activa');
-      if (activa != true) return;
-
-      final montoRaw = await Supabase.instance.client
-          .from('configuracion_global')
-          .select('valor')
-          .eq('clave', 'bienvenida_monto')
-          .maybeSingle();
-      final monto =
-          int.tryParse(montoRaw?['valor']?.toString().trim() ?? '10') ?? 10;
-
-      await prefs.setBool('bienvenida_popup_visto', true);
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('🧡 ¡Bienvenida a Aura!'),
-          content: Text(
-            'Te regalamos $monto créditos para tu primera clase. '
-            'Explorá los estudios y reservá tu lugar.',
-            style: const TextStyle(height: 1.45),
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                context.go('/explorar');
-              },
-              child: const Text('Ver clases'),
-            ),
-          ],
-        ),
-      );
-    } catch (_) {
-      // Nunca romper el home por el pop-up.
-    }
   }
 
   Future<void> _checkBannerDismissed() async {

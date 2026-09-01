@@ -27,9 +27,6 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
   bool _loading = true;
   bool _savingCredit = false;
   bool _savingCategory = false;
-  bool _bienvenidaActiva = false;
-  int _bienvenidaMonto = 10;
-  bool _savingBienvenida = false;
   String? _error;
   /// {nombre, activa, en_uso} por categoría. El backoffice ve también
   /// las desactivadas; los selectores del estudio no.
@@ -71,7 +68,6 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
       final categories = await _service.listStudyCategoriesDetalle();
       final plans = await _service.listPricingPlans();
       final valorCreditoArs = await _service.getValorCreditoArs();
-      final bienvenida = await _service.getBienvenidaConfig();
       if (!mounted) return;
 
       _creditValueCtrl.text = '$valorCreditoArs';
@@ -80,8 +76,6 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
         _categories = categories;
         _plans = plans;
         _valorCreditoActual = valorCreditoArs;
-        _bienvenidaActiva = bienvenida['activa'] == true;
-        _bienvenidaMonto = (bienvenida['monto'] as int?) ?? 10;
         _valorCreditoPreview = valorCreditoArs;
         _loading = false;
       });
@@ -149,40 +143,6 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
           backgroundColor: AppColors.error,
         ),
       );
-    }
-  }
-
-  Future<void> _toggleBienvenida(bool activar) async {
-    setState(() => _savingBienvenida = true);
-    try {
-      if (activar) {
-        final n = await _service.encenderBienvenida(monto: _bienvenidaMonto);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Bienvenida encendida. Se acreditó a $n usuarios existentes.'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      } else {
-        await _service.apagarBienvenida();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bienvenida apagada.')),
-        );
-      }
-      setState(() => _bienvenidaActiva = activar);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _savingBienvenida = false);
     }
   }
 
@@ -466,12 +426,6 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
                   ),
                   const SizedBox(height: 14),
                   // 5. CRÉDITOS DE BIENVENIDA
-                  _BienvenidaCard(
-                    activa: _bienvenidaActiva,
-                    monto: _bienvenidaMonto,
-                    saving: _savingBienvenida,
-                    onToggle: _toggleBienvenida,
-                  ),
                 ],
               ],
             ),
@@ -991,56 +945,3 @@ class _Block extends StatelessWidget {
   }
 }
 
-/// Card del backoffice para encender/apagar los créditos de bienvenida.
-/// Encender acredita a todos los usuarios existentes que no la recibieron.
-class _BienvenidaCard extends StatelessWidget {
-  final bool activa;
-  final int monto;
-  final bool saving;
-  final void Function(bool) onToggle;
-
-  const _BienvenidaCard({
-    required this.activa,
-    required this.monto,
-    required this.saving,
-    required this.onToggle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _DarkCard(
-      title: 'Créditos de bienvenida',
-      subtitle:
-          'Regalo de $monto créditos a cada usuario. Al encender, se acredita '
-          'también a todos los ya registrados (una sola vez). Los nuevos lo '
-          'reciben al registrarse.',
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                activa ? 'Encendida' : 'Apagada',
-                style: TextStyle(
-                  color: activa ? AppColors.success : _kSubtle,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            if (saving)
-              const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            else
-              Switch(
-                value: activa,
-                activeThumbColor: AppColors.primary,
-                onChanged: (v) => onToggle(v),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}

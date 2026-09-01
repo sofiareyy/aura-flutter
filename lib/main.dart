@@ -167,15 +167,10 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
           } catch (e) {
             debugPrint('[authListener] ensureUsuarioCreado falló: $e');
           }
-          // Créditos de bienvenida: el RPC es idempotente y NO hace nada si la
-          // feature está apagada. Con el flag ON, acredita una sola vez.
-          try {
-            final uid = Supabase.instance.client.auth.currentUser?.id;
-            if (uid != null) {
-              await Supabase.instance.client
-                  .rpc('acreditar_bienvenida', params: {'p_user_id': uid});
-            }
-          } catch (_) {}
+          // Los créditos de bienvenida se DESCARTARON (decisión del 29/8:
+          // no se regalan créditos a cuentas nuevas). La RPC
+          // acreditar_bienvenida nunca existió en la base y esta llamada
+          // fallaba en silencio EN CADA LOGIN: una ida y vuelta regalada.
           // Cargar el usuario en el provider para que esProfe / rol activo
           // (roles múltiples) estén disponibles apenas se entra a un panel.
           if (mounted) {
