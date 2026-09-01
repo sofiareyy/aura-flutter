@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -482,7 +483,22 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
       AppConstants.linkDeClase(widget.claseId),
     ];
 
-    await Share.share(partes.join('\n'));
+    final texto = partes.join('\n');
+    // Web Share API no existe en todos lados (Safari viejo, Chrome en Linux,
+    // y NUNCA en http://localhost) y share_plus LANZA cuando falta: el botón
+    // quedaba mudo. Fallback: copiar al portapapeles con aviso — nadie se va
+    // sin el link.
+    try {
+      await Share.share(texto);
+    } catch (_) {
+      await Clipboard.setData(ClipboardData(text: texto));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Link copiado: pegalo donde quieras 🧡'),
+        ),
+      );
+    }
   }
 
   @override
