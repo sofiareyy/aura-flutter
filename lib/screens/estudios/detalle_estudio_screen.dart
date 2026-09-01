@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
+import '../../utils/mapa_link.dart';
 import '../../models/estudio.dart';
 import '../../providers/app_provider.dart';
 import '../../services/estudios_service.dart';
@@ -280,11 +281,25 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                       const Icon(Icons.place_rounded,
                           color: AppColors.primary, size: 16),
                       const SizedBox(width: 6),
+                      // Tocar la dirección abre el mapa. Acá SÍ hay lat/lng
+                      // del estudio, así que la ubicación es exacta y no
+                      // depende de cómo esté escrita la calle.
                       Expanded(
-                        child: Text(
-                          e.direccion!,
-                          style: const TextStyle(
-                              color: AppColors.grey, fontSize: 13),
+                        child: InkWell(
+                          onTap: () => abrirMapa(
+                            direccion: e.direccion,
+                            lat: e.lat,
+                            lng: e.lng,
+                          ),
+                          child: Text(
+                            e.direccion!,
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 13,
+                              decoration: TextDecoration.underline,
+                              decorationColor: AppColors.primary,
+                            ),
+                          ),
                         ),
                       ),
                     ],

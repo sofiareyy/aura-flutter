@@ -16,6 +16,7 @@ import '../../services/reviews_service.dart';
 import '../../services/waitlist_service.dart';
 import '../../widgets/registro_muro.dart';
 import '../../utils/cierre_minutos.dart';
+import '../../utils/mapa_link.dart';
 import '../../widgets/organizadores_links.dart';
 import '../../widgets/study_review_sheet.dart';
 
@@ -1009,13 +1010,24 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                     color: AppColors.primary,
                                   ),
                                   const SizedBox(width: 8),
+                                  // La dirección abre el mapa: nadie quiere
+                                  // copiarla a mano para saber cómo llegar.
                                   Expanded(
-                                    child: Text(
-                                      clase['direccion'].toString(),
-                                      style: const TextStyle(
-                                        color: Color(0xFF5E584F),
-                                        fontSize: 14,
-                                        height: 1.5,
+                                    child: InkWell(
+                                      onTap: () => abrirMapa(
+                                        direccion:
+                                            clase['direccion']?.toString(),
+                                      ),
+                                      child: Text(
+                                        clase['direccion'].toString(),
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontSize: 14,
+                                          height: 1.5,
+                                          decoration:
+                                              TextDecoration.underline,
+                                          decorationColor: AppColors.primary,
+                                        ),
                                       ),
                                     ),
                                   ),
