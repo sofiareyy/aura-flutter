@@ -110,6 +110,38 @@ void main() {
       expect(feed.where((p) => tipoVisible(p, 'experiencias')).length, 1);
     });
 
+    test('sección EXPERIENCIAS: muestra las próximas y se oculta sin ninguna',
+        () {
+      final feed = mezclarFeed(planes.take(20).toList(), [experiencia]);
+      final destacadas = experienciasDestacadas(feed);
+      expect(destacadas.length, 1);
+      expect(destacadas.first['id'], 9999);
+
+      // Sin experiencias en el feed, la sección no se dibuja.
+      expect(experienciasDestacadas(planes.take(20).toList()), isEmpty);
+
+      // Con el filtro Tipo = Clases, tampoco (el feed ya viene sin workshops).
+      final soloClases =
+          feed.where((p) => tipoVisible(p, 'clases')).toList();
+      expect(experienciasDestacadas(soloClases), isEmpty);
+    });
+
+    test('sección EXPERIENCIAS: tope de 3 y respeta el orden del feed', () {
+      final tres = List.generate(
+          5,
+          (i) => {
+                'id': 8000 + i,
+                'nombre': 'Exp $i',
+                'tipo': 'workshop',
+                'fecha': '2026-09-0${i + 1} 20:00:00',
+                'categorias': const ['Ceramica'],
+              });
+      final feed = mezclarFeed(const [], tres);
+      final destacadas = experienciasDestacadas(feed);
+      expect(destacadas.length, 3);
+      expect(destacadas.map((e) => e['id']).toList(), [8000, 8001, 8002]);
+    });
+
     test('mezclarFeed: ordena por fecha y dedup por id', () {
       final a = {'id': 1, 'fecha': '2026-09-03 10:00:00'};
       final b = {'id': 2, 'fecha': '2026-09-01 10:00:00'};

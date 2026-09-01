@@ -813,6 +813,48 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                   ),
                 ),
                 const SizedBox(height: 22),
+                // EXPERIENCIAS próximas. Sale del feed YA filtrado, así que
+                // respeta chip/búsqueda/día/horario/créditos sin código extra
+                // y desaparece sola con el filtro Tipo = Clases. Reutiliza la
+                // card del feed (misma identidad visual). Inicio no se toca.
+                if (experienciasDestacadas(lista).isNotEmpty) ...[
+                  const Text(
+                    'EXPERIENCIAS',
+                    style: TextStyle(
+                      color: Color(0xFF403A35),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 112,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: experienciasDestacadas(lista).length,
+                      itemBuilder: (context, index) {
+                        final exp = experienciasDestacadas(lista)[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: SizedBox(
+                            width: 320,
+                            child: _ResultCard(
+                              clase: exp,
+                              accentColor: AppColors.beigeCard,
+                              // PREVIEW 2/9: una opción de fondo por card
+                              // para poder compararlas de un vistazo.
+                              opcionFondo:
+                                  index % kOpcionesFondoExperiencia.length,
+                              onTap: () =>
+                                  context.push('/clase/${exp['id']}'),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                ],
                 const Text(
                   'TODOS LOS RESULTADOS',
                   style: TextStyle(
@@ -998,15 +1040,41 @@ class _FeaturedExploreCard extends StatelessWidget {
   }
 }
 
+/// Fondos candidatos para la card de EXPERIENCIA en Explorar.
+///
+/// El primero (#F0E6DA) se descartó por oscuro: estas tres son más claras y
+/// más anaranjadas, para que dialoguen con el naranja del badge (#E8763A) sin
+/// ensombrecer la card. Se comparan sobre el fondo de la pantalla (#F7F5F2) y
+/// contra las cards de clase, que son blancas.
+///
+/// PREVIEW 2/9: la sección de destacados pinta una opción por card para poder
+/// elegir de un vistazo. Cuando la usuaria decida, queda una sola y esta lista
+/// se borra.
+const List<({Color fondo, Color borde})> kOpcionesFondoExperiencia = [
+  // A · durazno pastel: el más anaranjado, cálido y luminoso.
+  (fondo: Color(0xFFFDEFE4), borde: Color(0xFFF6D9C0)),
+  // B · beige claro con un toque naranja: intermedio.
+  (fondo: Color(0xFFFBF2E8), borde: Color(0xFFF1E1CE)),
+  // C · crema apenas más cálido que el fondo: el más sutil.
+  (fondo: Color(0xFFFDF7F0), borde: Color(0xFFEFE4D8)),
+];
+
+/// La que se usa en el feed mientras se decide (la intermedia).
+const _fondoExperienciaPorDefecto = 1;
+
 class _ResultCard extends StatelessWidget {
   final Map<String, dynamic> clase;
   final Color accentColor;
   final VoidCallback onTap;
 
+  /// Índice en [kOpcionesFondoExperiencia]. Sólo aplica a experiencias.
+  final int opcionFondo;
+
   const _ResultCard({
     required this.clase,
     required this.accentColor,
     required this.onTap,
+    this.opcionFondo = _fondoExperienciaPorDefecto,
   });
 
   @override
@@ -1052,11 +1120,13 @@ class _ResultCard extends StatelessWidget {
           // y la experiencia convivan sin gritar. Solo en Explorar; la card
           // de Inicio es otra y no se toca.
           decoration: BoxDecoration(
-            color: esWorkshop ? const Color(0xFFF0E6DA) : AppColors.white,
+            color: esWorkshop
+                ? kOpcionesFondoExperiencia[opcionFondo].fondo
+                : AppColors.white,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: esWorkshop
-                  ? const Color(0xFFE2D3BF)
+                  ? kOpcionesFondoExperiencia[opcionFondo].borde
                   : AppColors.warmBorder,
             ),
           ),

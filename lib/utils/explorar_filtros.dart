@@ -91,3 +91,13 @@ List<Map<String, dynamic>> mezclarFeed(
   });
   return out;
 }
+
+/// Las [max] experiencias más próximas de un feed YA FILTRADO (chip, búsqueda,
+/// día, horario, créditos). Alimenta la sección "EXPERIENCIAS" de Explorar:
+/// si el filtro Tipo está en "Clases", o no hay ninguna, devuelve vacío y la
+/// sección se oculta sola.
+List<Map<String, dynamic>> experienciasDestacadas(
+  List<Map<String, dynamic>> feed, {
+  int max = 3,
+}) =>
+    feed.where((p) => p['tipo']?.toString() == 'workshop').take(max).toList();
