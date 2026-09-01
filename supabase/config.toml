@@ -468,3 +468,14 @@ entrypoint = "./functions/nueva-reserva-estudio-email/index.ts"
 [functions.push-enviar]
 verify_jwt = false
 entrypoint = "./functions/push-enviar/index.ts"
+
+# Mail de clase cancelada. La dispara `estudio_cancelar_clase` por pg_net con
+# el anon key en Authorization + `x-notif-secret`, igual que resena-email y
+# email-confirmacion: por eso verify_jwt = true (el anon key ES un JWT valido
+# del proyecto) y la autorizacion real la hace el secreto adentro.
+# Declarada a proposito: sin esta entrada, un `supabase functions deploy` le
+# pondria verify_jwt = true/false en silencio y romperia el disparo.
+[functions.cancelacion-email]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/cancelacion-email/index.ts"
