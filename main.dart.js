@@ -42684,7 +42684,7 @@ cb9(a,b){var s="/storage/v1/object/public/",r="/storage/v1/render/image/public/"
 if(a.length===0)return a
 if(!B.b.p(a,s))return a
 if(B.b.p(a,r)||B.b.p(a,"?"))return a
-return B.b.bR(a,s,r)+"?width="+b+"&quality=74"},
+return B.b.bR(a,s,r)+"?width="+b+"&resize=contain&quality=74"},
 can(a){if(a>=900)return 3
 if(a>=720)return 2
 return 1},
