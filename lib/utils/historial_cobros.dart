@@ -19,6 +19,7 @@
 import 'package:intl/intl.dart';
 
 import 'liquidacion.dart';
+import 'mes_argentino.dart';
 
 const kEstadoPagado = 'Pagado';
 const kEstadoACobrar = 'A cobrar el 5';
@@ -34,8 +35,6 @@ List<Map<String, dynamic>> armarHistorialCobros({
   final formatter = DateFormat('MMMM yyyy', 'es');
   final porMes = <String, Map<String, dynamic>>{};
 
-  String claveDe(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}';
 
   Map<String, dynamic> filaVacia(DateTime primerDia) => {
         'mes': toBeginningOfSentenceCase(formatter.format(primerDia)) ??
@@ -52,15 +51,19 @@ List<Map<String, dynamic>> armarHistorialCobros({
     if (estado == 'cancelada') continue;
     final dt = DateTime.tryParse(r['created_at']?.toString() ?? '');
     if (dt == null) continue;
-    final primerDia = DateTime(dt.year, dt.month, 1);
-    final fila = porMes.putIfAbsent(claveDe(dt), () => filaVacia(primerDia));
+    // Corte por MES CALENDARIO ARGENTINO (2/9): created_at llega en UTC y
+    // agrupar por su mes corría al mes siguiente las reservas de 21:00 a
+    // 23:59 del último día.
+    final mesArg = mesArgentinoDe(dt);
+    final fila =
+        porMes.putIfAbsent(mesArg, () => filaVacia(primerDiaDe(mesArg)));
     fila['reservas'] = (fila['reservas'] as int) + 1;
     fila['monto'] =
         (fila['monto'] as int) + Liquidacion.netoReserva(r, estudio);
   }
 
   // Estado de lo calculado: en curso o a cobrar, según si el mes cerró.
-  final mesActual = claveDe(ahora);
+  final mesActual = mesArgentinoDe(ahora);
   for (final e in porMes.entries) {
     e.value['estado'] =
         e.key == mesActual ? kEstadoEnCurso : kEstadoACobrar;

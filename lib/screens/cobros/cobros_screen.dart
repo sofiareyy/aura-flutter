@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/valor_credito.dart';
 import '../../core/constants/app_constants.dart';
 import '../../utils/historial_cobros.dart';
+import '../../utils/mes_argentino.dart';
 import '../../utils/liquidacion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/estudio_admin_service.dart';
@@ -966,10 +967,14 @@ class _CobrosScreenState extends State<CobrosScreen> {
       _reservas.where((r) => r['estado']?.toString() != 'cancelada').toList();
 
   List<Map<String, dynamic>> get _reservasMesActual {
-    final now = DateTime.now();
+    // Mes CALENDARIO ARGENTINO (2/9): antes se comparaba el mes del
+    // created_at (que llega en UTC) contra el mes local del dispositivo —
+    // dos relojes distintos. Una reserva de las 22:00 del 30/9 quedaba
+    // afuera del "mes actual" aunque acababa de pasar.
+    final mesActual = mesArgentinoDe(DateTime.now());
     return _reservasNoCanceladas.where((r) {
       final dt = DateTime.tryParse(r['created_at']?.toString() ?? '');
-      return dt != null && dt.year == now.year && dt.month == now.month;
+      return dt != null && mesArgentinoDe(dt) == mesActual;
     }).toList();
   }
 

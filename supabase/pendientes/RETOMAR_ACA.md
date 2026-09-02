@@ -1326,6 +1326,25 @@ que usa la web) se enteraba recién al abrir la app. Ahora también va mail.
 9. **Explorar: badge "PRECIO ÚNICO"** para `'servicio'`, excluido de
    REDUCIDO y POPULAR.
 
+**2/9, más tarde — corte de facturación por MES CALENDARIO ARGENTINO
+(confirmado por la usuaria: paga el 5 del mes siguiente):** medido, el corte
+era medianoche UTC — una reserva del 30/9 21:00–23:59 ART caía en octubre en
+las DOS pantallas (consistentes entre sí, así que nada se perdió: se corría de
+mes). Arreglado con `mes_argentino.dart` (ART = UTC−3 fijo, sin DST) en el
+historial de Cobros, el filtro de "mes actual" (que además mezclaba reloj UTC
+con reloj local) y el rango del backoffice — donde también se cerró la grieta
+del `lte 23:59:59` (una reserva de las 23:59:59.5 no caía en NINGÚN mes; ahora
+el fin es exclusivo). Tests con las fronteras exactas (30/9 23:59 → sept,
+1/10 00:01 → oct, dic→ene) y verificado contra la base: ninguna reserva
+existente cambia de mes. Confirmado además que una reserva nueva NO puede
+colarse en un mes ya pagado: la fila es una foto congelada y `created_at` no
+se antedata.
+
+⚠️ **Borde de plata anotado, para decidir (no urgente):** una reserva
+`pre_confirmada` al momento del pago que se confirma DESPUÉS queda fuera de la
+liquidación de su mes y de la del siguiente (su created_at es viejo): no se
+liquida nunca. Improbable, pero conviene definir la regla.
+
 **Afuera del build por decisión (2/9):** keys legacy (build propio) ·
 devoluciones/cancelación flexible · badge MEJOR VALOR.
 **Siguen para la 1.0.7:** pantalla de reseñas (diseño listo) · UNIQUE reseñas

@@ -6,6 +6,7 @@ import '../../services/valor_credito.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../utils/liquidacion.dart';
+import '../../utils/mes_argentino.dart';
 import '../../utils/datos_cobro.dart';
 import '../../services/admin_service.dart';
 
@@ -61,11 +62,6 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
     return DateTime(int.parse(parts[0]), int.parse(parts[1]), 1);
   }
 
-  DateTime _finMes(String mes) {
-    final inicio = _inicioMes(mes);
-    return DateTime(inicio.year, inicio.month + 1, 1)
-        .subtract(const Duration(seconds: 1));
-  }
 
   String _labelMes(String mes) {
     final d = _inicioMes(mes);
@@ -80,8 +76,14 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       _error = null;
     });
     try {
-      final inicio = _inicioMes(_mesSeleccionado).toIso8601String();
-      final fin = _finMes(_mesSeleccionado).toIso8601String();
+      // Corte por MES CALENDARIO ARGENTINO (2/9). Antes el rango se armaba
+      // con DateTime local sin zona y Postgres lo leía como UTC: las reservas
+      // de 21:00 a 23:59 del último día caían en el mes siguiente. Además el
+      // fin era `lte 23:59:59`, que dejaba una grieta de sub-segundo donde
+      // una reserva no caía en NINGÚN mes: ahora es exclusivo (lt).
+      final limites = limitesMesArgentino(_mesSeleccionado);
+      final inicio = limites.inicioUtc.toIso8601String();
+      final finExclusivo = limites.finExclusivoUtc.toIso8601String();
 
       // 1. Traer reservas del mes con el estudio (via clase). reservas no tiene
       // columna estudio_id: se obtiene de clases.estudio_id. Join explícito con
@@ -92,7 +94,7 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
               'estado, creditos_usados, clases!reservas_clase_id_fkey(estudio_id, tipo)')
           .inFilter('estado', AppConstants.estadosLiquidables)
           .gte('created_at', inicio)
-          .lte('created_at', fin);
+          .lt('created_at', finExclusivo);
 
       // 2. Traer todos los estudios activos (con comisión + fecha inicio cobro)
       // comision_aura / comision_workshop / valor_credito viven en
