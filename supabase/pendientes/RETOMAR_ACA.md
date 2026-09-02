@@ -1632,6 +1632,24 @@ El endpoint de transformación es de sólo lectura. La subida tampoco recorta:
 `image_picker` sólo achica arriba de 1600 px, dividiendo alto y ancho por el
 mismo número.
 
+### Verificación post-deploy (2/9, con `resize=contain` en vivo)
+
+Las **12 fotos** que la app puede mostrar (11 portadas + 1 de clase), pedidas en
+los **3 anchos** que usa el código (400 Explorar · 900 Inicio · 800 fondo de
+estudio): **las 36 devuelven la proporción original**. El logo de Tiwar llega
+entero (400 × 400 en vez de 400 × 1024).
+
+**Corrección al mapa de fotos: Sculpt Club es VERTICAL, no horizontal.** Su
+portada tiene los píxeles guardados de costado (2133 × 1600) más una etiqueta
+**EXIF Orientation = 6** ("rotar 90°"), así que la foto real es 1600 × 2133.
+`sips` lee los píxeles crudos e ignora la etiqueta; el endpoint de Supabase la
+aplica bien. Es la única de las 12 con EXIF distinto de normal (verificado tag
+por tag).
+
+⇒ Son **6 de 11** las portadas a cambiar, no 5: cinco verticales (Yessi 0,56 ·
+BB Colegiales 0,67 · YN Pilates 0,75 · **Sculpt 0,75** · Clic 0,81) y el logo de
+Tiwar. Barre Estudio al límite (1,23).
+
 **La lección, otra vez la misma:** medí que el endpoint devolvía **menos KB** y
 concluí que estaba achicando bien. Un solo eje. Nunca miré las **medidas** de lo
 que devolvía, que era donde estaba la respuesta.
