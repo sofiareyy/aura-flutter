@@ -305,6 +305,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
           money: _moneyCompact,
         ),
         const SizedBox(height: 16),
+        _misProfesQuickAction(),
         // La tarjeta de reseñas va en LAS DOS vistas. Estuvo sólo en mobile
         // y en una pantalla ancha desaparecía: el estudio no tenía por dónde
         // llegar a sus reseñas. El corte de layout es 768 px.
@@ -316,7 +317,6 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
             context.push('/estudio/$id/resenas?dueno=1');
           },
         ),
-        _misProfesQuickAction(),
         const SizedBox(height: 24),
         // Main content: classes table + activity panel
         Row(
