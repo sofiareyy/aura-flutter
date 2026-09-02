@@ -674,36 +674,54 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Rating
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.star_rounded,
-                            color: Color(0xFFF5A623),
-                            size: 18,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            avgRating > 0
-                                ? avgRating.toStringAsFixed(1)
-                                : 'Nuevo',
-                            style: const TextStyle(
-                              color: AppColors.black,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
+                      // Rating: tocarlo abre todas las reseñas del estudio.
+                      // Antes era texto muerto, y son justo lo que se mira
+                      // para decidir si reservar esta clase.
+                      InkWell(
+                        onTap: (reviewCount == 0 || estudio?['id'] == null)
+                            ? null
+                            : () => context.push(
+                                  '/estudio/${estudio!['id']}/resenas'
+                                  '?nombre=${Uri.encodeComponent(estudio['nombre']?.toString() ?? '')}',
+                                ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              color: Color(0xFFF5A623),
+                              size: 18,
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            reviewCount == 0
-                                ? 'Sin reseñas todavía'
-                                : '$reviewCount reseñas',
-                            style: const TextStyle(
-                              color: AppColors.grey,
-                              fontSize: 13,
+                            const SizedBox(width: 6),
+                            Text(
+                              avgRating > 0
+                                  ? avgRating.toStringAsFixed(1)
+                                  : 'Nuevo',
+                              style: const TextStyle(
+                                color: AppColors.black,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 10),
+                            Text(
+                              reviewCount == 0
+                                  ? 'Sin reseñas todavía'
+                                  : '$reviewCount reseñas',
+                              style: TextStyle(
+                                color: reviewCount == 0
+                                    ? AppColors.grey
+                                    : AppColors.primary,
+                                fontSize: 13,
+                                fontWeight: reviewCount == 0
+                                    ? FontWeight.w400
+                                    : FontWeight.w600,
+                              ),
+                            ),
+                            if (reviewCount > 0)
+                              const Icon(Icons.chevron_right_rounded,
+                                  size: 16, color: AppColors.primary),
+                          ],
+                        ),
                       ),
                       if (estudio?['id'] != null) ...[
                         const SizedBox(height: 12),

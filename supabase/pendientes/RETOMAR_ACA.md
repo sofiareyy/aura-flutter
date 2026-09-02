@@ -1352,6 +1352,47 @@ comisión de ese momento (30%)" para que no haya dos números distintos en
 pantalla. Verificado con Citra: sus 3 reservas de agosto suman los \$54.000 de
 la fila, y las 3 aparecen Presente.
 
+## ✅ Sistema de reseñas completo — 2/9 (Dart, sin pushear)
+
+**El desajuste que había:** la alumna veía las reseñas del estudio (promedio +
+2 en el perfil, promedio en el detalle de clase, rating en las cards); **el
+estudio no las veía en ningún lado** — le llegaban por campanita y mail y ahí
+morían. Y no existía pantalla de "todas las reseñas" para nadie.
+
+- **Borrada la reseña de test** de Clic Pilates (`aura.hola.app`, mayo, "muy
+  bueno todo") que le inflaba un **5,0 falso visible en Explorar**. Quedó en
+  `rating null`, 0 reseñas. Citra conserva sus 2 reales.
+- **UNA pantalla** `/estudio/:id/resenas` para las dos puntas: resumen
+  (promedio + barras por estrella), filtros 5★→1★ (los que están en 0 se ven
+  deshabilitados, no ocultos: que no haya 1★ es información), orden más
+  recientes primero, paginado de a 20. Es **browse público** como el perfil:
+  la invitada mira reseñas para decidir si reserva.
+- **Tres entradas**: el promedio del perfil y el del detalle de clase se
+  vuelven tocables (eran texto muerto), y una tarjeta nueva en el Dashboard
+  del estudio. La campanita `resena_nueva` (que no ruteaba a ningún lado)
+  ahora abre la pantalla con `?dueno=1`.
+- **El bloque del perfil NO se tocó** (pedido explícito): siguen apareciendo
+  las 2 reseñas ahí; lo único distinto es que "Ver más" navega en vez de
+  expandir inline.
+- **El promedio se calcula en `utils/resenas.dart`, en un solo lugar**: hoy
+  toma toda la historia; cambiarlo a 90 días es tocar esa función y vale para
+  las dos puntas. Sin reseñas devuelve null (no "0,0", que parecería una nota
+  pésima).
+
+**Medido contra producción:** el estudio Citra ve sus 2 reseñas **con el
+nombre** de la autora ✅ · Clic Pilates quedó sin rating ✅.
+⚠️ **Hallazgo:** una alumna **no** ve el nombre de las autoras de otras
+reseñas (RLS de `usuarios` sólo deja ver la propia fila y las alumnas del
+estudio propio) → se muestra "Usuario Aura". Es el comportamiento que ya tenía
+el perfil, no una regresión, pero conviene saber que **para las alumnas las
+reseñas son anónimas**. Si se quiere el nombre, hace falta una RPC.
+
+**Anotado para más adelante:** pasar `claseId` en el flujo del pedido (hoy el
+cron manda al perfil del estudio, no a la clase: por eso las 3 reseñas tienen
+`clase_id` null y la tarjeta muestra sólo la fecha) · el UNIQUE de reseñas
+(base + Dart juntos, con adopción) · `experiencia_label`, que nadie llena ·
+responder reseñas (feature aparte, necesita tabla).
+
 ⚠️ **Anotado — paginación:** `getReservasDeEstudio(limit: 200)` trae las
 últimas 200 reservas. Con el volumen de hoy (4 en toda la app) sobra y el
 historial muestra 4 meses, pero un estudio con volumen real necesitaría

@@ -230,6 +230,22 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
             } catch (_) {}
           });
         }
+      } else if (tipo == 'resena_nueva') {
+        // Le llega al ESTUDIO cuando una alumna deja una reseña. Antes caía
+        // al default y no llevaba a ningún lado: no había dónde verlas.
+        // `?dueno=1` sólo cambia el título a "Tus reseñas".
+        final estudioId = data['estudio_id'];
+        Future.delayed(const Duration(milliseconds: 200), () {
+          try {
+            if (estudioId != null) {
+              appRouter.go('/estudio/$estudioId/resenas?dueno=1');
+            } else {
+              // Sin el id en el payload (notificaciones viejas): el Dashboard
+              // tiene la tarjeta de reseñas, así que igual llega.
+              appRouter.go('/estudio/dashboard');
+            }
+          } catch (_) {}
+        });
       } else if (tipo == 'inactividad_creditos') {
         Future.delayed(const Duration(milliseconds: 200), () {
           try {

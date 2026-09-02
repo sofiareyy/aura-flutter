@@ -8,6 +8,8 @@ import '../../utils/liquidacion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/estudio_admin_service.dart';
+import '../../services/reviews_service.dart';
+import '../../utils/resenas.dart';
 import '../../services/notificaciones_estudio_service.dart';
 import '../../widgets/notificaciones_estudio_sheet.dart';
 
@@ -23,6 +25,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
   final _service = EstudioAdminService();
 
   Map<String, dynamic>? _estudio;
+  Map<int, int> _desgloseResenas = const {};
   List<Map<String, dynamic>> _clases = [];
   List<Map<String, dynamic>> _reservas = [];
   List<Map<String, dynamic>> _actividad = [];
@@ -187,6 +190,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
       final misEstudios = results[4] as List<Map<String, dynamic>>;
 
       int unread = 0;
+      Map<int, int> desgloseResenas = const {};
       int favoritos = 0;
       int vistasMes = 0;
       if (estudio != null) {
@@ -200,12 +204,19 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
           final metricas = await _service.getMetricasEstudio(estudioId);
           favoritos = metricas.favoritos;
           vistasMes = metricas.vistasMes;
+          // El estudio no veía sus reseñas en ningún lado: le llegaban por
+          // campanita y mail y ahí morían.
+          try {
+            desgloseResenas =
+                await ReviewsService().getRatingBreakdown(estudioId);
+          } catch (_) {}
         }
       }
 
       if (!mounted) return;
       setState(() {
         _estudio = estudio;
+        _desgloseResenas = desgloseResenas;
         _clases = clases;
         _reservas = reservas;
         _actividad = _buildActividad(reservas, clases);
@@ -1337,6 +1348,14 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
           ],
         ),
         const SizedBox(height: 10),
+        _TarjetaResenas(
+          desglose: _desgloseResenas,
+          onTap: () {
+            final id = (_estudio?['id'] as num?)?.toInt();
+            if (id == null) return;
+            context.push('/estudio/$id/resenas?dueno=1');
+          },
+        ),
         // 3 stat cards
         Row(
           children: [
@@ -2221,6 +2240,73 @@ class _DesgloseFila extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+
+/// Las reseñas del estudio en su Dashboard. Antes le llegaban por campanita y
+/// mail y no tenía dónde verlas: para leerlas tenía que entrar como usuaria a
+/// su propio perfil público. Abre la pantalla completa (la misma que ve la
+/// alumna, con ?dueno=1 para el título).
+class _TarjetaResenas extends StatelessWidget {
+  final Map<int, int> desglose;
+  final VoidCallback onTap;
+
+  const _TarjetaResenas({required this.desglose, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final total = Resenas.totalDe(desglose);
+    final promedio = Resenas.promedioDe(desglose);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        onTap: total == 0 ? null : onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.star_rounded,
+                  color: AppColors.warning, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      total == 0
+                          ? 'Sin reseñas todavía'
+                          : '${Resenas.formatearPromedio(promedio)} · ${Resenas.etiquetaTotal(total)}',
+                      style: const TextStyle(
+                        color: Color(0xFF1A1A1A),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      total == 0
+                          ? 'Cuando tus alumnas dejen su opinión, aparece acá'
+                          : 'Ver lo que dicen tus alumnas',
+                      style: const TextStyle(
+                          color: Color(0xFF8F877F), fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              if (total > 0)
+                const Icon(Icons.chevron_right_rounded,
+                    color: Color(0xFFC7C0B9)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

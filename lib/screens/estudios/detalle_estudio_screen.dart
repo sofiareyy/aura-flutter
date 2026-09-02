@@ -41,7 +41,6 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
   bool _esFavorito = false;
   bool _canReview = false;
   bool _verTodasLasClases = false;
-  bool _verTodasLasReviews = false;
 
   /// ¿Se muestra el bloque "CLASES DISPONIBLES"?
   ///
@@ -210,6 +209,14 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
     );
   }
 
+  void _verTodasLasResenas() {
+    final e = _estudio;
+    if (e?.id == null) return;
+    context.push(
+      '/estudio/${e!.id}/resenas?nombre=${Uri.encodeComponent(e.nombre)}',
+    );
+  }
+
   Widget _buildContent() {
     final e = _estudio!;
     final avgRating = _reviews.isEmpty
@@ -240,27 +247,35 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Rating
+                // Rating: tocarlo abre TODAS las reseñas. Antes era texto
+                // muerto, y las reseñas ayudan a decidir la reserva.
                 if (avgRating != null)
-                  Row(
-                    children: [
-                      const Icon(Icons.star_rounded,
-                          color: AppColors.warning, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        avgRating.toStringAsFixed(1),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14),
-                      ),
-                      if (_reviews.isNotEmpty) ...[
-                        const SizedBox(width: 6),
+                  InkWell(
+                    onTap: _reviews.isEmpty ? null : _verTodasLasResenas,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.star_rounded,
+                            color: AppColors.warning, size: 16),
+                        const SizedBox(width: 4),
                         Text(
-                          '${_reviews.length} reseñas',
+                          avgRating.toStringAsFixed(1),
                           style: const TextStyle(
-                              color: AppColors.grey, fontSize: 13),
+                              fontWeight: FontWeight.w600, fontSize: 14),
                         ),
+                        if (_reviews.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            '${_reviews.length} reseñas',
+                            style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          const Icon(Icons.chevron_right_rounded,
+                              size: 16, color: AppColors.primary),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
 
                 // Descripción
@@ -459,17 +474,17 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
             child: _ReviewsSection(
-              reviews: _verTodasLasReviews
-                  ? _reviews
-                  : _reviews.take(_reviewsPreview).toList(),
+              // El bloque del perfil NO cambia: siguen apareciendo acá las
+              // primeras reseñas, como siempre. Lo único distinto es que
+              // "Ver más" ahora NAVEGA a la pantalla completa en vez de
+              // expandir inline — con 100 reseñas expandir es inusable.
+              reviews: _reviews.take(_reviewsPreview).toList(),
               totalCount: _reviews.length,
-              expandido: _verTodasLasReviews,
+              expandido: false,
               canReview: _canReview,
               onReviewTap: () => _abrirResena(),
               onToggleExpand: _reviews.length > _reviewsPreview
-                  ? () => setState(
-                        () => _verTodasLasReviews = !_verTodasLasReviews,
-                      )
+                  ? _verTodasLasResenas
                   : null,
             ),
           ),
@@ -916,7 +931,9 @@ class _ReviewsSection extends StatelessWidget {
                     child: Text(
                       expandido
                           ? 'Ver menos'
-                          : 'Ver las ${totalCount - reviews.length} restantes',
+                          // Navega a la pantalla completa: con muchas reseñas
+                          // expandir inline no sirve.
+                          : 'Ver las $totalCount reseñas',
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontSize: 13,

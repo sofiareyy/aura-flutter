@@ -17,6 +17,7 @@ import '../../screens/explorar/explorar_screen.dart';
 import '../../screens/estudios/detalle_estudio_screen.dart';
 import '../../screens/estudios/dashboard_estudios_screen.dart';
 import '../../screens/estudios/perfil_estudio_screen.dart';
+import '../../screens/estudios/resenas_screen.dart';
 import '../../screens/clases/detalle_clase_screen.dart';
 import '../../screens/clases/mis_clases_screen.dart';
 import '../../screens/reservas/confirmar_reserva_screen.dart';
@@ -79,7 +80,12 @@ bool _esBrowsePublica(String loc) {
 /// `/estudio/dashboard|clases|...` = panel privado → NO es browse, queda protegido.
 bool _esEstudioDetalle(String loc) {
   if (!loc.startsWith('/estudio/')) return false;
-  final resto = loc.substring('/estudio/'.length);
+  var resto = loc.substring('/estudio/'.length);
+  // `/estudio/<id>/resenas` es tan público como el perfil: la invitada mira
+  // reseñas para decidir si reserva. Sin esto el redirect la manda a /login.
+  if (resto.endsWith('/resenas')) {
+    resto = resto.substring(0, resto.length - '/resenas'.length);
+  }
   return int.tryParse(resto) != null;
 }
 
@@ -359,6 +365,17 @@ final appRouter = GoRouter(
       path: '/estudio/:id',
       builder: (context, state) => DetalleEstudioScreen(
         estudioId: int.tryParse(state.pathParameters['id'] ?? '0') ?? 0,
+      ),
+    ),
+    // Todas las reseñas de un estudio. La misma pantalla para las dos puntas:
+    // la alumna que toca el promedio y el estudio que llega desde su
+    // Dashboard (con ?dueno=1, que sólo cambia el título).
+    GoRoute(
+      path: '/estudio/:id/resenas',
+      builder: (context, state) => ResenasScreen(
+        estudioId: int.tryParse(state.pathParameters['id'] ?? '0') ?? 0,
+        estudioNombre: state.uri.queryParameters['nombre'],
+        esDueno: state.uri.queryParameters['dueno'] == '1',
       ),
     ),
     GoRoute(
