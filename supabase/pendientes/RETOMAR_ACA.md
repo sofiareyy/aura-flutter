@@ -1340,6 +1340,24 @@ existente cambia de mes. Confirmado además que una reserva nueva NO puede
 colarse en un mes ya pagado: la fila es una foto congelada y `created_at` no
 se antedata.
 
+**2/9 — el estudio puede AUDITAR su monto.** Tocar cualquier mes del historial
+de Cobros abre el desglose de ESE mes (antes la hoja existía pero estaba atada
+al mes en curso: desde el historial no se podía abrir agosto). Muestra alumna,
+clase, día, asistencia y créditos de cada reserva. La asistencia usa
+`checked_in_at`, igual que Mis Reservas: antes miraba `estado == 'presente'`,
+que para un mes cerrado es SIEMPRE falso (el cron pasa todo a `completada`), o
+sea que el estudio veía a todas sus alumnas como si no hubieran ido. Un mes
+pagado usa el **monto sellado** como total, con la nota "calculado con la
+comisión de ese momento (30%)" para que no haya dos números distintos en
+pantalla. Verificado con Citra: sus 3 reservas de agosto suman los \$54.000 de
+la fila, y las 3 aparecen Presente.
+
+⚠️ **Anotado — paginación:** `getReservasDeEstudio(limit: 200)` trae las
+últimas 200 reservas. Con el volumen de hoy (4 en toda la app) sobra y el
+historial muestra 4 meses, pero un estudio con volumen real necesitaría
+paginar o pedir por rango de mes. No urgente; sí antes de que alguien pase de
+~200 reservas en 4 meses.
+
 ⚠️ **Borde de plata anotado, para decidir (no urgente):** una reserva
 `pre_confirmada` al momento del pago que se confirma DESPUÉS queda fuera de la
 liquidación de su mes y de la del siguiente (su created_at es viejo): no se

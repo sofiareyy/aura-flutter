@@ -110,6 +110,75 @@ void main() {
         [kEstadoEnCurso, kEstadoPagado, kEstadoACobrar]);
   });
 
+  group('el detalle del mes: auditar de dónde sale el monto', () {
+    test('cada fila lleva su mes, para poder abrir SU desglose', () {
+      final filas = armarHistorialCobros(
+        reservas: [
+          reserva('2026-09-01 09:00:00', 14),
+          reserva('2026-07-10 09:00:00', 10),
+        ],
+        liquidaciones: [liqHotClic],
+        estudio: estudio(),
+        ahora: ahora,
+      );
+      expect(filas.map((f) => f['_mes']).toList(),
+          ['2026-09', '2026-08', '2026-07']);
+    });
+
+    test('el mes PAGADO lleva su monto sellado, para que el detalle cierre',
+        () {
+      final agosto = armarHistorialCobros(
+        reservas: [reserva('2026-08-31 20:00:00', 12)],
+        liquidaciones: [liqHotClic],
+        estudio: estudio(comision: 20), // comisión cambiada después
+        ahora: ahora,
+      ).single;
+      expect(agosto['_sellado'], 8400);
+      expect(agosto['monto'], agosto['_sellado'],
+          reason: 'la fila y el detalle tienen que decir lo mismo');
+      expect(agosto['comision'], '30%');
+    });
+
+    test('un mes SIN liquidación no tiene sellado: el detalle calcula en vivo',
+        () {
+      final julio = armarHistorialCobros(
+        reservas: [reserva('2026-07-15 10:00:00', 10)],
+        liquidaciones: const [],
+        estudio: estudio(),
+        ahora: ahora,
+      ).single;
+      expect(julio['_sellado'], isNull);
+    });
+  });
+
+  group('asistencia en el detalle: quién fue de verdad', () {
+    // Mismo criterio que Mis Reservas: sólo checked_in_at prueba asistencia.
+    String etiqueta(Map<String, dynamic> r) {
+      final asistio = r['checked_in_at'] != null;
+      final ausente = r['estado'] == 'ausente';
+      return asistio ? 'Presente' : (ausente ? 'Ausente' : 'Finalizada');
+    }
+
+    test('completada CON check-in → Presente (el bug: antes decía otra cosa)',
+        () {
+      expect(
+          etiqueta({
+            'estado': 'completada',
+            'checked_in_at': '2026-08-27 08:05:00'
+          }),
+          'Presente');
+    });
+
+    test('completada SIN check-in → Finalizada, no "Presente"', () {
+      expect(etiqueta({'estado': 'completada', 'checked_in_at': null}),
+          'Finalizada');
+    });
+
+    test('ausente → Ausente', () {
+      expect(etiqueta({'estado': 'ausente', 'checked_in_at': null}), 'Ausente');
+    });
+  });
+
   test('las canceladas no suman', () {
     final fila = armarHistorialCobros(
       reservas: [

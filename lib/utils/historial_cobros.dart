@@ -43,6 +43,9 @@ List<Map<String, dynamic>> armarHistorialCobros({
         'monto': 0,
         '_date': primerDia,
         'comision': null,
+        // Para poder abrir el detalle de ESTE mes desde la fila.
+        '_mes': '${primerDia.year}-${primerDia.month.toString().padLeft(2, '0')}',
+        '_sellado': null,
       };
 
   // 1) El cálculo en vivo, agrupando reservas por mes (como siempre).
@@ -85,6 +88,9 @@ List<Map<String, dynamic>> armarHistorialCobros({
     fila['estado'] = pagada ? kEstadoPagado : kEstadoACobrar;
     // La comisión SELLADA, para mostrarla junto al mes pagado. Es la
     // constancia de con qué porcentaje se cobró, aunque hoy rija otro.
+    // El monto sellado viaja aparte: el detalle lo usa como total para no
+    // mostrar un número distinto del que dice esta fila.
+    if (pagada) fila['_sellado'] = (l['monto_a_pagar'] as num?)?.toInt();
     if (pagada && l['comision_aplicada'] != null) {
       final c = double.tryParse(l['comision_aplicada'].toString());
       if (c != null) {

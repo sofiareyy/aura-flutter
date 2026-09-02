@@ -191,7 +191,16 @@ class _CobrosScreenState extends State<CobrosScreen> {
                       final isPending = estadoItem != kEstadoPagado;
                       final statusColor = isPending ? AppColors.primary : const Color(0xFF43A047);
                       final statusBg = isPending ? const Color(0xFFFFF3DE) : const Color(0xFFE3F3E5);
-                      return Container(
+                      return InkWell(
+                        // Tocar el mes abre su desglose: es el gesto para
+                        // auditar "¿de dónde salen mis $54.000?".
+                        onTap: () => _verDetalle(
+                          context,
+                          mes: item['_mes'] as String?,
+                          montoSellado: item['_sellado'] as int?,
+                          comisionSellada: item['comision'] as String?,
+                        ),
+                        child: Container(
                         decoration: BoxDecoration(
                           border: Border(top: BorderSide(color: Colors.grey.shade100)),
                           borderRadius: e.key == _historial.length - 1
@@ -225,7 +234,10 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                 ),
                               ),
                             ),
+                            const Icon(Icons.chevron_right_rounded,
+                                size: 18, color: Color(0xFFC7C0B9)),
                           ],
+                        ),
                         ),
                       );
                     }),
@@ -434,7 +446,15 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                   final statusBg = isPending
                                       ? const Color(0xFFFFF3DE)
                                       : const Color(0xFFE3F3E5);
-                                  return Padding(
+                                  return InkWell(
+                                    onTap: () => _verDetalle(
+                                      context,
+                                      mes: item['_mes'] as String?,
+                                      montoSellado: item['_sellado'] as int?,
+                                      comisionSellada:
+                                          item['comision'] as String?,
+                                    ),
+                                    child: Padding(
                                     padding: const EdgeInsets.only(bottom: 16),
                                     child: Row(
                                       children: [
@@ -487,7 +507,12 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                             ),
                                           ),
                                         ),
+                                        const Icon(
+                                            Icons.chevron_right_rounded,
+                                            size: 18,
+                                            color: Color(0xFFC7C0B9)),
                                       ],
+                                    ),
                                     ),
                                   );
                                 }).toList(),
@@ -670,8 +695,28 @@ class _CobrosScreenState extends State<CobrosScreen> {
     return (claseNames, userNames);
   }
 
-  void _verDetalle(BuildContext context) {
-    final reservas = _reservasMesActual;
+  /// Desglose de UN mes: de dónde sale el monto que muestra el historial.
+  ///
+  /// [mes] en 'YYYY-MM' argentino; null = el mes en curso (los dos botones
+  /// del resumen). Cada fila del historial pasa el suyo, así el estudio puede
+  /// auditar "¿de dónde salen mis \$54.000?" tocando ese mes.
+  ///
+  /// [montoSellado] es el `monto_a_pagar` de la liquidación cuando el mes ya
+  /// se pagó: manda sobre el cálculo en vivo, porque es lo que se cobró de
+  /// verdad. Sin esto, si Aura cambia una comisión, el detalle mostraría un
+  /// total distinto del que dice el historial para el mismo mes.
+  void _verDetalle(BuildContext context,
+      {String? mes, int? montoSellado, String? comisionSellada}) {
+    final mesObjetivo = mes ?? mesArgentinoDe(DateTime.now());
+    final reservas = _reservasNoCanceladas.where((r) {
+      final dt = DateTime.tryParse(r['created_at']?.toString() ?? '');
+      return dt != null && mesArgentinoDe(dt) == mesObjetivo;
+    }).toList()
+      ..sort((a, b) => (b['created_at']?.toString() ?? '')
+          .compareTo(a['created_at']?.toString() ?? ''));
+    final etiquetaMes = toBeginningOfSentenceCase(
+            DateFormat('MMMM yyyy', 'es').format(primerDiaDe(mesObjetivo))) ??
+        mesObjetivo;
     final moneyFmt = NumberFormat.currency(
       locale: 'es_AR',
       symbol: '\$',
@@ -682,7 +727,8 @@ class _CobrosScreenState extends State<CobrosScreen> {
       final valorCredito = ValorCredito.deEstudio(_estudio);
       return acc + creditos * valorCredito;
     });
-    final aTransferir = _montoPendiente;
+    final aTransferir = montoSellado ??
+        Liquidacion.netoTotal(reservas, _estudio);
     // La comisión sale de la resta, no de multiplicar por `_comisionAura`.
     // Con workshops de por medio (que van al 15%) el desglose no cerraba:
     // bruto - comisión daba distinto de "a transferir".
@@ -719,9 +765,9 @@ class _CobrosScreenState extends State<CobrosScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
                 child: Row(
                   children: [
-                    const Text(
-                      'Detalle del mes',
-                      style: TextStyle(
+                    Text(
+                      etiquetaMes,
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: AppColors.black,
@@ -743,7 +789,7 @@ class _CobrosScreenState extends State<CobrosScreen> {
                 child: reservas.isEmpty
                     ? const Center(
                         child: Text(
-                          'Sin reservas este mes.',
+                          'Sin reservas en este mes.',
                           style: TextStyle(color: Color(0xFF8F877F)),
                         ),
                       )
@@ -778,7 +824,28 @@ class _CobrosScreenState extends State<CobrosScreen> {
                               final monto = _montoReserva(r);
                               final estado =
                                   r['estado']?.toString() ?? '';
-                              final isPresentado = estado == 'presente';
+                              // Mismo criterio que Mis Reservas (1/9): el
+                              // cron pasa TODO a 'completada' 3 h después de
+                              // la clase, así que `estado == presente` es
+                              // falso para cualquier mes cerrado y el estudio
+                              // veía a todo el mundo como si no hubiera ido.
+                              // Lo único que prueba asistencia es el
+                              // check-in del escáner de QR.
+                              final asistio = r['checked_in_at'] != null;
+                              final ausente = estado == 'ausente';
+                              final etiquetaAsistencia = asistio
+                                  ? 'Presente'
+                                  : (ausente ? 'Ausente' : 'Finalizada');
+                              final colorAsistencia = asistio
+                                  ? const Color(0xFF2FAD5B)
+                                  : (ausente
+                                      ? const Color(0xFFE65100)
+                                      : const Color(0xFF8F877F));
+                              final fondoAsistencia = asistio
+                                  ? const Color(0xFFE3F3E5)
+                                  : (ausente
+                                      ? const Color(0xFFFFF3E0)
+                                      : const Color(0xFFF0EDE9));
                               final claseNombre = isLoading
                                   ? '…'
                                   : (claseNames[claseId] ?? '—');
@@ -887,20 +954,14 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                                   horizontal: 8,
                                                   vertical: 3),
                                           decoration: BoxDecoration(
-                                            color: isPresentado
-                                                ? const Color(0xFFE3F3E5)
-                                                : const Color(0xFFFFF3DE),
+                                            color: fondoAsistencia,
                                             borderRadius:
                                                 BorderRadius.circular(99),
                                           ),
                                           child: Text(
-                                            isPresentado
-                                                ? 'Presente'
-                                                : 'Confirmada',
+                                            etiquetaAsistencia,
                                             style: TextStyle(
-                                              color: isPresentado
-                                                  ? const Color(0xFF2FAD5B)
-                                                  : AppColors.primary,
+                                              color: colorAsistencia,
                                               fontSize: 11,
                                               fontWeight: FontWeight.w600,
                                             ),
@@ -944,11 +1005,24 @@ class _CobrosScreenState extends State<CobrosScreen> {
                     ),
                     const Divider(height: 16),
                     _DetalleRow(
-                      label: 'A transferir',
+                      label: montoSellado != null ? 'Cobrado' : 'A transferir',
                       value: moneyFmt.format(aTransferir),
                       bold: true,
                       valueColor: AppColors.primary,
                     ),
+                    // Un mes ya pagado se liquidó con la comisión de ESE
+                    // momento. Sin esta aclaración, si Aura cambia la
+                    // comisión, el desglose de arriba no cerraría con el
+                    // total y parecería un error de cuentas.
+                    if (comisionSellada != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Calculado con la comisión de ese momento '
+                        '($comisionSellada).',
+                        style: const TextStyle(
+                            color: Color(0xFF8F877F), fontSize: 12),
+                      ),
+                    ],
                   ],
                 ),
               ),
