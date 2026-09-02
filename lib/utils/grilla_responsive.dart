@@ -121,3 +121,12 @@ double altoHero(double ancho) {
   final proporcional = ancho / proporcionHero;
   return proporcional < altoHeroMin ? altoHeroMin : proporcional;
 }
+
+/// Ancho tope de las pantallas de un solo paso (confirmar reserva). Más
+/// angosto que las de detalle: es una tarjeta con la clase, los créditos y un
+/// botón, no una página para recorrer.
+///
+/// Sin esto, la foto de la clase —alto fijo 154 px, ancho libre— quedaba de
+/// 12,2:1 en un monitor de 1920: se veía el 12% de una foto apaisada, justo en
+/// la pantalla anterior a reservar. Peor que los heroes.
+const double anchoMaxFormulario = 640;

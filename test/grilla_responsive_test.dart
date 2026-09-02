@@ -104,6 +104,22 @@ void main() {
     });
   });
 
+  group('confirmar reserva', () {
+    test('la caja es más angosta que las de detalle', () {
+      // Es una tarjeta con un botón, no una página para recorrer.
+      expect(anchoMaxFormulario, lessThan(anchoMaxDetalle));
+    });
+
+    test('la foto usa la misma proporción que los heroes', () {
+      // La foto de cabecera se recorta igual en toda la app. Con la caja de
+      // 640 y 20 px de padding de cada lado más 14 de la tarjeta, la foto
+      // mide 572 x 286 en vez de 1880 x 154 (12,2:1).
+      const anchoFoto = anchoMaxFormulario - 20 * 2 - 14 * 2;
+      expect(anchoFoto / proporcionHero, closeTo(286, 1));
+      expect(1880 / 154, greaterThan(12));
+    });
+  });
+
   group('alto de la tarjeta de vidriera', () {
     test('crece con el ancho, porque la foto es 16:9', () {
       expect(altoCardVidriera(320), 320 / (16 / 9) + altoTextoVidriera);

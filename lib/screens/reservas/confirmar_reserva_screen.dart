@@ -10,6 +10,7 @@ import '../../services/aura_gestion_service.dart';
 import '../../services/clases_service.dart';
 import '../../services/reservas_service.dart';
 import '../../utils/cierre_minutos.dart';
+import '../../utils/grilla_responsive.dart';
 
 class ConfirmarReservaScreen extends StatefulWidget {
   final int claseId;
@@ -39,7 +40,8 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
     final clase = await _clasesService.getClase(widget.claseId);
     final estudio = clase?['estudios'] as Map<String, dynamic>?;
     final estudioId =
-        (estudio?['id'] as num?)?.toInt() ?? (clase?['estudio_id'] as num?)?.toInt();
+        (estudio?['id'] as num?)?.toInt() ??
+        (clase?['estudio_id'] as num?)?.toInt();
     final userEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
 
     if (clase != null && estudioId != null && userEmail.isNotEmpty) {
@@ -98,8 +100,12 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
       // Solo refrescamos el usuario en memoria para que la UI vea el saldo nuevo.
       await provider.refrescarUsuario();
 
-      if (mounted && reserva != null && (reserva.codigoQr?.isNotEmpty ?? false)) {
-        context.go('/reserva-confirmada/${Uri.encodeComponent(reserva.codigoQr!)}');
+      if (mounted &&
+          reserva != null &&
+          (reserva.codigoQr?.isNotEmpty ?? false)) {
+        context.go(
+          '/reserva-confirmada/${Uri.encodeComponent(reserva.codigoQr!)}',
+        );
       }
     } catch (e) {
       if (!mounted) return;
@@ -151,7 +157,9 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
     if (msg.contains('ya reserv') || msg.contains('duplicate')) {
       return 'Ya tenés una reserva para esta clase.';
     }
-    if (msg.contains('cerrada') || msg.contains('cerro') || msg.contains('cierre')) {
+    if (msg.contains('cerrada') ||
+        msg.contains('cerro') ||
+        msg.contains('cierre')) {
       return 'Las reservas para esta clase ya cerraron.';
     }
     return 'No pudimos confirmar tu reserva. Probá de nuevo en un momento.';
@@ -162,10 +170,12 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : _clase == null
-              ? const Center(child: Text('Clase no encontrada'))
-              : _buildContent(),
+          ? const Center(child: Text('Clase no encontrada'))
+          : _buildContent(),
     );
   }
 
@@ -176,8 +186,8 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
         ? DateTime.tryParse(clase['fecha'].toString())
         : null;
     final cierreMinutos = CierreMinutos.reserva(clase);
-    final reservaCerrada = fecha != null &&
-        ReservasService.reservaCerrada(fecha, cierreMinutos);
+    final reservaCerrada =
+        fecha != null && ReservasService.reservaCerrada(fecha, cierreMinutos);
     final creditos = (clase['creditos'] as num?)?.toInt() ?? 1;
 
     return Consumer<AppProvider>(
@@ -186,252 +196,276 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
         final actuales = usuario?.creditos ?? 0;
         final restantes = actuales - creditos;
 
-        return Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 54, 20, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+        // Contener el ancho: la foto tenía alto fijo 154 y ancho libre, así
+        // que en un monitor de 1920 quedaba de 12,2:1 y se veía el 12% de una
+        // foto apaisada. Es la pantalla anterior a reservar. El botón de
+        // canjear entra en la misma caja para que no quede a lo ancho de todo.
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: anchoMaxFormulario),
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 54, 20, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        IconButton(
-                          onPressed: () => context.pop(),
-                          icon: const Icon(Icons.arrow_back_rounded),
-                          color: AppColors.black,
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Confirmar reserva',
-                          style: TextStyle(
-                            color: AppColors.black,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x10000000),
-                            blurRadius: 16,
-                            offset: Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: SizedBox(
-                              height: 154,
-                              width: double.infinity,
-                              child: _ReservationImage(
-                                imageUrl: estudio?['foto_url']?.toString(),
-                              ),
+                        Row(
+                          children: [
+                            IconButton(
+                              onPressed: () => context.pop(),
+                              icon: const Icon(Icons.arrow_back_rounded),
+                              color: AppColors.black,
                             ),
-                          ),
-                          const SizedBox(height: 14),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              estudio?['categoria']?.toString().toUpperCase() ?? 'YOGA',
-                              style: const TextStyle(
-                                color: AppColors.white,
-                                fontSize: 11,
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Confirmar reserva',
+                              style: TextStyle(
+                                color: AppColors.black,
+                                fontSize: 22,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            clase['nombre']?.toString() ?? 'Clase',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.black,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '${estudio?['nombre'] ?? 'Studio Zen'} · ${estudio?['barrio'] ?? 'Palermo'}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF8F877F),
-                              fontSize: 15,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              _MetaChip(
-                                icon: Icons.calendar_today_outlined,
-                                text: fecha != null
-                                    ? DateFormat('EEE d MMM · h:mm a', 'es').format(fecha)
-                                    : 'Lun 23 Jun · 8:00 AM',
-                              ),
-                              _MetaChip(
-                                icon: Icons.alarm_outlined,
-                                text: '${clase['duracion_min'] ?? 60} min',
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x10000000),
+                                blurRadius: 16,
+                                offset: Offset(0, 6),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
-                          _MetaChip(
-                            icon: Icons.place_outlined,
-                            text: estudio?['direccion']?.toString() ??
-                                'Av. Santa Fe 2450, Palermo, CABA',
-                            fullWidth: true,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(22),
-                      decoration: BoxDecoration(
-                        color: AppColors.blackSoft,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Column(
-                        children: [
-                          _CreditRow(
-                            label: 'Créditos disponibles',
-                            value: '$actuales créditos',
-                            valueColor: AppColors.white,
-                          ),
-                          const SizedBox(height: 14),
-                          _CreditRow(
-                            label: 'Costo de la clase',
-                            value: '$creditos créditos',
-                            valueColor: AppColors.primary,
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            child: Divider(color: Color(0xFF2E2B28), height: 1),
-                          ),
-                          Row(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Expanded(
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                // Proporción en vez de alto fijo, la misma que
+                                // los heroes: una foto ancha de cabecera se
+                                // recorta igual en toda la app. En un teléfono
+                                // pasa de 154 a ~167 px de alto, y en desktop deja
+                                // de ser una franja.
+                                child: AspectRatio(
+                                  aspectRatio: proporcionHero,
+                                  child: _ReservationImage(
+                                    imageUrl: estudio?['foto_url']?.toString(),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
                                 child: Text(
-                                  'Créditos restantes',
-                                  style: TextStyle(
+                                  estudio?['categoria']
+                                          ?.toString()
+                                          .toUpperCase() ??
+                                      'YOGA',
+                                  style: const TextStyle(
                                     color: AppColors.white,
-                                    fontSize: 15,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ),
+                              const SizedBox(height: 14),
                               Text(
-                                '$restantes',
-                                style: TextStyle(
-                                  color: restantes < 0
-                                      ? AppColors.error
-                                      : AppColors.primary,
-                                  fontSize: 52,
+                                clase['nombre']?.toString() ?? 'Clase',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppColors.black,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.w700,
-                                  height: 1,
                                 ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                '${estudio?['nombre'] ?? 'Studio Zen'} · ${estudio?['barrio'] ?? 'Palermo'}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Color(0xFF8F877F),
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _MetaChip(
+                                    icon: Icons.calendar_today_outlined,
+                                    text: fecha != null
+                                        ? DateFormat(
+                                            'EEE d MMM · h:mm a',
+                                            'es',
+                                          ).format(fecha)
+                                        : 'Lun 23 Jun · 8:00 AM',
+                                  ),
+                                  _MetaChip(
+                                    icon: Icons.alarm_outlined,
+                                    text: '${clase['duracion_min'] ?? 60} min',
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              _MetaChip(
+                                icon: Icons.place_outlined,
+                                text:
+                                    estudio?['direccion']?.toString() ??
+                                    'Av. Santa Fe 2450, Palermo, CABA',
+                                fullWidth: true,
                               ),
                             ],
                           ),
+                        ),
+                        const SizedBox(height: 20),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(22),
+                          decoration: BoxDecoration(
+                            color: AppColors.blackSoft,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Column(
+                            children: [
+                              _CreditRow(
+                                label: 'Créditos disponibles',
+                                value: '$actuales créditos',
+                                valueColor: AppColors.white,
+                              ),
+                              const SizedBox(height: 14),
+                              _CreditRow(
+                                label: 'Costo de la clase',
+                                value: '$creditos créditos',
+                                valueColor: AppColors.primary,
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                child: Divider(
+                                  color: Color(0xFF2E2B28),
+                                  height: 1,
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  const Expanded(
+                                    child: Text(
+                                      'Créditos restantes',
+                                      style: TextStyle(
+                                        color: AppColors.white,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '$restantes',
+                                    style: TextStyle(
+                                      color: restantes < 0
+                                          ? AppColors.error
+                                          : AppColors.primary,
+                                      fontSize: 52,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (restantes < 0) ...[
+                          const SizedBox(height: 14),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Text(
+                              'No tenés suficientes créditos para esta reserva.',
+                              style: TextStyle(
+                                color: AppColors.error,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                         ],
-                      ),
+                        if (reservaCerrada) ...[
+                          const SizedBox(height: 14),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Text(
+                              cierreMinutos > 0
+                                  ? 'Las reservas ya están cerradas. Este estudio permite agendar ${ReservasService.labelCierreReserva(cierreMinutos)}.'
+                                  : 'Las reservas ya están cerradas para esta clase.',
+                              style: const TextStyle(
+                                color: AppColors.error,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    if (restantes < 0) ...[
-                      const SizedBox(height: 14),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Text(
-                          'No tenés suficientes créditos para esta reserva.',
-                          style: TextStyle(
-                            color: AppColors.error,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                    if (reservaCerrada) ...[
-                      const SizedBox(height: 14),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Text(
-                          cierreMinutos > 0
-                              ? 'Las reservas ya están cerradas. Este estudio permite agendar ${ReservasService.labelCierreReserva(cierreMinutos)}.'
-                              : 'Las reservas ya están cerradas para esta clase.',
-                          style: const TextStyle(
-                            color: AppColors.error,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                12,
-                20,
-                MediaQuery.of(context).padding.bottom + 16,
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: (_reservando || restantes < 0 || reservaCerrada)
-                      ? null
-                      : _confirmar,
-                  child: _reservando
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.blackDeep,
-                          ),
-                        )
-                      : Text('Canjear · $creditos créditos'),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    12,
+                    20,
+                    MediaQuery.of(context).padding.bottom + 16,
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed:
+                          (_reservando || restantes < 0 || reservaCerrada)
+                          ? null
+                          : _confirmar,
+                      child: _reservando
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.blackDeep,
+                              ),
+                            )
+                          : Text('Canjear · $creditos créditos'),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -531,10 +565,7 @@ class _CreditRow extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFFA39B94),
-              fontSize: 15,
-            ),
+            style: const TextStyle(color: Color(0xFFA39B94), fontSize: 15),
           ),
         ),
         Text(

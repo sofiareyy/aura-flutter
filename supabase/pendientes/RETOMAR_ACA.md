@@ -1628,21 +1628,43 @@ En detalle de clase el CTA flotante también quedó contenido (era
 
 **La galería NO se tocó** — es el único lugar donde una foto se ve entera.
 
-### 🔴 Queda uno del mismo bug, y no estaba en el mapa
+### ✅ Confirmar reserva — CERRADO el 2/9, era el peor de todos
 
-**`confirmar_reserva_screen.dart`**: foto de alto fijo **154 px** y ancho
-libre ⇒ en 1920 queda de **12,2:1** (se ve el 12% de una foto 3:2). Es peor de
-lo que estaban los heroes y está en el camino de la reserva. Mismo arreglo de
-una línea. Sofía tiene que decidirlo.
+**`confirmar_reserva_screen.dart`** tenía la foto con alto fijo **154 px** y
+ancho libre ⇒ en 1920 quedaba de **12,2:1** (se veía el 12% de una foto 3:2),
+justo en la pantalla anterior a reservar. Peor que los heroes.
+
+Arreglado con el mismo patrón: contenido topado en `anchoMaxFormulario` (640,
+más angosto que las de detalle porque es una tarjeta con un botón) y la foto en
+`AspectRatio(proporcionHero)`. Queda de **572 × 286**. El botón de canjear
+entra en la misma caja: antes se estiraba a lo ancho de toda la pantalla.
+
+En teléfono la foto pasa de 154 a ~167 px de alto: prácticamente igual.
 
 Menor y a propósito: el banner "tu estudio" de Inicio queda en 7,25:1, pero va
 al 35% de opacidad detrás de un velo oscuro. Es textura, no foto.
 
-### Anotado: los heroes todavía bajan la foto original
+### 🟡 ANOTADO para después — optimización, no urgente
 
-Las tarjetas ya piden la versión liviana por `/render/image/public/`; estas dos
-pantallas siguen bajando el original (hasta 2,4 MB). Es cambiar el widget de
-imagen, igual que en las tarjetas.
+**Los heroes bajan la foto ORIGINAL (hasta 2,4 MB) en vez de la liviana.**
+Las tarjetas de Inicio y Explorar ya piden la versión reescalada por
+`/render/image/public/` (widget `FotoRed`, `lib/utils/foto_url.dart`), pero
+estas pantallas siguen con el original:
+
+| Pantalla | Widget que hay que cambiar |
+|---|---|
+| Perfil del estudio · hero | `_RemoteImage` en `detalle_estudio_screen.dart` |
+| Detalle de clase · hero | `_HeroImage` en `detalle_clase_screen.dart` |
+
+Ojo con `_HeroImage`: soporta `imagen_ajuste == 'contain'` (hoy `null` en las
+1.612 clases, pero no romperlo) y `FotoRed` fuerza `cover`. Habría que pasarle
+el `fit` o envolver la URL con `fotoOptimizada()` conservando el reintento a
+la original.
+
+**No hace falta tocar la galería ni el visor**: el visor muestra la foto entera
+y ahí sí conviene el original.
+
+Decisión de Sofía el 2/9: **es optimización, va después.**
 
 ---
 
