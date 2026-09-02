@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -17,6 +16,8 @@ import '../../services/location_service.dart';
 import '../../services/notificaciones_service.dart';
 import '../../services/reservas_service.dart';
 import '../../services/studio_geo_service.dart';
+import '../../utils/grilla_responsive.dart';
+import '../../widgets/foto_red.dart';
 import '../../widgets/organizadores_links.dart';
 import '../../widgets/registro_muro.dart';
 
@@ -53,8 +54,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _tieneHistorialCreditos = true;
   int _unreadNotifs = 0;
   String _categoriaSeleccionada = 'Todos';
-  AuraLocationState _locationState =
-      const AuraLocationState(status: AuraLocationStatus.unknown);
+  AuraLocationState _locationState = const AuraLocationState(
+    status: AuraLocationStatus.unknown,
+  );
 
   Future<void> _pedirUbicacion() async {
     if (_requestingLocation) return;
@@ -167,7 +169,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 .eq('user_id', uid)
                 .limit(1);
             if (mounted) {
-              setState(() => _tieneHistorialCreditos = (historial as List).isNotEmpty);
+              setState(
+                () => _tieneHistorialCreditos = (historial as List).isNotEmpty,
+              );
             }
           } catch (_) {
             // Si falla, asumimos que tiene historial para no mostrar el estado de nuevo usuario
@@ -267,8 +271,9 @@ class _HomeScreenState extends State<HomeScreen> {
             if (estudio == null) return false;
             // El estudio entra si CUALQUIERA de sus categorias matchea.
             final objetivo = _categoriaSeleccionada.toLowerCase();
-            return Estudio.parseCategorias(estudio)
-                .any((c) => c.trim().toLowerCase() == objetivo);
+            return Estudio.parseCategorias(
+              estudio,
+            ).any((c) => c.trim().toLowerCase() == objetivo);
           }).toList();
     final clasesEstaSemana = clasesFiltradas.where((clase) {
       // Las fechas en DB estan en hora Argentina sin marker; forzamos UTC con
@@ -281,9 +286,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final estudiosFiltrados = _categoriaSeleccionada == 'Todos'
         ? _estudios
         : _estudios
-            .where((estudio) =>
-                estudio.tieneCategoria(_categoriaSeleccionada))
-            .toList();
+              .where(
+                (estudio) => estudio.tieneCategoria(_categoriaSeleccionada),
+              )
+              .toList();
     final estudiosCerca = _studioGeoService
         .sortByDistance(estudiosFiltrados, _locationState.position)
         .take(6)
@@ -297,125 +303,144 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Consumer<AppProvider>(
           builder: (context, provider, _) {
             final usuario = provider.usuario;
-            return CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _saludo(),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                        color: AppColors.grey,
-                                        fontSize: 14,
-                                      ),
-                                ),
-                                const SizedBox(height: 2),
-                                RichText(
-                                  text: TextSpan(
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineSmall
-                                        ?.copyWith(
-                                          color: AppColors.black,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w700,
+            return LayoutBuilder(
+              builder: (context, restricciones) {
+                // Contener el ancho: sin esto, en un monitor de 1920 la
+                // tarjeta ocupaba toda la pantalla. El +40 son los 20 px de
+                // padding de cada lado, para que el CONTENIDO tope en 1200.
+                final anchoCaja = restricciones.maxWidth < anchoMaxVidriera + 40
+                    ? restricciones.maxWidth
+                    : anchoMaxVidriera + 40;
+                final columnas = columnasVidriera(anchoCaja - 40);
+                return Center(
+                  child: SizedBox(
+                    width: anchoCaja,
+                    child: CustomScrollView(
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: SafeArea(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _saludo(),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(
+                                                color: AppColors.grey,
+                                                fontSize: 14,
+                                              ),
                                         ),
-                                    children: [
-                                      TextSpan(
-                                        text: usuario?.nombre.split(' ').first ??
-                                            'Bienvenida',
-                                      ),
-                                      const TextSpan(text: ' ✦'),
-                                    ],
+                                        const SizedBox(height: 2),
+                                        RichText(
+                                          text: TextSpan(
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .headlineSmall
+                                                ?.copyWith(
+                                                  color: AppColors.black,
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                            children: [
+                                              TextSpan(
+                                                text:
+                                                    usuario?.nombre
+                                                        .split(' ')
+                                                        .first ??
+                                                    'Bienvenida',
+                                              ),
+                                              const TextSpan(text: ' ✦'),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // El invitado no tiene notificaciones: se oculta la
-                          // campana en vez de abrirle un panel vacío.
-                          if (!esInvitado)
-                            Stack(
-                              alignment: Alignment.topRight,
-                              children: [
-                                IconButton(
-                                  onPressed: _mostrarNotificaciones,
-                                  icon: const Icon(
-                                    Icons.notifications_outlined,
-                                    color: AppColors.black,
-                                  ),
-                                ),
-                                if (_unreadNotifs > 0)
-                                  Positioned(
-                                    top: 8,
-                                    right: 8,
+                                  // El invitado no tiene notificaciones: se oculta la
+                                  // campana en vez de abrirle un panel vacío.
+                                  if (!esInvitado)
+                                    Stack(
+                                      alignment: Alignment.topRight,
+                                      children: [
+                                        IconButton(
+                                          onPressed: _mostrarNotificaciones,
+                                          icon: const Icon(
+                                            Icons.notifications_outlined,
+                                            color: AppColors.black,
+                                          ),
+                                        ),
+                                        if (_unreadNotifs > 0)
+                                          Positioned(
+                                            top: 8,
+                                            right: 8,
+                                            child: Container(
+                                              width: 9,
+                                              height: 9,
+                                              decoration: const BoxDecoration(
+                                                color: AppColors.primary,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  const SizedBox(width: 4),
+                                  GestureDetector(
+                                    // Invitado: el avatar abre el muro cerrable, no lo
+                                    // manda a /login.
+                                    onTap: () => esInvitado
+                                        ? RegistroMuro.mostrar(
+                                            context,
+                                            motivo: MuroMotivo.perfil,
+                                          )
+                                        : context.go('/perfil'),
                                     child: Container(
-                                      width: 9,
-                                      height: 9,
+                                      width: 44,
+                                      height: 44,
                                       decoration: const BoxDecoration(
                                         color: AppColors.primary,
                                         shape: BoxShape.circle,
                                       ),
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        _initial(usuario?.nombre),
+                                        style: const TextStyle(
+                                          color: AppColors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 18,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                              ],
-                            ),
-                          const SizedBox(width: 4),
-                          GestureDetector(
-                            // Invitado: el avatar abre el muro cerrable, no lo
-                            // manda a /login.
-                            onTap: () => esInvitado
-                                ? RegistroMuro.mostrar(context,
-                                    motivo: MuroMotivo.perfil)
-                                : context.go('/perfil'),
-                            child: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: const BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              _initial(usuario?.nombre),
-                              style: const TextStyle(
-                                color: AppColors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 18,
+                                ],
                               ),
                             ),
-                            ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-                    // Invitado: donde va la card de créditos (que no tiene) va
-                    // la invitación a crear cuenta. El resto del home —clases
-                    // de la semana, experiencias, estudios cerca— lo ve igual.
-                    child: esInvitado
-                        ? _InvitadoCard(
-                            onCrearCuenta: () => context.push('/register'),
-                            onIngresar: () => context.push('/login'),
-                          )
-                        : usuario == null || (usuario.creditos) > 0
-                            ? _PlanCard(usuario: usuario)
-                            : !_tieneHistorialCreditos
+                        ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                            // Invitado: donde va la card de créditos (que no tiene) va
+                            // la invitación a crear cuenta. El resto del home —clases
+                            // de la semana, experiencias, estudios cerca— lo ve igual.
+                            child: esInvitado
+                                ? _InvitadoCard(
+                                    onCrearCuenta: () =>
+                                        context.push('/register'),
+                                    onIngresar: () => context.push('/login'),
+                                  )
+                                : usuario == null || (usuario.creditos) > 0
+                                ? _PlanCard(usuario: usuario)
+                                : !_tieneHistorialCreditos
                                 ? _NuevoUsuarioCard(
                                     onVerPacks: () =>
                                         context.push('/comprar-creditos'),
@@ -426,474 +451,548 @@ class _HomeScreenState extends State<HomeScreen> {
                                     onVerReservas: () =>
                                         context.go('/mis-reservas'),
                                   ),
-                  ),
-                ),
-                // ── Tu QR de hoy (reserva dentro de las próximas 24 h) ──────
-                if (_proximaReserva != null)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-                      child: _ProximaReservaCard(
-                        reserva: _proximaReserva!,
-                        onVerQr: () {
-                          final qr =
-                              _proximaReserva!['codigo_qr']?.toString() ?? '';
-                          if (qr.isNotEmpty) {
-                            context.push(
-                                '/reserva-confirmada/${Uri.encodeComponent(qr)}');
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                // ── Credits expiry banner ─────────────────────────────
-                if (!_bannerDismissed && usuario != null) ...[
-                  SliverToBoxAdapter(
-                    child: Builder(
-                      builder: (ctx) {
-                        final venc = usuario.creditosVencimiento;
-                        if (venc == null) return const SizedBox.shrink();
-                        final dias = venc.difference(DateTime.now()).inDays;
-                        if (dias < 0 || dias > 7) return const SizedBox.shrink();
-                        return Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                          child: _CreditosExpiryBanner(
-                            dias: dias,
-                            creditos: usuario.creditos,
-                            onDismiss: _dismissBanner,
-                            onExplorar: () => context.go('/explorar'),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                    child: SizedBox(
-                      height: 40,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: _categorias
-                            .map(
-                              (categoria) => Padding(
-                                padding: const EdgeInsets.only(right: 12),
-                                child: _CategoryChip(
-                                  label: categoria,
-                                  active: _categoriaSeleccionada == categoria,
-                                  onTap: () => setState(() {
-                                    _categoriaSeleccionada = categoria;
-                                  }),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ),
-                  ),
-                ),
-                // ── Card estudio asociado (alumno directo) ──────────
-                if (provider.estudioAsociado != null)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                      child: _EstudioAsociadoCard(
-                        estudio: provider.estudioAsociado!,
-                        onTap: () => context.push(
-                            '/estudio/${provider.estudioAsociado!.id}'),
-                        onVerClases: () => context.push(
-                            '/estudio/${provider.estudioAsociado!.id}'),
-                      ),
-                    ),
-                  ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'CERCA TUYO',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    letterSpacing: 0.8,
-                                    fontWeight: FontWeight.w700,
-                                  ),
                         ),
-                        GestureDetector(
-                          onTap: () => context.go('/explorar'),
-                          child: const Text(
-                            'Ver todo',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
+                        // ── Tu QR de hoy (reserva dentro de las próximas 24 h) ──────
+                        if (_proximaReserva != null)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                              child: _ProximaReservaCard(
+                                reserva: _proximaReserva!,
+                                onVerQr: () {
+                                  final qr =
+                                      _proximaReserva!['codigo_qr']
+                                          ?.toString() ??
+                                      '';
+                                  if (qr.isNotEmpty) {
+                                    context.push(
+                                      '/reserva-confirmada/${Uri.encodeComponent(qr)}',
+                                    );
+                                  }
+                                },
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
-                    child: _locationState.granted
-                        ? (estudiosCerca.isEmpty
-                            ? const _EmptyNearbyCard()
-                            : SizedBox(
-                                height: 204,
-                                child: ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: estudiosCerca.length,
-                                  itemBuilder: (context, index) {
-                                    final nearby = estudiosCerca[index];
-                                    return SizedBox(
-                                      width: 220,
-                                      child: Padding(
-                                        padding:
-                                            const EdgeInsets.only(right: 14),
-                                        child: _NearbyStudyCard(
-                                          estudio: nearby.estudio,
-                                          distanceLabel: _studioGeoService
-                                              .formatDistance(
-                                                  nearby.distanceKm),
-                                          onTap: () => context.push(
-                                            '/estudio/${nearby.estudio.id}',
-                                          ),
+                        // ── Credits expiry banner ─────────────────────────────
+                        if (!_bannerDismissed && usuario != null) ...[
+                          SliverToBoxAdapter(
+                            child: Builder(
+                              builder: (ctx) {
+                                final venc = usuario.creditosVencimiento;
+                                if (venc == null)
+                                  return const SizedBox.shrink();
+                                final dias = venc
+                                    .difference(DateTime.now())
+                                    .inDays;
+                                if (dias < 0 || dias > 7)
+                                  return const SizedBox.shrink();
+                                return Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    12,
+                                    20,
+                                    0,
+                                  ),
+                                  child: _CreditosExpiryBanner(
+                                    dias: dias,
+                                    creditos: usuario.creditos,
+                                    onDismiss: _dismissBanner,
+                                    onExplorar: () => context.go('/explorar'),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                            child: SizedBox(
+                              height: 40,
+                              child: ListView(
+                                scrollDirection: Axis.horizontal,
+                                children: _categorias
+                                    .map(
+                                      (categoria) => Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 12,
+                                        ),
+                                        child: _CategoryChip(
+                                          label: categoria,
+                                          active:
+                                              _categoriaSeleccionada ==
+                                              categoria,
+                                          onTap: () => setState(() {
+                                            _categoriaSeleccionada = categoria;
+                                          }),
                                         ),
                                       ),
-                                    );
-                                  },
-                                ),
-                              ))
-                        : _LocationPromptCard(
-                            locationState: _locationState,
-                            requesting: _requestingLocation,
-                            onPrimaryTap: _pedirUbicacion,
+                                    )
+                                    .toList(),
+                              ),
+                            ),
                           ),
-                  ),
-                ),
-                if (_sugerencias.isNotEmpty) ...[
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'PARA VOS ✨',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  letterSpacing: 0.8,
-                                  fontWeight: FontWeight.w700,
+                        ),
+                        // ── Card estudio asociado (alumno directo) ──────────
+                        if (provider.estudioAsociado != null)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                              child: _EstudioAsociadoCard(
+                                estudio: provider.estudioAsociado!,
+                                onTap: () => context.push(
+                                  '/estudio/${provider.estudioAsociado!.id}',
                                 ),
+                                onVerClases: () => context.push(
+                                  '/estudio/${provider.estudioAsociado!.id}',
+                                ),
+                              ),
+                            ),
                           ),
-                          GestureDetector(
-                            onTap: () => context.go('/explorar'),
-                            child: const Text(
-                              'Ver más',
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'CERCA TUYO',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(
+                                        letterSpacing: 0.8,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                                GestureDetector(
+                                  onTap: () => context.go('/explorar'),
+                                  child: const Text(
+                                    'Ver todo',
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                            child: _locationState.granted
+                                ? (estudiosCerca.isEmpty
+                                      ? const _EmptyNearbyCard()
+                                      : SizedBox(
+                                          height: 204,
+                                          child: ListView.builder(
+                                            scrollDirection: Axis.horizontal,
+                                            itemCount: estudiosCerca.length,
+                                            itemBuilder: (context, index) {
+                                              final nearby =
+                                                  estudiosCerca[index];
+                                              return SizedBox(
+                                                width: 220,
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        right: 14,
+                                                      ),
+                                                  child: _NearbyStudyCard(
+                                                    estudio: nearby.estudio,
+                                                    distanceLabel:
+                                                        _studioGeoService
+                                                            .formatDistance(
+                                                              nearby.distanceKm,
+                                                            ),
+                                                    onTap: () => context.push(
+                                                      '/estudio/${nearby.estudio.id}',
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ))
+                                : _LocationPromptCard(
+                                    locationState: _locationState,
+                                    requesting: _requestingLocation,
+                                    onPrimaryTap: _pedirUbicacion,
+                                  ),
+                          ),
+                        ),
+                        if (_sugerencias.isNotEmpty) ...[
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'PARA VOS ✨',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          letterSpacing: 0.8,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () => context.go('/explorar'),
+                                    child: const Text(
+                                      'Ver más',
+                                      style: TextStyle(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          SliverToBoxAdapter(
+                            child: SizedBox(
+                              height: altoCarruselVidriera,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
+                                itemCount: _sugerencias.length,
+                                itemBuilder: (context, index) {
+                                  final clase = _sugerencias[index];
+                                  return SizedBox(
+                                    width: 320,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(right: 14),
+                                      child: HomeNearbyClassCard(
+                                        clase: clase,
+                                        onTap: () => context.push(
+                                          '/clase/${clase['id']}',
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 270,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        itemCount: _sugerencias.length,
-                        itemBuilder: (context, index) {
-                          final clase = _sugerencias[index];
-                          return SizedBox(
-                            width: 320,
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 14),
-                              child: _HomeNearbyClassCard(
-                                clase: clase,
-                                onTap: () =>
-                                    context.push('/clase/${clase['id']}'),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'CLASES ESTA SEMANA',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    letterSpacing: 0.8,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                        ),
-                        GestureDetector(
-                          onTap: () => context.go('/explorar'),
-                          child: const Text(
-                            'Explorar',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_loading)
-                  const SliverToBoxAdapter(child: SizedBox.shrink())
-                else if (clasesEstaSemana.isEmpty)
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      child: Text(
-                        'No encontramos clases para esta semana en esta categoría.',
-                        style: TextStyle(color: AppColors.grey, height: 1.5),
-                      ),
-                    ),
-                  )
-                else
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 270,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        itemCount: clasesEstaSemana.length,
-                        itemBuilder: (context, index) {
-                          final clase = clasesEstaSemana[index];
-                          return SizedBox(
-                            width: 320,
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 14),
-                              child: _HomeNearbyClassCard(
-                                clase: clase,
-                                onTap: () => context.push('/clase/${clase['id']}'),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                // ── Experiencias (workshops / eventos próximos) ──────────────
-                if (_experiencias.isNotEmpty) ...[
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'EXPERIENCIAS',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  letterSpacing: 0.8,
-                                  fontWeight: FontWeight.w700,
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'CLASES ESTA SEMANA',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(
+                                        letterSpacing: 0.8,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                 ),
+                                GestureDetector(
+                                  onTap: () => context.go('/explorar'),
+                                  child: const Text(
+                                    'Explorar',
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          // Acá había un "Ver todas" que iba a /explorar, y
-                          // /explorar excluye los workshops
-                          // (`getProximasClases` hace .neq('tipo','workshop')):
-                          // la alumna caía en una pantalla sin ninguna
-                          // experiencia. No existe pantalla de experiencias —
-                          // es la feature en diseño con categorías y buscador
-                          // propios (Tanda E). Mientras tanto el carrusel trae
-                          // hasta 20 y hay 1 workshop en toda la base, así que
-                          // ya las muestra todas y el link sobraba.
+                        ),
+                        if (_loading)
+                          const SliverToBoxAdapter(child: SizedBox.shrink())
+                        else if (clasesEstaSemana.isEmpty)
+                          const SliverToBoxAdapter(
+                            child: Padding(
+                              padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
+                              child: Text(
+                                'No encontramos clases para esta semana en esta categoría.',
+                                style: TextStyle(
+                                  color: AppColors.grey,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          SliverToBoxAdapter(
+                            child: SizedBox(
+                              height: altoCarruselVidriera,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
+                                itemCount: clasesEstaSemana.length,
+                                itemBuilder: (context, index) {
+                                  final clase = clasesEstaSemana[index];
+                                  return SizedBox(
+                                    width: 320,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(right: 14),
+                                      child: HomeNearbyClassCard(
+                                        clase: clase,
+                                        onTap: () => context.push(
+                                          '/clase/${clase['id']}',
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        // ── Experiencias (workshops / eventos próximos) ──────────────
+                        if (_experiencias.isNotEmpty) ...[
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                24,
+                                20,
+                                14,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'EXPERIENCIAS',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          letterSpacing: 0.8,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
+                                  // Acá había un "Ver todas" que iba a /explorar, y
+                                  // /explorar excluye los workshops
+                                  // (`getProximasClases` hace .neq('tipo','workshop')):
+                                  // la alumna caía en una pantalla sin ninguna
+                                  // experiencia. No existe pantalla de experiencias —
+                                  // es la feature en diseño con categorías y buscador
+                                  // propios (Tanda E). Mientras tanto el carrusel trae
+                                  // hasta 20 y hay 1 workshop en toda la base, así que
+                                  // ya las muestra todas y el link sobraba.
+                                ],
+                              ),
+                            ),
+                          ),
+                          SliverToBoxAdapter(
+                            child: SizedBox(
+                              height: 340,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
+                                itemCount: _experiencias.length,
+                                itemBuilder: (context, index) {
+                                  final exp = _experiencias[index];
+                                  return SizedBox(
+                                    width: 300,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(right: 14),
+                                      child: _HomeExperienceCard(
+                                        clase: exp,
+                                        onTap: () =>
+                                            context.push('/clase/${exp['id']}'),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
                         ],
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 340,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        itemCount: _experiencias.length,
-                        itemBuilder: (context, index) {
-                          final exp = _experiencias[index];
-                          return SizedBox(
-                            width: 300,
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 14),
-                              child: _HomeExperienceCard(
-                                clase: exp,
-                                onTap: () =>
-                                    context.push('/clase/${exp['id']}'),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'ESTUDIOS',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    letterSpacing: 0.8,
-                                    fontWeight: FontWeight.w700,
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'ESTUDIOS',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(
+                                        letterSpacing: 0.8,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                                GestureDetector(
+                                  onTap: () => context.go('/explorar'),
+                                  child: const Text(
+                                    'Ver todo',
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
                                   ),
-                        ),
-                        GestureDetector(
-                          onTap: () => context.go('/explorar'),
-                          child: const Text(
-                            'Ver todo',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
+                                ),
+                              ],
                             ),
                           ),
                         ),
+                        if (_loading)
+                          const SliverToBoxAdapter(child: SizedBox.shrink())
+                        else if (estudiosFiltrados.isEmpty)
+                          const SliverToBoxAdapter(
+                            child: Padding(
+                              padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
+                              child: Text(
+                                'No encontramos estudios para esta categoría.',
+                                style: TextStyle(
+                                  color: AppColors.grey,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          SliverToBoxAdapter(
+                            child: SizedBox(
+                              height: 252,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
+                                itemCount: estudiosFiltrados.length,
+                                itemBuilder: (context, index) {
+                                  final estudio = estudiosFiltrados[index];
+                                  return SizedBox(
+                                    width: 220,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(right: 14),
+                                      child: _HomeStudyCard(
+                                        estudio: estudio,
+                                        onTap: () => context.push(
+                                          '/estudio/${estudio.id}',
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'TODAS LAS EXPERIENCIAS',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(
+                                        letterSpacing: 0.8,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                                GestureDetector(
+                                  onTap: () => context.go('/explorar'),
+                                  child: const Text(
+                                    'Ver todo',
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (_loading)
+                          const SliverToBoxAdapter(
+                            child: Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(32),
+                                child: CircularProgressIndicator(
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          )
+                        else if (clasesFiltradas.isEmpty)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                12,
+                                20,
+                                20,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'No hay clases para esta categoría cerca tuyo.\nProbá con otra opción.',
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: AppColors.grey,
+                                        height: 1.6,
+                                      ),
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          // Grilla de 1, 2 o 3 columnas según el ancho. Antes era una
+                          // lista de una sola columna a cualquier ancho: es la que
+                          // estiraba la tarjeta de lado a lado en desktop.
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                            sliver: SliverGrid(
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: columnas,
+                                    crossAxisSpacing: gapGrilla,
+                                    mainAxisSpacing: gapGrilla,
+                                    // Alto explícito en vez de proporción: así
+                                    // todas las tarjetas miden exactamente lo
+                                    // mismo y los pies quedan alineados. Es la
+                                    // foto 16:9 de esta columna más el texto.
+                                    mainAxisExtent: altoCardVidriera(
+                                      anchoCelda(anchoCaja - 40, columnas),
+                                    ),
+                                  ),
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
+                                final clase = clasesFiltradas[index];
+                                return HomeNearbyClassCard(
+                                  clase: clase,
+                                  onTap: () =>
+                                      context.push('/clase/${clase['id']}'),
+                                );
+                              }, childCount: clasesFiltradas.length),
+                            ),
+                          ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 28)),
                       ],
                     ),
                   ),
-                ),
-                if (_loading)
-                  const SliverToBoxAdapter(child: SizedBox.shrink())
-                else if (estudiosFiltrados.isEmpty)
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      child: Text(
-                        'No encontramos estudios para esta categoría.',
-                        style: TextStyle(color: AppColors.grey, height: 1.5),
-                      ),
-                    ),
-                  )
-                else
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 252,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        itemCount: estudiosFiltrados.length,
-                        itemBuilder: (context, index) {
-                          final estudio = estudiosFiltrados[index];
-                          return SizedBox(
-                            width: 220,
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 14),
-                              child: _HomeStudyCard(
-                                estudio: estudio,
-                                onTap: () => context.push('/estudio/${estudio.id}'),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'TODAS LAS EXPERIENCIAS',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    letterSpacing: 0.8,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                        ),
-                        GestureDetector(
-                          onTap: () => context.go('/explorar'),
-                          child: const Text(
-                            'Ver todo',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_loading)
-                  const SliverToBoxAdapter(
-                    child: Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32),
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  )
-                else if (clasesFiltradas.isEmpty)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                      child: Center(
-                        child: Text(
-                          'No hay clases para esta categoría cerca tuyo.\nProbá con otra opción.',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(color: AppColors.grey, height: 1.6),
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final clase = clasesFiltradas[index];
-                        return Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                          child: _HomeNearbyClassCard(
-                            clase: clase,
-                            onTap: () => context.push('/clase/${clase['id']}'),
-                          ),
-                        );
-                      },
-                      childCount: clasesFiltradas.length,
-                    ),
-                  ),
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: 28),
-                ),
-              ],
+                );
+              },
             );
           },
         ),
@@ -942,8 +1041,11 @@ class _ProximaReservaCard extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.qr_code_2_rounded,
-                  color: Colors.white, size: 28),
+              child: const Icon(
+                Icons.qr_code_2_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -953,9 +1055,10 @@ class _ProximaReservaCard extends StatelessWidget {
                   const Text(
                     'Tu próxima clase',
                     style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600),
+                      color: Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -963,9 +1066,10 @@ class _ProximaReservaCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700),
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -984,11 +1088,14 @@ class _ProximaReservaCard extends StatelessWidget {
             Column(
               children: const [
                 Icon(Icons.chevron_right_rounded, color: Colors.white),
-                Text('Ver QR',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700)),
+                Text(
+                  'Ver QR',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
           ],
@@ -1222,18 +1329,15 @@ class _PlanCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     const Text(
                       'créditos disponibles',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 15,
-                      ),
+                      style: TextStyle(color: Colors.white70, fontSize: 15),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       vencimiento != null
                           ? 'Vencen el ${DateFormat('d \'de\' MMMM', 'es').format(vencimiento)}'
                           : plan == 'Sin plan'
-                              ? 'Elegí un plan o comprá créditos'
-                              : 'Tus créditos se acreditaron correctamente',
+                          ? 'Elegí un plan o comprá créditos'
+                          : 'Tus créditos se acreditaron correctamente',
                       style: const TextStyle(
                         color: Colors.white38,
                         fontSize: 13,
@@ -1243,8 +1347,10 @@ class _PlanCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(9999),
@@ -1332,7 +1438,11 @@ class _NotificacionesSheetState extends State<_NotificacionesSheet> {
     final items = await widget.service.getNotificaciones();
     await widget.service.marcarTodasLeidas();
     widget.onLeidas();
-    if (mounted) setState(() { _items = items; _loading = false; });
+    if (mounted)
+      setState(() {
+        _items = items;
+        _loading = false;
+      });
   }
 
   @override
@@ -1345,32 +1455,51 @@ class _NotificacionesSheetState extends State<_NotificacionesSheet> {
         children: [
           Center(
             child: Container(
-              width: 42, height: 5,
-              decoration: BoxDecoration(color: const Color(0xFFE0DBD6), borderRadius: BorderRadius.circular(999)),
+              width: 42,
+              height: 5,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE0DBD6),
+                borderRadius: BorderRadius.circular(999),
+              ),
             ),
           ),
           const SizedBox(height: 16),
           const Text(
             'Notificaciones',
-            style: TextStyle(color: AppColors.black, fontSize: 18, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: AppColors.black,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 14),
           if (_loading)
-            const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator(color: AppColors.primary)))
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            )
           else if (_items.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 32),
               child: Center(
-                child: Text('Sin notificaciones', style: TextStyle(color: Color(0xFF8F877F))),
+                child: Text(
+                  'Sin notificaciones',
+                  style: TextStyle(color: Color(0xFF8F877F)),
+                ),
               ),
             )
           else
             ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.5,
+              ),
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: _items.length,
-                separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF0EDE9)),
+                separatorBuilder: (_, __) =>
+                    const Divider(height: 1, color: Color(0xFFF0EDE9)),
                 itemBuilder: (_, i) {
                   final item = _items[i];
                   final titulo = item['titulo']?.toString() ?? '';
@@ -1382,10 +1511,13 @@ class _NotificacionesSheetState extends State<_NotificacionesSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          width: 8, height: 8,
+                          width: 8,
+                          height: 8,
                           margin: const EdgeInsets.only(top: 5, right: 10),
                           decoration: BoxDecoration(
-                            color: leida ? Colors.transparent : AppColors.primary,
+                            color: leida
+                                ? Colors.transparent
+                                : AppColors.primary,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -1394,9 +1526,23 @@ class _NotificacionesSheetState extends State<_NotificacionesSheet> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               if (titulo.isNotEmpty)
-                                Text(titulo, style: const TextStyle(color: AppColors.black, fontSize: 14, fontWeight: FontWeight.w700)),
+                                Text(
+                                  titulo,
+                                  style: const TextStyle(
+                                    color: AppColors.black,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               const SizedBox(height: 2),
-                              Text(mensaje, style: const TextStyle(color: Color(0xFF5F5953), fontSize: 13, height: 1.45)),
+                              Text(
+                                mensaje,
+                                style: const TextStyle(
+                                  color: Color(0xFF5F5953),
+                                  fontSize: 13,
+                                  height: 1.45,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -1430,11 +1576,7 @@ class _NuevoUsuarioCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.star_rounded,
-            color: Color(0xFFE8763A),
-            size: 40,
-          ),
+          const Icon(Icons.star_rounded, color: Color(0xFFE8763A), size: 40),
           const SizedBox(height: 12),
           const Text(
             'Bienvenida a Aura. 🧡',
@@ -1581,11 +1723,7 @@ class _CategoryChip extends StatelessWidget {
   final bool active;
   final VoidCallback? onTap;
 
-  const _CategoryChip({
-    required this.label,
-    this.active = false,
-    this.onTap,
-  });
+  const _CategoryChip({required this.label, this.active = false, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1613,11 +1751,12 @@ class _CategoryChip extends StatelessWidget {
   }
 }
 
-class _HomeNearbyClassCard extends StatelessWidget {
+class HomeNearbyClassCard extends StatelessWidget {
   final Map<String, dynamic> clase;
   final VoidCallback onTap;
 
-  const _HomeNearbyClassCard({
+  const HomeNearbyClassCard({
+    super.key,
     required this.clase,
     required this.onTap,
   });
@@ -1630,8 +1769,7 @@ class _HomeNearbyClassCard extends StatelessWidget {
         : null;
     final categoria = (estudio?['categoria'] ?? '').toString();
     final imageUrl = (clase['imagen_url'] ?? estudio?['foto_url'])?.toString();
-    final lugaresDisponibles =
-        (clase['lugares_disponibles'] as num?) ?? 0;
+    final lugaresDisponibles = (clase['lugares_disponibles'] as num?) ?? 0;
 
     return Material(
       color: Colors.transparent,
@@ -1651,9 +1789,12 @@ class _HomeNearbyClassCard extends StatelessWidget {
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(20),
                 ),
-                child: SizedBox(
-                  height: 132,
-                  width: double.infinity,
+                // PROPORCIÓN, no alto fijo: así la foto no puede volver a
+                // aplanarse por más ancha que quede la tarjeta. Con alto fijo
+                // 132, en un monitor de 1920 la lista vertical la dejaba de
+                // 1900 × 132 (14:1) y hasta en el carrusel de 320 daba 2,4:1.
+                child: AspectRatio(
+                  aspectRatio: proporcionFotoVidriera,
                   child: _HomeClassImage(imageUrl: imageUrl),
                 ),
               ),
@@ -1764,10 +1905,7 @@ class _HomeExperienceCard extends StatelessWidget {
   final Map<String, dynamic> clase;
   final VoidCallback onTap;
 
-  const _HomeExperienceCard({
-    required this.clase,
-    required this.onTap,
-  });
+  const _HomeExperienceCard({required this.clase, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1927,15 +2065,10 @@ class _HomeClassImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (imageUrl != null && imageUrl!.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: imageUrl!,
-        fit: BoxFit.cover,
-        placeholder: (_, __) => _fallback(),
-        errorWidget: (_, __, ___) => _fallback(),
-      );
-    }
-    return _fallback();
+    // 900 px de descarga para un hueco de hasta 390 (3 columnas dentro de
+    // 1200): alcanza para que se vea nítida en pantallas retina sin bajarse
+    // los megas del original.
+    return FotoRed(url: imageUrl, ancho: 900, fallback: _fallback());
   }
 
   Widget _fallback() {
@@ -1955,10 +2088,7 @@ class _HomeStudyCard extends StatelessWidget {
   final Estudio estudio;
   final VoidCallback onTap;
 
-  const _HomeStudyCard({
-    required this.estudio,
-    required this.onTap,
-  });
+  const _HomeStudyCard({required this.estudio, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -2088,11 +2218,7 @@ class _EmptyNearbyCard extends StatelessWidget {
       ),
       child: const Text(
         'Todavía no pudimos estimar estudios cercanos con esta categoría. Probá explorar todo desde el mapa.',
-        style: TextStyle(
-          color: AppColors.grey,
-          fontSize: 13,
-          height: 1.45,
-        ),
+        style: TextStyle(color: AppColors.grey, fontSize: 13, height: 1.45),
       ),
     );
   }
@@ -2346,10 +2472,10 @@ class _EstudioAsociadoCard extends StatelessWidget {
             if (estudio.fotoUrl != null && estudio.fotoUrl!.isNotEmpty)
               Opacity(
                 opacity: 0.35,
-                child: CachedNetworkImage(
-                  imageUrl: estudio.fotoUrl!,
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                child: FotoRed(
+                  url: estudio.fotoUrl,
+                  ancho: 800,
+                  fallback: const SizedBox.shrink(),
                 ),
               ),
 
@@ -2362,7 +2488,9 @@ class _EstudioAsociadoCard extends StatelessWidget {
                   // Badge naranja
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary,
                       borderRadius: BorderRadius.circular(999),
@@ -2389,8 +2517,7 @@ class _EstudioAsociadoCard extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  if (estudio.barrio != null &&
-                      estudio.barrio!.isNotEmpty) ...[
+                  if (estudio.barrio != null && estudio.barrio!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
                       estudio.barrio!,
@@ -2406,7 +2533,9 @@ class _EstudioAsociadoCard extends StatelessWidget {
                     onTap: onVerClases,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 9),
+                        horizontal: 18,
+                        vertical: 9,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF7F5F2), // crema
                         borderRadius: BorderRadius.circular(999),
@@ -2430,4 +2559,3 @@ class _EstudioAsociadoCard extends StatelessWidget {
     );
   }
 }
-

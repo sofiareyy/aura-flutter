@@ -1607,6 +1607,63 @@ para todos los usuarios nuevos.**
 
 ---
 
+## ✅ Tarjetas de clase en la web — HECHO el 2/9 (Dart, va en la 1.0.7)
+
+Inicio y Explorar dejaron de compartir grilla **a propósito**: Inicio es la
+**vidriera** (foto arriba, 16:9, 1/2/3 columnas, contenido hasta 1200 px) y
+Explorar es el **buscador** (foto 3:2 al costado, 1/2 columnas, hasta 1100).
+
+**El bug real no era el que se veía.** La tarjeta de Inicio se usa en tres
+lugares: dos carruseles de 320 px (ahí estaba bien) y **una lista vertical de
+ancho libre**. Con la foto de alto fijo en 132 px, en un monitor de 1920 la
+foto quedaba de 1900 × 132 = **14:1**. Ahora es `AspectRatio(16/9)`: al ser
+proporción y no alto fijo, **no puede volver a aplanarse**.
+
+- `lib/utils/grilla_responsive.dart` — todos los números, funciones puras
+- `lib/utils/foto_url.dart` + `lib/widgets/foto_red.dart` — fotos livianas
+- Tests: `grilla_responsive_test.dart`, `foto_url_test.dart`,
+  `tarjeta_inicio_test.dart` (mide la tarjeta REAL y falla si el alto del
+  carrusel queda corto)
+
+**Desviación de la maqueta aprobada, consciente:** en el teléfono Explorar
+conserva la foto de 96 px. La medida la decide el ancho de LA TARJETA, no el de
+la pantalla: con 186 px de foto en una pantalla de 390, el renglón de
+categoría + barrio + chapita no entra. Si Sofía la quiere grande igual, es un
+número en `anchoFotoBuscador`.
+
+### Fotos: el recorte automático anda, el peso no andaba
+
+- **Vista:** `BoxFit.cover` recorta por el centro manteniendo proporción, nunca
+  deforma ni deja franjas. Verificado mirando las 4 fotos verticales que hay
+  cargadas puestas en 16:9: las 4 bien. El único caso flojo es una foto
+  **cuadrada que es un LOGO** (pierde arriba y abajo) — se arregla pidiendo
+  foto del espacio, no con código.
+- **Subida:** la foto se guarda **entera** y sólo se recorta al mostrar. Eso
+  está bien: se puede cambiar el diseño sin pedir que nadie resuba nada.
+- 🔴 **Peso, medido el 2/9 sobre 102 archivos de `study-media`:** promedio
+  1,17 MB, máximo 6,4 MB, 28 por encima de 1 MB. Los `.jpg` de la app del
+  iPhone están bien (366 KB); los `.png` pesan 2,2 MB y los `.avif` 4,1 MB.
+  Causa: desde el navegador `image_picker` reescala las MEDIDAS pero re-encodea
+  en el **formato original**, y `canvas.toBlob` ignora la calidad si no es jpeg
+  o webp.
+- 🔴 **Flutter no decodifica `.heic` ni `.avif`** (18 archivos). Hoy ninguna
+  portada viva los usa —todas jpg o png, verificado— pero la próxima que suba
+  una desde un iPhone por el navegador la vería gris.
+- ✅ **Arreglado en la vista:** las tarjetas piden la foto por
+  `/render/image/public/` con `Accept: image/webp`. Las 5 fotos de un feed
+  pasan de 4,1 MB a 433 KB (**9,6×**), y el endpoint SÍ abre heic/avif.
+  ⚠️ La organización está en plan **free** y Supabase documenta las
+  transformaciones como feature de **Pro**: al 2/9 responden (medido), pero
+  cada foto reintenta sola la URL original si falla, y `fotosOptimizadas` en
+  `foto_url.dart` lo apaga todo desde una línea.
+
+**Pendiente, si Sofía lo pide:** preview "así se va a ver" al subir la foto (no
+un editor de recorte, que es una pantalla entera para un problema que hoy no
+aparece). Y normalizar a jpeg/webp **en la subida**, que arreglaría el peso en
+el origen y no sólo en la vista.
+
+---
+
 # Más adelante
 
 - **`PRESERVAR_FACTURACION.md`** — cambio de esquema, el más pesado

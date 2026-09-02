@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -10,6 +9,8 @@ import '../../providers/app_provider.dart';
 import '../../services/clases_service.dart';
 import '../../services/estudios_service.dart';
 import '../../utils/explorar_filtros.dart';
+import '../../utils/grilla_responsive.dart';
+import '../../widgets/foto_red.dart';
 
 class ExplorarScreen extends StatefulWidget {
   const ExplorarScreen({super.key});
@@ -73,12 +74,12 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Leer estudio asociado del provider (no rebuilds innecesarios)
-    _estudioAsociadoId =
-        context.read<AppProvider>().estudioAsociado?.id;
+    _estudioAsociadoId = context.read<AppProvider>().estudioAsociado?.id;
 
     if (_categoriaInicialAplicada) return;
-    final categoria =
-        GoRouterState.of(context).uri.queryParameters['categoria'];
+    final categoria = GoRouterState.of(
+      context,
+    ).uri.queryParameters['categoria'];
     if (categoria != null && categoria.isNotEmpty) {
       _categoriaSeleccionada = categoria;
     }
@@ -160,7 +161,10 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
     if (_categoriaSeleccionada != 'Todos') {
       query['categoria'] = _categoriaSeleccionada;
     }
-    final uri = Uri(path: '/mapa', queryParameters: query.isEmpty ? null : query);
+    final uri = Uri(
+      path: '/mapa',
+      queryParameters: query.isEmpty ? null : query,
+    );
     context.push(uri.toString());
   }
 
@@ -168,20 +172,20 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
     final query = _searchCtrl.text.trim().toLowerCase();
     final filtrados = _estudios.where((estudio) {
       // Un estudio matchea si CUALQUIERA de sus categorias coincide.
-      final matchesCategory = _categoriaSeleccionada == 'Todos' ||
+      final matchesCategory =
+          _categoriaSeleccionada == 'Todos' ||
           estudio.tieneCategoria(_categoriaSeleccionada);
-      final matchesSearch = query.isEmpty ||
+      final matchesSearch =
+          query.isEmpty ||
           estudio.nombre.toLowerCase().contains(query) ||
           (estudio.barrio?.toLowerCase().contains(query) ?? false) ||
-          estudio.categorias
-              .any((c) => c.toLowerCase().contains(query));
+          estudio.categorias.any((c) => c.toLowerCase().contains(query));
       return matchesCategory && matchesSearch;
     }).toList();
 
     // Pinear estudio asociado al tope si está en los resultados
     if (_estudioAsociadoId != null) {
-      final idx =
-          filtrados.indexWhere((e) => e.id == _estudioAsociadoId);
+      final idx = filtrados.indexWhere((e) => e.id == _estudioAsociadoId);
       if (idx > 0) {
         final asociado = filtrados.removeAt(idx);
         filtrados.insert(0, asociado);
@@ -198,8 +202,11 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
     // produccion en test/explorar_filtros_test.dart.
     final query = _searchCtrl.text.trim().toLowerCase();
     final filtered = mezclarFeed(_clases, _experiencias).where((clase) {
-      if (!planVisible(clase,
-          categoria: _categoriaSeleccionada, query: query)) {
+      if (!planVisible(
+        clase,
+        categoria: _categoriaSeleccionada,
+        query: query,
+      )) {
         return false;
       }
       // E2: filtro Todo / Clases / Experiencias.
@@ -268,7 +275,15 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
         int creditosTemp = _maxCreditos;
         String tipoTemp = _tipoFiltro;
 
-        const diasLabels = {1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb', 7: 'Dom'};
+        const diasLabels = {
+          1: 'Lun',
+          2: 'Mar',
+          3: 'Mié',
+          4: 'Jue',
+          5: 'Vie',
+          6: 'Sáb',
+          7: 'Dom',
+        };
         const horarioLabels = {
           'manana': 'Mañana',
           'mediodia': 'Mediodía',
@@ -280,7 +295,11 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
           builder: (ctx, setSheetState) {
             return Padding(
               padding: EdgeInsets.fromLTRB(
-                  20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+                20,
+                16,
+                20,
+                MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,70 +309,80 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                       width: 42,
                       height: 5,
                       decoration: BoxDecoration(
-                          color: const Color(0xFFE0DBD6),
-                          borderRadius: BorderRadius.circular(999)),
+                        color: const Color(0xFFE0DBD6),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   const Text(
                     'Filtros',
                     style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.black),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.black,
+                    ),
                   ),
                   const SizedBox(height: 18),
-                  const Text('Tipo',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF403A35))),
+                  const Text(
+                    'Tipo',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF403A35),
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
-                    children: const {
-                      'todo': 'Todo',
-                      'clases': 'Clases',
-                      'experiencias': 'Experiencias',
-                    }.entries.map((e) {
-                      final selected = tipoTemp == e.key;
-                      return GestureDetector(
-                        onTap: () =>
-                            setSheetState(() => tipoTemp = e.key),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? AppColors.black
-                                : AppColors.white,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                              color: selected
-                                  ? AppColors.black
-                                  : AppColors.warmBorder,
+                    children:
+                        const {
+                          'todo': 'Todo',
+                          'clases': 'Clases',
+                          'experiencias': 'Experiencias',
+                        }.entries.map((e) {
+                          final selected = tipoTemp == e.key;
+                          return GestureDetector(
+                            onTap: () => setSheetState(() => tipoTemp = e.key),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? AppColors.black
+                                    : AppColors.white,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: selected
+                                      ? AppColors.black
+                                      : AppColors.warmBorder,
+                                ),
+                              ),
+                              child: Text(
+                                e.value,
+                                style: TextStyle(
+                                  color: selected
+                                      ? AppColors.white
+                                      : const Color(0xFF6E6761),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
-                          ),
-                          child: Text(
-                            e.value,
-                            style: TextStyle(
-                              color: selected
-                                  ? AppColors.white
-                                  : const Color(0xFF6E6761),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                          );
+                        }).toList(),
                   ),
                   const SizedBox(height: 18),
-                  const Text('Día',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF403A35))),
+                  const Text(
+                    'Día',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF403A35),
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -369,14 +398,17 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                         }),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: selected ? AppColors.black : AppColors.white,
                             borderRadius: BorderRadius.circular(999),
                             border: Border.all(
-                                color: selected
-                                    ? AppColors.black
-                                    : AppColors.warmBorder),
+                              color: selected
+                                  ? AppColors.black
+                                  : AppColors.warmBorder,
+                            ),
                           ),
                           child: Text(
                             e.value,
@@ -393,11 +425,14 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                     }).toList(),
                   ),
                   const SizedBox(height: 18),
-                  const Text('Horario',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF403A35))),
+                  const Text(
+                    'Horario',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF403A35),
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -413,14 +448,17 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                         }),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: selected ? AppColors.black : AppColors.white,
                             borderRadius: BorderRadius.circular(999),
                             border: Border.all(
-                                color: selected
-                                    ? AppColors.black
-                                    : AppColors.warmBorder),
+                              color: selected
+                                  ? AppColors.black
+                                  : AppColors.warmBorder,
+                            ),
                           ),
                           child: Text(
                             e.value,
@@ -440,17 +478,21 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Créditos máximos',
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF403A35))),
+                      const Text(
+                        'Créditos máximos',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF403A35),
+                        ),
+                      ),
                       Text(
                         creditosTemp < 100 ? '$creditosTemp cr' : 'Todos',
                         style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ],
                   ),
@@ -482,11 +524,14 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                             foregroundColor: AppColors.black,
                             side: const BorderSide(color: AppColors.warmBorder),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          child: const Text('Limpiar',
-                              style: TextStyle(fontWeight: FontWeight.w600)),
+                          child: const Text(
+                            'Limpiar',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -506,11 +551,14 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                             foregroundColor: AppColors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          child: const Text('Aplicar',
-                              style: TextStyle(fontWeight: FontWeight.w700)),
+                          child: const Text(
+                            'Aplicar',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
                         ),
                       ),
                     ],
@@ -526,7 +574,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final destacados = _showAllDestacados ? _estudiosFiltrados : _estudiosFiltrados.take(2).toList();
+    final destacados = _showAllDestacados
+        ? _estudiosFiltrados
+        : _estudiosFiltrados.take(2).toList();
     final lista = _clasesConEstudio;
 
     return Scaffold(
@@ -535,375 +585,412 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
         child: RefreshIndicator(
           color: AppColors.primary,
           onRefresh: _cargar,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
-            children: [
-              const Text(
-                'Explorar',
-                style: TextStyle(
-                  color: AppColors.black,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                ),
+          // Toda la pantalla topa en 1100 px de contenido (+44 de padding).
+          // Se contiene la pantalla entera y no sólo la grilla: con el buscador
+          // y los chips estirados a 1900 y los resultados centrados al medio,
+          // la página se veía partida.
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: anchoMaxBuscador + 44,
               ),
-              const SizedBox(height: 16),
-              Row(
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
                 children: [
-                  Expanded(
-                    child: Container(
-                      height: 40,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.warmBorder),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.search_rounded,
-                            size: 18,
-                            color: Color(0xFFC7C0B9),
+                  const Text(
+                    'Explorar',
+                    style: TextStyle(
+                      color: AppColors.black,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 40,
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          decoration: BoxDecoration(
+                            color: AppColors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppColors.warmBorder),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              controller: _searchCtrl,
-                              decoration: const InputDecoration(
-                                hintText: 'Buscá clases, estudios...',
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                isDense: true,
-                                contentPadding: EdgeInsets.zero,
-                                hintStyle: TextStyle(
-                                  color: Color(0xFFC7C0B9),
-                                  fontSize: 14,
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.search_rounded,
+                                size: 18,
+                                color: Color(0xFFC7C0B9),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  controller: _searchCtrl,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Buscá clases, estudios...',
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    hintStyle: TextStyle(
+                                      color: Color(0xFFC7C0B9),
+                                      fontSize: 14,
+                                    ),
+                                  ),
                                 ),
+                              ),
+                              if (_searchCtrl.text.isNotEmpty)
+                                GestureDetector(
+                                  onTap: () => _searchCtrl.clear(),
+                                  child: const Icon(
+                                    Icons.close_rounded,
+                                    size: 18,
+                                    color: Color(0xFFB4ACA5),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          SizedBox(
+                            height: 40,
+                            child: OutlinedButton.icon(
+                              onPressed: _mostrarFiltros,
+                              icon: const Icon(Icons.tune_rounded, size: 16),
+                              label: const Text(
+                                'Filtrar',
+                                style: TextStyle(fontSize: 13),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.black,
+                                side: const BorderSide(
+                                  color: AppColors.warmBorder,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                             ),
                           ),
-                          if (_searchCtrl.text.isNotEmpty)
-                            GestureDetector(
-                              onTap: () => _searchCtrl.clear(),
-                              child: const Icon(
-                                Icons.close_rounded,
-                                size: 18,
-                                color: Color(0xFFB4ACA5),
+                          if (_cantFiltrosActivos > 0)
+                            Positioned(
+                              top: -4,
+                              right: -4,
+                              child: Container(
+                                width: 18,
+                                height: 18,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '$_cantFiltrosActivos',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               ),
                             ),
                         ],
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      SizedBox(
-                        height: 40,
-                        child: OutlinedButton.icon(
-                          onPressed: _mostrarFiltros,
-                          icon: const Icon(Icons.tune_rounded, size: 16),
-                          label: const Text('Filtrar',
-                              style: TextStyle(fontSize: 13)),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.black,
-                            side: const BorderSide(color: AppColors.warmBorder),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: _abrirMapa,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Ink(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
                       ),
-                      if (_cantFiltrosActivos > 0)
-                        Positioned(
-                          top: -4,
-                          right: -4,
-                          child: Container(
-                            width: 18,
-                            height: 18,
-                            decoration: const BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF4EC),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFF0D9C9)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.map_outlined,
+                            color: AppColors.primary,
+                            size: 18,
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
                             child: Text(
-                              '$_cantFiltrosActivos',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
+                              'Ver estudios en mapa',
+                              style: TextStyle(
+                                color: AppColors.black,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              InkWell(
-                onTap: _abrirMapa,
-                borderRadius: BorderRadius.circular(16),
-                child: Ink(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF4EC),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFF0D9C9)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.map_outlined,
-                        color: AppColors.primary,
-                        size: 18,
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Ver estudios en mapa',
-                          style: TextStyle(
-                            color: AppColors.black,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: AppColors.primary,
                           ),
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: AppColors.primary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                height: 34,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _categorias.length,
-                  itemBuilder: (context, index) {
-                    final categoria = _categorias[index];
-                    final active = categoria == _categoriaSeleccionada;
-                    return GestureDetector(
-                      onTap: () => setState(() => _categoriaSeleccionada = categoria),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: active ? AppColors.black : AppColors.white,
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: active
-                                ? AppColors.black
-                                : AppColors.warmBorder,
-                          ),
-                        ),
-                        child: Text(
-                          categoria,
-                          style: TextStyle(
-                            color: active
-                                ? AppColors.white
-                                : const Color(0xFFC7C0B9),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'DESTACADOS HOY',
-                    style: TextStyle(
-                      color: Color(0xFF403A35),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => setState(() => _showAllDestacados = !_showAllDestacados),
-                    child: Text(
-                      _showAllDestacados ? 'Ver menos' : 'Ver todo',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                        ],
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (_loading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  ),
-                )
-              else if (destacados.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 32),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.search_off_rounded, size: 44, color: Color(0xFFB2A89F)),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'No encontramos resultados',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Probá con otro término o categoría.',
-                        style: TextStyle(color: Color(0xFF8C847C), fontSize: 14),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      TextButton.icon(
-                        onPressed: () => setState(() {
-                          _searchCtrl.clear();
-                          _categoriaSeleccionada = 'Todos';
-                          _tipoFiltro = 'todo';
-                        }),
-                        icon: const Icon(Icons.refresh_rounded, size: 16),
-                        label: const Text('Limpiar filtros'),
-                      ),
-                    ],
-                  ),
-                )
-              else ...[
-                SizedBox(
-                  height: 180,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: destacados.length,
-                    itemBuilder: (context, index) {
-                      final estudio = destacados[index];
-                      final esAsociado =
-                          _estudioAsociadoId != null &&
-                          estudio.id == _estudioAsociadoId;
-                      return _FeaturedExploreCard(
-                        estudio: estudio,
-                        accentColor: index.isEven
-                            ? AppColors.beigeCard
-                            : AppColors.greenCard,
-                        showBadge: esAsociado,
-                        onTap: () {
-                          if (estudio.id != null) {
-                            context.push('/estudio/${estudio.id}');
-                          }
-                        },
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 22),
-                // EXPERIENCIAS próximas. Sale del feed YA filtrado, así que
-                // respeta chip/búsqueda/día/horario/créditos sin código extra
-                // y desaparece sola con el filtro Tipo = Clases. Reutiliza la
-                // card del feed (misma identidad visual). Inicio no se toca.
-                if (experienciasDestacadas(lista).isNotEmpty) ...[
-                  const Text(
-                    'EXPERIENCIAS',
-                    style: TextStyle(
-                      color: Color(0xFF403A35),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   SizedBox(
-                    height: 112,
+                    height: 34,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      itemCount: experienciasDestacadas(lista).length,
+                      itemCount: _categorias.length,
                       itemBuilder: (context, index) {
-                        final exp = experienciasDestacadas(lista)[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 12),
-                          child: SizedBox(
-                            width: 320,
-                            child: _ResultCard(
-                              clase: exp,
-                              accentColor: AppColors.beigeCard,
-                              onTap: () =>
-                                  context.push('/clase/${exp['id']}'),
+                        final categoria = _categorias[index];
+                        final active = categoria == _categoriaSeleccionada;
+                        return GestureDetector(
+                          onTap: () => setState(
+                            () => _categoriaSeleccionada = categoria,
+                          ),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: active ? AppColors.black : AppColors.white,
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: active
+                                    ? AppColors.black
+                                    : AppColors.warmBorder,
+                              ),
+                            ),
+                            child: Text(
+                              categoria,
+                              style: TextStyle(
+                                color: active
+                                    ? AppColors.white
+                                    : const Color(0xFFC7C0B9),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         );
                       },
                     ),
                   ),
-                  const SizedBox(height: 22),
-                ],
-                const Text(
-                  'TODOS LOS RESULTADOS',
-                  style: TextStyle(
-                    color: Color(0xFF403A35),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (lista.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      'No hay clases disponibles para esta búsqueda.',
-                      style: TextStyle(color: Color(0xFF8C847C)),
-                    ),
-                  )
-                else ...[
-                  ...lista.asMap().entries.map(
-                        (entry) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _ResultCard(
-                            clase: entry.value,
-                            accentColor: entry.key.isEven
-                                ? AppColors.beigeCard
-                                : AppColors.blueCard,
-                            onTap: () => context.push('/clase/${entry.value['id']}'),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'DESTACADOS HOY',
+                        style: TextStyle(
+                          color: Color(0xFF403A35),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => setState(
+                          () => _showAllDestacados = !_showAllDestacados,
+                        ),
+                        child: Text(
+                          _showAllDestacados ? 'Ver menos' : 'Ver todo',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
-                  if (_hasMoreClases || _loadingMore)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4, bottom: 4),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (_loading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
                       child: Center(
-                        child: _loadingMore
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primary,
-                                ),
-                              )
-                            : TextButton.icon(
-                                onPressed: _cargarMasClases,
-                                icon: const Icon(Icons.expand_more_rounded, size: 18),
-                                label: const Text('Cargar más clases'),
-                              ),
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    )
+                  else if (destacados.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Column(
+                        children: [
+                          const Icon(
+                            Icons.search_off_rounded,
+                            size: 44,
+                            color: Color(0xFFB2A89F),
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'No encontramos resultados',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Probá con otro término o categoría.',
+                            style: TextStyle(
+                              color: Color(0xFF8C847C),
+                              fontSize: 14,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          TextButton.icon(
+                            onPressed: () => setState(() {
+                              _searchCtrl.clear();
+                              _categoriaSeleccionada = 'Todos';
+                              _tipoFiltro = 'todo';
+                            }),
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            label: const Text('Limpiar filtros'),
+                          ),
+                        ],
+                      ),
+                    )
+                  else ...[
+                    SizedBox(
+                      height: 180,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: destacados.length,
+                        itemBuilder: (context, index) {
+                          final estudio = destacados[index];
+                          final esAsociado =
+                              _estudioAsociadoId != null &&
+                              estudio.id == _estudioAsociadoId;
+                          return _FeaturedExploreCard(
+                            estudio: estudio,
+                            accentColor: index.isEven
+                                ? AppColors.beigeCard
+                                : AppColors.greenCard,
+                            showBadge: esAsociado,
+                            onTap: () {
+                              if (estudio.id != null) {
+                                context.push('/estudio/${estudio.id}');
+                              }
+                            },
+                          );
+                        },
                       ),
                     ),
+                    const SizedBox(height: 22),
+                    // EXPERIENCIAS próximas. Sale del feed YA filtrado, así que
+                    // respeta chip/búsqueda/día/horario/créditos sin código extra
+                    // y desaparece sola con el filtro Tipo = Clases. Reutiliza la
+                    // card del feed (misma identidad visual). Inicio no se toca.
+                    if (experienciasDestacadas(lista).isNotEmpty) ...[
+                      const Text(
+                        'EXPERIENCIAS',
+                        style: TextStyle(
+                          color: Color(0xFF403A35),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 112,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: experienciasDestacadas(lista).length,
+                          itemBuilder: (context, index) {
+                            final exp = experienciasDestacadas(lista)[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: SizedBox(
+                                width: 320,
+                                child: _ResultCard(
+                                  clase: exp,
+                                  accentColor: AppColors.beigeCard,
+                                  onTap: () =>
+                                      context.push('/clase/${exp['id']}'),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                    ],
+                    const Text(
+                      'TODOS LOS RESULTADOS',
+                      style: TextStyle(
+                        color: Color(0xFF403A35),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (lista.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text(
+                          'No hay clases disponibles para esta búsqueda.',
+                          style: TextStyle(color: Color(0xFF8C847C)),
+                        ),
+                      )
+                    else ...[
+                      // Grilla de 1 o 2 columnas. Antes era una sola columna
+                      // a cualquier ancho: es la que estiraba la tarjeta de
+                      // lado a lado en desktop. Las tarjetas del buscador
+                      // tienen alto fijo, así que una Row basta y las filas
+                      // quedan parejas solas.
+                      _GrillaResultados(
+                        clases: lista,
+                        onTap: (clase) => context.push('/clase/${clase['id']}'),
+                      ),
+                      if (_hasMoreClases || _loadingMore)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4, bottom: 4),
+                          child: Center(
+                            child: _loadingMore
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.primary,
+                                    ),
+                                  )
+                                : TextButton.icon(
+                                    onPressed: _cargarMasClases,
+                                    icon: const Icon(
+                                      Icons.expand_more_rounded,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Cargar más clases'),
+                                  ),
+                          ),
+                        ),
+                    ],
+                  ],
                 ],
-              ],
-            ],
+              ),
+            ),
           ),
         ),
       ),
@@ -971,7 +1058,9 @@ class _FeaturedExploreCard extends StatelessWidget {
                               if (showBadge)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 3),
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: AppColors.primary,
                                     borderRadius: BorderRadius.circular(999),
@@ -1045,6 +1134,67 @@ class _FeaturedExploreCard extends StatelessWidget {
 const _fondoExperiencia = Color(0xFFFDF7F0);
 const _bordeExperiencia = Color(0xFFEFE4D8);
 
+/// Los resultados de Explorar en 1 o 2 columnas según el ancho.
+class _GrillaResultados extends StatelessWidget {
+  final List<Map<String, dynamic>> clases;
+  final void Function(Map<String, dynamic>) onTap;
+
+  const _GrillaResultados({required this.clases, required this.onTap});
+
+  Widget _tarjeta(int indice) => _ResultCard(
+    clase: clases[indice],
+    // El color de acento alterna por posición: se calcula sobre el índice
+    // real y no sobre el de la fila, para que siga alternando en dos
+    // columnas igual que alternaba en una.
+    accentColor: indice.isEven ? AppColors.beigeCard : AppColors.blueCard,
+    onTap: () => onTap(clases[indice]),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, restricciones) {
+        final columnas = columnasBuscador(restricciones.maxWidth);
+        if (columnas <= 1) {
+          return Column(
+            children: [
+              for (var i = 0; i < clases.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _tarjeta(i),
+                ),
+            ],
+          );
+        }
+        final filas = (clases.length + columnas - 1) ~/ columnas;
+        return Column(
+          children: [
+            for (var f = 0; f < filas; f++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    for (var c = 0; c < columnas; c++) ...[
+                      if (c > 0) const SizedBox(width: gapGrilla),
+                      // El hueco vacío de la última fila mantiene el ancho de
+                      // las columnas: sin él, una sola tarjeta al final se
+                      // estiraría al doble.
+                      Expanded(
+                        child: f * columnas + c < clases.length
+                            ? _tarjeta(f * columnas + c)
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _ResultCard extends StatelessWidget {
   final Map<String, dynamic> clase;
   final Color accentColor;
@@ -1085,7 +1235,8 @@ class _ResultCard extends StatelessWidget {
     // donde no hay nada reducido. (Ya estaba anotado en el relevamiento de
     // servicios; también quedan afuera de "⚡ POPULAR" por la misma razón.)
     final esServicio = tipoPrecio == 'servicio';
-    final esPrecioReducido = !esServicio &&
+    final esPrecioReducido =
+        !esServicio &&
         creditos != null &&
         crMinEstudio != null &&
         crMaxEstudio != null &&
@@ -1093,141 +1244,155 @@ class _ResultCard extends StatelessWidget {
         creditos < crMaxEstudio;
     final organizadores = (clase['organizadores'] as List?) ?? const [];
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Ink(
-          height: 112,
-          // La card de EXPERIENCIA se distingue por el fondo, no solo por el
-          // badge (pedido del 1/9): un beige calido apenas mas oscuro que el
-          // fondo de la pantalla (0xFFF7F5F2), para que la clase (blanca)
-          // y la experiencia convivan sin gritar. Solo en Explorar; la card
-          // de Inicio es otra y no se toca.
-          decoration: BoxDecoration(
-            color: esWorkshop ? _fondoExperiencia : AppColors.white,
+    // La medida de la foto se decide por el ancho de ESTA tarjeta, no por el
+    // de la pantalla: una tarjeta ancha (desktop, o una sola columna en una
+    // ventana grande) recibe la foto 3:2 y una angosta (teléfono, carrusel de
+    // experiencias) se queda con los 96 px de hoy, donde 186 se comerían más
+    // de la mitad del renglón y el texto no entraría.
+    return LayoutBuilder(
+      builder: (context, restricciones) {
+        final anchoCard = restricciones.maxWidth;
+        final altoCard = altoCardBuscador(anchoCard);
+        final anchoFoto = anchoFotoBuscador(anchoCard);
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: esWorkshop ? _bordeExperiencia : AppColors.warmBorder,
+            child: Ink(
+              height: altoCard,
+              // La card de EXPERIENCIA se distingue por el fondo, no solo por el
+              // badge (pedido del 1/9): un beige calido apenas mas oscuro que el
+              // fondo de la pantalla (0xFFF7F5F2), para que la clase (blanca)
+              // y la experiencia convivan sin gritar. Solo en Explorar; la card
+              // de Inicio es otra y no se toca.
+              decoration: BoxDecoration(
+                color: esWorkshop ? _fondoExperiencia : AppColors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: esWorkshop ? _bordeExperiencia : AppColors.warmBorder,
+                ),
+              ),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(18),
+                    ),
+                    child: SizedBox(
+                      width: anchoFoto,
+                      height: double.infinity,
+                      child: _ExploreClassImage(
+                        imageUrl: imageUrl,
+                        accentColor: accentColor,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  [
+                                    categoria,
+                                    barrio,
+                                  ].where((e) => e.isNotEmpty).join(' · '),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFFD0C6BD),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              if (esWorkshop)
+                                const _PriceBadge(
+                                  text: 'EXPERIENCIA',
+                                  color: AppColors.primary,
+                                )
+                              else if (esServicio)
+                                const _PriceBadge(
+                                  text: 'PRECIO ÚNICO',
+                                  color: Color(0xFF4E6F52),
+                                )
+                              else if (tipoPrecio == 'pico')
+                                const _PriceBadge(
+                                  text: '⚡ POPULAR',
+                                  color: Color(0xFFE8763A),
+                                )
+                              else if (esPrecioReducido)
+                                const _PriceBadge(
+                                  text: '🏷️ PRECIO REDUCIDO',
+                                  color: Color(0xFF4CAF50),
+                                ),
+                              // tipoPrecio == 'experiencia' -> sin badge
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            (clase['nombre'] ?? 'Clase').toString(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.black,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          if (esWorkshop && organizadores.isNotEmpty)
+                            OrganizadoresLinks(organizadores: organizadores)
+                          else
+                            Text(
+                              estudio?['direccion']?.toString() ??
+                                  'Malabia 1510',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFFA49B94),
+                                fontSize: 12,
+                              ),
+                            ),
+                          const Spacer(),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  clase['fecha'] != null
+                                      ? _formatFecha(clase['fecha'].toString())
+                                      : '',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFFB2A89F),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                              _Pill(
+                                text: creditos == 0
+                                    ? 'GRATIS'
+                                    : '${creditos ?? 10} cr',
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.horizontal(
-                  left: Radius.circular(18),
-                ),
-                child: SizedBox(
-                  width: 96,
-                  height: double.infinity,
-                  child: _ExploreClassImage(
-                    imageUrl: imageUrl,
-                    accentColor: accentColor,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              [categoria, barrio]
-                                  .where((e) => e.isNotEmpty)
-                                  .join(' · '),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFFD0C6BD),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          if (esWorkshop)
-                            const _PriceBadge(
-                              text: 'EXPERIENCIA',
-                              color: AppColors.primary,
-                            )
-                          else if (esServicio)
-                            const _PriceBadge(
-                              text: 'PRECIO ÚNICO',
-                              color: Color(0xFF4E6F52),
-                            )
-                          else if (tipoPrecio == 'pico')
-                            const _PriceBadge(
-                              text: '⚡ POPULAR',
-                              color: Color(0xFFE8763A),
-                            )
-                          else if (esPrecioReducido)
-                            const _PriceBadge(
-                              text: '🏷️ PRECIO REDUCIDO',
-                              color: Color(0xFF4CAF50),
-                            ),
-                          // tipoPrecio == 'experiencia' -> sin badge
-                        ],
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        (clase['nombre'] ?? 'Clase').toString(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.black,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      if (esWorkshop && organizadores.isNotEmpty)
-                        OrganizadoresLinks(organizadores: organizadores)
-                      else
-                        Text(
-                          estudio?['direccion']?.toString() ?? 'Malabia 1510',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFFA49B94),
-                            fontSize: 12,
-                          ),
-                        ),
-                      const Spacer(),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              clase['fecha'] != null
-                                  ? _formatFecha(clase['fecha'].toString())
-                                  : '',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFFB2A89F),
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                          _Pill(
-                            text: creditos == 0
-                                ? 'GRATIS'
-                                : '${creditos ?? 10} cr',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -1247,9 +1412,8 @@ class _ResultCard extends StatelessWidget {
       dia = 'Mañana';
     } else if (diff > 1 && diff < 7) {
       // dia de la semana (lunes, martes, etc.)
-      dia = toBeginningOfSentenceCase(
-            DateFormat('EEEE', 'es').format(date),
-          ) ??
+      dia =
+          toBeginningOfSentenceCase(DateFormat('EEEE', 'es').format(date)) ??
           DateFormat('EEEE', 'es').format(date);
     } else {
       // 8 jun, 23 sep, etc.
@@ -1263,22 +1427,12 @@ class _ExploreClassImage extends StatelessWidget {
   final String? imageUrl;
   final Color accentColor;
 
-  const _ExploreClassImage({
-    required this.imageUrl,
-    required this.accentColor,
-  });
+  const _ExploreClassImage({required this.imageUrl, required this.accentColor});
 
   @override
   Widget build(BuildContext context) {
-    if (imageUrl != null && imageUrl!.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: imageUrl!,
-        fit: BoxFit.cover,
-        placeholder: (_, __) => _fallback(),
-        errorWidget: (_, __, ___) => _fallback(),
-      );
-    }
-    return _fallback();
+    // 400 px de descarga para un hueco de 186: nítida en retina y liviana.
+    return FotoRed(url: imageUrl, ancho: 400, fallback: _fallback());
   }
 
   Widget _fallback() {
@@ -1311,24 +1465,14 @@ class _FeaturedPhoto extends StatelessWidget {
     return Container(
       color: _placeholderBg,
       child: const Center(
-        child: Icon(
-          Icons.image,
-          color: AppColors.grey,
-          size: 28,
-        ),
+        child: Icon(Icons.image, color: AppColors.grey, size: 28),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (url == null || url!.isEmpty) return _placeholder();
-    return CachedNetworkImage(
-      imageUrl: url!,
-      fit: BoxFit.cover,
-      placeholder: (context, url) => _placeholder(),
-      errorWidget: (context, url, error) => _placeholder(),
-    );
+    return FotoRed(url: url, ancho: 400, fallback: _placeholder());
   }
 }
 
@@ -1362,10 +1506,7 @@ class _Pill extends StatelessWidget {
   final String text;
   final bool dark;
 
-  const _Pill({
-    required this.text,
-    this.dark = false,
-  });
+  const _Pill({required this.text, this.dark = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1386,6 +1527,3 @@ class _Pill extends StatelessWidget {
     );
   }
 }
-
-
-
