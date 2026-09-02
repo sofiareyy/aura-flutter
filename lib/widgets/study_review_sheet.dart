@@ -6,6 +6,11 @@ import '../services/reviews_service.dart';
 class StudyReviewSheet extends StatefulWidget {
   final int estudioId;
   final int? claseId;
+
+  /// Reserva reseñada (modelo B, 2/9): con esto la reseña queda atada a una
+  /// asistencia concreta. Null = reseña general del estudio (el botón del
+  /// perfil, que no sabe de qué clase se habla).
+  final int? reservaId;
   final String estudioNombre;
   final String? experienciaLabel;
 
@@ -14,6 +19,7 @@ class StudyReviewSheet extends StatefulWidget {
     required this.estudioId,
     required this.estudioNombre,
     this.claseId,
+    this.reservaId,
     this.experienciaLabel,
   });
 
@@ -22,6 +28,7 @@ class StudyReviewSheet extends StatefulWidget {
     required int estudioId,
     required String estudioNombre,
     int? claseId,
+    int? reservaId,
     String? experienciaLabel,
   }) {
     return showModalBottomSheet<bool>(
@@ -32,6 +39,7 @@ class StudyReviewSheet extends StatefulWidget {
         estudioId: estudioId,
         estudioNombre: estudioNombre,
         claseId: claseId,
+        reservaId: reservaId,
         experienciaLabel: experienciaLabel,
       ),
     );
@@ -87,6 +95,7 @@ class _StudyReviewSheetState extends State<StudyReviewSheet> {
       await _service.upsertStudyReview(
         estudioId: widget.estudioId,
         claseId: widget.claseId,
+        reservaId: widget.reservaId,
         experienciaLabel: widget.experienciaLabel,
         rating: _rating,
         comentario: comentario,

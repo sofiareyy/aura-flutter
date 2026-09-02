@@ -378,6 +378,10 @@ class ResenaCard extends StatelessWidget {
     final rating = (resena['rating'] as num?)?.toInt() ?? 0;
     final clase = resena['clases'] as Map<String, dynamic>?;
     final claseNombre = clase?['nombre']?.toString().trim();
+    // La profe se muestra SOLO si está: es texto libre y está cargada en
+    // ~la mitad de las clases. Sin ranking por profe — con ese nivel de
+    // completitud un promedio por instructor sería engañoso.
+    final profe = clase?['instructor']?.toString().trim();
     final creada = DateTime.tryParse(resena['created_at']?.toString() ?? '');
     final editada = () {
       final c = DateTime.tryParse(resena['created_at']?.toString() ?? '');
@@ -388,7 +392,10 @@ class ResenaCard extends StatelessWidget {
     final fecha =
         creada == null ? '' : DateFormat('d MMM', 'es').format(creada);
     final subtitulo = [
-      if (claseNombre != null && claseNombre.isNotEmpty) claseNombre,
+      if (claseNombre != null && claseNombre.isNotEmpty)
+        profe != null && profe.isNotEmpty
+            ? '$claseNombre con $profe'
+            : claseNombre,
       if (fecha.isNotEmpty) fecha,
       if (editada) 'editada',
     ].join(' · ');

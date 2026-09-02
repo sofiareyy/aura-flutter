@@ -10,6 +10,8 @@ import '../../models/estudio.dart';
 import '../../providers/app_provider.dart';
 import '../../services/clases_service.dart';
 import '../../services/reservas_service.dart';
+import '../../services/reviews_service.dart';
+import '../../widgets/study_review_sheet.dart';
 import '../../utils/cierre_minutos.dart';
 
 const _darkAppBar = Color(0xFF1A1A1A);
@@ -33,6 +35,9 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
 
   List<Map<String, dynamic>> _proximas = [];
   List<Map<String, dynamic>> _historial = [];
+  final _reviewsService = ReviewsService();
+  /// {reserva_id: reseña} — una sola consulta para toda la lista.
+  Map<int, Map<String, dynamic>> _misResenas = {};
   List<Map<String, dynamic>> _clases = [];
   // Entries de lista_espera del usuario + pre_confirmadas.
   List<Map<String, dynamic>> _enEspera = [];
@@ -52,6 +57,42 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
   void initState() {
     super.initState();
     _cargar();
+  }
+
+  /// Se puede reseñar si la clase ya pasó y la reserva no está cancelada.
+  /// (Si ya la reseñó, el botón sigue: dice "Tu reseña" y permite editarla.)
+  bool _puedeResenar(Map<String, dynamic> reserva) {
+    final estado = reserva['estado']?.toString() ?? '';
+    if (estado == 'cancelada' || estado == 'cancelada_por_estudio') {
+      return false;
+    }
+    final clase = reserva['clases'] as Map<String, dynamic>?;
+    if (clase?['estudio_id'] == null) return false;
+    final fecha = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
+    return fecha != null && fecha.isBefore(DateTime.now());
+  }
+
+  Future<void> _resenarReserva(Map<String, dynamic> reserva) async {
+    final clase = reserva['clases'] as Map<String, dynamic>?;
+    final estudio = clase?['estudios'] as Map<String, dynamic>?;
+    final estudioId = (clase?['estudio_id'] as num?)?.toInt();
+    final reservaId = (reserva['id'] as num?)?.toInt();
+    if (estudioId == null || reservaId == null) return;
+
+    final saved = await StudyReviewSheet.show(
+      context,
+      estudioId: estudioId,
+      estudioNombre: estudio?['nombre']?.toString() ?? 'el estudio',
+      claseId: (clase?['id'] as num?)?.toInt(),
+      reservaId: reservaId,
+    );
+    if (saved != true || !mounted) return;
+    final misResenas = await _reviewsService.getMisResenasPorReserva();
+    if (!mounted) return;
+    setState(() => _misResenas = misResenas);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Tu reseña quedó guardada. ¡Gracias! 🧡')),
+    );
   }
 
   Future<void> _cargar() async {
@@ -671,7 +712,14 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                       ..._historial.map((reserva) => Padding(
                             padding:
                                 const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                            child: _HistorialCompactCard(reserva: reserva),
+                            child: _HistorialCompactCard(
+                              reserva: reserva,
+                              resena: _misResenas[
+                                  (reserva['id'] as num?)?.toInt()],
+                              onResenar: _puedeResenar(reserva)
+                                  ? () => _resenarReserva(reserva)
+                                  : null,
+                            ),
                           )),
                     if (_hasMoreHistorial || _loadingMoreHistorial)
                       Padding(
@@ -1031,7 +1079,18 @@ class _HistorialToggle extends StatelessWidget {
 
 class _HistorialCompactCard extends StatelessWidget {
   final Map<String, dynamic> reserva;
-  const _HistorialCompactCard({required this.reserva});
+
+  /// La reseña que la usuaria ya dejó de ESTA reserva, si existe.
+  final Map<String, dynamic>? resena;
+
+  /// Abre el diálogo para dejar o editar la reseña de esta reserva.
+  final VoidCallback? onResenar;
+
+  const _HistorialCompactCard({
+    required this.reserva,
+    this.resena,
+    this.onResenar,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1142,7 +1201,44 @@ class _HistorialCompactCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          _Badge(text: estadoLabel, bg: estadoBg, fg: estadoFg),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _Badge(text: estadoLabel, bg: estadoBg, fg: estadoFg),
+              // Mis Reservas es donde la alumna ve lo que hizo: es el lugar
+              // natural para reseñar. Una fila = una reserva = una reseña
+              // (modelo B). Antes sólo se podía desde el perfil del estudio,
+              // que no guarda de qué clase se habla.
+              if (onResenar != null) ...[
+                const SizedBox(height: 6),
+                GestureDetector(
+                  onTap: onResenar,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        resena != null
+                            ? Icons.star_rounded
+                            : Icons.star_outline_rounded,
+                        size: 13,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        resena != null ? 'Tu reseña' : 'Reseñar',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
         ],
       ),
     );

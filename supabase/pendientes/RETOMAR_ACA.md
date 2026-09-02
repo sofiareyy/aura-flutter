@@ -1402,7 +1402,23 @@ es lo que no se puede violar**:
   estudio_id,usuario_id`) sigue andando (probado como Juanita en rollback), y
   borrar una reserva deja la reseña viva como "general" (FK medida en
   rollback).
-- ⬜ **Etapa 2 — Dart, va en la 1.0.7:** upsert por `reserva_id` ·
+- ✅ **Etapa 2 — Dart, HECHA el 2/9** (va en la 1.0.7): upsert por
+  `reserva_id` · `canReviewReserva` ("¿esta reserva ya pasó y no la
+  reseñaste?") · **entrada desde Mis Reservas** (cada fila pasada tiene
+  "Reseñar" / "Tu reseña") · el pedido de reseña ahora va a **Mis Reservas**
+  (antes al perfil, donde la reseña se guardaba sin clase) · la profe aparece
+  en la tarjeta cuando el dato existe.
+  ⚠️ **Medido: hasta la etapa 3 una alumna sigue teniendo UNA reseña por
+  estudio** — el UNIQUE viejo devuelve 23505 al insertar la segunda. El Dart
+  lo degrada con elegancia: actualiza la que tenía y la mueve a la reserva
+  nueva, así nadie ve un error. **El día que caiga el índice viejo, Modelo B
+  se enciende solo, sin tocar Dart otra vez.**
+  📌 El pedido NO deep-linkea a la clase exacta porque la notificación no
+  lleva contexto (`notificaciones_usuario` sólo guarda tipo/título/mensaje y
+  el push no manda ids): haría falta sumar columnas + tocar `push-enviar`.
+  Anotado, no urgente — la clase recién tomada queda primera en la lista.
+
+- ⬜ ~~Etapa 2~~ *(detalle original)*: upsert por `reserva_id` ·
   `canReviewStudy` pasa a "¿esta reserva ya pasó y no la reseñaste?" · el
   pedido de reseña lleva a la CLASE (hoy va al perfil y por eso todas las
   reseñas quedan sin clase) · entrada desde Mis Reservas (una fila = una

@@ -222,14 +222,21 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
           });
         }
       } else if (tipo == 'recordatorio_resena') {
-        final estudioId = data['estudio_id'];
-        if (estudioId != null) {
-          Future.delayed(const Duration(milliseconds: 200), () {
-            try {
-              appRouter.go('/estudio/$estudioId');
-            } catch (_) {}
-          });
-        }
+        // Va a MIS RESERVAS (2/9). Antes iba al perfil del estudio, donde la
+        // reseña se guardaba SIN clase: por eso las 3 reseñas que existen
+        // tienen clase_id null. En Mis Reservas cada fila ES una reserva, así
+        // que la reseña queda atada a la asistencia concreta (modelo B).
+        //
+        // No se deep-linkea a la clase exacta porque la notificación no lleva
+        // contexto: `notificaciones_usuario` sólo guarda tipo/título/mensaje
+        // y el push no manda ids. Para el link exacto haría falta sumarle
+        // columnas a esa tabla + tocar push-enviar; anotado, no urgente: la
+        // clase recién tomada queda primera en la lista igual.
+        Future.delayed(const Duration(milliseconds: 200), () {
+          try {
+            appRouter.go('/mis-reservas');
+          } catch (_) {}
+        });
       } else if (tipo == 'resena_nueva') {
         // Le llega al ESTUDIO cuando una alumna deja una reseña. Antes caía
         // al default y no llevaba a ningún lado: no había dónde verlas.
