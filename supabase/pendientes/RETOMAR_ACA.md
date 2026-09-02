@@ -1607,6 +1607,37 @@ para todos los usuarios nuevos.**
 
 ---
 
+## 🔴→✅ El bug del doble recorte — 2/9, estuvo unas horas en producción
+
+`fotoOptimizada()` pedía la foto con `?width=N` a secas. **Eso no achica: RECORTA.**
+Supabase lee `width=400` como "caja de 400 de ancho por el ALTO ORIGINAL" y el
+modo por defecto es `cover`, así que corta los costados. Después la tarjeta le
+aplicaba su propio `BoxFit.cover` encima ⇒ **doble recorte**, en vivo en
+somosaurapass.com desde el push de la tarde.
+
+**Arreglo: agregar `&resize=contain`.** Medido sobre una foto de 1600 × 1067:
+
+| Parámetros | Devuelve | Proporción | Peso |
+|---|---|---|---|
+| `width=900` | 900 × 1067 | 0,843 ❌ | 80 KB |
+| `width=900&resize=contain` | 900 × 600 | **1,500** ✅ | **53 KB** |
+
+Con `contain` la foto llega entera **y más liviana**. Fijado en
+`foto_url_test.dart` para que no se vuelva a caer.
+
+⚠️ **Los archivos de Storage nunca estuvieron en riesgo** y se verificó:
+0 de 102 objetos reescritos alguna vez (`updated_at` = `created_at`), último
+archivo escrito el 31/8, y las 11 portadas idénticas por md5 antes y después.
+El endpoint de transformación es de sólo lectura. La subida tampoco recorta:
+`image_picker` sólo achica arriba de 1600 px, dividiendo alto y ancho por el
+mismo número.
+
+**La lección, otra vez la misma:** medí que el endpoint devolvía **menos KB** y
+concluí que estaba achicando bien. Un solo eje. Nunca miré las **medidas** de lo
+que devolvía, que era donde estaba la respuesta.
+
+---
+
 ## ✅ Heroes de perfil de estudio y detalle de clase — HECHO el 2/9
 
 Mismo bug que las tarjetas, en dos pantallas más: foto de **alto fijo 300 px

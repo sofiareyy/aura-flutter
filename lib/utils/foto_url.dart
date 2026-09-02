@@ -20,6 +20,19 @@
 /// 4,5 MB y un .heic salen del endpoint como webp de 30 y 75 KB. Hoy esas
 /// fotos se ven como el degradado de fallback.
 ///
+/// ⚠️ `resize=contain` NO es opcional. Sin él, Supabase entiende `width=400`
+/// como "una caja de 400 de ancho por el ALTO ORIGINAL" y, como el modo por
+/// defecto es `cover`, **recorta los costados en vez de achicar la foto**. Se
+/// escapó en el push del 2/9 y estuvo unas horas en producción: las tarjetas
+/// recibían la foto ya recortada y encima le aplicaban su propio `BoxFit.cover`
+/// — doble recorte. Medido sobre una foto de 1600 × 1067:
+///
+///   width=900 .................... 900 × 1067  (0,843 — recortada) · 80 KB
+///   width=900&resize=contain ..... 900 ×  600  (1,500 — entera)    · 53 KB
+///
+/// Con `contain` la foto llega entera Y más liviana. `foto_url_test.dart` lo
+/// fija para que no se vuelva a caer.
+///
 /// ⚠️ La organización está en plan **free** y Supabase documenta las
 /// transformaciones como feature de Pro. Al 2/9/2026 el endpoint responde 200
 /// (medido), pero por si eso cambia cada foto tiene su red: si la versión
@@ -54,5 +67,5 @@ String? fotoOptimizada(String? url, {required int ancho, int calidad = 74}) {
   // avatar) no se vuelve a tocar: se le agregarían dos veces los parámetros.
   if (url.contains(_segmentoRender) || url.contains('?')) return url;
   return '${url.replaceFirst(_segmentoPublico, _segmentoRender)}'
-      '?width=$ancho&quality=$calidad';
+      '?width=$ancho&resize=contain&quality=$calidad';
 }

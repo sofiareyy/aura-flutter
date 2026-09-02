@@ -10,8 +10,23 @@ void main() {
     expect(
       fotoOptimizada(publica, ancho: 400),
       '$base/render/image/public/study-media/class-media/x/1.png'
-      '?width=400&quality=74',
+      '?width=400&resize=contain&quality=74',
     );
+  });
+
+  test('SIEMPRE pide resize=contain: sin eso Storage RECORTA', () {
+    // Sin `resize=contain`, `width=400` se interpreta como "caja de 400 de
+    // ancho por el alto original" y el modo por defecto (cover) corta los
+    // costados. Estuvo así unas horas en producción el 2/9 y las tarjetas
+    // quedaban con doble recorte. Medido sobre una foto de 1600 x 1067:
+    // sin contain devolvía 900 x 1067 (0,843); con contain, 900 x 600 (1,500).
+    for (final ancho in [400, 800, 900, 1400]) {
+      expect(
+        fotoOptimizada(publica, ancho: ancho),
+        contains('resize=contain'),
+        reason: 'a $ancho px de ancho se pidió sin contain: recorta',
+      );
+    }
   });
 
   test('respeta el ancho y la calidad que le pidan', () {
@@ -38,9 +53,12 @@ void main() {
     expect(fotoOptimizada(yaTransformada, ancho: 400), yaTransformada);
   });
 
-  test('la cabecera pide webp: sin ella el endpoint devuelve el png entero', () {
-    // Medido el 2/9/2026 sobre una foto de 2,4 MB: con Accept webp la misma
-    // foto a width=400 pesa 94 KB; sin la cabecera, 968 KB.
-    expect(headersFoto['Accept'], contains('image/webp'));
-  });
+  test(
+    'la cabecera pide webp: sin ella el endpoint devuelve el png entero',
+    () {
+      // Medido el 2/9/2026 sobre una foto de 2,4 MB: con Accept webp la misma
+      // foto a width=400 pesa 94 KB; sin la cabecera, 968 KB.
+      expect(headersFoto['Accept'], contains('image/webp'));
+    },
+  );
 }
