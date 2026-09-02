@@ -1387,6 +1387,39 @@ estudio propio) → se muestra "Usuario Aura". Es el comportamiento que ya tení
 el perfil, no una regresión, pero conviene saber que **para las alumnas las
 reseñas son anónimas**. Si se quiere el nombre, hace falta una RPC.
 
+## 🟡 Reseñas → MODELO B: una por RESERVA (decisión 2/9) · Etapa 1 HECHA
+
+**Decisión de producto:** la reseña pasa de una POR ESTUDIO a una POR RESERVA
+(modelo ClassPass). Atada a `reserva_id`, NO a `clase_id` (NULL no colisiona
+con NULL, y la reserva es la prueba de asistencia). Tres etapas, y **el orden
+es lo que no se puede violar**:
+
+- ✅ **Etapa 1 — base aditiva, APLICADA el 2/9**
+  (`FEAT_RESENA_POR_RESERVA_etapa1_2026-09-02.sql`): columna `reserva_id`
+  nullable + FK `ON DELETE SET NULL` + índice parcial. **El UNIQUE viejo
+  `(estudio_id, usuario_id)` NO se tocó.** Verificado: huella md5 de las 2
+  reseñas idéntica antes/después, el upsert de la app vieja (`on conflict
+  estudio_id,usuario_id`) sigue andando (probado como Juanita en rollback), y
+  borrar una reserva deja la reseña viva como "general" (FK medida en
+  rollback).
+- ⬜ **Etapa 2 — Dart, va en la 1.0.7:** upsert por `reserva_id` ·
+  `canReviewStudy` pasa a "¿esta reserva ya pasó y no la reseñaste?" · el
+  pedido de reseña lleva a la CLASE (hoy va al perfil y por eso todas las
+  reseñas quedan sin clase) · entrada desde Mis Reservas (una fila = una
+  reserva = una reseña posible) · profe en la tarjeta cuando el dato exista
+  (571/1158 clases lo tienen; SIN ranking por profe, texto libre) ·
+  tolerante: sin reserva cae al comportamiento viejo.
+- 🔴 **Etapa 3 — base, SEMANAS después, RECIÉN CON ADOPCIÓN de la 1.0.7:**
+  drop del UNIQUE viejo + `create unique index ... (reserva_id) where
+  reserva_id is not null`. **Si se adelanta, TODAS las apps en la calle dan
+  42P10 al crear/editar reseñas** (medido 28/8, ex-pendiente #14 del
+  inventario, que queda absorbido por esta etapa). El SQL exacto está en el
+  archivo de la etapa 1.
+
+Las 2 reseñas existentes quedan como "reseña general del estudio" (sin
+migrar: sería adivinar — una autora tiene 3 reservas candidatas). El promedio
+sigue simple, de todas; si una alumna muy frecuente domina, se revisa.
+
 **Anotado para más adelante:** pasar `claseId` en el flujo del pedido (hoy el
 cron manda al perfil del estudio, no a la clase: por eso las 3 reseñas tienen
 `clase_id` null y la tarjeta muestra sólo la fecha) · el UNIQUE de reseñas
