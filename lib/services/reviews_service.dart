@@ -33,13 +33,47 @@ class ReviewsService {
         .from('study_reviews')
         .select('id, estudio_id, usuario_id, clase_id, experiencia_label, '
             'rating, comentario, created_at, updated_at, '
-            'usuarios(nombre), clases(nombre, fecha)')
+            'clases(nombre, fecha)')
         .eq('estudio_id', estudioId);
     if (rating != null) query = query.eq('rating', rating);
     final rows = await query
         .order('created_at', ascending: false)
         .range(offset, offset + limit - 1);
     return List<Map<String, dynamic>>.from(rows as List);
+  }
+
+  /// Nombres de las autoras, en el formato que corresponde a quién mira.
+  ///
+  ///  · [esDueno] = el estudio: nombre COMPLETO vía `estudio_nombres_alumnas`
+  ///    (tiene relación directa con sus alumnas y ya podía verlo).
+  ///  · una alumna: ABREVIADO ("Juana S.") vía `resenas_nombres_publicos`,
+  ///    que arma el recorte en SQL — el apellido completo nunca sale del
+  ///    servidor.
+  ///
+  /// Si algo falla devuelve vacío y la pantalla muestra "Usuario Aura": una
+  /// reseña sin nombre se lee igual, y es lo que pasaba hasta hoy.
+  Future<Map<String, String>> getNombresAutoras(
+    List<String> usuarioIds, {
+    required bool esDueno,
+  }) async {
+    if (usuarioIds.isEmpty) return {};
+    try {
+      final data = await _supabase.rpc(
+        esDueno ? 'estudio_nombres_alumnas' : 'resenas_nombres_publicos',
+        params: {'p_ids': usuarioIds},
+      );
+      final out = <String, String>{};
+      for (final row in (data as List)) {
+        final id = row['id']?.toString();
+        final nombre = row['nombre']?.toString().trim();
+        if (id != null && nombre != null && nombre.isNotEmpty) {
+          out[id] = nombre;
+        }
+      }
+      return out;
+    } catch (_) {
+      return {};
+    }
   }
 
   /// Cuántas reseñas hay por cada puntaje: alimenta el desglose de barras y

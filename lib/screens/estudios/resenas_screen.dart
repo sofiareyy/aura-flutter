@@ -41,6 +41,9 @@ class _ResenasScreenState extends State<ResenasScreen> {
 
   Map<int, int> _desglose = const {};
   List<Map<String, dynamic>> _resenas = [];
+  /// {usuario_id: nombre a mostrar}. El formato depende de quién mira: el
+  /// estudio ve "Juana Sosa", la alumna "Juana S.".
+  Map<String, String> _nombres = {};
   int? _filtro; // null = todas
   bool _loading = true;
   bool _loadingMore = false;
@@ -65,10 +68,19 @@ class _ResenasScreenState extends State<ResenasScreen> {
         rating: _filtro,
         limit: _pageSize,
       );
+      final nombres = await _service.getNombresAutoras(
+        primera
+            .map((r) => r['usuario_id']?.toString() ?? '')
+            .where((id) => id.isNotEmpty)
+            .toSet()
+            .toList(),
+        esDueno: widget.esDueno,
+      );
       if (!mounted) return;
       setState(() {
         _desglose = desglose;
         _resenas = primera;
+        _nombres = nombres;
         _hayMas = primera.length == _pageSize;
         _loading = false;
       });
@@ -91,9 +103,18 @@ class _ResenasScreenState extends State<ResenasScreen> {
         offset: _resenas.length,
         limit: _pageSize,
       );
+      final nuevos = await _service.getNombresAutoras(
+        mas
+            .map((r) => r['usuario_id']?.toString() ?? '')
+            .where((id) => id.isNotEmpty && !_nombres.containsKey(id))
+            .toSet()
+            .toList(),
+        esDueno: widget.esDueno,
+      );
       if (!mounted) return;
       setState(() {
         _resenas = [..._resenas, ...mas];
+        _nombres = {..._nombres, ...nuevos};
         _hayMas = mas.length == _pageSize;
         _loadingMore = false;
       });
@@ -168,7 +189,11 @@ class _ResenasScreenState extends State<ResenasScreen> {
                       else ...[
                         ..._resenas.map((r) => Padding(
                               padding: const EdgeInsets.only(bottom: 12),
-                              child: ResenaCard(resena: r),
+                              child: ResenaCard(
+                                resena: r,
+                                nombre:
+                                    _nombres[r['usuario_id']?.toString()],
+                              ),
                             )),
                         if (_hayMas)
                           Center(
@@ -343,12 +368,13 @@ class _Filtros extends StatelessWidget {
 class ResenaCard extends StatelessWidget {
   final Map<String, dynamic> resena;
 
-  const ResenaCard({super.key, required this.resena});
+  /// Ya resuelto según quién mira. Null → "Usuario Aura".
+  final String? nombre;
+
+  const ResenaCard({super.key, required this.resena, this.nombre});
 
   @override
   Widget build(BuildContext context) {
-    final usuario = resena['usuarios'] as Map<String, dynamic>?;
-    final nombre = usuario?['nombre']?.toString().trim();
     final rating = (resena['rating'] as num?)?.toInt() ?? 0;
     final clase = resena['clases'] as Map<String, dynamic>?;
     final claseNombre = clase?['nombre']?.toString().trim();
@@ -381,7 +407,9 @@ class ResenaCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  nombre?.isNotEmpty == true ? nombre! : 'Usuario Aura',
+                  nombre?.trim().isNotEmpty == true
+                      ? nombre!.trim()
+                      : 'Usuario Aura',
                   style: const TextStyle(
                     color: AppColors.black,
                     fontSize: 15,
