@@ -306,6 +306,11 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
         ),
         const SizedBox(height: 16),
         _misProfesQuickAction(),
+        // `_misProfesQuickAction` no trae margen inferior y la tarjeta sólo
+        // tiene padding abajo: sin este respiro quedan pegadas y se leen como
+        // un bloque solo. En mobile no pasa porque el bloque de estadísticas
+        // ya mete su propio SizedBox antes.
+        const SizedBox(height: 10),
         // La tarjeta de reseñas va en LAS DOS vistas. Estuvo sólo en mobile
         // y en una pantalla ancha desaparecía: el estudio no tenía por dónde
         // llegar a sus reseñas. El corte de layout es 768 px.
