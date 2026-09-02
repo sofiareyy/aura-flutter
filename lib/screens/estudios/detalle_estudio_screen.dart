@@ -12,6 +12,7 @@ import '../../providers/app_provider.dart';
 import '../../services/estudios_service.dart';
 import '../../services/favoritos_service.dart';
 import '../../services/reviews_service.dart';
+import '../../utils/grilla_responsive.dart';
 import '../../widgets/clase_card.dart';
 import '../../widgets/study_review_sheet.dart';
 import '../../widgets/registro_muro.dart';
@@ -33,6 +34,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
   static const int _reviewsPreview = 2;
 
   List<Map<String, dynamic>> _clases = [];
+
   /// Experiencias / workshops. Van en su propia sección: mezcladas con las
   /// clases quedaban detrás del preview de 5 y no se veían nunca.
   List<Map<String, dynamic>> _experiencias = [];
@@ -50,8 +52,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
   /// No cuando hay solo experiencias: ahí el título y el "no hay clases
   /// disponibles" quedaban como un cartel negativo al lado de las
   /// experiencias que el estudio sí publicó.
-  bool get _mostrarBloqueClases =>
-      _clases.isNotEmpty || _experiencias.isEmpty;
+  bool get _mostrarBloqueClases => _clases.isNotEmpty || _experiencias.isEmpty;
 
   @override
   void initState() {
@@ -202,10 +203,11 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
       backgroundColor: AppColors.background,
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary))
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : _estudio == null
-              ? const Center(child: Text('Estudio no encontrado'))
-              : _buildContent(),
+          ? const Center(child: Text('Estudio no encontrado'))
+          : _buildContent(),
     );
   }
 
@@ -222,9 +224,9 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
     final avgRating = _reviews.isEmpty
         ? e.rating
         : _reviews
-                .map((item) => (item['rating'] as num?)?.toDouble() ?? 0)
-                .reduce((a, b) => a + b) /
-            _reviews.length;
+                  .map((item) => (item['rating'] as num?)?.toDouble() ?? 0)
+                  .reduce((a, b) => a + b) /
+              _reviews.length;
     // Galería del estudio: solo las fotos del lugar (foto principal + fotos
     // que el estudio cargó para mostrar el espacio). Las galerías de cada
     // clase se ven en la pantalla de detalle de esa clase.
@@ -235,400 +237,435 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
           .where((entry) => entry.isNotEmpty),
     }.toList();
 
-    return CustomScrollView(
-      slivers: [
-        // Hero fijo 300px
-        SliverToBoxAdapter(child: _buildHero()),
+    // Contener el ancho: sin esto, en un monitor la foto del hero quedaba de
+    // 1920 x 300 (6,4:1, una franja) y la descripción se leía a lo ancho de
+    // toda la pantalla. La galería no cambia: sigue siendo una tira y sus
+    // fotos se siguen abriendo enteras.
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: anchoMaxDetalle),
+        child: CustomScrollView(
+          slivers: [
+            // Hero: proporción 2:1 con piso de 300 px (ver `altoHero`)
+            SliverToBoxAdapter(child: _buildHero()),
 
-        // Cuerpo
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Rating: tocarlo abre TODAS las reseñas. Antes era texto
-                // muerto, y las reseñas ayudan a decidir la reserva.
-                if (avgRating != null)
-                  InkWell(
-                    onTap: _reviews.isEmpty ? null : _verTodasLasResenas,
-                    child: Row(
-                      children: [
-                        const Icon(Icons.star_rounded,
-                            color: AppColors.warning, size: 16),
-                        const SizedBox(width: 4),
-                        Text(
-                          avgRating.toStringAsFixed(1),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 14),
-                        ),
-                        if (_reviews.isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          Text(
-                            '${_reviews.length} reseñas',
-                            style: const TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600),
-                          ),
-                          const Icon(Icons.chevron_right_rounded,
-                              size: 16, color: AppColors.primary),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                // Descripción
-                if (e.descripcion?.isNotEmpty == true) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    e.descripcion!,
-                    style: const TextStyle(
-                        fontSize: 14, color: AppColors.grey, height: 1.5),
-                  ),
-                ],
-
-                // Dirección con pin naranja
-                if (e.direccion?.isNotEmpty == true) ...[
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      const Icon(Icons.place_rounded,
-                          color: AppColors.primary, size: 16),
-                      const SizedBox(width: 6),
-                      // Tocar la dirección abre el mapa. Acá SÍ hay lat/lng
-                      // del estudio, así que la ubicación es exacta y no
-                      // depende de cómo esté escrita la calle.
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => abrirMapa(
-                            direccion: e.direccion,
-                            lat: e.lat,
-                            lng: e.lng,
-                          ),
-                          child: Text(
-                            e.direccion!,
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 13,
-                              decoration: TextDecoration.underline,
-                              decorationColor: AppColors.primary,
+            // Cuerpo
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Rating: tocarlo abre TODAS las reseñas. Antes era texto
+                    // muerto, y las reseñas ayudan a decidir la reserva.
+                    if (avgRating != null)
+                      InkWell(
+                        onTap: _reviews.isEmpty ? null : _verTodasLasResenas,
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              color: AppColors.warning,
+                              size: 16,
                             ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-
-                // Botones sociales (solo si tienen datos)
-                if (_hasSocial(e)) ...[
-                  const SizedBox(height: 20),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      if (e.instagram?.isNotEmpty == true)
-                        _SocialButton(
-                          icon: Icons.photo_camera_outlined,
-                          label: 'Instagram',
-                          onTap: () => _launchInstagram(e.instagram!),
-                        ),
-                      if (e.whatsapp?.isNotEmpty == true)
-                        _SocialButton(
-                          icon: Icons.chat_outlined,
-                          label: 'WhatsApp',
-                          onTap: () => _launchWhatsApp(e.whatsapp!),
-                        ),
-                      if (e.web?.isNotEmpty == true)
-                        _SocialButton(
-                          icon: Icons.language_outlined,
-                          label: 'Web',
-                          onTap: () => _launchUrl(e.web!),
-                        ),
-                    ],
-                  ),
-                ],
-
-                // Galería arriba (si hay fotos)
-                if (galleryUrls.isNotEmpty) ...[
-                  const SizedBox(height: 28),
-                  _GallerySection(
-                    imageUrls: galleryUrls,
-                    onTapImage: (index) =>
-                        _abrirGaleria(galleryUrls, initialIndex: index),
-                  ),
-                ],
-
-                // ── Experiencias / eventos ──────────────────────────────
-                // Sección propia, ANTES de las clases: son pocas, puntuales y
-                // se publican con anticipación. Mezcladas con la grilla
-                // semanal quedaban detrás del preview y no se veían.
-                if (_experiencias.isNotEmpty) ...[
-                  const SizedBox(height: 28),
-                  const Text(
-                    'EXPERIENCIAS',
-                    style: TextStyle(
-                      color: Color(0xFF8F877F),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ..._experiencias.map(
-                    (exp) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: ClaseCard(
-                        clase: exp,
-                        showEstudio: false,
-                        onTap: () => context.push('/clase/${exp['id']}'),
-                      ),
-                    ),
-                  ),
-                ],
-
-                // Encabezado clases + Ver más.
-                // Si el estudio no tiene clases regulares pero sí experiencias,
-                // no mostramos ni el título ni el "no hay clases": quedaba un
-                // cartel negativo justo al lado de las experiencias que sí
-                // tiene. El vacío real (ni clases ni experiencias) sí se avisa.
-                if (_mostrarBloqueClases) ...[
-                  const SizedBox(height: 28),
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'CLASES DISPONIBLES',
-                          style: TextStyle(
-                            color: Color(0xFF8F877F),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                      if (_clases.length > _clasesPreview)
-                        GestureDetector(
-                          onTap: () => setState(
-                            () => _verTodasLasClases = !_verTodasLasClases,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            child: Text(
-                              _verTodasLasClases ? 'Ver menos' : 'Ver más',
+                            const SizedBox(width: 4),
+                            Text(
+                              avgRating.toStringAsFixed(1),
                               style: const TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 12,
                                 fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            if (_reviews.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                '${_reviews.length} reseñas',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                size: 16,
+                                color: AppColors.primary,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+
+                    // Descripción
+                    if (e.descripcion?.isNotEmpty == true) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        e.descripcion!,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.grey,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+
+                    // Dirección con pin naranja
+                    if (e.direccion?.isNotEmpty == true) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.place_rounded,
+                            color: AppColors.primary,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          // Tocar la dirección abre el mapa. Acá SÍ hay lat/lng
+                          // del estudio, así que la ubicación es exacta y no
+                          // depende de cómo esté escrita la calle.
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => abrirMapa(
+                                direccion: e.direccion,
+                                lat: e.lat,
+                                lng: e.lng,
+                              ),
+                              child: Text(
+                                e.direccion!,
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 13,
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: AppColors.primary,
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
+                      ),
                     ],
-                  ),
-                  const SizedBox(height: 12),
-                ],
-              ],
-            ),
-          ),
-        ),
 
-        // Cards de clases (preview o todas). El mensaje de vacío solo sale
-        // cuando el estudio no tiene NADA que mostrar; si tiene experiencias,
-        // el bloque entero se oculta (ver _mostrarBloqueClases).
-        if (_clases.isEmpty)
-          _mostrarBloqueClases
-              ? const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(
-                      'No hay clases disponibles por ahora.',
-                      style: TextStyle(color: AppColors.grey, fontSize: 14),
-                    ),
-                  ),
-                )
-              : const SliverToBoxAdapter(child: SizedBox.shrink())
-        else
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, i) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: ClaseCard(
-                  clase: _clases[i],
-                  showEstudio: false,
-                  onTap: () => context.push('/clase/${_clases[i]['id']}'),
+                    // Botones sociales (solo si tienen datos)
+                    if (_hasSocial(e)) ...[
+                      const SizedBox(height: 20),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          if (e.instagram?.isNotEmpty == true)
+                            _SocialButton(
+                              icon: Icons.photo_camera_outlined,
+                              label: 'Instagram',
+                              onTap: () => _launchInstagram(e.instagram!),
+                            ),
+                          if (e.whatsapp?.isNotEmpty == true)
+                            _SocialButton(
+                              icon: Icons.chat_outlined,
+                              label: 'WhatsApp',
+                              onTap: () => _launchWhatsApp(e.whatsapp!),
+                            ),
+                          if (e.web?.isNotEmpty == true)
+                            _SocialButton(
+                              icon: Icons.language_outlined,
+                              label: 'Web',
+                              onTap: () => _launchUrl(e.web!),
+                            ),
+                        ],
+                      ),
+                    ],
+
+                    // Galería arriba (si hay fotos)
+                    if (galleryUrls.isNotEmpty) ...[
+                      const SizedBox(height: 28),
+                      _GallerySection(
+                        imageUrls: galleryUrls,
+                        onTapImage: (index) =>
+                            _abrirGaleria(galleryUrls, initialIndex: index),
+                      ),
+                    ],
+
+                    // ── Experiencias / eventos ──────────────────────────────
+                    // Sección propia, ANTES de las clases: son pocas, puntuales y
+                    // se publican con anticipación. Mezcladas con la grilla
+                    // semanal quedaban detrás del preview y no se veían.
+                    if (_experiencias.isNotEmpty) ...[
+                      const SizedBox(height: 28),
+                      const Text(
+                        'EXPERIENCIAS',
+                        style: TextStyle(
+                          color: Color(0xFF8F877F),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ..._experiencias.map(
+                        (exp) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: ClaseCard(
+                            clase: exp,
+                            showEstudio: false,
+                            onTap: () => context.push('/clase/${exp['id']}'),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    // Encabezado clases + Ver más.
+                    // Si el estudio no tiene clases regulares pero sí experiencias,
+                    // no mostramos ni el título ni el "no hay clases": quedaba un
+                    // cartel negativo justo al lado de las experiencias que sí
+                    // tiene. El vacío real (ni clases ni experiencias) sí se avisa.
+                    if (_mostrarBloqueClases) ...[
+                      const SizedBox(height: 28),
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'CLASES DISPONIBLES',
+                              style: TextStyle(
+                                color: Color(0xFF8F877F),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ),
+                          if (_clases.length > _clasesPreview)
+                            GestureDetector(
+                              onTap: () => setState(
+                                () => _verTodasLasClases = !_verTodasLasClases,
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                child: Text(
+                                  _verTodasLasClases ? 'Ver menos' : 'Ver más',
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ],
                 ),
               ),
-              childCount: _verTodasLasClases
-                  ? _clases.length
-                  : (_clases.length > _clasesPreview
-                      ? _clasesPreview
-                      : _clases.length),
             ),
-          ),
 
-        // Reseñas al final
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
-            child: _ReviewsSection(
-              // El bloque del perfil NO cambia: siguen apareciendo acá las
-              // primeras reseñas, como siempre. Lo único distinto es que
-              // "Ver más" ahora NAVEGA a la pantalla completa en vez de
-              // expandir inline — con 100 reseñas expandir es inusable.
-              reviews: _reviews.take(_reviewsPreview).toList(),
-              totalCount: _reviews.length,
-              expandido: false,
-              canReview: _canReview,
-              onReviewTap: () => _abrirResena(),
-              onToggleExpand: _reviews.length > _reviewsPreview
-                  ? _verTodasLasResenas
-                  : null,
+            // Cards de clases (preview o todas). El mensaje de vacío solo sale
+            // cuando el estudio no tiene NADA que mostrar; si tiene experiencias,
+            // el bloque entero se oculta (ver _mostrarBloqueClases).
+            if (_clases.isEmpty)
+              _mostrarBloqueClases
+                  ? const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          'No hay clases disponibles por ahora.',
+                          style: TextStyle(color: AppColors.grey, fontSize: 14),
+                        ),
+                      ),
+                    )
+                  : const SliverToBoxAdapter(child: SizedBox.shrink())
+            else
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: ClaseCard(
+                      clase: _clases[i],
+                      showEstudio: false,
+                      onTap: () => context.push('/clase/${_clases[i]['id']}'),
+                    ),
+                  ),
+                  childCount: _verTodasLasClases
+                      ? _clases.length
+                      : (_clases.length > _clasesPreview
+                            ? _clasesPreview
+                            : _clases.length),
+                ),
+              ),
+
+            // Reseñas al final
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+                child: _ReviewsSection(
+                  // El bloque del perfil NO cambia: siguen apareciendo acá las
+                  // primeras reseñas, como siempre. Lo único distinto es que
+                  // "Ver más" ahora NAVEGA a la pantalla completa en vez de
+                  // expandir inline — con 100 reseñas expandir es inusable.
+                  reviews: _reviews.take(_reviewsPreview).toList(),
+                  totalCount: _reviews.length,
+                  expandido: false,
+                  canReview: _canReview,
+                  onReviewTap: () => _abrirResena(),
+                  onToggleExpand: _reviews.length > _reviewsPreview
+                      ? _verTodasLasResenas
+                      : null,
+                ),
+              ),
             ),
-          ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          ],
         ),
-
-        const SliverToBoxAdapter(child: SizedBox(height: 32)),
-      ],
+      ),
     );
   }
 
   Widget _buildHero() {
     final e = _estudio!;
-    return SizedBox(
-      height: 300,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Foto
-          e.fotoUrl?.isNotEmpty == true
-              ? _RemoteImage(
-                  url: e.fotoUrl!,
-                  fit: BoxFit.cover,
-                  placeholder: Container(color: const Color(0xFFEDE7E1)),
-                  errorWidget: Container(
+    return LayoutBuilder(
+      builder: (context, restricciones) => SizedBox(
+        height: altoHero(restricciones.maxWidth),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Foto
+            e.fotoUrl?.isNotEmpty == true
+                ? _RemoteImage(
+                    url: e.fotoUrl!,
+                    fit: BoxFit.cover,
+                    placeholder: Container(color: const Color(0xFFEDE7E1)),
+                    errorWidget: Container(
+                      color: AppColors.primaryLight,
+                      child: const Icon(
+                        Icons.fitness_center_rounded,
+                        color: AppColors.primary,
+                        size: 48,
+                      ),
+                    ),
+                  )
+                : Container(
                     color: AppColors.primaryLight,
-                    child: const Icon(Icons.fitness_center_rounded,
-                        color: AppColors.primary, size: 48),
+                    child: const Center(
+                      child: Icon(
+                        Icons.fitness_center_rounded,
+                        color: AppColors.primary,
+                        size: 48,
+                      ),
+                    ),
                   ),
-                )
-              : Container(
-                  color: AppColors.primaryLight,
-                  child: const Center(
-                    child: Icon(Icons.fitness_center_rounded,
-                        color: AppColors.primary, size: 48),
-                  ),
-                ),
 
-          // Gradiente negro → transparente (bottom → top)
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-                colors: [
-                  Color(0xD9000000), // negro 0.85
-                  Color(0x4D000000), // negro 0.3
-                  Colors.transparent,
-                ],
-                stops: [0.0, 0.5, 1.0],
+            // Gradiente negro → transparente (bottom → top)
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Color(0xD9000000), // negro 0.85
+                    Color(0x4D000000), // negro 0.3
+                    Colors.transparent,
+                  ],
+                  stops: [0.0, 0.5, 1.0],
+                ),
               ),
             ),
-          ),
 
-          // Categoría + nombre + barrio (abajo izquierda)
-          Positioned(
-            left: 16,
-            right: 60,
-            bottom: 18,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(8),
+            // Categoría + nombre + barrio (abajo izquierda)
+            Positioned(
+              left: 16,
+              right: 60,
+              bottom: 18,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      e.categoria,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                  child: Text(
-                    e.categoria,
+                  const SizedBox(height: 6),
+                  Text(
+                    e.nombre,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 11,
+                      fontSize: 22,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  e.nombre,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (e.barrio?.isNotEmpty == true)
-                  Text(
-                    e.barrio!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 14,
+                  if (e.barrio?.isNotEmpty == true)
+                    Text(
+                      e.barrio!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // Flecha de volver (arriba izquierda)
-          Positioned(
-            top: 0,
-            left: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 10, left: 16),
-                child: _EstudioCircleAction(
-                  icon: Icons.arrow_back,
-                  onTap: () => context.pop(),
+            // Flecha de volver (arriba izquierda)
+            Positioned(
+              top: 0,
+              left: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10, left: 16),
+                  child: _EstudioCircleAction(
+                    icon: Icons.arrow_back,
+                    onTap: () => context.pop(),
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // Favorito (arriba derecha). Al invitado TAMBIEN se le muestra —
-          // si lo ocultamos, no sabe que la función existe. Al tocarlo abre
-          // el muro cerrable en vez de guardar.
-          Positioned(
-            top: 0,
-            right: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 10, right: 16),
-                child: _EstudioCircleAction(
-                  icon: _esFavorito
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  onTap: Supabase.instance.client.auth.currentUser == null
-                      ? () => RegistroMuro.mostrar(
+            // Favorito (arriba derecha). Al invitado TAMBIEN se le muestra —
+            // si lo ocultamos, no sabe que la función existe. Al tocarlo abre
+            // el muro cerrable en vez de guardar.
+            Positioned(
+              top: 0,
+              right: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10, right: 16),
+                  child: _EstudioCircleAction(
+                    icon: _esFavorito
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    onTap: Supabase.instance.client.auth.currentUser == null
+                        ? () => RegistroMuro.mostrar(
                             context,
                             motivo: MuroMotivo.favorito,
                           )
-                      : _toggleFavorito,
-                  iconColor:
-                      _esFavorito ? AppColors.primary : Colors.white,
+                        : _toggleFavorito,
+                    iconColor: _esFavorito ? AppColors.primary : Colors.white,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -638,7 +675,10 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
       (e.whatsapp?.isNotEmpty == true) ||
       (e.web?.isNotEmpty == true);
 
-  Future<void> _abrirGaleria(List<String> imageUrls, {int initialIndex = 0}) async {
+  Future<void> _abrirGaleria(
+    List<String> imageUrls, {
+    int initialIndex = 0,
+  }) async {
     if (imageUrls.isEmpty) return;
     final controller = PageController(initialPage: initialIndex);
     await showDialog<void>(
@@ -653,7 +693,8 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                 PageView.builder(
                   controller: controller,
                   itemCount: imageUrls.length,
-                  onPageChanged: (value) => setDialogState(() => currentIndex = value),
+                  onPageChanged: (value) =>
+                      setDialogState(() => currentIndex = value),
                   itemBuilder: (_, index) => InteractiveViewer(
                     minScale: 1,
                     maxScale: 4,
@@ -799,9 +840,10 @@ class _SocialButton extends StatelessWidget {
           children: [
             Icon(icon, size: 15, color: AppColors.black),
             const SizedBox(width: 6),
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w500)),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
           ],
         ),
       ),
@@ -813,17 +855,17 @@ class _GallerySection extends StatelessWidget {
   final List<String> imageUrls;
   final ValueChanged<int> onTapImage;
 
-  const _GallerySection({
-    required this.imageUrls,
-    required this.onTapImage,
-  });
+  const _GallerySection({required this.imageUrls, required this.onTapImage});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Galería del estudio', style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          'Galería del estudio',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: 12),
         SizedBox(
           height: 96,
@@ -843,7 +885,10 @@ class _GallerySection extends StatelessWidget {
                     fit: BoxFit.cover,
                     errorWidget: Container(
                       color: const Color(0xFFF3EEE8),
-                      child: const Icon(Icons.image_not_supported_outlined, color: AppColors.grey),
+                      child: const Icon(
+                        Icons.image_not_supported_outlined,
+                        color: AppColors.grey,
+                      ),
                     ),
                   ),
                 ),
@@ -890,7 +935,9 @@ class _ReviewsSection extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  totalCount > 0 ? 'Reseñas ($totalCount)' : 'Reseñas del estudio',
+                  totalCount > 0
+                      ? 'Reseñas ($totalCount)'
+                      : 'Reseñas del estudio',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
@@ -927,7 +974,9 @@ class _ReviewsSection extends StatelessWidget {
                   onTap: onToggleExpand,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     child: Text(
                       expandido
                           ? 'Ver menos'
@@ -1014,7 +1063,9 @@ class _ReviewCard extends StatelessWidget {
                 children: List.generate(
                   5,
                   (index) => Icon(
-                    index < rating ? Icons.star_rounded : Icons.star_border_rounded,
+                    index < rating
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
                     size: 16,
                     color: AppColors.primary,
                   ),
@@ -1063,17 +1114,14 @@ class _RemoteImage extends StatelessWidget {
         fit: fit,
         loadingBuilder: (ctx, child, progress) =>
             progress == null ? child : (placeholder ?? const SizedBox.shrink()),
-        errorBuilder: (ctx, _, __) =>
-            errorWidget ?? const SizedBox.shrink(),
+        errorBuilder: (ctx, _, __) => errorWidget ?? const SizedBox.shrink(),
       );
     }
     return CachedNetworkImage(
       imageUrl: url,
       fit: fit,
       placeholder: placeholder == null ? null : (_, __) => placeholder!,
-      errorWidget:
-          errorWidget == null ? null : (_, __, ___) => errorWidget!,
+      errorWidget: errorWidget == null ? null : (_, __, ___) => errorWidget!,
     );
   }
 }
-

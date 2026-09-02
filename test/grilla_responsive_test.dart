@@ -72,6 +72,38 @@ void main() {
     });
   });
 
+  group('el hero de las pantallas de detalle', () {
+    test('en teléfono queda igual que antes: 300 px fijos', () {
+      // Cualquier teléfono, con o sin los 44 de padding.
+      expect(altoHero(390), altoHeroMin);
+      expect(altoHero(430), altoHeroMin);
+      // El piso se sostiene hasta los 600 px de ancho.
+      expect(altoHero(599), altoHeroMin);
+      expect(altoHero(600), altoHeroMin);
+    });
+
+    test('en pantalla ancha crece con el ancho, no se aplana', () {
+      expect(altoHero(720), 360);
+      expect(altoHero(1100), 550);
+    });
+
+    test('nunca pasa de 2:1, por más ancho que haya', () {
+      // El contenido topa en 1100: a partir de ahí el hero no crece más.
+      const anchoReal = anchoMaxDetalle;
+      expect(anchoReal / altoHero(anchoReal), proporcionHero);
+      // Antes, con alto fijo 300 y sin tope, un monitor de 1920 daba 6,4:1.
+      expect(1920 / 300, greaterThan(6));
+    });
+
+    test('de una foto apaisada 3:2 se ve mucho más que antes', () {
+      // Cuánto del alto de la foto sobrevive al recorte = proporción de la
+      // foto / proporción del marco.
+      double visible(double marco) => 1.5 / marco;
+      expect(visible(proporcionHero), closeTo(0.75, 0.001));
+      expect(visible(1920 / 300), closeTo(0.234, 0.001));
+    });
+  });
+
   group('alto de la tarjeta de vidriera', () {
     test('crece con el ancho, porque la foto es 16:9', () {
       expect(altoCardVidriera(320), 320 / (16 / 9) + altoTextoVidriera);

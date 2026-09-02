@@ -87,3 +87,37 @@ double altoCardVidriera(double anchoCard) =>
 /// Antes era 270 con la foto de alto fijo 132; con la foto en 16:9 la foto
 /// sola ya mide 180.
 final double altoCarruselVidriera = altoCardVidriera(320);
+
+// ── Pantallas de detalle: perfil del estudio y detalle de clase ─────────────
+//
+// Las dos abren con una foto grande (el "hero") que hasta el 2/9 tenía alto
+// FIJO en 300 px y ancho libre. En un teléfono eso daba 390 × 300 (1,3:1) y
+// estaba bien, pero en un monitor de 1920 quedaba de 1920 × 300 = 6,4:1: de
+// una foto apaisada normal se veía apenas el 25% del alto. Es el mismo bug
+// que las tarjetas, en otras dos pantallas.
+
+/// Ancho tope del contenido de las pantallas de detalle. Igual que el
+/// buscador: el texto de la descripción a 1900 px de ancho tampoco se lee.
+const double anchoMaxDetalle = 1100;
+
+/// Proporción del hero: **2:1**.
+///
+/// La proporción es la que decide cuánto se recorta, y el ancho sólo decide
+/// cuán alto termina siendo. De una foto apaisada típica (3:2) en 2:1 se ve el
+/// **75%**; en 16:9 se vería el 84%, pero a 1100 px de ancho el hero mediría
+/// 619 px de alto y se comería la pantalla entera antes del primer renglón de
+/// texto. 2:1 deja 550 px: sigue siendo una foto, no una franja, y todavía
+/// entra algo de contenido. Contra los 6,4:1 de hoy, se pasa de ver el 25% de
+/// la foto a ver el 75%.
+const double proporcionHero = 2;
+
+/// Alto mínimo del hero: los 300 px de siempre. Debajo de 600 px de ancho
+/// —cualquier teléfono— la fórmula da menos, así que el hero queda **igual
+/// que hoy** y el arreglo no toca la app nativa.
+const double altoHeroMin = 300;
+
+/// Alto del hero para un ancho dado.
+double altoHero(double ancho) {
+  final proporcional = ancho / proporcionHero;
+  return proporcional < altoHeroMin ? altoHeroMin : proporcional;
+}

@@ -17,6 +17,7 @@ import '../../services/reviews_service.dart';
 import '../../services/waitlist_service.dart';
 import '../../widgets/registro_muro.dart';
 import '../../utils/cierre_minutos.dart';
+import '../../utils/grilla_responsive.dart';
 import '../../utils/mapa_link.dart';
 import '../../widgets/organizadores_links.dart';
 import '../../widgets/study_review_sheet.dart';
@@ -104,8 +105,10 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     }
 
     tick();
-    _preReservaTimer =
-        Timer.periodic(const Duration(seconds: 1), (_) => tick());
+    _preReservaTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => tick(),
+    );
   }
 
   String _formatPreReservaCountdown(Duration d) {
@@ -122,8 +125,9 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     final provider = context.read<AppProvider>();
     final userId = provider.userId;
     if (userId.isEmpty) return;
-    final creditos =
-        _esGratuita ? 0 : ((_clase?['creditos'] as num?)?.toInt() ?? 0);
+    final creditos = _esGratuita
+        ? 0
+        : ((_clase?['creditos'] as num?)?.toInt() ?? 0);
 
     setState(() => _confirmandoPreReserva = true);
     try {
@@ -136,7 +140,8 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
       if (!mounted) return;
       _preReservaTimer?.cancel();
       // Navegar al ticket QR
-      final codigoQr = reserva['codigo_qr']?.toString() ??
+      final codigoQr =
+          reserva['codigo_qr']?.toString() ??
           preReserva['codigo_qr']?.toString() ??
           '';
       if (codigoQr.isNotEmpty) {
@@ -198,8 +203,9 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
           widget.claseId,
         );
       }
-      final estudioId = ((clase?['estudios'] as Map<String, dynamic>?)?['id'] as num?)
-          ?.toInt();
+      final estudioId =
+          ((clase?['estudios'] as Map<String, dynamic>?)?['id'] as num?)
+              ?.toInt();
       final reviews = estudioId != null
           ? await _reviewsService.getReviewsForStudy(estudioId)
           : <Map<String, dynamic>>[];
@@ -211,8 +217,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
           : false;
 
       // Verificar si la reserva es gratuita (alumno directo)
-      final userEmail =
-          Supabase.instance.client.auth.currentUser?.email ?? '';
+      final userEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
 
       final futures = await Future.wait([
         userEmail.isNotEmpty
@@ -246,13 +251,11 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
               .eq('usuario_id', provider.userId)
               .eq('clase_id', widget.claseId)
               .eq('estado', 'pre_confirmada')
-              .gt('expires_at',
-                  DateTime.now().toUtc().toIso8601String())
+              .gt('expires_at', DateTime.now().toUtc().toIso8601String())
               .maybeSingle();
           if (pre != null) {
             preReserva = Map<String, dynamic>.from(pre);
-            expiresAt =
-                DateTime.tryParse(pre['expires_at']?.toString() ?? '');
+            expiresAt = DateTime.tryParse(pre['expires_at']?.toString() ?? '');
           }
         } catch (_) {}
       }
@@ -289,8 +292,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
 
     final fecha = DateTime.tryParse(_clase!['fecha']?.toString() ?? '');
     final cierreMinutos = CierreMinutos.reserva(_clase);
-    if (fecha != null &&
-        ReservasService.reservaCerrada(fecha, cierreMinutos)) {
+    if (fecha != null && ReservasService.reservaCerrada(fecha, cierreMinutos)) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -322,7 +324,11 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     final duracion = (_clase!['duracion_min'] as num?)?.toInt() ?? 60;
     if (fecha != null && provider.userId.isNotEmpty) {
       setState(() => _reservando = true);
-      final conflicto = await _verificarConflicto(provider.userId, fecha, duracion);
+      final conflicto = await _verificarConflicto(
+        provider.userId,
+        fecha,
+        duracion,
+      );
       if (!mounted) return;
       setState(() => _reservando = false);
       if (conflicto != null) {
@@ -342,7 +348,11 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
   }
 
   /// Devuelve el nombre de la clase conflictiva, o null si no hay conflicto.
-  Future<String?> _verificarConflicto(String userId, DateTime fecha, int duracion) async {
+  Future<String?> _verificarConflicto(
+    String userId,
+    DateTime fecha,
+    int duracion,
+  ) async {
     try {
       final reservas = await _reservasService.getReservasUsuario(userId);
       final finNueva = fecha.add(Duration(minutes: duracion));
@@ -440,7 +450,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
               pos == null
                   ? '¡Anotada! Te avisamos si se libera un lugar.'
                   : 'Listo, sos la N° ${pos.posicion} en la lista de espera. '
-                      'Te avisamos si se libera un lugar.',
+                        'Te avisamos si se libera un lugar.',
             ),
             backgroundColor: AppColors.blackSoft,
             duration: const Duration(seconds: 4),
@@ -471,8 +481,9 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     if (clase == null) return;
 
     final nombre = clase['nombre']?.toString().trim() ?? 'una clase';
-    final estudio =
-        (clase['estudios'] as Map<String, dynamic>?)?['nombre']?.toString().trim();
+    final estudio = (clase['estudios'] as Map<String, dynamic>?)?['nombre']
+        ?.toString()
+        .trim();
     final fecha = DateTime.tryParse(clase['fecha']?.toString() ?? '');
 
     final partes = <String>[
@@ -494,9 +505,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
       await Clipboard.setData(ClipboardData(text: texto));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Link copiado: pegalo donde quieras 🧡'),
-        ),
+        const SnackBar(content: Text('Link copiado: pegalo donde quieras 🧡')),
       );
     }
   }
@@ -511,8 +520,8 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
               child: CircularProgressIndicator(color: AppColors.primary),
             )
           : _clase == null
-              ? const Center(child: Text('Clase no encontrada'))
-              : _buildContent(),
+          ? const Center(child: Text('Clase no encontrada'))
+          : _buildContent(),
     );
   }
 
@@ -523,8 +532,8 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
         ? DateTime.tryParse(clase['fecha'].toString())
         : null;
     final cierreMinutos = CierreMinutos.reserva(clase);
-    final reservaCerrada = fecha != null &&
-        ReservasService.reservaCerrada(fecha, cierreMinutos);
+    final reservaCerrada =
+        fecha != null && ReservasService.reservaCerrada(fecha, cierreMinutos);
     final lugaresDisp = (clase['lugares_disponibles'] ?? 0) as num;
     final creditos = (clase['creditos'] as num?)?.toInt() ?? 1;
     final creditosSaldo = context.watch<AppProvider>().usuario?.creditos ?? 0;
@@ -551,686 +560,742 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     final avgRating = _reviews.isEmpty
         ? ((estudio?['rating'] as num?)?.toDouble() ?? 0)
         : _reviews
-                .map((review) => (review['rating'] as num?)?.toDouble() ?? 0)
-                .reduce((a, b) => a + b) /
-            _reviews.length;
+                  .map((review) => (review['rating'] as num?)?.toDouble() ?? 0)
+                  .reduce((a, b) => a + b) /
+              _reviews.length;
     final reviewCount = _reviews.length;
 
-    return Stack(
-      children: [
-        CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 300,
-                width: double.infinity,
-                child: Stack(
-                  children: [
-                    // Imagen hero — altura fija, recortada
-                    Positioned.fill(
-                      child: _HeroImage(
-                        imageUrl: (clase['imagen_url'] ?? estudio?['foto_url'])
-                            ?.toString(),
-                        imageMode: clase['imagen_ajuste']?.toString(),
-                      ),
-                    ),
-                    // Gradiente: cubre el 40% inferior con negro opaco
-                    Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            stops: const [0.0, 0.4, 1.0],
-                            colors: [
-                              Color(0xE6000000), // #000 alpha 0.9
-                              Colors.transparent,
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Flecha volver — esquina superior izquierda
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      child: SafeArea(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 10, left: 16),
-                          child: _CircleAction(
-                            icon: Icons.arrow_back,
-                            onTap: () => context.pop(),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Badge + título + estudio — esquina inferior
-                    Positioned(
-                      left: 20,
-                      right: 20,
-                      bottom: 16,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
+    // Contener el ancho: el hero tenía alto fijo 300 y ancho libre, así que en
+    // un monitor quedaba de 1920 x 300 (6,4:1, una franja). Ahora es 2:1 con
+    // piso de 300, o sea que en teléfono queda igual que antes. La galería no
+    // se toca: sigue abriendo las fotos enteras.
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: anchoMaxDetalle),
+        child: Stack(
+          children: [
+            CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: LayoutBuilder(
+                    builder: (context, restricciones) => SizedBox(
+                      height: altoHero(restricciones.maxWidth),
+                      width: double.infinity,
+                      child: Stack(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 7,
+                          // Imagen hero — altura fija, recortada
+                          Positioned.fill(
+                            child: _HeroImage(
+                              imageUrl:
+                                  (clase['imagen_url'] ?? estudio?['foto_url'])
+                                      ?.toString(),
+                              imageMode: clase['imagen_ajuste']?.toString(),
                             ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              categoria,
-                              style: const TextStyle(
-                                color: AppColors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
+                          ),
+                          // Gradiente: cubre el 40% inferior con negro opaco
+                          Positioned.fill(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                  stops: const [0.0, 0.4, 1.0],
+                                  colors: [
+                                    Color(0xE6000000), // #000 alpha 0.9
+                                    Colors.transparent,
+                                    Colors.transparent,
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 10),
-                          Text(
-                            clase['nombre']?.toString() ?? 'Clase',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                              height: 1.15,
+                          // Flecha volver — esquina superior izquierda
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            child: SafeArea(
+                              child: Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 10,
+                                  left: 16,
+                                ),
+                                child: _CircleAction(
+                                  icon: Icons.arrow_back,
+                                  onTap: () => context.pop(),
+                                ),
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          GestureDetector(
-                            onTap: estudio?['id'] != null
-                                ? () => context.push('/estudio/${estudio!['id']}')
-                                : null,
-                            child: Text(
-                              '$estudioNombre - $barrio',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.85),
-                                fontSize: 15,
-                                decoration: TextDecoration.underline,
-                                decorationColor: Colors.white.withValues(alpha: 0.85),
-                              ),
+                          // Badge + título + estudio — esquina inferior
+                          Positioned(
+                            left: 20,
+                            right: 20,
+                            bottom: 16,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 7,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    categoria,
+                                    style: const TextStyle(
+                                      color: AppColors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  clase['nombre']?.toString() ?? 'Clase',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.15,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                GestureDetector(
+                                  onTap: estudio?['id'] != null
+                                      ? () => context.push(
+                                          '/estudio/${estudio!['id']}',
+                                        )
+                                      : null,
+                                  child: Text(
+                                    '$estudioNombre - $barrio',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.85,
+                                      ),
+                                      fontSize: 15,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: Colors.white.withValues(
+                                        alpha: 0.85,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                  padding: EdgeInsets.fromLTRB(20, 16, 20, espacioParaCTA),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Rating: tocarlo abre todas las reseñas del estudio.
-                      // Antes era texto muerto, y son justo lo que se mira
-                      // para decidir si reservar esta clase.
-                      InkWell(
-                        onTap: (reviewCount == 0 || estudio?['id'] == null)
-                            ? null
-                            : () => context.push(
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(20, 16, 20, espacioParaCTA),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Rating: tocarlo abre todas las reseñas del estudio.
+                        // Antes era texto muerto, y son justo lo que se mira
+                        // para decidir si reservar esta clase.
+                        InkWell(
+                          onTap: (reviewCount == 0 || estudio?['id'] == null)
+                              ? null
+                              : () => context.push(
                                   '/estudio/${estudio!['id']}/resenas'
                                   '?nombre=${Uri.encodeComponent(estudio['nombre']?.toString() ?? '')}',
                                 ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.star_rounded,
-                              color: Color(0xFFF5A623),
-                              size: 18,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              avgRating > 0
-                                  ? avgRating.toStringAsFixed(1)
-                                  : 'Nuevo',
-                              style: const TextStyle(
-                                color: AppColors.black,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.star_rounded,
+                                color: Color(0xFFF5A623),
+                                size: 18,
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              reviewCount == 0
-                                  ? 'Sin reseñas todavía'
-                                  : '$reviewCount reseñas',
-                              style: TextStyle(
-                                color: reviewCount == 0
-                                    ? AppColors.grey
-                                    : AppColors.primary,
-                                fontSize: 13,
-                                fontWeight: reviewCount == 0
-                                    ? FontWeight.w400
-                                    : FontWeight.w600,
+                              const SizedBox(width: 6),
+                              Text(
+                                avgRating > 0
+                                    ? avgRating.toStringAsFixed(1)
+                                    : 'Nuevo',
+                                style: const TextStyle(
+                                  color: AppColors.black,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
-                            ),
-                            if (reviewCount > 0)
-                              const Icon(Icons.chevron_right_rounded,
-                                  size: 16, color: AppColors.primary),
-                          ],
+                              const SizedBox(width: 10),
+                              Text(
+                                reviewCount == 0
+                                    ? 'Sin reseñas todavía'
+                                    : '$reviewCount reseñas',
+                                style: TextStyle(
+                                  color: reviewCount == 0
+                                      ? AppColors.grey
+                                      : AppColors.primary,
+                                  fontSize: 13,
+                                  fontWeight: reviewCount == 0
+                                      ? FontWeight.w400
+                                      : FontWeight.w600,
+                                ),
+                              ),
+                              if (reviewCount > 0)
+                                const Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 16,
+                                  color: AppColors.primary,
+                                ),
+                            ],
+                          ),
                         ),
-                      ),
-                      if (estudio?['id'] != null) ...[
-                        const SizedBox(height: 12),
+                        if (estudio?['id'] != null) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              _HeaderActionPill(
+                                icon: Icons.storefront_outlined,
+                                label: 'Ver estudio',
+                                onTap: () =>
+                                    context.push('/estudio/${estudio!['id']}'),
+                              ),
+                              _HeaderActionPill(
+                                icon: Icons.map_outlined,
+                                label: 'Ver en mapa',
+                                onTap: () {
+                                  final uri = Uri(
+                                    path: '/mapa',
+                                    queryParameters: {
+                                      if ((estudio?['categoria'] ?? '')
+                                          .toString()
+                                          .isNotEmpty)
+                                        'categoria': estudio!['categoria']
+                                            .toString(),
+                                      if ((estudio?['nombre'] ?? '')
+                                          .toString()
+                                          .isNotEmpty)
+                                        'q': estudio!['nombre'].toString(),
+                                    },
+                                  );
+                                  context.push(uri.toString());
+                                },
+                              ),
+                              if (_canReview)
+                                _HeaderActionPill(
+                                  icon: Icons.star_outline_rounded,
+                                  label: 'Dejar reseña',
+                                  onTap: _dejarResena,
+                                ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 16),
                         Wrap(
                           spacing: 10,
                           runSpacing: 10,
                           children: [
-                            _HeaderActionPill(
-                              icon: Icons.storefront_outlined,
-                              label: 'Ver estudio',
-                              onTap: () => context.push('/estudio/${estudio!['id']}'),
+                            _InfoChipCard(
+                              icon: Icons.calendar_today_outlined,
+                              label: fecha != null
+                                  ? DateFormat('EEE d MMM', 'es').format(fecha)
+                                  : 'Fecha',
                             ),
-                            _HeaderActionPill(
-                              icon: Icons.map_outlined,
-                              label: 'Ver en mapa',
-                              onTap: () {
-                                final uri = Uri(
-                                  path: '/mapa',
-                                  queryParameters: {
-                                    if ((estudio?['categoria'] ?? '').toString().isNotEmpty)
-                                      'categoria': estudio!['categoria'].toString(),
-                                    if ((estudio?['nombre'] ?? '').toString().isNotEmpty)
-                                      'q': estudio!['nombre'].toString(),
-                                  },
-                                );
-                                context.push(uri.toString());
-                              },
+                            _InfoChipCard(
+                              icon: Icons.alarm_outlined,
+                              label: clase['duracion_min'] != null
+                                  ? '${clase['duracion_min']} min'
+                                  : '60 min',
                             ),
-                            if (_canReview)
-                              _HeaderActionPill(
-                                icon: Icons.star_outline_rounded,
-                                label: 'Dejar reseña',
-                                onTap: _dejarResena,
+                            _InfoChipCard(
+                              icon: Icons.place_outlined,
+                              label: clase['sala']?.toString() ?? 'Sala 2',
+                            ),
+                            _InfoChipCard(
+                              icon: Icons.people_outline_rounded,
+                              label: '$lugaresDisp plazas',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
+                          decoration: BoxDecoration(
+                            color: AppColors.blackSoft,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x12000000),
+                                blurRadius: 18,
+                                offset: Offset(0, 10),
                               ),
-                          ],
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          _InfoChipCard(
-                            icon: Icons.calendar_today_outlined,
-                            label: fecha != null
-                                ? DateFormat('EEE d MMM', 'es').format(fecha)
-                                : 'Fecha',
+                            ],
                           ),
-                          _InfoChipCard(
-                            icon: Icons.alarm_outlined,
-                            label: clase['duracion_min'] != null
-                                ? '${clase['duracion_min']} min'
-                                : '60 min',
-                          ),
-                          _InfoChipCard(
-                            icon: Icons.place_outlined,
-                            label: clase['sala']?.toString() ?? 'Sala 2',
-                          ),
-                          _InfoChipCard(
-                            icon: Icons.people_outline_rounded,
-                            label: '$lugaresDisp plazas',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
-                        decoration: BoxDecoration(
-                          color: AppColors.blackSoft,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x12000000),
-                              blurRadius: 18,
-                              offset: Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: _esGratuita
-                            ? Row(
-                                children: [
-                                  Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFF1E3A1E),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.check_circle_outline_rounded,
-                                      color: Color(0xFF66BB6A),
-                                      size: 24,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Reserva gratuita',
-                                          style: TextStyle(
-                                            color: Color(0xFF66BB6A),
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                        SizedBox(height: 4),
-                                        Text(
-                                          'Sos alumno/a de este estudio',
-                                          style: TextStyle(
-                                            color: Color(0xFFA7A09A),
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                            Expanded(
-                              flex: 7,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Precio 0 = "esta clase es gratis para
-                                  // todas", que NO es lo mismo que
-                                  // `_esGratuita` ("vos ya le pagás a este
-                                  // estudio", modo gestión, por usuaria). Hoy
-                                  // no pueden coexistir en una pantalla, pero
-                                  // son cosas distintas: no unificarlas.
-                                  if (creditos == 0)
-                                    const Text(
-                                      'Gratis',
-                                      style: TextStyle(
-                                        color: AppColors.primary,
-                                        fontSize: 38,
-                                        fontWeight: FontWeight.w700,
+                          child: _esGratuita
+                              ? Row(
+                                  children: [
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF1E3A1E),
+                                        shape: BoxShape.circle,
                                       ),
-                                    )
-                                  else
-                                    RichText(
-                                      text: TextSpan(
+                                      child: const Icon(
+                                        Icons.check_circle_outline_rounded,
+                                        color: Color(0xFF66BB6A),
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    const Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          TextSpan(
-                                            text: '$creditos',
-                                            style: const TextStyle(
-                                              color: AppColors.primary,
-                                              fontSize: 38,
+                                          Text(
+                                            'Reserva gratuita',
+                                            style: TextStyle(
+                                              color: Color(0xFF66BB6A),
+                                              fontSize: 18,
                                               fontWeight: FontWeight.w700,
                                             ),
                                           ),
-                                          const TextSpan(
-                                            text: ' créditos',
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'Sos alumno/a de este estudio',
                                             style: TextStyle(
-                                              color: AppColors.primary,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFFA7A09A),
+                                              fontSize: 13,
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                  const SizedBox(height: 6),
-                                  const Text(
-                                    'Precio de esta clase',
-                                    style: TextStyle(
-                                      color: Color(0xFFA7A09A),
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // "Tu saldo" — solo logueado. El invitado ve el
-                            // precio (izquierda) pero no tiene saldo.
-                            if (Supabase.instance.client.auth.currentUser != null) ...[
-                              Container(
-                                width: 1,
-                                height: 54,
-                                margin:
-                                    const EdgeInsets.symmetric(horizontal: 16),
-                                color: const Color(0x26FFFFFF),
-                              ),
-                              Expanded(
-                                flex: 4,
-                                child: Column(
+                                  ],
+                                )
+                              : Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
-                                      'Tu saldo',
-                                      style: TextStyle(
-                                        color: Color(0xFFA7A09A),
-                                        fontSize: 14,
+                                    Expanded(
+                                      flex: 7,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          // Precio 0 = "esta clase es gratis para
+                                          // todas", que NO es lo mismo que
+                                          // `_esGratuita` ("vos ya le pagás a este
+                                          // estudio", modo gestión, por usuaria). Hoy
+                                          // no pueden coexistir en una pantalla, pero
+                                          // son cosas distintas: no unificarlas.
+                                          if (creditos == 0)
+                                            const Text(
+                                              'Gratis',
+                                              style: TextStyle(
+                                                color: AppColors.primary,
+                                                fontSize: 38,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            )
+                                          else
+                                            RichText(
+                                              text: TextSpan(
+                                                children: [
+                                                  TextSpan(
+                                                    text: '$creditos',
+                                                    style: const TextStyle(
+                                                      color: AppColors.primary,
+                                                      fontSize: 38,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                  const TextSpan(
+                                                    text: ' créditos',
+                                                    style: TextStyle(
+                                                      color: AppColors.primary,
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          const SizedBox(height: 6),
+                                          const Text(
+                                            'Precio de esta clase',
+                                            style: TextStyle(
+                                              color: Color(0xFFA7A09A),
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      '$creditosSaldo créditos',
-                                      style: const TextStyle(
-                                        color: AppColors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
+                                    // "Tu saldo" — solo logueado. El invitado ve el
+                                    // precio (izquierda) pero no tiene saldo.
+                                    if (Supabase
+                                            .instance
+                                            .client
+                                            .auth
+                                            .currentUser !=
+                                        null) ...[
+                                      Container(
+                                        width: 1,
+                                        height: 54,
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                        ),
+                                        color: const Color(0x26FFFFFF),
                                       ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      'Quedan ${creditosSaldo - creditos} tras reservar',
-                                      style: const TextStyle(
-                                        color: Color(0xFFA7A09A),
-                                        fontSize: 12,
-                                        height: 1.35,
+                                      Expanded(
+                                        flex: 4,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Tu saldo',
+                                              style: TextStyle(
+                                                color: Color(0xFFA7A09A),
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              '$creditosSaldo créditos',
+                                              style: const TextStyle(
+                                                color: AppColors.white,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              'Quedan ${creditosSaldo - creditos} tras reservar',
+                                              style: const TextStyle(
+                                                color: Color(0xFFA7A09A),
+                                                fontSize: 12,
+                                                height: 1.35,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ],
                                 ),
-                              ),
-                            ],
-                          ],
                         ),
-                      ),
 
-                      const SizedBox(height: 18),
-                      if (galleryUrls.isNotEmpty)
-                        Column(
-                          children: [
-                            _SectionBlock(
-                              title: 'Galería',
-                              child: SizedBox(
-                                height: 92,
-                                child: ListView.separated(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: galleryUrls.length,
-                                  separatorBuilder: (_, __) =>
-                                      const SizedBox(width: 10),
-                                  itemBuilder: (context, index) {
-                                    final imageUrl = galleryUrls[index];
-                                    return InkWell(
-                                      borderRadius: BorderRadius.circular(14),
-                                      onTap: () => _abrirGaleria(galleryUrls, initialIndex: index),
-                                      child: ClipRRect(
+                        const SizedBox(height: 18),
+                        if (galleryUrls.isNotEmpty)
+                          Column(
+                            children: [
+                              _SectionBlock(
+                                title: 'Galería',
+                                child: SizedBox(
+                                  height: 92,
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: galleryUrls.length,
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(width: 10),
+                                    itemBuilder: (context, index) {
+                                      final imageUrl = galleryUrls[index];
+                                      return InkWell(
                                         borderRadius: BorderRadius.circular(14),
-                                        child: SizedBox(
-                                          width: 120,
-                                          child: CachedNetworkImage(
-                                            imageUrl: imageUrl,
-                                            fit: BoxFit.cover,
-                                            errorWidget: (_, __, ___) => Container(
-                                              color: const Color(0xFFF3EEE8),
-                                              child: const Icon(
-                                                Icons.image_not_supported_outlined,
-                                                color: AppColors.grey,
-                                              ),
+                                        onTap: () => _abrirGaleria(
+                                          galleryUrls,
+                                          initialIndex: index,
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          child: SizedBox(
+                                            width: 120,
+                                            child: CachedNetworkImage(
+                                              imageUrl: imageUrl,
+                                              fit: BoxFit.cover,
+                                              errorWidget: (_, __, ___) =>
+                                                  Container(
+                                                    color: const Color(
+                                                      0xFFF3EEE8,
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons
+                                                          .image_not_supported_outlined,
+                                                      color: AppColors.grey,
+                                                    ),
+                                                  ),
                                             ),
                                           ),
                                         ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                          ],
-                        ),
-                      if ((clase['descripcion']?.toString().trim() ?? '')
-                          .isNotEmpty)
-                        Column(
-                          children: [
-                            _SectionBlock(
-                              title: 'Sobre el evento',
-                              child: Text(
-                                clase['descripcion'].toString(),
-                                style: const TextStyle(
-                                  color: Color(0xFF5E584F),
-                                  fontSize: 14,
-                                  height: 1.5,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                          ],
-                        ),
-                      // Organizadores de la experiencia, con su @ clickeable.
-                      // Home y explorar ya los mostraban; acá faltaban, así que
-                      // al abrir el detalle desaparecían los créditos de quien
-                      // la daba. Mismo widget, mismo comportamiento.
-                      if (((clase['organizadores'] as List?) ?? const [])
-                          .isNotEmpty)
-                        Column(
-                          children: [
-                            _SectionBlock(
-                              title: 'Quién la da',
-                              child: OrganizadoresLinks(
-                                organizadores:
-                                    (clase['organizadores'] as List?) ??
-                                        const [],
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                          ],
-                        ),
-                      if ((clase['direccion']?.toString().trim() ?? '')
-                          .isNotEmpty)
-                        Column(
-                          children: [
-                            _SectionBlock(
-                              title: 'Dónde',
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Icon(
-                                    Icons.location_on_outlined,
-                                    size: 18,
-                                    color: AppColors.primary,
+                                      );
+                                    },
                                   ),
-                                  const SizedBox(width: 8),
-                                  // La dirección abre el mapa: nadie quiere
-                                  // copiarla a mano para saber cómo llegar.
-                                  Expanded(
-                                    child: InkWell(
-                                      onTap: () => abrirMapa(
-                                        direccion:
-                                            clase['direccion']?.toString(),
-                                      ),
-                                      child: Text(
-                                        clase['direccion'].toString(),
-                                        style: const TextStyle(
-                                          color: AppColors.primary,
-                                          fontSize: 14,
-                                          height: 1.5,
-                                          decoration:
-                                              TextDecoration.underline,
-                                          decorationColor: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                            ],
+                          ),
+                        if ((clase['descripcion']?.toString().trim() ?? '')
+                            .isNotEmpty)
+                          Column(
+                            children: [
+                              _SectionBlock(
+                                title: 'Sobre el evento',
+                                child: Text(
+                                  clase['descripcion'].toString(),
+                                  style: const TextStyle(
+                                    color: Color(0xFF5E584F),
+                                    fontSize: 14,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                            ],
+                          ),
+                        // Organizadores de la experiencia, con su @ clickeable.
+                        // Home y explorar ya los mostraban; acá faltaban, así que
+                        // al abrir el detalle desaparecían los créditos de quien
+                        // la daba. Mismo widget, mismo comportamiento.
+                        if (((clase['organizadores'] as List?) ?? const [])
+                            .isNotEmpty)
+                          Column(
+                            children: [
+                              _SectionBlock(
+                                title: 'Quién la da',
+                                child: OrganizadoresLinks(
+                                  organizadores:
+                                      (clase['organizadores'] as List?) ??
+                                      const [],
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                            ],
+                          ),
+                        if ((clase['direccion']?.toString().trim() ?? '')
+                            .isNotEmpty)
+                          Column(
+                            children: [
+                              _SectionBlock(
+                                title: 'Dónde',
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.location_on_outlined,
+                                      size: 18,
+                                      color: AppColors.primary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    // La dirección abre el mapa: nadie quiere
+                                    // copiarla a mano para saber cómo llegar.
+                                    Expanded(
+                                      child: InkWell(
+                                        onTap: () => abrirMapa(
+                                          direccion: clase['direccion']
+                                              ?.toString(),
+                                        ),
+                                        child: Text(
+                                          clase['direccion'].toString(),
+                                          style: const TextStyle(
+                                            color: AppColors.primary,
+                                            fontSize: 14,
+                                            height: 1.5,
+                                            decoration:
+                                                TextDecoration.underline,
+                                            decorationColor: AppColors.primary,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                          ],
-                        ),
-                      if ((clase['incluye']?.toString().trim() ?? '').isNotEmpty)
-                        Column(
-                          children: [
-                            _SectionBlock(
-                              title: 'Qué incluye',
-                              child: Text(
-                                clase['incluye'].toString(),
-                                style: const TextStyle(
-                                  color: Color(0xFF5E584F),
-                                  fontSize: 14,
-                                  height: 1.5,
+                                  ],
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 18),
-                          ],
-                        ),
-                      if ((clase['instructor']?.toString().trim() ?? '').isNotEmpty)
-                      _SectionBlock(
-                        title: 'Instructor',
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 58,
-                              height: 58,
-                              decoration: const BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
+                              const SizedBox(height: 18),
+                            ],
+                          ),
+                        if ((clase['incluye']?.toString().trim() ?? '')
+                            .isNotEmpty)
+                          Column(
+                            children: [
+                              _SectionBlock(
+                                title: 'Qué incluye',
                                 child: Text(
-                                  _initials(clase['instructor']?.toString() ?? 'MR'),
+                                  clase['incluye'].toString(),
                                   style: const TextStyle(
-                                    color: AppColors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF5E584F),
+                                    fontSize: 14,
+                                    height: 1.5,
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    clase['instructor']?.toString() ?? '',
-                                    style: const TextStyle(
-                                      color: AppColors.black,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                              const SizedBox(height: 18),
+                            ],
+                          ),
+                        if ((clase['instructor']?.toString().trim() ?? '')
+                            .isNotEmpty)
+                          _SectionBlock(
+                            title: 'Instructor',
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 58,
+                                  height: 58,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
                                   ),
-                                  if ((clase['instructor_descripcion']
-                                              ?.toString()
-                                              .trim() ??
-                                          '')
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      clase['instructor_descripcion']
-                                          .toString(),
+                                  child: Center(
+                                    child: Text(
+                                      _initials(
+                                        clase['instructor']?.toString() ?? 'MR',
+                                      ),
                                       style: const TextStyle(
-                                        color: Color(0xFF8F877F),
-                                        fontSize: 13,
-                                        height: 1.4,
+                                        color: AppColors.white,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700,
                                       ),
                                     ),
-                                  ],
-                                ],
-                              ),
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        clase['instructor']?.toString() ?? '',
+                                        style: const TextStyle(
+                                          color: AppColors.black,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      if ((clase['instructor_descripcion']
+                                                  ?.toString()
+                                                  .trim() ??
+                                              '')
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          clase['instructor_descripcion']
+                                              .toString(),
+                                          style: const TextStyle(
+                                            color: Color(0xFF8F877F),
+                                            fontSize: 13,
+                                            height: 1.4,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      if ((clase['instructor']?.toString().trim() ?? '').isNotEmpty)
-                        const SizedBox(height: 18),
-                      _SectionBlock(
-                        title: 'Política de cancelación',
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // La ventana la define el estudio (o la clase);
-                            // no hardcodeamos 12 hs. Ver CierreMinutos.
-                            _PolicyItem(
-                              'Cancelación gratuita hasta '
-                              '${CierreMinutos.formatDuracion(CierreMinutos.cancelacion(clase))}'
-                              ' antes de la clase.',
-                            ),
-                            if (cierreMinutos > 0)
+                          ),
+                        if ((clase['instructor']?.toString().trim() ?? '')
+                            .isNotEmpty)
+                          const SizedBox(height: 18),
+                        _SectionBlock(
+                          title: 'Política de cancelación',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // La ventana la define el estudio (o la clase);
+                              // no hardcodeamos 12 hs. Ver CierreMinutos.
                               _PolicyItem(
-                                'Las reservas cierran '
-                                '${CierreMinutos.formatDuracion(cierreMinutos)}'
-                                ' antes de que empiece.',
+                                'Cancelación gratuita hasta '
+                                '${CierreMinutos.formatDuracion(CierreMinutos.cancelacion(clase))}'
+                                ' antes de la clase.',
                               ),
-                            const _PolicyItem(
-                              'Cancelaciones tardías o no-shows consumen los créditos completos.',
-                            ),
-                            const _PolicyItem(
-                              'Los créditos no son reembolsables una vez consumidos.',
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: _compartirClase,
-                        icon: const Icon(Icons.ios_share_rounded, size: 18),
-                        // Las experiencias (workshops) no son "clases": el
-                        // botón las nombra como lo que son.
-                        label: Text(
-                          clase['tipo']?.toString() == 'workshop'
-                              ? 'Compartir esta experiencia'
-                              : 'Compartir esta clase',
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: const BorderSide(color: AppColors.primary),
-                          minimumSize: const Size(double.infinity, 48),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      _SectionBlock(
-                        title: 'Reservas',
-                        child: Text(
-                          reservaCerrada
-                              ? (cierreMinutos > 0
-                                  ? 'Las reservas ya están cerradas. Este estudio permite agendar ${ReservasService.labelCierreReserva(cierreMinutos)}.'
-                                  : 'Las reservas ya están cerradas para esta clase.')
-                              : 'Podés reservar ${ReservasService.labelCierreReserva(cierreMinutos)}.',
-                          style: const TextStyle(
-                            color: AppColors.grey,
-                            fontSize: 15,
-                            height: 1.5,
+                              if (cierreMinutos > 0)
+                                _PolicyItem(
+                                  'Las reservas cierran '
+                                  '${CierreMinutos.formatDuracion(cierreMinutos)}'
+                                  ' antes de que empiece.',
+                                ),
+                              const _PolicyItem(
+                                'Cancelaciones tardías o no-shows consumen los créditos completos.',
+                              ),
+                              const _PolicyItem(
+                                'Los créditos no son reembolsables una vez consumidos.',
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: _compartirClase,
+                          icon: const Icon(Icons.ios_share_rounded, size: 18),
+                          // Las experiencias (workshops) no son "clases": el
+                          // botón las nombra como lo que son.
+                          label: Text(
+                            clase['tipo']?.toString() == 'workshop'
+                                ? 'Compartir esta experiencia'
+                                : 'Compartir esta clase',
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.primary),
+                            minimumSize: const Size(double.infinity, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        _SectionBlock(
+                          title: 'Reservas',
+                          child: Text(
+                            reservaCerrada
+                                ? (cierreMinutos > 0
+                                      ? 'Las reservas ya están cerradas. Este estudio permite agendar ${ReservasService.labelCierreReserva(cierreMinutos)}.'
+                                      : 'Las reservas ya están cerradas para esta clase.')
+                                : 'Podés reservar ${ReservasService.labelCierreReserva(cierreMinutos)}.',
+                            style: const TextStyle(
+                              color: AppColors.grey,
+                              fontSize: 15,
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
+              ],
+            ),
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.of(context).padding.bottom + 16,
+              child: KeyedSubtree(
+                key: _ctaKey,
+                child: _buildBottomAction(
+                  lugaresDisp: lugaresDisp.toInt(),
+                  reservaCerrada: reservaCerrada,
+                  disponible: disponible,
+                  creditos: creditos,
+                ),
               ),
+            ),
           ],
         ),
-        Positioned(
-          left: 20,
-          right: 20,
-          bottom: MediaQuery.of(context).padding.bottom + 16,
-          child: KeyedSubtree(
-            key: _ctaKey,
-            child: _buildBottomAction(
-              lugaresDisp: lugaresDisp.toInt(),
-              reservaCerrada: reservaCerrada,
-              disponible: disponible,
-              creditos: creditos,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -1267,7 +1332,9 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
             motivo: esWaitlist ? MuroMotivo.listaEspera : MuroMotivo.reservar,
           ),
           child: Text(
-            esWaitlist ? 'Registrate para anotarte' : 'Registrate para reservar',
+            esWaitlist
+                ? 'Registrate para anotarte'
+                : 'Registrate para reservar',
           ),
         ),
       );
@@ -1331,22 +1398,25 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
         onPressed: _yaReservado
             ? null
             : !disponible
-                ? null
-                : _irAConfirmar,
+            ? null
+            : _irAConfirmar,
         child: Text(
           _yaReservado
               ? 'Ya reservada'
               : !disponible
-                  ? (reservaCerrada ? 'Reservas cerradas' : 'Sin lugares')
-                  : (_esGratuita || creditos == 0)
-                      ? 'Reservar gratis'
-                      : 'Reservar · $creditos créditos',
+              ? (reservaCerrada ? 'Reservas cerradas' : 'Sin lugares')
+              : (_esGratuita || creditos == 0)
+              ? 'Reservar gratis'
+              : 'Reservar · $creditos créditos',
         ),
       ),
     );
   }
 
-  Future<void> _abrirGaleria(List<String> imageUrls, {int initialIndex = 0}) async {
+  Future<void> _abrirGaleria(
+    List<String> imageUrls, {
+    int initialIndex = 0,
+  }) async {
     if (imageUrls.isEmpty) return;
     final controller = PageController(initialPage: initialIndex);
     await showDialog<void>(
@@ -1361,7 +1431,8 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                 PageView.builder(
                   controller: controller,
                   itemCount: imageUrls.length,
-                  onPageChanged: (value) => setDialogState(() => currentIndex = value),
+                  onPageChanged: (value) =>
+                      setDialogState(() => currentIndex = value),
                   itemBuilder: (_, index) => InteractiveViewer(
                     minScale: 1,
                     maxScale: 4,
@@ -1464,10 +1535,7 @@ class _CircleAction extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
 
-  const _CircleAction({
-    required this.icon,
-    this.onTap,
-  });
+  const _CircleAction({required this.icon, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1490,10 +1558,7 @@ class _InfoChipCard extends StatelessWidget {
   final IconData icon;
   final String label;
 
-  const _InfoChipCard({
-    required this.icon,
-    required this.label,
-  });
+  const _InfoChipCard({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -1536,10 +1601,7 @@ class _SectionBlock extends StatelessWidget {
   final String title;
   final Widget child;
 
-  const _SectionBlock({
-    required this.title,
-    required this.child,
-  });
+  const _SectionBlock({required this.title, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -1580,7 +1642,10 @@ class _SectionBlock extends StatelessWidget {
 class _PaywallSheet extends StatelessWidget {
   final int creditosNecesarios;
   final int creditosActuales;
-  const _PaywallSheet({required this.creditosNecesarios, required this.creditosActuales});
+  const _PaywallSheet({
+    required this.creditosNecesarios,
+    required this.creditosActuales,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1590,30 +1655,56 @@ class _PaywallSheet extends StatelessWidget {
         color: Color(0xFFF7F5F2),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).padding.bottom + 24),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        16,
+        20,
+        MediaQuery.of(context).padding.bottom + 24,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(color: const Color(0xFFCCC5BD), borderRadius: BorderRadius.circular(99)),
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              color: const Color(0xFFCCC5BD),
+              borderRadius: BorderRadius.circular(99),
+            ),
           ),
           Container(
-            width: 60, height: 60,
-            decoration: const BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle),
-            child: const Icon(Icons.star_outline_rounded, color: AppColors.primary, size: 30),
+            width: 60,
+            height: 60,
+            decoration: const BoxDecoration(
+              color: AppColors.primaryLight,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.star_outline_rounded,
+              color: AppColors.primary,
+              size: 30,
+            ),
           ),
           const SizedBox(height: 14),
           const Text(
             'Créditos insuficientes',
-            style: TextStyle(color: AppColors.black, fontSize: 18, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: AppColors.black,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'Esta clase requiere $creditosNecesarios crédito${creditosNecesarios != 1 ? 's' : ''}.\n'
             'Tenés $creditosActuales — te faltan $faltan.',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF8F877F), fontSize: 14, height: 1.5),
+            style: const TextStyle(
+              color: Color(0xFF8F877F),
+              fontSize: 14,
+              height: 1.5,
+            ),
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -1730,8 +1821,11 @@ class _PreReservaConfirmCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.timer_rounded,
-                  color: AppColors.primary, size: 22),
+              const Icon(
+                Icons.timer_rounded,
+                color: AppColors.primary,
+                size: 22,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: RichText(
@@ -1804,10 +1898,7 @@ class _PreReservaConfirmCard extends StatelessWidget {
               ),
               child: const Text(
                 'No me interesa',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -1820,6 +1911,7 @@ class _PreReservaConfirmCard extends StatelessWidget {
 class _WaitlistButton extends StatelessWidget {
   final bool enListaEspera;
   final int waitlistCount;
+
   /// Puesto exacto (1 = la próxima). null = no anotada, o la RPC no respondió.
   final int? miPosicion;
   final bool loading;
@@ -1942,4 +2034,3 @@ class _PolicyItem extends StatelessWidget {
     );
   }
 }
-

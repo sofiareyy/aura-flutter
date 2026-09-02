@@ -1607,6 +1607,45 @@ para todos los usuarios nuevos.**
 
 ---
 
+## ✅ Heroes de perfil de estudio y detalle de clase — HECHO el 2/9
+
+Mismo bug que las tarjetas, en dos pantallas más: foto de **alto fijo 300 px
+con ancho libre**, o sea 1920 × 300 = **6,4:1** en un monitor. De una foto
+apaisada 3:2 se veía el 23% del alto.
+
+Ahora: contenido topado en `anchoMaxDetalle` (1100) y hero en **2:1 con piso de
+300** (`altoHero`). Se pasa a ver el **75%**. Debajo de 600 px de ancho la
+fórmula da menos que el piso, así que **en teléfono queda idéntico** y la app
+nativa no se entera.
+
+Por qué 2:1 y no 16:9: la proporción decide cuánto se recorta, el ancho sólo
+decide el alto. 16:9 mostraría el 84% pero el hero mediría 619 px y se comería
+la pantalla antes del primer renglón. Es un número (`proporcionHero`) si Sofía
+lo quiere distinto.
+
+En detalle de clase el CTA flotante también quedó contenido (era
+`Positioned(left: 20, right: 20)` sobre toda la pantalla).
+
+**La galería NO se tocó** — es el único lugar donde una foto se ve entera.
+
+### 🔴 Queda uno del mismo bug, y no estaba en el mapa
+
+**`confirmar_reserva_screen.dart`**: foto de alto fijo **154 px** y ancho
+libre ⇒ en 1920 queda de **12,2:1** (se ve el 12% de una foto 3:2). Es peor de
+lo que estaban los heroes y está en el camino de la reserva. Mismo arreglo de
+una línea. Sofía tiene que decidirlo.
+
+Menor y a propósito: el banner "tu estudio" de Inicio queda en 7,25:1, pero va
+al 35% de opacidad detrás de un velo oscuro. Es textura, no foto.
+
+### Anotado: los heroes todavía bajan la foto original
+
+Las tarjetas ya piden la versión liviana por `/render/image/public/`; estas dos
+pantallas siguen bajando el original (hasta 2,4 MB). Es cambiar el widget de
+imagen, igual que en las tarjetas.
+
+---
+
 ## ✅ Tarjetas de clase en la web — HECHO el 2/9 (Dart, va en la 1.0.7)
 
 Inicio y Explorar dejaron de compartir grilla **a propósito**: Inicio es la
