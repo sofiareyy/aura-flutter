@@ -1277,6 +1277,44 @@ Explorar + los pendientes del build 27 del inventario).
 **La experiencia de prueba 6258 está BORRADA** (1/9, 0 reservas, verificado:
 0 workshops futuros en la base). El preview del 8099 está apagado.
 
+## ✅ Mail "mañana cobrás" APAGADO — 2/9 (base, sin build)
+
+**Decisión de Sofía:** el mail del día 4 no aporta. El estudio ya sabe que
+cobra el 5 y tiene la pantalla de Cobros, que lee las liquidaciones reales.
+
+**Qué se hizo:** `select cron.alter_job(job_id := 1, active := false)`
+(`FEAT_APAGAR_AVISO_COBRO_2026-09-02.sql`). Se apaga **el disparador**, no la
+función. Reactivar es un renglón: el mismo `alter_job` con `active := true`.
+
+**Por qué desactivar y no `cron.unschedule`:** el comando vivo en el job trae
+la service key desde `vault.decrypted_secrets`; la copia del repo
+(`REAGENDAR_CRONS.sql`) tiene el placeholder `<PEGAR_SERVICE_ROLE>`. Un
+unschedule borraba la **única copia buena** del comando.
+
+**Medido antes de tocar:** el job (jobid 1, `0 21 4 * *` = 18:00 ART del día 4)
+era el **único** disparador. Ningún trigger, ninguna función de base y ningún
+otro job la invocan. La función **no escribe nada** en la base: sólo lee y
+mailea, así que apagarla no deja ningún dato sin generar.
+
+**Lo que NO se tocó y sigue andando:** el reporte mensual (jobid 2, día 1, es
+otro job y otra función; sólo comparten `_shared/liquidacion.ts`, intacto) · la
+pantalla de Cobros (no invoca ninguna edge function: lee `liquidaciones` y
+`reservas` directo) · los otros 6 crons · el **botón manual** del backoffice
+(Liquidaciones → "Enviar aviso de cobro"), que sigue disponible con su diálogo
+de confirmación.
+
+⚠️ **Probado empíricamente que un job inactivo NO corre** — era una nota, no una
+medición. Job de prueba (`select 1`, cada minuto, ya borrado): **activo** corrió
+a las 21:08:00; **inactivo**, 0 corridas en los 4 minutos siguientes.
+
+**Consecuencia buena, con un asterisco:** el corte de mes en UTC (ver la nota
+del chequeo del 2/9) queda **sin ningún cron que lo dispare salvo el reporte
+mensual**. Pero el código con el corte viejo **sigue vivo en
+`aviso-cobro-manana`** (líneas 69-70): duerme detrás del botón manual. Si algún
+día se aprieta ese botón el último día del mes después de las 21:00 ART, el
+número puede correrse de mes. Arreglar el corte en **las dos** funciones sigue
+siendo lo correcto; lo que bajó es la urgencia de una de ellas.
+
 ## ✅ Mail de clase cancelada — ACTIVO desde el 2/9
 
 Cancelar una clase avisaba sólo por campanita + push: una alumna sin push (o
