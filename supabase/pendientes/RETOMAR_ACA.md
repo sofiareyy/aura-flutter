@@ -1277,6 +1277,64 @@ Explorar + los pendientes del build 27 del inventario).
 **La experiencia de prueba 6258 está BORRADA** (1/9, 0 reservas, verificado:
 0 workshops futuros en la base). El preview del 8099 está apagado.
 
+## ✅ Reporte mensual APAGADO — 3/9 (base, sin build)
+
+Mismo criterio que el aviso de cobro:
+`select cron.alter_job(job_id := 2, active := false)`
+(`FEAT_APAGAR_REPORTE_MENSUAL_2026-09-03.sql`). Se apaga **el disparador**, no
+la función. El botón manual del backoffice sigue disponible.
+
+**Apagarlo no cambia lo que recibe el estudio**: esta función ya no le mandaba
+nada a nadie por el filtro de `estado === 'presente'` (ver la nota del 2/9).
+Apagar el cron formaliza lo que ya pasaba de hecho.
+
+**Probado empíricamente otra vez** (job de prueba `select 1` cada minuto, ya
+borrado): ACTIVO corrió a las 16:16:00; INACTIVO, 0 corridas en los 5 minutos
+siguientes.
+
+**Verificado que no se rompió nada más:** los 4 triggers de notificación siguen
+instalados y habilitados (`nueva_reserva`, `confirmacion_alumna`,
+`resena_nueva`, `log_cambios`), las funciones de base siguen
+(`pedir_resenas_post_clase`, `sync_vidriera_estudios`,
+`completar_reservas_vencidas`, `estudio_cancelar_clase`), y los crons siguieron
+corriendo normal después del cambio.
+
+### 📭 Qué le llega HOY al estudio, y qué no
+
+**Ningún proceso automático le manda montos.** Los dos que lo hacían están
+apagados. El estudio ve su plata **sólo en la pantalla de Cobros**, que lee las
+liquidaciones reales y no depende de ningún cron.
+
+| Aviso | A quién | Lo dispara | Estado |
+|---|---|---|---|
+| `nueva-reserva-estudio-email` + campanita | estudio | trigger en `reservas` | 🟢 activo |
+| `resena-email` (aviso de reseña nueva) | estudio | trigger en `study_reviews` | 🟢 activo |
+| `resena-email` (pedido de reseña) | alumna | cron `pedir-resenas-15min` | 🟢 activo |
+| `email-confirmacion` | alumna | trigger en `reservas` | 🟢 activo |
+| `cancelacion-email` | alumna | `estudio_cancelar_clase` | 🟢 activo |
+| `aviso-alumnos-email` | alumnas | lo manda el estudio desde la app | 🟢 activo |
+| `email-regalo` | quien recibe el regalo | `mp-webhook` / `confirmar-pago-manual` | 🟢 activo |
+| `aviso-cobro-manana` (montos) | estudio | cron jobid 1 | 🔴 **apagado** · queda el botón |
+| `reporte-mensual-estudios` (montos) | estudio | cron jobid 2 | 🔴 **apagado** · queda el botón |
+
+**Medido:** ninguno de los mails que quedan activos hacia el estudio lleva
+plata, y ninguna campanita al estudio tampoco (0 de 12 mencionan montos). El
+único tipo de campanita al estudio que existe hoy es `nueva_reserva`.
+
+### 🟢 Crons activos después de esto — quedan 6 de 8
+
+| Job | Cuándo | Qué hace |
+|---|---|---|
+| `cleanup-lista-espera-15min` | cada 15 min | libera pre-reservas y promueve lista de espera |
+| `pedir-resenas-15min` | cada 15 min | pide reseña a quien asistió |
+| `completar-reservas` | cada hora | pasa `presente` → `completada` |
+| `regenerar-grillas-diario` | 00:00 ART | extiende las grillas |
+| `sync-vidriera-estudios` | 00:30 ART | sincroniza categorías |
+| `acreditar-creditos-corporativos-mensual` | día 1, 00:00 ART | créditos de empresas |
+
+Los 2 apagados son `aviso-cobro-manana` (jobid 1) y `reporte-mensual-estudios`
+(jobid 2), los dos con su comando intacto.
+
 ## ✅ Corte de mes ARGENTINO en las funciones de cobro — 2/9 (base, sin build)
 
 El fix del 2/9 (`2b10dbc`) había llevado el corte a hora argentina **sólo en
