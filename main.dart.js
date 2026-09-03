@@ -12526,11 +12526,12 @@ this.a=c},
 bcx:function bcx(a,b){this.a=a
 this.b=b},
 bcy:function bcy(a){this.a=a},
-WG:function WG(a,b,c,d){var _=this
+WG:function WG(a,b,c,d,e){var _=this
 _.c=a
 _.d=b
 _.e=c
-_.a=d},
+_.f=d
+_.a=e},
 bsM:function bsM(a,b,c,d,e,f,g,h,i,j,k){var _=this
 _.a=a
 _.b=b
@@ -78365,7 +78366,7 @@ if(s!=null)A.aB(this.b).bQ("/estudio/"+A.r(s),null,t.X)},
 $S:0}
 A.bba.prototype={
 $2(a,b){var s=A.bGB(this.a)[b]
-return new A.M(B.ov,A.am(new A.WG(s,B.u6,new A.bb0(a,s),null),null,320),null)},
+return new A.M(B.ov,A.am(new A.WG(s,B.u6,new A.bb0(a,s),!0,null),null,320),null)},
 $S:129}
 A.bb0.prototype={
 $0(){var s=A.r(J.f(this.b,"id"))
@@ -78386,7 +78387,7 @@ l=l.d
 return A.A(q,A.dW(!1,B.X,!0,p,A.cI(!1,o,!0,A.kJ(A.I(A.a([j,new A.M(B.a9J,s,q),new A.M(B.a9M,r,q),new A.M(B.a9L,A.m(l==null?"Ver estudio y ubicaci\xf3n":l,1,B.S,q,q,B.aP4,q,q,q),q)],k),B.q,B.e,B.f,0,B.l),q,new A.E(B.j,q,m,n,q,q,B.m),q,q),q,!0,q,q,q,q,q,q,q,q,q,q,q,this.e,q,q,q,q,q,q,q),B.h,B.j,0,q,q,q,q,q,B.bc),B.h,q,q,q,q,q,B.ov,q,q,q,166)}}
 A.afH.prototype={
 afG(a){var s=this.c[a],r=(a&1)===0?B.u6:B.a5S
-return new A.WG(s,r,new A.bcx(this,a),null)},
+return new A.WG(s,r,new A.bcx(this,a),!1,null)},
 q(a){return A.kM(new A.bcy(this))}}
 A.bcx.prototype={
 $0(){var s=this.a
@@ -78433,14 +78434,15 @@ h=t.kc.a(e.h(f,"organizadores"))
 if(h==null)h=B.e4
 return A.kM(new A.bsM(this,q==="workshop",p,s,r.toUpperCase(),j,o,i,h,d,m))}}
 A.bsM.prototype={
-$2(a,b){var s,r,q,p,o,n,m,l,k,j,i,h=this,g=null,f=b.b>=420,e=f?124:112,d=f?186:96
-f=h.a
-s=A.y(18)
+$2(a,b){var s,r,q,p,o,n,m,l,k,j,i,h=this,g=null,f=b.b>=420,e=f?124:112,d=h.a
+if(f)s=186
+else s=d.f?96:131
+f=A.y(18)
 r=h.b
 q=r?B.a6B:B.j
 p=A.y(18)
 o=A.bV(r?B.a6Q:B.cA,1)
-n=A.fm(B.a0R,A.am(new A.af0(h.c,f.d,g),1/0,d),B.aO)
+n=A.fm(B.a0R,A.am(new A.af0(h.c,d.d,g),1/0,s),B.aO)
 m=t.p
 l=A.a([A.ac(A.m(new A.ar(A.a([h.d,h.e],t.s),new A.bsL(),t.gD).bl(0," \xb7 "),1,B.S,g,g,B.aOv,g,g,g),1)],m)
 if(r)l.push(B.b3k)
@@ -78448,7 +78450,7 @@ else if(h.f)l.push(B.b3i)
 else if(h.r==="pico")l.push(B.b3j)
 else if(h.w)l.push(B.b3l)
 l=A.a0(l,B.k,B.e,B.f,0,g,g)
-k=f.c
+k=d.c
 j=J.Y(k)
 i=j.h(k,"nombre")
 l=A.a([l,B.hC,A.m(J.t(i==null?"Clase":i),1,B.S,g,g,B.cG,g,g,g),B.a4],m)
@@ -78462,7 +78464,7 @@ k=h.z
 if(k===0)k="GRATIS"
 else k=""+(k==null?10:k)+" cr"
 l.push(A.a0(A.a([r,new A.VG(k,!1,g)],m),B.k,B.e,B.f,0,g,g))
-return A.dW(!1,B.X,!0,g,A.cI(!1,s,!0,A.kJ(A.a0(A.a([n,A.ac(new A.M(B.im,A.I(l,B.q,B.e,B.f,0,B.l),g),1)],m),B.k,B.e,B.f,0,g,g),g,new A.E(q,g,o,p,g,g,B.m),e,g),g,!0,g,g,g,g,g,g,g,g,g,g,g,f.e,g,g,g,g,g,g,g),B.h,B.G,0,g,g,g,g,g,B.bc)},
+return A.dW(!1,B.X,!0,g,A.cI(!1,f,!0,A.kJ(A.a0(A.a([n,A.ac(new A.M(B.im,A.I(l,B.q,B.e,B.f,0,B.l),g),1)],m),B.k,B.e,B.f,0,g,g),g,new A.E(q,g,o,p,g,g,B.m),e,g),g,!0,g,g,g,g,g,g,g,g,g,g,g,d.e,g,g,g,g,g,g,g),B.h,B.G,0,g,g,g,g,g,B.bc)},
 $S:710}
 A.bsL.prototype={
 $1(a){return a.length!==0},
