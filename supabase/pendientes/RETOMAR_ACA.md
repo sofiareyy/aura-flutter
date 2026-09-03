@@ -1277,6 +1277,52 @@ Explorar + los pendientes del build 27 del inventario).
 **La experiencia de prueba 6258 está BORRADA** (1/9, 0 reservas, verificado:
 0 workshops futuros en la base). El preview del 8099 está apagado.
 
+## ✅ Foto más grande en Explorar-mobile — 3/9 (web, SALE CON PUSH)
+
+Decidido mirando la maqueta comparativa con datos de producción. En el teléfono
+la foto de la tarjeta de resultados pasa de **96 a 131 px** de ancho.
+
+- De una foto apaisada normal (3:2) se pasa de ver el **58% al 78%**; de la de
+  Citra, 60% → 83%; de la de Ambra, la más apaisada, 54% → 73%. Las cuadradas
+  pasan a verse enteras. La cuenta es `(anchoFoto / 112) / proporcionDeLaFoto`.
+- **Cuesta 35 px de texto**: de 226 a 191 px útiles en un teléfono de 390, y
+  121 px en uno de 320. Los cuatro renglones **ya se cortaban** con puntos
+  suspensivos antes de esto: cortan un poco antes, no empiezan a cortar.
+  Aceptado por Sofía mirando el peor caso real.
+- Vive en `_anchoFotoTelefono` (`lib/utils/grilla_responsive.dart`).
+
+### ⚠️ Lo que casi se rompe: el carrusel de experiencias
+
+`anchoFotoBuscador` decidía por el ancho de la tarjeta, y **la tarjeta del
+carrusel de experiencias mide 320 fijos en CUALQUIER pantalla**. O sea que cae
+en la rama angosta también en desktop: subir el número a secas habría cambiado
+el desktop, que era justo lo que no se quería.
+
+Por eso la función ahora toma un flag `compacta`, el carrusel lo pasa en `true`
+y **se queda en 96**. No se puede distinguir por ancho: 320 cae en el mismo
+rango que una pantalla de teléfono grande. Hoy no se nota porque **no hay
+ninguna experiencia futura cargada** (1 workshop en total, 0 futuras), pero
+aparecería apenas se cargue una.
+
+### Verificado midiendo la tarjeta REAL, no la fórmula
+
+`test/tarjeta_explorar_test.dart` pumpea la tarjeta de Explorar con el peor
+texto de producción (el nombre más largo, "Yin Yoga + Mindfulness", y la
+dirección de 115 caracteres de YN Pilates):
+
+- foto de 131 px en pantallas de 390 y de 320 ✅
+- **nada desborda** en 320, 360, 375, 390, 414 ni 430 ✅
+- los cuatro renglones siguen dibujándose, y el nombre y la dirección
+  conservan `maxLines: 1` + `ellipsis` ✅
+- **desktop sigue en 186 px** y el **carrusel en 96** ✅
+
+Para poder medirla hizo falta exponerla con `debugResultCard`, el mismo
+criterio que ya usaba `debugHorariosPorDiaEditor`. 123 tests OK, `analyze` sin
+issues nuevos, y la web compila.
+
+📐 Maqueta de la decisión (fotos y nombres reales, redimensionable):
+https://claude.ai/code/artifact/f67b1df3-c547-427c-85c2-38b348d0f23b
+
 ## ✅ Reporte mensual APAGADO — 3/9 (base, sin build)
 
 Mismo criterio que el aviso de cobro:

@@ -62,13 +62,38 @@ void main() {
       expect(anchoFotoBuscador(700 - 44), 186);
     });
 
-    test('teléfono y carrusel: como hoy, 96 x 112', () {
+    test('teléfono: la foto pasó a 131 (3/9/2026), el alto sigue en 112', () {
       // Teléfono de 390 menos los 44 de padding.
-      expect(anchoFotoBuscador(346), 96);
+      expect(anchoFotoBuscador(346), 131);
       expect(altoCardBuscador(346), 112);
-      // La tarjeta del carrusel de experiencias mide 320 y no cambia.
-      expect(anchoFotoBuscador(320), 96);
+      // El teléfono más chico donde corre la app: 320 - 44.
+      expect(anchoFotoBuscador(276), 131);
+      expect(altoCardBuscador(276), 112);
+    });
+
+    test('el carrusel de experiencias se queda en 96, también en desktop', () {
+      // Mide 320 fijos en cualquier pantalla: sin el flag caería en la rama
+      // del teléfono y cambiaría el desktop, que es lo que NO se quería.
+      expect(anchoFotoBuscador(320, compacta: true), 96);
       expect(altoCardBuscador(320), 112);
+    });
+
+    test('de una foto 3:2 se ve el 78%, contra el 58% de antes', () {
+      // Cuánto del ANCHO de la foto entra en el hueco, con BoxFit.cover:
+      // (anchoFoto / altoCard) / proporcionDeLaFoto.
+      double visible(double anchoFoto) => (anchoFoto / 112) / 1.5;
+      expect(visible(96), closeTo(0.571, 0.001));
+      expect(visible(anchoFotoBuscador(346)), closeTo(0.780, 0.001));
+    });
+
+    test('el texto pierde 35 px, no más', () {
+      // Ancho útil = tarjeta - foto - los 12 px de aire de cada lado.
+      double util(double anchoCard) =>
+          anchoCard - anchoFotoBuscador(anchoCard) - 24;
+      expect(util(346), 191); // antes eran 226
+      expect(util(276), 121); // el peor caso, un teléfono de 320
+      // Y sigue habiendo lugar para texto en el teléfono más chico.
+      expect(util(276) > 0, isTrue);
     });
   });
 

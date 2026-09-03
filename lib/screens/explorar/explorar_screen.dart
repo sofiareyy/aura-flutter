@@ -926,6 +926,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                                 child: _ResultCard(
                                   clase: exp,
                                   accentColor: AppColors.beigeCard,
+                                  fotoCompacta: true,
                                   onTap: () =>
                                       context.push('/clase/${exp['id']}'),
                                 ),
@@ -1200,10 +1201,16 @@ class _ResultCard extends StatelessWidget {
   final Color accentColor;
   final VoidCallback onTap;
 
+  /// El carrusel de experiencias mide 320 fijos en CUALQUIER pantalla, así que
+  /// cae en la rama angosta también en desktop. Con esto conserva la foto de
+  /// 96 px y el ensanche del 3/9 queda sólo en el teléfono, como se pidió.
+  final bool fotoCompacta;
+
   const _ResultCard({
     required this.clase,
     required this.accentColor,
     required this.onTap,
+    this.fotoCompacta = false,
   });
 
   @override
@@ -1253,7 +1260,7 @@ class _ResultCard extends StatelessWidget {
       builder: (context, restricciones) {
         final anchoCard = restricciones.maxWidth;
         final altoCard = altoCardBuscador(anchoCard);
-        final anchoFoto = anchoFotoBuscador(anchoCard);
+        final anchoFoto = anchoFotoBuscador(anchoCard, compacta: fotoCompacta);
         return Material(
           color: Colors.transparent,
           child: InkWell(
@@ -1527,3 +1534,17 @@ class _Pill extends StatelessWidget {
     );
   }
 }
+
+/// SOLO PARA TESTS: expone la tarjeta de resultados de Explorar para poder
+/// medirla en un widget test sin levantar la pantalla entera (que necesita
+/// Supabase y el router). Mismo criterio que `debugHorariosPorDiaEditor`.
+@visibleForTesting
+Widget debugResultCard({
+  required Map<String, dynamic> clase,
+  bool fotoCompacta = false,
+}) => _ResultCard(
+  clase: clase,
+  accentColor: AppColors.beigeCard,
+  fotoCompacta: fotoCompacta,
+  onTap: () {},
+);

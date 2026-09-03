@@ -50,8 +50,12 @@ double anchoCelda(double ancho, int columnas) {
 // La medida se decide por el ancho de LA TARJETA, no por el de la pantalla.
 // Así una tarjeta ancha (desktop, o una sola columna en una ventana grande)
 // recibe la foto 3:2 aprobada, y una angosta (teléfono, o el carrusel de
-// experiencias de 320) se queda como está hoy — donde 186 px de foto se
-// comerían más de la mitad del renglón y el texto no entraría.
+// experiencias de 320) recibe una foto más chica — donde 186 px se comerían
+// más de la mitad del renglón y el texto no entraría.
+//
+// Dentro de la rama angosta hay DOS medidas, y la diferencia no se puede
+// deducir del ancho: el teléfono usa 131 px (3/9/2026) y el carrusel sigue en
+// 96. Por eso `anchoFotoBuscador` toma un flag y no sólo un ancho.
 
 /// A partir de este ancho de tarjeta entra la foto 3:2 sin ahogar el texto.
 const double _anchoTarjetaConFotoGrande = 420;
@@ -65,10 +69,37 @@ double altoCardBuscador(double anchoCard) =>
     ? _altoBuscadorAncho
     : _altoBuscadorAngosto;
 
+/// Ancho de la foto en la tarjeta angosta del TELÉFONO (3/9/2026).
+///
+/// Era 96, que de una foto apaisada normal (3:2) mostraba el 58%: la foto se
+/// leía como una franja y no se entendía qué se veía. Con 131 muestra el 78%
+/// —la cuenta es (131/112) / 1,5— y las cuadradas pasan a verse enteras.
+///
+/// El costo es 35 px menos de texto: de 226 a 191 px útiles en un teléfono de
+/// 390. Los cuatro renglones de la tarjeta ya se cortaban con puntos
+/// suspensivos antes de esto, así que cortan un poco antes, no empiezan a
+/// cortar. Decidido mirando la maqueta con el peor caso real: el nombre más
+/// largo de producción ("Yin Yoga + Mindfulness") y la dirección más larga
+/// (115 caracteres, YN Pilates), hasta un ancho de pantalla de 320.
+const double _anchoFotoTelefono = 131;
+
+/// Ancho de la foto en el carrusel de experiencias. Se queda en 96 A PROPÓSITO.
+///
+/// Esa tarjeta mide 320 fijos en CUALQUIER pantalla, así que cae en la rama
+/// angosta también en desktop. Subirla cambiaría el desktop, y el pedido fue
+/// explícito: en desktop no se toca nada.
+const double _anchoFotoCarrusel = 96;
+
 /// Ancho de la foto del buscador. En la tarjeta ancha es 3:2 respecto del alto
-/// (186 × 124); en la angosta se mantienen los 96 px de hoy.
-double anchoFotoBuscador(double anchoCard) =>
-    anchoCard >= _anchoTarjetaConFotoGrande ? _altoBuscadorAncho * 3 / 2 : 96;
+/// (186 × 124); en la angosta, 131 en el teléfono y 96 en el carrusel.
+///
+/// [compacta] la pide el carrusel de experiencias: es la única forma de
+/// distinguirlo del teléfono, porque sus 320 px caen en el mismo rango de ancho
+/// que una pantalla de 364 en adelante.
+double anchoFotoBuscador(double anchoCard, {bool compacta = false}) =>
+    anchoCard >= _anchoTarjetaConFotoGrande
+    ? _altoBuscadorAncho * 3 / 2
+    : (compacta ? _anchoFotoCarrusel : _anchoFotoTelefono);
 
 /// Alto del bloque de texto de la tarjeta de Inicio (todo lo que está abajo de
 /// la foto), en el peor caso: nombre de estudio de dos renglones.
