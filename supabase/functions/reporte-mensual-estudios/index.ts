@@ -4,6 +4,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { netoReserva, valorCredito as valorCred } from '../_shared/liquidacion.ts'
 import { corsHeaders } from '../_shared/cors.ts'
+import {
+  limitesMesArgentino,
+  mesAnio,
+  mesArgentinoDe,
+  mesDesplazado,
+  mesIndice,
+} from '../_shared/mes_argentino.ts'
 
 const MESES_ES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -56,29 +63,30 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  // ── Calcular rango del mes ANTERIOR ──────────────────────────────────────
-  const now = new Date()
-  let mesAnteriorNum = now.getMonth() - 1  // 0-indexed
-  let yearAnterior = now.getFullYear()
-  if (mesAnteriorNum < 0) {
-    mesAnteriorNum = 11  // Diciembre
-    yearAnterior = yearAnterior - 1
-  }
+  // ── Rango del mes ANTERIOR, en CALENDARIO ARGENTINO ──────────────────────
+  // Antes: `new Date(year, mes, 1)` usa el huso LOCAL del runtime (UTC en
+  // Edge) y el fin era `23:59:59` INCLUSIVO. O sea que el mes arrancaba y
+  // terminaba a las 21:00 ART del día anterior: las reservas de 21:00 a 23:59
+  // del último día caían en el mes siguiente y el número no coincidía con la
+  // pantalla de Cobros. Y `now.getMonth()` leído en UTC podía elegir el mes
+  // equivocado si la función se dispara a mano en esa misma franja.
+  //
+  // Ahora el corte sale de _shared/mes_argentino.ts, el mismo que usa el Dart:
+  // [inicio, finExclusivo), con inicio = día 1 00:00 ART = 03:00 UTC.
+  const mesAnterior = mesDesplazado(mesArgentinoDe(new Date()), -1)
+  const {
+    inicioUtc: inicioMesAnterior,
+    finExclusivoUtc: finMesAnteriorExclusivo,
+  } = limitesMesArgentino(mesAnterior)
+  const nombreMesAnterior =
+    `${MESES_ES[mesIndice(mesAnterior)]} ${mesAnio(mesAnterior)}`
 
-  const inicioMesAnterior = new Date(yearAnterior, mesAnteriorNum, 1).toISOString()
-  const finMesAnterior = new Date(yearAnterior, mesAnteriorNum + 1, 0, 23, 59, 59).toISOString()
-  const nombreMesAnterior = `${MESES_ES[mesAnteriorNum]} ${yearAnterior}`
-
-  // ── Calcular rango del mes ANTERIOR-ANTERIOR (para comparación) ───────────
-  let mesDosAtrasNum = mesAnteriorNum - 1
-  let yearDosAtras = yearAnterior
-  if (mesDosAtrasNum < 0) {
-    mesDosAtrasNum = 11
-    yearDosAtras = yearDosAtras - 1
-  }
-
-  const inicioMesDosAtras = new Date(yearDosAtras, mesDosAtrasNum, 1).toISOString()
-  const finMesDosAtras = new Date(yearDosAtras, mesDosAtrasNum + 1, 0, 23, 59, 59).toISOString()
+  // ── Rango del mes ANTERIOR-ANTERIOR (para comparación) ───────────────────
+  const mesDosAtras = mesDesplazado(mesAnterior, -1)
+  const {
+    inicioUtc: inicioMesDosAtras,
+    finExclusivoUtc: finMesDosAtrasExclusivo,
+  } = limitesMesArgentino(mesDosAtras)
 
   // ── Obtener estudios activos ──────────────────────────────────────────────
   // Los datos de cobro (comisiones + valor_credito) viven en la tabla aparte
@@ -117,7 +125,9 @@ Deno.serve(async (req: Request) => {
     .from('reservas')
     .select('creditos_usados, estado, clase_id, usuario_id, created_at')
     .gte('created_at', inicioMesAnterior)
-    .lte('created_at', finMesAnterior)
+    // .lt(), NO .lte(): el fin es exclusivo. Con el 23:59:59 inclusivo, una
+    // reserva de las 23:59:59.5 no caía en NINGÚN mes.
+    .lt('created_at', finMesAnteriorExclusivo)
 
   // ── Obtener reservas del mes dos atrás (para comparación) ─────────────────
   const { data: reservasMesDosAtras, error: reservas2Err } = await adminSupabase
@@ -128,14 +138,14 @@ Deno.serve(async (req: Request) => {
     // el cron completar-reservas ya las movio a ese estado.
     .in('estado', ['confirmada', 'presente', 'ausente', 'completada'])
     .gte('created_at', inicioMesDosAtras)
-    .lte('created_at', finMesDosAtras)
+    .lt('created_at', finMesDosAtrasExclusivo)
 
   // ── Obtener clases del mes anterior (para hora pico) ──────────────────────
   const { data: clasesDelMes, error: clasesErr } = await adminSupabase
     .from('clases')
     .select('id, nombre, estudio_id, fecha, tipo')
     .gte('fecha', inicioMesAnterior)
-    .lte('fecha', finMesAnterior)
+    .lt('fecha', finMesAnteriorExclusivo)
 
   // Valor global del crédito (fallback si el estudio no tiene el suyo).
   const { data: cfgVal, error: cfgErr } = await adminSupabase

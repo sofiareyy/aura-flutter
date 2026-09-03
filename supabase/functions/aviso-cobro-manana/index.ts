@@ -5,6 +5,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { netoReserva } from '../_shared/liquidacion.ts'
 import { corsHeaders } from '../_shared/cors.ts'
+import {
+  limitesMesArgentino,
+  mesAnio,
+  mesArgentinoDe,
+  mesIndice,
+} from '../_shared/mes_argentino.ts'
 
 const MESES_ES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -62,13 +68,20 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  // ── Calcular rango del mes actual ─────────────────────────────────────────
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth() // 0-indexed
-  const inicioMes = new Date(year, month, 1).toISOString()
-  const finMes = new Date(year, month + 1, 0, 23, 59, 59).toISOString()
-  const nombreMes = `${MESES_ES[month]} ${year}`
+  // ── Rango del mes actual, en CALENDARIO ARGENTINO ─────────────────────────
+  // Antes: `new Date(year, month, 1)` usa el huso LOCAL del runtime (UTC en
+  // Edge), y el fin era `23:59:59` INCLUSIVO. O sea que el mes arrancaba y
+  // terminaba a las 21:00 ART del día anterior: las reservas de 21:00 a 23:59
+  // del último día caían en el mes siguiente y el número no coincidía con la
+  // pantalla de Cobros. Y `now.getMonth()` leído en UTC corría la ETIQUETA del
+  // mes en esa misma franja.
+  //
+  // Ahora el corte sale de _shared/mes_argentino.ts, el mismo que usa el Dart:
+  // [inicio, finExclusivo), con inicio = día 1 00:00 ART = 03:00 UTC.
+  const mesActual = mesArgentinoDe(new Date())
+  const { inicioUtc: inicioMes, finExclusivoUtc: finMesExclusivo } =
+    limitesMesArgentino(mesActual)
+  const nombreMes = `${MESES_ES[mesIndice(mesActual)]} ${mesAnio(mesActual)}`
 
   // ── Obtener estudios activos ──────────────────────────────────────────────
   // Los datos de cobro (comisiones + valor_credito) viven en la tabla aparte
@@ -115,7 +128,9 @@ Deno.serve(async (req: Request) => {
     // reservas apenas termina la clase. Sin eso, no se cobraria casi nada.
     .in('estado', ['confirmada', 'presente', 'ausente', 'completada'])
     .gte('created_at', inicioMes)
-    .lte('created_at', finMes)
+    // .lt(), NO .lte(): el fin es exclusivo. Con el 23:59:59 inclusivo, una
+    // reserva de las 23:59:59.5 no caía en NINGÚN mes.
+    .lt('created_at', finMesExclusivo)
 
   // Fail-LOUD: si la consulta de reservas rompe, cortamos con 500 en vez de
   // seguir con la lista vacía. El cron registra la falla y se ve.

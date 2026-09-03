@@ -1,5 +1,10 @@
 // El corte de facturación: MES CALENDARIO ARGENTINO (confirmado 2/9/2026).
 // Los dos casos de frontera son literalmente los que pidió la usuaria.
+//
+// ⚠️ Este corte vive DOS VECES: acá (la app) y en
+// supabase/functions/_shared/mes_argentino.ts (los mails a los estudios), con
+// su propio test al lado. Los valores esperados son los mismos a propósito. Si
+// tocás uno, tocá el otro: que se separen es el bug que estos tests evitan.
 import 'package:aura_app/utils/mes_argentino.dart';
 import 'package:flutter_test/flutter_test.dart';
 

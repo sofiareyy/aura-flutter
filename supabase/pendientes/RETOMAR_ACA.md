@@ -1277,6 +1277,69 @@ Explorar + los pendientes del build 27 del inventario).
 **La experiencia de prueba 6258 está BORRADA** (1/9, 0 reservas, verificado:
 0 workshops futuros en la base). El preview del 8099 está apagado.
 
+## ✅ Corte de mes ARGENTINO en las funciones de cobro — 2/9 (base, sin build)
+
+El fix del 2/9 (`2b10dbc`) había llevado el corte a hora argentina **sólo en
+Dart**. Las dos edge functions que mailean montos seguían en UTC. Ahora las
+tres puntas usan la misma regla.
+
+- **`supabase/functions/_shared/mes_argentino.ts`** — espejo de
+  `lib/utils/mes_argentino.dart`, con su test al lado
+  (`mes_argentino_test.ts`, corre con `node <archivo>`). **Verificada la
+  paridad**: los dos archivos devuelven exactamente los mismos valores para los
+  mismos instantes, y los dos tests afirman las mismas constantes.
+- **Todo se construye con `Date.UTC()`, nunca con `new Date(y, m, 1)`.** Ese
+  constructor usa el huso LOCAL del runtime: en Edge es UTC, y por eso el mes
+  arrancaba y terminaba a las 21:00 ART del día anterior. Con `Date.UTC` el
+  resultado no depende de quién lo corra.
+- **Fin EXCLUSIVO**: las 4 consultas pasaron de `.lte(fin)` a `.lt(finExclusivo)`.
+  Cierra la grieta del `23:59:59`, donde una reserva de las 23:59:59.5 no caía
+  en ningún mes.
+- **También se corrigió QUÉ MES se elige**, no sólo el rango: salía de
+  `now.getMonth()` en UTC, así que entre las 21:00 y las 23:59 del último día
+  la etiqueta y el rango se corrían juntos.
+- Desplegadas con `--use-api`: `aviso-cobro-manana` v9, `reporte-mensual-estudios`
+  v15. **`verify_jwt` quedó en `true` en las dos** y ninguna otra función cambió.
+  Verificado además que el bundle desplegado incluye `_shared/mes_argentino.ts`.
+
+**Medido, las dos mitades del bug** (con instantes sintéticos, sin escribir en
+la base): el rango viejo de septiembre **excluía** el 30/9 de 21:00 a 23:59 ART
+y **se comía** el 31/8 de 21:00 a 23:59. El nuevo pone cada uno en su mes.
+
+**Ninguna reserva real cambia de mes**: 4 de 4 caen igual con los dos cortes. El
+arreglo es preventivo, no corrige plata ya mal contada.
+
+**Citra, comparación de los tres lados** (comisión 0%: su `fecha_inicio_cobro`
+es el 13/9 y todavía no llegó):
+
+| Lado | Mes | Número |
+|---|---|---|
+| Pantalla de Cobros | septiembre (en curso) | 1 reserva · $18.000 |
+| `aviso-cobro-manana` (botón manual), dry run | septiembre | **$18.000 ✅** |
+| `reporte-mensual-estudios`, dry run | agosto | ❌ `sin_reservas` |
+
+### 🔴 HALLAZGO: el reporte mensual no le manda nada a NADIE, y es anterior a esto
+
+`reporte-mensual-estudios` filtra `r.estado === 'presente'`
+(`index.ts:283`, línea del 20/7, **no la tocó este cambio**). Pero el cron
+`completar-reservas` corre **cada hora** y mueve las reservas de `presente` a
+`completada`. El reporte sale el día 1 para el mes anterior: para entonces
+**todas** son `completada`, `totalReservas` da 0 y cada estudio cae en
+`sin_reservas`.
+
+**Medido:** las 4 reservas de la app están en `completada`, ninguna en
+`presente`. La reserva 712 duró 4 horas y media en `presente` antes de que el
+cron la moviera. La corrida real del 1/9 figura `succeeded` justamente porque
+devuelve 200 sin mandar nada: es el mismo fallo silencioso que ya había tenido
+`aviso-cobro-manana`.
+
+**El arreglo es de una línea** (usar los 4 estados liquidables, como hace el
+aviso y como ya hace la consulta de "mes dos atrás" en esa misma función), y
+con eso Citra daría **3 reservas · $54.000 en agosto**, que es exactamente lo
+que muestra la pantalla. **NO se aplicó**: hace que 11 estudios empiecen a
+recibir un mail mensual que hoy no reciben, y eso lo decide Sofía, no una
+sesión. Es lo primero a resolver si se quiere el reporte andando.
+
 ## ✅ Mail "mañana cobrás" APAGADO — 2/9 (base, sin build)
 
 **Decisión de Sofía:** el mail del día 4 no aporta. El estudio ya sabe que
