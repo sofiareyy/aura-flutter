@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import '../models/estudio.dart';
 import 'mes_argentino.dart';
 
@@ -108,37 +107,31 @@ List<Map<String, dynamic>> experienciasDestacadas(
 
 /// Los estudios de "DESTACADOS HOY", arriba de Explorar.
 ///
-/// Historia corta (auditoría del 4/9): eran `_estudiosFiltrados.take(2)`, o
-/// sea los DOS PRIMEROS EN ORDEN ALFABÉTICO, siempre los mismos. Después
-/// pasaron a ordenarse por cantidad de clases, que era honesto pero también
-/// fijo: Tiwar y Citra todos los días.
+/// **La regla (decisión de Sofía, 4/9): TURNO PAREJO.** Todos los estudios con
+/// clases próximas tienen exactamente la misma chance de salir y de ser
+/// primeros. La cantidad de clases NO pondera: tener muchas clases no te hace
+/// más atractivo, y un intento anterior que sí ponderaba dejaba a los estudios
+/// chicos casi afuera (medido: con el peso crudo, los dos más chicos no salían
+/// ni una vez en 28 días).
 ///
-/// Ahora se combinan las dos cosas que pidió Sofía:
-///  · **sólo estudios con clases próximas** — no se destaca una vidriera vacía;
-///  · **más chances al que tiene más oferta**, pero sin que gane siempre;
-///  · **rotación por día**: cambia cada día y no se mueve dentro del mismo día.
+/// Cómo: una **rueda**. Los candidatos se ordenan por id —un orden estable, que
+/// no cambia si alguien se renombra— y cada día la ventana de [max] avanza un
+/// lugar:
 ///
-/// Cómo: sorteo PONDERADO y determinístico (Efraimidis–Spirakis). A cada
-/// estudio se le calcula `clave = u^(1/peso)`, con `u` entre 0 y 1 derivado del
-/// día argentino y del id; se ordena por la clave y se toman los primeros. Como
-/// `u` sale de un hash y no de un `Random()`, dos aperturas del mismo día dan
-/// lo MISMO, y al día siguiente cambia solo: sin cron y sin guardar nada.
+/// ```
+///  día 0 → [A B C D]      día 2 → [C D E F]
+///  día 1 → [B C D E]      día 3 → [D E F A]
+/// ```
 ///
-/// ⚠️ **El peso es un bonus CHICO, y eso es a propósito.** `u^(1/peso)` empuja
-/// todo hacia 1 muy rápido: cualquier ventaja apreciable en el exponente vuelve
-/// el sorteo determinista y la rotación queda de adorno. Medido con el reparto
-/// real (Tiwar 312 clases … Barre 51), sobre 28 días y 4 lugares:
+/// De ahí salen las tres propiedades que se pidieron, y no por casualidad sino
+/// por construcción:
+///  · **el primero nunca se repite** dos días seguidos, y recorre a TODOS antes
+///    de volver a empezar (es `candidatos[día % n]`);
+///  · **todos aparecen lo mismo**: exactamente [max] días de cada `n`;
+///  · **es estable dentro del día** y cambia solo al siguiente, porque el
+///    índice sale del día argentino. Sin cron y sin guardar nada.
 ///
-/// | peso | Tiwar | Citra | Yessi | Yoguica | Ambra | Barre |
-/// |---|---|---|---|---|---|---|
-/// | `clases` (crudo) | 28 | 28 | 28 | 27 | 1 | **0** |
-/// | `log(1+clases)` | 27 | 27 | 28 | 25 | 4 | **1** |
-/// | `1 + 0.15·proporción` | 27 | 26 | 20 | 19 | 10 | **10** |
-///
-/// Con el peso crudo los dos estudios más chicos NO SALÍAN NUNCA, que es lo
-/// contrario de rotar. Con el bonus del 15% el que tiene más oferta sigue
-/// apareciendo casi siempre y los chicos entran ~1 de cada 3 días.
-///
+/// Sólo entran estudios con clases próximas: no se destaca una vidriera vacía.
 /// [asociadoId] (el estudio del que sos alumna) va primero y ocupa un lugar.
 List<Estudio> destacadosDelDia({
   required List<Estudio> estudios,
@@ -148,8 +141,6 @@ List<Estudio> destacadosDelDia({
   int? asociadoId,
 }) {
   final cuenta = clasesPorEstudio(clases);
-  final dia = diaArgentinoDe(hoy);
-  final tope = cuenta.values.fold<int>(0, (a, b) => b > a ? b : a);
 
   final elegidos = <Estudio>[];
   final usados = <int>{};
@@ -166,25 +157,26 @@ List<Estudio> destacadosDelDia({
   }
 
   final candidatos = estudios
-      .where((e) => e.id != null && !usados.contains(e.id) && (cuenta[e.id] ?? 0) > 0)
-      .toList();
+      .where((e) =>
+          e.id != null && !usados.contains(e.id) && (cuenta[e.id] ?? 0) > 0)
+      .toList()
+    // Por id: estable de verdad. Por nombre, un renombre movería la rueda.
+    ..sort((a, b) => a.id!.compareTo(b.id!));
 
-  candidatos.sort((a, b) {
-    final ka = _claveDelDia(dia, a.id!, cuenta[a.id] ?? 0, tope);
-    final kb = _claveDelDia(dia, b.id!, cuenta[b.id] ?? 0, tope);
-    if (ka != kb) return kb.compareTo(ka);
-    // Desempate estable, para que el orden nunca dependa del azar del sort.
-    return a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase());
-  });
+  if (candidatos.isEmpty) return elegidos;
 
-  for (final e in candidatos) {
+  final arranque = indiceDiaArgentino(hoy) % candidatos.length;
+  for (var i = 0; i < candidatos.length; i++) {
     if (elegidos.length >= max) break;
-    elegidos.add(e);
+    elegidos.add(candidatos[(arranque + i) % candidatos.length]);
   }
   return elegidos;
 }
 
 /// Cuántas clases próximas tiene cada estudio en el feed ya cargado.
+///
+/// Ya no decide el ORDEN (la rueda es pareja), pero sigue decidiendo QUIÉN
+/// entra: un estudio sin clases no se destaca.
 Map<int, int> clasesPorEstudio(List<Map<String, dynamic>> clases) {
   final cuenta = <int, int>{};
   for (final clase in clases) {
@@ -194,29 +186,4 @@ Map<int, int> clasesPorEstudio(List<Map<String, dynamic>> clases) {
     cuenta[id] = (cuenta[id] ?? 0) + 1;
   }
   return cuenta;
-}
-
-/// Cuánto pesa la oferta en el sorteo: un 15% de ventaja como máximo, para el
-/// que tiene tantas clases como el que más. Ver la tabla de [destacadosDelDia].
-const double _bonusPorOferta = 0.15;
-
-/// `u^(1/peso)`: la clave del sorteo ponderado. Más peso ⇒ más cerca de 1.
-double _claveDelDia(String dia, int estudioId, int clases, int tope) {
-  final u = _uniforme('$dia|$estudioId');
-  final proporcion = tope > 0 ? (clases / tope).clamp(0.0, 1.0) : 0.0;
-  final peso = 1 + _bonusPorOferta * proporcion;
-  return math.pow(u, 1 / peso).toDouble();
-}
-
-/// Un número estable en (0, 1) a partir de un texto. FNV-1a de 32 bits: no es
-/// criptográfico y no hace falta que lo sea — sólo tiene que dar SIEMPRE lo
-/// mismo para el mismo texto, en cualquier dispositivo.
-double _uniforme(String semilla) {
-  var h = 0x811c9dc5;
-  for (final unidad in semilla.codeUnits) {
-    h ^= unidad;
-    h = (h * 0x01000193) & 0xFFFFFFFF;
-  }
-  // +1 y /2^32+1 para que nunca dé exactamente 0 ni 1.
-  return (h + 1) / 4294967297.0;
 }

@@ -1137,45 +1137,58 @@ No son tareas técnicas. Están acá para que no se pierdan.
 | ✅ | **Mail de confirmación de reserva — DECIDIDO Y ACTIVO desde el 29/8** | Cableado por base (trigger al confirmarse), texto aprobado ("fitness y experiencias", línea del código). Le llega a todas las alumnas ya. |
 | ⬜ | **Categorías faltantes** | Avisarle a Yessi (112 clases) y Ambra (77) que las completen. O que el form las exija (Dart). |
 
-## ✅ DESTACADOS HOY: rota por día — 4/9 (Dart, va en la 1.0.7)
+## ✅ DESTACADOS HOY: turno PAREJO que rota por día — 4/9 (Dart, va en la 1.0.7)
 
-Ajuste pedido por Sofía sobre el punto 4 de arriba. Vuelve el nombre lindo, y
-ahora es cierto: **son de hoy y están destacados con criterio**.
+Ajuste sobre el punto 4 de la auditoría, en dos pasos. Vuelve el nombre lindo y
+ahora es cierto: son de hoy y rotan.
 
-- **"DESTACADOS HOY"** otra vez (era "LOS QUE MÁS CLASES TIENEN", correcto pero
+- **"DESTACADOS HOY"** otra vez (era "LOS QUE MÁS CLASES TIENEN": correcto pero
   técnico).
 - **4 estudios en vez de 2**: con dos se veía pobre. Es un carrusel horizontal
-  de tarjetas de 166 px, así que entran de sobra.
-- **Sólo estudios con clases próximas**: no se destaca una vidriera vacía. Si
-  ninguno tiene, la tira se oculta entera.
-- **Rotan por día**: sorteo ponderado determinístico
-  (`destacadosDelDia`, `utils/explorar_filtros.dart`). La semilla es el **día
-  argentino** + el id del estudio, así que **no cambia dentro del mismo día** y
-  al siguiente cambia solo, sin cron y sin guardar nada.
+  de tarjetas de 166 px, entran de sobra.
+- **Sólo estudios con clases próximas.** Si ninguno tiene, la tira se oculta.
+- **Turno PAREJO, sin ponderar por cantidad** (decisión de Sofía): *"muchas
+  clases ≠ más atractivo"*. Todos tienen la misma chance de salir y de ser
+  primeros.
+- **El primero no se repite** y recorre a todos antes de volver a empezar.
+- Estable dentro del día, cambia solo al siguiente. Sin cron y sin guardar nada.
 
-### ⚠️ El peso tuvo que ser CHICO, y costó dos intentos
+### La implementación: una rueda, no un sorteo
 
-`u^(1/peso)` empuja todo hacia 1 muy rápido: cualquier ventaja apreciable en el
-exponente vuelve el sorteo determinista y la rotación queda de adorno. Medido
-con el reparto real (Tiwar 312 clases … Barre 51), 28 días y 4 lugares:
+Los candidatos se ordenan **por id** (estable: un renombre no mueve la rueda) y
+cada día la ventana de 4 avanza un lugar. Las tres propiedades salen por
+construcción, no por suerte: el primero es `candidatos[día % n]`, todos
+aparecen exactamente 4 días de cada `n`, y el índice sale del día argentino.
 
-| peso | Tiwar | Citra | Yessi | Yoguica | Ambra | Barre |
-|---|---|---|---|---|---|---|
-| `clases` (crudo) | 28 | 28 | 28 | 27 | 1 | **0** |
-| `log(1+clases)` | 27 | 27 | 28 | 25 | 4 | **1** |
-| **`1 + 0,15·proporción`** | 27 | 26 | 20 | 19 | 10 | **10** |
+**Medido con los 6 estudios reales, 60 días:** cada uno sale **40 veces
+exactas** y es primero **10 veces exactas**. Tiwar (312 clases) y Barre (51)
+salen **lo mismo**.
 
-Con el peso crudo los dos estudios más chicos **no salían NUNCA**. Con el bonus
-del 15% el grande sigue apareciendo casi siempre y los chicos entran una de cada
-tres días. Sobre 14 días reales: Tiwar 14, Citra 13, Yoguica 10, Yessi 9, Ambra
-5, Barre 5.
+### ⚠️ El intento anterior y por qué se descartó — no volver a proponerlo
+
+La primera versión ponderaba por cantidad de clases. Medido sobre 28 días con el
+reparto real, la rotación era de adorno:
+
+| peso | Tiwar (312) | Citra (194) | Ambra (66) | Barre (51) |
+|---|---|---|---|---|
+| `clases` (crudo) | 28 | 28 | 1 | **0** |
+| `log(1+clases)` | 27 | 27 | 4 | **1** |
+| `1 + 0,15·proporción` | 27 | 26 | 10 | 10 |
+| **turno parejo (el que quedó)** | **igual que todos** | | | |
+
+Con el peso crudo los dos estudios más chicos **no salían NUNCA**. La causa es
+que `u^(1/peso)` empuja todo hacia 1 muy rápido, así que cualquier ventaja
+apreciable en el exponente vuelve el sorteo determinista. Se probaron tres pesos
+antes de que la decisión de producto lo resolviera mejor: **que no pondere
+nada**.
 
 **De paso se desacopló un enganche**: el cartel "No encontramos resultados"
 dependía de que la tira de destacados estuviera vacía. Ahora depende de los
-estudios filtrados, como antes, y la tira se oculta sola por separado.
+estudios filtrados, como antes, y la tira se oculta por separado.
 
-`diaArgentinoDe` se sumó a `utils/mes_argentino.dart`, que es donde vive la
-regla del huso. 194 tests (8 nuevos), `analyze` sin issues nuevos, web compila.
+`diaArgentinoDe` e `indiceDiaArgentino` viven en `utils/mes_argentino.dart`, que
+es donde está la regla del huso. 195 tests, `analyze` sin issues nuevos, web
+compila.
 
 ## ✅ Las 4 inconsistencias del Inicio y Explorar — 4/9 (Dart, va en la 1.0.7)
 

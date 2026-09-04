@@ -195,53 +195,47 @@ void main() {
     });
   });
 
-  // ── DESTACADOS HOY (4/9/2026) ─────────────────────────────────────────
+  // ── DESTACADOS HOY: turno PAREJO (decisión de Sofía, 4/9/2026) ────────
   //
-  // Eran take(2) alfabético: siempre Ambra y Barre. Ahora: sólo estudios con
-  // clases, hasta 4, sorteados por DÍA con más chances para el que tiene más
-  // oferta.
+  // Nada de ponderar por cantidad de clases: muchas clases no es lo mismo que
+  // más atractivo. Rueda pareja, y el primero recorre a todos antes de repetir.
   group('destacadosDelDia', () {
     Estudio e(int id, String nombre) =>
         Estudio.fromMap({'id': id, 'nombre': nombre, 'categorias': <String>[]});
-    Map<String, dynamic> claseDe(int estudioId) => {
-          'id': estudioId * 100,
-          'estudios': {'id': estudioId, 'nombre': 'x'},
+    Map<String, dynamic> claseDe(int id) => {
+          'id': id * 1000,
+          'estudios': {'id': id, 'nombre': 'x'},
         };
-    List<Map<String, dynamic>> nClases(int estudioId, int n) =>
-        List.generate(n, (_) => claseDe(estudioId));
+    List<Map<String, dynamic>> nClases(int id, int n) =>
+        List.generate(n, (i) => {'id': id * 1000 + i, 'estudios': {'id': id}});
 
+    // Los reales, con su reparto real de clases: muy desparejo a propósito.
     final estudios = [
       e(1, 'Ambra'), e(2, 'Barre'), e(3, 'Citra'), e(4, 'Tiwar'),
       e(5, 'Yessi'), e(6, 'Yoguica'), e(7, 'Sculpt'),
     ];
-    // Reparto parecido al real: Tiwar y Citra mandan, Ambra tiene poco.
     final clases = [
       ...nClases(4, 312), ...nClases(3, 194), ...nClases(5, 176),
       ...nClases(6, 125), ...nClases(1, 66), ...nClases(2, 51),
-      // Sculpt (7) sin clases: no puede salir destacado.
+      // Sculpt (7) sin clases.
     ];
-    final unDia = DateTime.utc(2026, 9, 4, 15);
+    DateTime dia(int d) => DateTime.utc(2026, 9, 4, 15).add(Duration(days: d));
+    List<String> sel(int d, {int? asociadoId}) => destacadosDelDia(
+          estudios: estudios,
+          clases: clases,
+          hoy: dia(d),
+          asociadoId: asociadoId,
+        ).map((x) => x.nombre).toList();
 
-    test('muestra 4, no 2', () {
-      expect(
-        destacadosDelDia(estudios: estudios, clases: clases, hoy: unDia).length,
-        4,
-      );
-    });
+    test('muestra 4', () => expect(sel(0).length, 4));
 
     test('NUNCA destaca un estudio sin clases', () {
       for (var d = 0; d < 60; d++) {
-        final sel = destacadosDelDia(
-          estudios: estudios,
-          clases: clases,
-          hoy: DateTime.utc(2026, 9, 4, 15).add(Duration(days: d)),
-        );
-        expect(sel.map((x) => x.nombre), isNot(contains('Sculpt')),
-            reason: 'día +$d');
+        expect(sel(d), isNot(contains('Sculpt')), reason: 'día +$d');
       }
     });
 
-    test('ESTABLE dentro del mismo día: no cambia entre aperturas', () {
+    test('ESTABLE dentro del mismo día', () {
       final manana = destacadosDelDia(
           estudios: estudios, clases: clases, hoy: DateTime.utc(2026, 9, 4, 11));
       final tarde = destacadosDelDia(
@@ -252,88 +246,90 @@ void main() {
 
     test('el corte es el día ARGENTINO, no el UTC', () {
       // 4/9 23:00 ART = 5/9 02:00 UTC: sigue siendo el 4 para nosotras.
-      final antes = destacadosDelDia(
+      final tarde = destacadosDelDia(
           estudios: estudios, clases: clases, hoy: DateTime.utc(2026, 9, 5, 2));
-      final mismoDia = destacadosDelDia(
-          estudios: estudios, clases: clases, hoy: DateTime.utc(2026, 9, 4, 15));
-      expect(antes.map((x) => x.nombre).toList(),
-          mismoDia.map((x) => x.nombre).toList());
+      expect(tarde.map((x) => x.nombre).toList(), sel(0));
     });
 
-    test('ROTA: no son los mismos todos los días', () {
-      final vistos = <String>{};
-      for (var d = 0; d < 30; d++) {
-        final sel = destacadosDelDia(
-          estudios: estudios,
-          clases: clases,
-          hoy: DateTime.utc(2026, 9, 4, 15).add(Duration(days: d)),
-        );
-        vistos.add(sel.map((x) => x.nombre).join(','));
+    test('EL PRIMERO cambia todos los días y no repite', () {
+      final primeros = [for (var d = 0; d < 6; d++) sel(d).first];
+      for (var i = 1; i < primeros.length; i++) {
+        expect(primeros[i], isNot(primeros[i - 1]),
+            reason: 'día $i repitió a ${primeros[i]}');
       }
-      // En 30 días tiene que haber varias combinaciones distintas.
-      expect(vistos.length, greaterThan(5),
-          reason: 'sólo salieron ${vistos.length} combinaciones en 30 días');
+      // Con 6 candidatos, en 6 días fueron primeros los 6, sin repetir ninguno.
+      expect(primeros.toSet().length, 6);
+      // Y al séptimo vuelve a empezar la rueda.
+      expect(sel(6).first, primeros.first);
     });
 
-    test('TODOS los que tienen clases salen alguna vez en 60 días', () {
-      final salieron = <String>{};
+    test('TODOS salen la misma cantidad de días: 4 de cada 6', () {
+      final veces = <String, int>{};
       for (var d = 0; d < 60; d++) {
-        destacadosDelDia(
-          estudios: estudios,
-          clases: clases,
-          hoy: DateTime.utc(2026, 9, 4, 15).add(Duration(days: d)),
-        ).forEach((x) => salieron.add(x.nombre));
+        for (final n in sel(d)) {
+          veces[n] = (veces[n] ?? 0) + 1;
+        }
       }
-      expect(salieron, containsAll(
-          ['Tiwar', 'Citra', 'Yessi', 'Yoguica', 'Ambra', 'Barre']));
+      expect(veces.keys.toSet(),
+          {'Ambra', 'Barre', 'Citra', 'Tiwar', 'Yessi', 'Yoguica'});
+      // 60 días / 6 candidatos * 4 lugares = 40 para cada uno, exacto.
+      for (final entrada in veces.entries) {
+        expect(entrada.value, 40, reason: '${entrada.key} salió ${entrada.value}');
+      }
     });
 
-    test('el que tiene MÁS oferta sale MÁS seguido', () {
+    test('LA CANTIDAD DE CLASES YA NO MANDA: Tiwar no sale más que Barre', () {
       var tiwar = 0, barre = 0;
-      for (var d = 0; d < 120; d++) {
-        final sel = destacadosDelDia(
-          estudios: estudios,
-          clases: clases,
-          hoy: DateTime.utc(2026, 9, 4, 15).add(Duration(days: d)),
-        ).map((x) => x.nombre);
-        if (sel.contains('Tiwar')) tiwar++;
-        if (sel.contains('Barre')) barre++;
+      for (var d = 0; d < 60; d++) {
+        final s = sel(d);
+        if (s.contains('Tiwar')) tiwar++;
+        if (s.contains('Barre')) barre++;
       }
-      expect(tiwar, greaterThan(barre),
-          reason: 'Tiwar (312 clases) $tiwar vs Barre (51) $barre');
+      // Tiwar tiene 312 clases y Barre 51: antes era 27 contra 0.
+      expect(tiwar, barre);
+    });
+
+    test('ser primero también es parejo', () {
+      final primeros = <String, int>{};
+      for (var d = 0; d < 60; d++) {
+        final n = sel(d).first;
+        primeros[n] = (primeros[n] ?? 0) + 1;
+      }
+      for (final entrada in primeros.entries) {
+        expect(entrada.value, 10, reason: '${entrada.key} fue primero ${entrada.value} veces');
+      }
     });
 
     test('tu propio estudio va primero, aunque no tenga clases', () {
-      final sel = destacadosDelDia(
-        estudios: estudios, clases: clases, hoy: unDia, asociadoId: 7,
-      );
-      expect(sel.first.nombre, 'Sculpt');
-      expect(sel.length, 4);
+      final s = sel(0, asociadoId: 7);
+      expect(s.first, 'Sculpt');
+      expect(s.length, 4);
+      expect(s.sublist(1), isNot(contains('Sculpt')));
     });
 
-    test('si hay menos estudios con clases que el máximo, muestra los que hay',
-        () {
-      final sel = destacadosDelDia(
-        estudios: estudios,
-        clases: [...nClases(3, 5), ...nClases(4, 2)],
-        hoy: unDia,
-      );
-      expect(sel.length, 2);
-      expect(sel.map((x) => x.nombre), containsAll(['Citra', 'Tiwar']));
+    test('con menos candidatos que lugares, salen todos y el orden rota', () {
+      final pocas = [...nClases(3, 5), ...nClases(4, 2)];
+      List<String> conPocas(int d) => destacadosDelDia(
+            estudios: estudios, clases: pocas, hoy: dia(d),
+          ).map((x) => x.nombre).toList();
+      expect(conPocas(0).length, 2);
+      expect(conPocas(0).toSet(), {'Citra', 'Tiwar'});
+      // Aunque salgan los dos siempre, el primero alterna.
+      expect(conPocas(1).first, isNot(conPocas(0).first));
     });
 
     test('sin clases cargadas no destaca a nadie', () {
-      expect(destacadosDelDia(estudios: estudios, clases: const [], hoy: unDia),
+      expect(destacadosDelDia(estudios: estudios, clases: const [], hoy: dia(0)),
           isEmpty);
     });
 
     test('no rompe con clases sin estudio', () {
-      final sel = destacadosDelDia(estudios: estudios, hoy: unDia, clases: [
+      final s = destacadosDelDia(estudios: estudios, hoy: dia(0), clases: [
         {'id': 1},
         {'id': 2, 'estudios': null},
         claseDe(3),
       ]);
-      expect(sel.single.nombre, 'Citra');
+      expect(s.single.nombre, 'Citra');
     });
   });
 }

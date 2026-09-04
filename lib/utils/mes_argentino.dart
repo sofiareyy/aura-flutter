@@ -48,3 +48,15 @@ String diaArgentinoDe(DateTime instante) {
   final d = art.day.toString().padLeft(2, '0');
   return '${art.year}-$m-$d';
 }
+
+/// El número de día argentino, contado desde una fecha fija.
+///
+/// Sirve para lo que tiene que ir por TURNOS: `indice % cantidad` da una rueda
+/// que avanza de a uno por día y vuelve a empezar sola. La fecha de origen es
+/// arbitraria (sólo importa que no cambie nunca) y el corte es el día
+/// argentino, igual que [diaArgentinoDe].
+int indiceDiaArgentino(DateTime instante) {
+  final art = instante.toUtc().subtract(_offsetArgentina);
+  final soloDia = DateTime.utc(art.year, art.month, art.day);
+  return soloDia.difference(DateTime.utc(2026, 1, 1)).inDays;
+}
