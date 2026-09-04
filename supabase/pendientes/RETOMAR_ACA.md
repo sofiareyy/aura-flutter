@@ -1409,6 +1409,48 @@ límite de 50 corta al cuarto día. Se resuelve solo cuando haya más volumen.
 
 240 tests (7 nuevos), `analyze` sin issues nuevos, web compila.
 
+## ⏸️ Etapa 3, el HERO: maqueta hecha, ESPERANDO que Sofía decida — 4/9
+
+Tres variantes con fotos y horarios **reales** de producción. **No se construyó
+nada**: la maqueta es sólo para elegir, y "ninguna" es una respuesta válida.
+
+- **A · foto grande**, 16:9 de borde a borde, texto encima sobre degradé.
+- **B · tarjeta contenida**, con márgenes y esquinas, texto abajo en negro
+  sobre blanco.
+- **C · 4:3 con el próximo asomando**, más el punteo de posición.
+
+### El dato que decide: cuánto recorta el hero
+
+Se midieron **las 12 fotos cargadas**. Un hero recorta mucho más de lo que uno
+espera, y el reparto real es **6 horizontales, 2 cuadradas y 4 verticales**.
+
+| Estudio | Foto | Se ve en 16:9 | Se ve en 4:3 |
+|---|---|---|---|
+| Yoguica | 1290×716 | 99% | 74% |
+| Ambra | 1600×998 | 90% | 83% |
+| Citra Barre | 1290×910 | 80% | 94% |
+| Tiwar · YOYO | cuadradas | 56% | 75% |
+| YN Pilates | 960×1280 | **42%** | 56% |
+| BB Colegiales | 853×1280 | **37%** | 50% |
+| Yessi Funes | 900×1600 | **32%** | 42% |
+
+**El hero grande brilla sólo con fotos buenas**: si la foto es vertical, no la
+disimula, la agranda. Con la rueda pareja de los destacados, a una vertical le
+toca turno cada dos o tres días.
+
+**Recomendación: la C.** El 4:3 salva 10 puntos en las verticales y el borde del
+próximo asomando explica solo que rota. La A es más linda cuando la foto
+acompaña, pero hoy acompaña en la mitad de los casos.
+
+**Si sale la A**, antes hay que o cambiar esas 4 fotos, o que el hero saltee a
+los estudios sin foto horizontal.
+
+## ⬜ Después del hero: auditoría de que la mejora visual no rompió nada
+
+Pedida con Fable. Cubre las 22 pantallas de la Etapa 1 + 2: navegación,
+botones, formularios, el checkout de punta a punta, layout sin textos cortados,
+y que los créditos sigan intactos. Medido contra producción.
+
 ## ✅ ETAPA 2 CERRADA: el sistema en TODA la app de la alumna — 4/9
 
 Las 22 pantallas del lado de la alumna pasadas al sistema. Antes de esta tanda
