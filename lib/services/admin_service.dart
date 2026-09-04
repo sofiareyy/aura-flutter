@@ -546,11 +546,47 @@ class AdminService {
   /// Elimina un estudio de forma permanente junto con todo lo asociado
   /// (clases y sus reservas, liquidaciones, reseñas, etc.). El RPC verifica
   /// que el caller sea admin.
-  Future<void> eliminarEstudio(int estudioId) async {
-    await _client.rpc(
-      'admin_delete_estudio',
+  // ── Eliminar un estudio, pero seguro (4/9/2026) ────────────────────────
+
+  /// Lo que se llevaría el borrado, con número, ANTES de decidir: clases,
+  /// reservas (y cuántas futuras vivas, con los créditos a devolver),
+  /// liquidaciones, reseñas, accesos, y `tiene_historial` (hubo reservas o
+  /// liquidaciones). Sólo lectura.
+  Future<Map<String, dynamic>> resumenBorradoEstudio(int estudioId) async {
+    final res = await _client.rpc(
+      'admin_estudio_resumen_borrado',
       params: {'p_estudio_id': estudioId},
     );
+    return Map<String, dynamic>.from(res as Map);
+  }
+
+  /// Ocultar (o volver a mostrar) un estudio. Reversible. Va por RPC porque
+  /// el superadmin no siempre es miembro del estudio y el update directo
+  /// podría afectar 0 filas en silencio.
+  Future<void> setEstudioActivo(int estudioId, bool activo) async {
+    await _client.rpc(
+      'admin_set_estudio_activo',
+      params: {'p_estudio_id': estudioId, 'p_activo': activo},
+    );
+  }
+
+  /// Borrado permanente. La base exige el NOMBRE exacto del estudio como
+  /// llave: no existe un camino sin nombre. Antes de la cascada, las reservas
+  /// futuras vivas se cancelan devolviendo los créditos y avisando por
+  /// campanita; recién después caen clases, reservas, liquidaciones y el
+  /// estudio. Devuelve lo que se borró y lo que se devolvió.
+  Future<Map<String, dynamic>> eliminarEstudio({
+    required int estudioId,
+    required String nombreConfirmacion,
+  }) async {
+    final res = await _client.rpc(
+      'admin_delete_estudio',
+      params: {
+        'p_estudio_id': estudioId,
+        'p_nombre_confirmacion': nombreConfirmacion.trim(),
+      },
+    );
+    return Map<String, dynamic>.from(res as Map);
   }
 
   Future<List<Map<String, dynamic>>> listReservas({String? search}) async {

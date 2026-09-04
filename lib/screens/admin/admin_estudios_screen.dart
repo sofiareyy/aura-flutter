@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../utils/eliminar_estudio_texto.dart';
+import '../../widgets/admin/eliminar_estudio_dialog.dart';
 import '../../models/estudio.dart';
 import '../../services/admin_service.dart';
 import '../../services/media_upload_service.dart';
@@ -61,58 +63,136 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     }
   }
 
+  /// Eliminar un estudio, pero seguro (4/9/2026). Dos pasos:
+  ///   1. "¿Ocultar o borrar?" — Desactivar es el botón principal: es
+  ///      reversible y es lo que se quiere casi siempre.
+  ///   2. Si elige borrar: la base cuenta lo que se va (reservas,
+  ///      liquidaciones, alumnas con reserva futura) y el cartel exige
+  ///      escribir el nombre del estudio. Sin nombre, la base tampoco borra.
   Future<void> _confirmarEliminarEstudio(Map<String, dynamic> studio) async {
     final nombre = studio['nombre']?.toString() ?? 'este estudio';
     final id = (studio['id'] as num?)?.toInt();
     if (id == null) return;
+    final activo = studio['activo'] != false;
 
-    final confirmar = await showDialog<bool>(
+    // ── Paso 1: ¿ocultar o borrar? ──────────────────────────────────────
+    final paso1 = await showDialog<DecisionEliminarEstudio>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('¿Eliminar $nombre?'),
-        content: const Text(
-          'Esta acción es permanente y no se puede deshacer.',
+        title: Text('¿Qué querés hacer con $nombre?'),
+        content: Text(
+          activo
+              ? 'Desactivar lo oculta de la app y se puede volver a activar '
+                  'cuando quieras. Eliminar lo borra para siempre, con sus '
+                  'clases, reservas y liquidaciones.'
+              : 'Este estudio ya está desactivado: no aparece en la app. '
+                  'Eliminar lo borra para siempre, con sus clases, reservas '
+                  'y liquidaciones.',
+          style: const TextStyle(height: 1.45),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () =>
+                Navigator.pop(ctx, DecisionEliminarEstudio.cancelar),
             style: TextButton.styleFrom(foregroundColor: AppColors.grey),
             child: const Text('Cancelar'),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: AppColors.white,
-            ),
-            child: const Text('Sí, eliminar'),
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(ctx, DecisionEliminarEstudio.eliminar),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Eliminar para siempre…'),
           ),
+          if (activo)
+            ElevatedButton(
+              onPressed: () =>
+                  Navigator.pop(ctx, DecisionEliminarEstudio.desactivar),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.white,
+              ),
+              child: const Text('Desactivar'),
+            ),
         ],
       ),
     );
+    if (!mounted || paso1 == null || paso1 == DecisionEliminarEstudio.cancelar) {
+      return;
+    }
+    if (paso1 == DecisionEliminarEstudio.desactivar) {
+      await _desactivarEstudio(id, nombre);
+      return;
+    }
 
-    if (confirmar != true) return;
+    // ── Paso 2: el resumen de la base + el nombre escrito ───────────────
+    ResumenBorrado resumen;
+    try {
+      resumen = ResumenBorrado.fromJson(
+        await _service.resumenBorradoEstudio(id),
+      );
+    } catch (e) {
+      _snackError('No se pudo leer qué tiene el estudio: ${_msg(e)}');
+      return;
+    }
+    if (!mounted) return;
+
+    final decision = await EliminarEstudioDialog.show(context, resumen);
+    if (!mounted) return;
+    if (decision == DecisionEliminarEstudio.desactivar) {
+      await _desactivarEstudio(id, nombre);
+      return;
+    }
+    if (decision != DecisionEliminarEstudio.eliminar) return;
 
     try {
-      await _service.eliminarEstudio(id);
+      final res = await _service.eliminarEstudio(
+        estudioId: id,
+        nombreConfirmacion: resumen.nombre,
+      );
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Estudio "$nombre" eliminado'),
+          content: Text(resumenBorradoHecho(res)),
           backgroundColor: AppColors.black,
           behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
+      _snackError(_msg(e));
+    }
+  }
+
+  Future<void> _desactivarEstudio(int id, String nombre) async {
+    try {
+      await _service.setEstudioActivo(id, false);
+      await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: AppColors.error,
+          content: Text(
+            '$nombre desactivado: ya no aparece en la app. '
+            'Se vuelve a activar desde Editar.',
+          ),
+          backgroundColor: AppColors.black,
+          behavior: SnackBarBehavior.floating,
         ),
       );
+    } catch (e) {
+      _snackError('No se pudo desactivar: ${_msg(e)}');
     }
+  }
+
+  static String _msg(Object e) {
+    if (e is PostgrestException) return e.message;
+    return e.toString().replaceFirst('Exception: ', '');
+  }
+
+  void _snackError(String texto) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(texto), backgroundColor: AppColors.error),
+    );
   }
 
   Future<void> _openForm([Map<String, dynamic>? estudio]) async {

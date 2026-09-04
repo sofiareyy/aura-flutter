@@ -1277,6 +1277,56 @@ Explorar + los pendientes del build 27 del inventario).
 **La experiencia de prueba 6258 está BORRADA** (1/9, 0 reservas, verificado:
 0 workshops futuros en la base). El preview del 8099 está apagado.
 
+## ✅ Eliminar estudio, pero SEGURO — 4/9 (base aplicada + Dart, va con el próximo push)
+
+**Cierra la "charla con la contadora"**: decisión de Sofía del 4/9. Se mantiene
+"Eliminar", con tres capas. Y se tapó un agujero de plata que no estaba
+anotado: una alumna con reserva FUTURA viva en un estudio borrado **perdía sus
+créditos en silencio** (medido: 18 créditos, ni devolución ni aviso).
+
+**Base** (`FEAT_ELIMINAR_ESTUDIO_SEGURO_2026-09-04.sql`, APLICADA):
+- `admin_estudio_resumen_borrado(id)`: lo que se va, con número (clases,
+  reservas, futuras vivas + créditos a devolver, liquidaciones y pagadas,
+  reseñas, accesos) y `tiene_historial` = hubo reservas o liquidaciones.
+- `admin_set_estudio_activo(id, activo)`: desactivar desde el mismo cartel.
+  Por RPC porque el superadmin no siempre es miembro y el update directo puede
+  afectar 0 filas en silencio.
+- `admin_delete_estudio(id, p_nombre_confirmacion)`: **la firma de un solo
+  argumento se DROPeó**: no existe camino sin nombre. El nombre se compara sin
+  mayúsculas ni espacios de más. Antes de la cascada, **las reservas futuras
+  vivas se cancelan como en `estudio_cancelar_clase`**: créditos al ledger (90
+  días, misma fuente) + campanita con nombre, fecha y motivo. Sin mail: la
+  edge function lee la clase por id después del commit y ya no está.
+
+**Dart:** paso 1 "¿Ocultar o borrar?" con **Desactivar como botón principal**
+(reversible; "Eliminar para siempre…" es un texto rojo). Paso 2: el resumen de
+la base, aviso rojo si hay historial ("Este estudio tiene 5 reservas… se
+pierde ese historial… mejor desactivalo"), botón "Mejor desactivar" ahí mismo,
+y **el nombre del estudio escrito**: el rojo está deshabilitado hasta que
+coincida. `widgets/admin/eliminar_estudio_dialog.dart` es público y tiene
+widget test (7 casos); el texto vive en `utils/eliminar_estudio_texto.dart`
+(8 casos).
+
+**El cascade, medido antes y después (Citra en rollback):** se van clases,
+reservas, liquidaciones, reseñas, accesos, grillas, favoritos, y se
+desvinculan las cuentas. **Cero huérfanos con FK.** Lo único que queda a
+propósito son las filas de `reservas_estado_log` (sin FK): son el registro de
+que existieron y de que se borraron. Otros estudios: intactos.
+
+| Prueba en rollback | Resultado |
+|---|---|
+| Resumen Citra | 5 reservas, 1 futura viva, 18 cr a devolver, `tiene_historial` |
+| Resumen Hot Clic | 0 reservas, 1 liquidación pagada ($8.400), `tiene_historial` |
+| Resumen BB Urquiza | limpio, sin advertencia |
+| Borrar con "Citra" o "" | rechazado por la base |
+| Borrar con "  citra barre " | ok: 391 clases, 5 reservas, 1 cancelada |
+| Juanita (reserva futura) | saldo 34 → **52**, ledger igual, 1 campanita |
+| Reservas sin clase / liq sin estudio | 0 / 0 |
+
+⚠️ Lo que el borrado sigue haciendo por decisión: **cascada**. Las reservas
+pasadas y las liquidaciones del estudio se van con él (con aviso previo y
+número). Si sólo se quiere ocultar, el camino es Desactivar.
+
 ## ✅ Servicios de precio fijo: PANTALLA DEL BACKOFFICE — 3/9 (base aplicada + Dart, va en la 1.0.7)
 
 La última pieza de la Tanda D. Con esto **se levanta la regla de "no darle el
