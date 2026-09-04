@@ -62,28 +62,33 @@ void main() {
       expect(anchoFotoBuscador(700 - 44), 186);
     });
 
-    test('teléfono: la foto pasó a 131 (3/9/2026), el alto sigue en 112', () {
-      // Teléfono de 390 menos los 44 de padding.
+    test('teléfono: la foto en 131 (3/9) y el alto en 118 (4/9)', () {
+      // Teléfono de 390 menos los 40 de padding.
       expect(anchoFotoBuscador(346), 131);
-      expect(altoCardBuscador(346), 112);
-      // El teléfono más chico donde corre la app: 320 - 44.
+      expect(altoCardBuscador(346), 118);
+      // El teléfono más chico donde corre la app.
       expect(anchoFotoBuscador(276), 131);
-      expect(altoCardBuscador(276), 112);
+      expect(altoCardBuscador(276), 118);
     });
 
     test('el carrusel de experiencias se queda en 96, también en desktop', () {
       // Mide 320 fijos en cualquier pantalla: sin el flag caería en la rama
       // del teléfono y cambiaría el desktop, que es lo que NO se quería.
       expect(anchoFotoBuscador(320, compacta: true), 96);
-      expect(altoCardBuscador(320), 112);
+      expect(altoCardBuscador(320), 118);
     });
 
-    test('de una foto 3:2 se ve el 78%, contra el 58% de antes', () {
+    test('de una foto 3:2 se ve el 74%, contra el 57% de antes', () {
       // Cuánto del ANCHO de la foto entra en el hueco, con BoxFit.cover:
       // (anchoFoto / altoCard) / proporcionDeLaFoto.
-      double visible(double anchoFoto) => (anchoFoto / 112) / 1.5;
-      expect(visible(96), closeTo(0.571, 0.001));
-      expect(visible(anchoFotoBuscador(346)), closeTo(0.780, 0.001));
+      //
+      // El 4/9 la tarjeta creció de 112 a 118 para que entrara la escala
+      // tipográfica del sistema, y eso recorta un poco lo que se ve de la foto:
+      // el 3/9 era 78%. Sigue MUY por encima del 57% del que se venía, que era
+      // el problema que Sofía había marcado.
+      double visible(double anchoFoto) => (anchoFoto / 118) / 1.5;
+      expect(visible(96), closeTo(0.542, 0.001));
+      expect(visible(anchoFotoBuscador(346)), closeTo(0.740, 0.001));
     });
 
     test('el texto pierde 35 px, no más', () {

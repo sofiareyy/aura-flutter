@@ -1409,6 +1409,79 @@ límite de 50 corta al cuarto día. Se resuelve solo cuando haya más volumen.
 
 240 tests (7 nuevos), `analyze` sin issues nuevos, web compila.
 
+## ✅ Etapa 2, sub-parte 2: el sistema llega a EXPLORAR — 4/9 (Dart, 1.0.7)
+
+Explorar no usaba **ni un solo token**. Lo que había:
+
+| | Antes | Ahora |
+|---|---|---|
+| Radios distintos | 7 (6, 12, 14, 16, 18, 24, 999) | 1 crudo (el 24 de la hoja modal) |
+| Tamaños de letra | 10 (9 a 22) | 1 crudo (el 22 del título) |
+| Encabezados de sección | 3 escritos a mano | 1 componente |
+| Margen lateral | 22 propio | el de la app (20) |
+| Spinners | 2 | 0 |
+
+**El encabezado se mudó a `lib/widgets/titulo_seccion.dart`.** Era privado del
+Inicio; Explorar necesitaba los mismos tres. Ahora hay uno solo y con eso
+Explorar heredó gratis el arreglo de contraste del "Ver todo".
+
+### Los grises que Etapa 1 no había alcanzado acá
+
+Etapa 1 tocó Explorar apenas 7 líneas y quedaron afuera los controles:
+
+| Dónde | Antes | Ahora |
+|---|---|---|
+| Texto de los chips inactivos | #C7C0B9 — **1,80:1** | textoSuave — 5,56:1 |
+| Hint del buscador | #C7C0B9 — **1,80:1** | textoSuave — 5,56:1 |
+| "Ver todo" | primary — **2,96:1** | primaryTexto — 5,07:1 |
+| "No hay clases disponibles" | #8C847C — 3,68:1 | textoSuave — 5,56:1 |
+
+Los chips son el filtro principal de la pantalla y su texto estaba en 1,80:1.
+
+Aparte, las 4 etiquetas de la hoja de filtros traían **otro** gris (#403A35,
+11,2:1). No era ilegible: era un gris más. Pasaron al del sistema.
+
+### La tarjeta creció 6 px, y eso tiene un costo que conviene saber
+
+Al pasar la tarjeta de resultados a la escala (nombre 16 → 18, estudio 12 → 13,
+etiqueta 10 → 11) **el texto desbordó 4 px** y el test de la tarjeta lo cazó. Se
+eligió darle el alto que la escala necesita (112 → **118**) en vez de achicar la
+tipografía.
+
+⚠️ **El costo:** con la tarjeta más alta, la foto 3:2 se recorta un poco más de
+costado. Del ancho de la foto se ve el **74%**, contra el 78% de ayer. Sigue muy
+por encima del **57%** que era el problema que Sofía marcó el 3/9, pero es un
+paso atrás de 4 puntos y está bueno que lo mire.
+
+La tarjeta **ancha** (escritorio) NO se tocó: ahí el texto tiene lugar y su alto
+manda el ancho de la foto, así que subirla habría cambiado la foto del
+escritorio de 186 a 195 sin necesidad. Hay un test nuevo que comprueba que la
+ancha no desborda, en vez de suponerlo.
+
+### Lo que NO se tocó, a propósito
+
+- **Las sombras.** `AuraSombra` existe, pero **ni el Inicio ni Explorar usan
+  sombras**: las dos pantallas de la alumna resuelven las tarjetas con borde.
+  Agregarlas sería un cambio de diseño, no una unificación.
+- Los paddings **internos** de las tarjetas, igual que en el Inicio.
+- El radio 24 de la hoja de filtros: una hoja modal es otra superficie.
+- Los créditos, el negro sobre naranja y los tonos cálidos.
+
+### ⚠️ Queda abierto para la sub-parte que viene (el Inicio)
+
+Al medir las dos pantallas juntas aparecieron dos diferencias que **siguen
+vivas**, porque tocarlas ahora habría cambiado una pantalla que Sofía ya
+revisó:
+
+1. **Las esquinas de las tarjetas.** Inicio 20, Explorar ahora 16 (el token).
+   Antes eran 20 y 18: distintas igual. Se alinea el Inicio en la próxima.
+2. **El borde de las tarjetas.** Inicio usa `grey` al 14%, Explorar
+   `warmBorder`. El cálido es el de la marca.
+
+Nada de esto sale a producción a medias: son commits sin pushear.
+
+266 tests (11 nuevos), `analyze` en 97 como la línea de base, web compila.
+
 ## ✅ "MÁS CLASES": futuras de verdad, y por fecha — 4/9 (Dart, va en la 1.0.7)
 
 Sofía aclaró el criterio: lo que importa es que sean clases que **todavía se

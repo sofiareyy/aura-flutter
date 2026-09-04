@@ -22,6 +22,7 @@ import '../../utils/volver_a_tus_estudios.dart';
 import '../../utils/grilla_responsive.dart';
 import '../../utils/clases_tomables.dart';
 import '../../widgets/foto_red.dart';
+import '../../widgets/titulo_seccion.dart';
 import '../../widgets/organizadores_links.dart';
 import '../../widgets/aura_skeleton.dart';
 import '../../widgets/registro_muro.dart';
@@ -588,7 +589,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         // usuaria no reservó nunca.
                         if (_misEstudios.isNotEmpty) ...[
                           const SliverToBoxAdapter(
-                            child: _TituloSeccion('VOLVÉ A TUS ESTUDIOS'),
+                            child: TituloSeccion('VOLVÉ A TUS ESTUDIOS'),
                           ),
                           SliverToBoxAdapter(
                             child: SizedBox(
@@ -662,7 +663,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         SliverToBoxAdapter(
-                          child: _TituloSeccion(
+                          child: TituloSeccion(
                             'CERCA TUYO',
                             accion: 'Ver todo',
                             onAccion: () => context.go('/explorar'),
@@ -714,7 +715,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         if (_sugerencias.isNotEmpty) ...[
                           SliverToBoxAdapter(
-                            child: _TituloSeccion(
+                            child: TituloSeccion(
                               'PARA VOS ✨',
                               accion: 'Ver más',
                               onAccion: () => context.go('/explorar'),
@@ -750,7 +751,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ],
                         SliverToBoxAdapter(
-                          child: _TituloSeccion(
+                          child: TituloSeccion(
                             'CLASES ESTA SEMANA',
                             accion: 'Explorar',
                             onAccion: () => context.go('/explorar'),
@@ -811,7 +812,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         // ── Experiencias (workshops / eventos próximos) ──────────────
                         if (_experiencias.isNotEmpty) ...[
                           SliverToBoxAdapter(
-                            child: _TituloSeccion('EXPERIENCIAS'),
+                            child: TituloSeccion('EXPERIENCIAS'),
                           ),
                           SliverToBoxAdapter(
                             child: SizedBox(
@@ -841,7 +842,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ],
                         SliverToBoxAdapter(
-                          child: _TituloSeccion(
+                          child: TituloSeccion(
                             'ESTUDIOS',
                             accion: 'Ver todo',
                             onAccion: () => context.go('/explorar'),
@@ -897,7 +898,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         SliverToBoxAdapter(
-                          child: _TituloSeccion(
+                          child: TituloSeccion(
                             // Con 6 tarjetas, "TODAS" volvía a mentir.
                             'MÁS CLASES',
                             accion: 'Ver todas',
@@ -2562,59 +2563,3 @@ class _EstudioAsociadoCard extends StatelessWidget {
 /// Existe para que las seis secciones no sigan cada una con su propio padding
 /// (había 22, 24, 26 y 0 de arriba) ni su propio estilo. Ahora salen todas de
 /// los mismos tokens (4/9/2026).
-class _TituloSeccion extends StatelessWidget {
-  final String titulo;
-
-  /// El texto del link de la derecha. Sin él, no se dibuja.
-  final String? accion;
-  final VoidCallback? onAccion;
-
-  /// La primera sección después de otra cosa necesita el aire de separación;
-  /// una que va pegada a la anterior, no.
-  final bool separar;
-
-  const _TituloSeccion(
-    this.titulo, {
-    this.accion,
-    this.onAccion,
-    this.separar = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        AuraEspacio.margen,
-        separar ? AuraEspacio.seccion : 0,
-        AuraEspacio.margen,
-        AuraEspacio.tituloAContenido,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Flexible(
-            child: Text(
-              titulo,
-              style: AuraTipo.estiloEtiqueta.copyWith(
-                color: AppColors.textoSecundario,
-              ),
-            ),
-          ),
-          if (accion != null)
-            GestureDetector(
-              onTap: onAccion,
-              child: Text(
-                accion!,
-                style: const TextStyle(
-                  // `primary` como texto da 2,72:1 y no se leía.
-                  color: AppColors.primaryTexto,
-                  fontWeight: FontWeight.w600,
-                  fontSize: AuraTipo.secundario,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}

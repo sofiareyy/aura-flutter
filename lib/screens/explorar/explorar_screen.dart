@@ -11,6 +11,9 @@ import '../../services/estudios_service.dart';
 import '../../utils/explorar_filtros.dart';
 import '../../utils/grilla_responsive.dart';
 import '../../widgets/foto_red.dart';
+import '../../widgets/titulo_seccion.dart';
+import '../../widgets/aura_skeleton.dart';
+import '../../core/theme/aura_tokens.dart';
 
 class ExplorarScreen extends StatefulWidget {
   const ExplorarScreen({super.key});
@@ -310,7 +313,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                       height: 5,
                       decoration: BoxDecoration(
                         color: const Color(0xFFE0DBD6),
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                       ),
                     ),
                   ),
@@ -318,7 +321,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                   const Text(
                     'Filtros',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: AuraTipo.titulo,
                       fontWeight: FontWeight.w700,
                       color: AppColors.black,
                     ),
@@ -327,9 +330,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                   const Text(
                     'Tipo',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: AuraTipo.secundario,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF403A35),
+                      color: AppColors.textoSecundario,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -353,7 +356,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                                 color: selected
                                     ? AppColors.black
                                     : AppColors.white,
-                                borderRadius: BorderRadius.circular(999),
+                                borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                                 border: Border.all(
                                   color: selected
                                       ? AppColors.black
@@ -366,7 +369,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                                   color: selected
                                       ? AppColors.white
                                       : const Color(0xFF6E6761),
-                                  fontSize: 13,
+                                  fontSize: AuraTipo.secundario,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -378,9 +381,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                   const Text(
                     'Día',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: AuraTipo.secundario,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF403A35),
+                      color: AppColors.textoSecundario,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -403,7 +406,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: selected ? AppColors.black : AppColors.white,
-                            borderRadius: BorderRadius.circular(999),
+                            borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                             border: Border.all(
                               color: selected
                                   ? AppColors.black
@@ -415,8 +418,8 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                             style: TextStyle(
                               color: selected
                                   ? AppColors.white
-                                  : const Color(0xFFC7C0B9),
-                              fontSize: 13,
+                                  : AppColors.textoSuave,
+                              fontSize: AuraTipo.secundario,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -428,9 +431,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                   const Text(
                     'Horario',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: AuraTipo.secundario,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF403A35),
+                      color: AppColors.textoSecundario,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -453,7 +456,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: selected ? AppColors.black : AppColors.white,
-                            borderRadius: BorderRadius.circular(999),
+                            borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                             border: Border.all(
                               color: selected
                                   ? AppColors.black
@@ -465,8 +468,8 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                             style: TextStyle(
                               color: selected
                                   ? AppColors.white
-                                  : const Color(0xFFC7C0B9),
-                              fontSize: 13,
+                                  : AppColors.textoSuave,
+                              fontSize: AuraTipo.secundario,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -481,15 +484,15 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                       const Text(
                         'Créditos máximos',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: AuraTipo.secundario,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF403A35),
+                          color: AppColors.textoSecundario,
                         ),
                       ),
                       Text(
                         creditosTemp < 100 ? '$creditosTemp cr' : 'Todos',
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: AuraTipo.secundario,
                           fontWeight: FontWeight.w600,
                           color: AppColors.primary,
                         ),
@@ -524,7 +527,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                             foregroundColor: AppColors.black,
                             side: const BorderSide(color: AppColors.warmBorder),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(AuraRadio.boton),
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
@@ -551,7 +554,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                             foregroundColor: AppColors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(AuraRadio.boton),
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
@@ -600,11 +603,18 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(
-                maxWidth: anchoMaxBuscador + 44,
+                maxWidth: anchoMaxBuscador + AuraEspacio.margen * 2,
               ),
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
+                // El margen lateral es UNO para toda la app: antes acá era 22
+                // y en el Inicio 20.
+                padding: const EdgeInsets.fromLTRB(
+                  AuraEspacio.margen,
+                  AuraEspacio.l,
+                  AuraEspacio.margen,
+                  AuraEspacio.xl,
+                ),
                 children: [
                   const Text(
                     'Explorar',
@@ -614,7 +624,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AuraEspacio.l),
                   Row(
                     children: [
                       Expanded(
@@ -623,7 +633,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 14),
                           decoration: BoxDecoration(
                             color: AppColors.white,
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(AuraRadio.boton),
                             border: Border.all(color: AppColors.warmBorder),
                           ),
                           child: Row(
@@ -631,7 +641,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                               const Icon(
                                 Icons.search_rounded,
                                 size: 18,
-                                color: Color(0xFFC7C0B9),
+                                color: AppColors.textoSuave,
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -645,8 +655,8 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                                     isDense: true,
                                     contentPadding: EdgeInsets.zero,
                                     hintStyle: TextStyle(
-                                      color: Color(0xFFC7C0B9),
-                                      fontSize: 14,
+                                      color: AppColors.textoSuave,
+                                      fontSize: AuraTipo.cuerpo,
                                     ),
                                   ),
                                 ),
@@ -657,7 +667,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                                   child: const Icon(
                                     Icons.close_rounded,
                                     size: 18,
-                                    color: Color(0xFFB4ACA5),
+                                    color: AppColors.textoSuave,
                                   ),
                                 ),
                             ],
@@ -675,7 +685,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                               icon: const Icon(Icons.tune_rounded, size: 16),
                               label: const Text(
                                 'Filtrar',
-                                style: TextStyle(fontSize: 13),
+                                style: TextStyle(fontSize: AuraTipo.secundario),
                               ),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppColors.black,
@@ -683,7 +693,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                                   color: AppColors.warmBorder,
                                 ),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
+                                  borderRadius: BorderRadius.circular(AuraRadio.boton),
                                 ),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
@@ -708,7 +718,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                                   '$_cantFiltrosActivos',
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 10,
+                                    fontSize: AuraTipo.etiqueta,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -718,10 +728,10 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AuraEspacio.m),
                   InkWell(
                     onTap: _abrirMapa,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                     child: Ink(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
@@ -729,7 +739,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFF4EC),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                         border: Border.all(color: const Color(0xFFF0D9C9)),
                       ),
                       child: const Row(
@@ -745,7 +755,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                               'Ver estudios en mapa',
                               style: TextStyle(
                                 color: AppColors.black,
-                                fontSize: 14,
+                                fontSize: AuraTipo.cuerpo,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -758,7 +768,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: AuraEspacio.l),
                   SizedBox(
                     height: 34,
                     child: ListView.builder(
@@ -779,7 +789,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                             ),
                             decoration: BoxDecoration(
                               color: active ? AppColors.black : AppColors.white,
-                              borderRadius: BorderRadius.circular(999),
+                              borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                               border: Border.all(
                                 color: active
                                     ? AppColors.black
@@ -791,8 +801,8 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                               style: TextStyle(
                                 color: active
                                     ? AppColors.white
-                                    : const Color(0xFFC7C0B9),
-                                fontSize: 13,
+                                    : AppColors.textoSuave,
+                                fontSize: AuraTipo.secundario,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -801,45 +811,27 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                       },
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        // Ahora el nombre es cierto: son de HOY (rotan por día)
-                        // y están destacados con un criterio (más oferta, más
-                        // chances). Antes eran los dos primeros del abecedario.
-                        'DESTACADOS HOY',
-                        style: TextStyle(
-                          color: Color(0xFF403A35),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => setState(
-                          () => _showAllDestacados = !_showAllDestacados,
-                        ),
-                        child: Text(
-                          _showAllDestacados ? 'Ver menos' : 'Ver todo',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
+                  // El nombre es cierto: son de HOY (rotan por día) y están
+                  // destacados con un criterio (más oferta, más chances).
+                  // Antes eran los dos primeros del abecedario.
+                  TituloSeccion(
+                    'DESTACADOS HOY',
+                    margenLateral: false,
+                    accion: _showAllDestacados ? 'Ver menos' : 'Ver todo',
+                    onAccion: () => setState(
+                      () => _showAllDestacados = !_showAllDestacados,
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  // Antes: un spinner suelto en un hueco crema de 40+40 px de
+                  // alto, y al llegar los datos la tira aparecía de golpe y
+                  // empujaba todo lo de abajo. Ahora deja la silueta de las
+                  // tarjetas que vienen, con las medidas reales, así nada
+                  // salta de lugar.
                   if (_loading)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
-                        ),
-                      ),
+                    const AuraSkeletonCarrusel(
+                      alto: altoCarruselDestacados,
+                      anchoTarjeta: 166,
+                      altoFoto: 92,
                     )
                   else if (_estudiosFiltrados.isEmpty)
                     Padding(
@@ -851,25 +843,25 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                             size: 44,
                             color: Color(0xFFB2A89F),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: AuraEspacio.m),
                           const Text(
                             'No encontramos resultados',
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              fontSize: 16,
+                              fontSize: AuraTipo.titulo,
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: AuraEspacio.s),
                           const Text(
                             'Probá con otro término o categoría.',
                             style: TextStyle(
-                              color: Color(0xFF8C847C),
-                              fontSize: 14,
+                              color: AppColors.textoSuave,
+                              fontSize: AuraTipo.cuerpo,
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AuraEspacio.l),
                           TextButton.icon(
                             onPressed: () => setState(() {
                               _searchCtrl.clear();
@@ -910,23 +902,18 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                         },
                       ),
                     ),
-                    const SizedBox(height: 22),
                     // EXPERIENCIAS próximas. Sale del feed YA filtrado, así que
                     // respeta chip/búsqueda/día/horario/créditos sin código extra
                     // y desaparece sola con el filtro Tipo = Clases. Reutiliza la
                     // card del feed (misma identidad visual). Inicio no se toca.
                     if (experienciasDestacadas(lista).isNotEmpty) ...[
-                      const Text(
+                      const TituloSeccion(
                         'EXPERIENCIAS',
-                        style: TextStyle(
-                          color: Color(0xFF403A35),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        margenLateral: false,
                       ),
-                      const SizedBox(height: 12),
                       SizedBox(
-                        height: 112,
+                        // El mismo alto que la tarjeta angosta que va adentro.
+                        height: altoCardBuscador(0),
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           itemCount: experienciasDestacadas(lista).length,
@@ -948,23 +935,17 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                           },
                         ),
                       ),
-                      const SizedBox(height: 22),
                     ],
-                    const Text(
+                    const TituloSeccion(
                       'TODOS LOS RESULTADOS',
-                      style: TextStyle(
-                        color: Color(0xFF403A35),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      margenLateral: false,
                     ),
-                    const SizedBox(height: 12),
                     if (lista.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 12),
                         child: Text(
                           'No hay clases disponibles para esta búsqueda.',
-                          style: TextStyle(color: Color(0xFF8C847C)),
+                          style: TextStyle(color: AppColors.textoSuave),
                         ),
                       )
                     else ...[
@@ -982,13 +963,27 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                           padding: const EdgeInsets.only(top: 4, bottom: 4),
                           child: Center(
                             child: _loadingMore
-                                ? const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: AppColors.primary,
-                                    ),
+                                // La silueta de la próxima tanda, con el alto
+                                // real de la tarjeta del buscador: el spinner
+                                // ocupaba 24 px y la lista pegaba un salto al
+                                // llegar los datos.
+                                ? LayoutBuilder(
+                                    builder: (context, c) {
+                                      // Las MISMAS medidas que la grilla, para
+                                      // que la silueta ocupe exactamente lo
+                                      // que va a ocupar la tarjeta.
+                                      final cols = columnasBuscador(c.maxWidth);
+                                      final ancho = anchoCelda(
+                                        c.maxWidth,
+                                        cols,
+                                      );
+                                      return AuraSkeleton(
+                                        height: altoCardBuscador(ancho),
+                                        borderRadius: BorderRadius.circular(
+                                          AuraRadio.tarjeta,
+                                        ),
+                                      );
+                                    },
                                   )
                                 : TextButton.icon(
                                     onPressed: _cargarMasClases,
@@ -1032,14 +1027,14 @@ class _FeaturedExploreCard extends StatelessWidget {
       margin: const EdgeInsets.only(right: 12),
       child: Material(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
           child: Ink(
             decoration: BoxDecoration(
               color: AppColors.white,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
               border: Border.all(color: AppColors.warmBorder),
             ),
             child: Column(
@@ -1047,7 +1042,7 @@ class _FeaturedExploreCard extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(18),
+                    top: Radius.circular(AuraRadio.tarjeta),
                   ),
                   child: SizedBox(
                     height: 92,
@@ -1079,13 +1074,13 @@ class _FeaturedExploreCard extends StatelessWidget {
                                   ),
                                   decoration: BoxDecoration(
                                     color: AppColors.primary,
-                                    borderRadius: BorderRadius.circular(999),
+                                    borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                                   ),
                                   child: const Text(
                                     'Tu estudio',
                                     style: TextStyle(
                                       color: AppColors.white,
-                                      fontSize: 10,
+                                      fontSize: AuraTipo.etiqueta,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -1112,7 +1107,7 @@ class _FeaturedExploreCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppColors.black,
-                        fontSize: 15,
+                        fontSize: AuraTipo.cuerpo,
                         fontWeight: FontWeight.w700,
                         height: 1.2,
                       ),
@@ -1125,7 +1120,7 @@ class _FeaturedExploreCard extends StatelessWidget {
                     estudio.barrio ?? 'Buenos Aires',
                     style: const TextStyle(
                       color: Color(0xFFAAA19A),
-                      fontSize: 12,
+                      fontSize: AuraTipo.secundario,
                     ),
                   ),
                 ),
@@ -1137,7 +1132,7 @@ class _FeaturedExploreCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Color(0xFFC1B7AF),
-                      fontSize: 11,
+                      fontSize: AuraTipo.etiqueta,
                     ),
                   ),
                 ),
@@ -1289,7 +1284,7 @@ class _ResultCard extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
             child: Ink(
               height: altoCard,
               // La card de EXPERIENCIA se distingue por el fondo, no solo por el
@@ -1299,7 +1294,7 @@ class _ResultCard extends StatelessWidget {
               // de Inicio es otra y no se toca.
               decoration: BoxDecoration(
                 color: esWorkshop ? _fondoExperiencia : AppColors.white,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                 border: Border.all(
                   color: esWorkshop ? _bordeExperiencia : AppColors.warmBorder,
                 ),
@@ -1308,7 +1303,7 @@ class _ResultCard extends StatelessWidget {
                 children: [
                   ClipRRect(
                     borderRadius: const BorderRadius.horizontal(
-                      left: Radius.circular(18),
+                      left: Radius.circular(AuraRadio.tarjeta),
                     ),
                     child: SizedBox(
                       width: anchoFoto,
@@ -1338,7 +1333,7 @@ class _ResultCard extends StatelessWidget {
                                   style: const TextStyle(
                                     // Daba 1,5:1: no se leía. Ver AppColors.
                                     color: AppColors.textoSuave,
-                                    fontSize: 10,
+                                    fontSize: AuraTipo.etiqueta,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -1373,7 +1368,7 @@ class _ResultCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: AppColors.black,
-                              fontSize: 16,
+                              fontSize: AuraTipo.titulo,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -1388,7 +1383,7 @@ class _ResultCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: AppColors.textoSecundario,
-                                fontSize: 12,
+                                fontSize: AuraTipo.secundario,
                               ),
                             ),
                           const Spacer(),
@@ -1404,7 +1399,7 @@ class _ResultCard extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     color: AppColors.textoSuave,
-                                    fontSize: 11,
+                                    fontSize: AuraTipo.etiqueta,
                                   ),
                                 ),
                               ),
@@ -1520,13 +1515,13 @@ class _PriceBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AuraRadio.chip),
       ),
       child: Text(
         text,
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 9,
+          fontSize: AuraTipo.etiqueta,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -1546,13 +1541,13 @@ class _Pill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: dark ? const Color(0xFF5A534D) : const Color(0xFFFFF1E8),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AuraRadio.pastilla),
       ),
       child: Text(
         text,
         style: TextStyle(
           color: dark ? AppColors.white : AppColors.primary,
-          fontSize: 10,
+          fontSize: AuraTipo.etiqueta,
           fontWeight: FontWeight.w700,
         ),
       ),

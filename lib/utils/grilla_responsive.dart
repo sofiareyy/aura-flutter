@@ -60,8 +60,17 @@ double anchoCelda(double ancho, int columnas) {
 /// A partir de este ancho de tarjeta entra la foto 3:2 sin ahogar el texto.
 const double _anchoTarjetaConFotoGrande = 420;
 
+// La ANGOSTA subió 6 px el 4/9/2026. Al pasar la tarjeta a la escala
+// tipográfica del sistema (el nombre de la clase de 16 a 18, el estudio de 12 a
+// 13, la etiqueta de 10 a 11) el texto desbordaba 4 px y el test de la tarjeta
+// lo cazó. Se eligió darle el alto que la escala necesita, y no achicar la
+// tipografía: quedan 2 px de aire de sobra.
+//
+// La ANCHA no se tocó: ahí el texto tiene lugar de sobra y no desbordaba. Y
+// además su alto manda el ancho de la foto (3:2), así que subirla habría
+// cambiado la foto del escritorio de 186 a 195 sin necesidad.
 const double _altoBuscadorAncho = 124;
-const double _altoBuscadorAngosto = 112;
+const double _altoBuscadorAngosto = 118;
 
 /// Alto de la tarjeta del buscador según su propio ancho.
 double altoCardBuscador(double anchoCard) =>
