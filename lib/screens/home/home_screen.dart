@@ -1911,7 +1911,8 @@ class HomeNearbyClassCard extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: AppColors.grey,
+                              // Era AppColors.grey: 3,2:1, no alcanzaba.
+                              color: AppColors.textoSecundario,
                               fontSize: 13,
                               height: 1.35,
                             ),
@@ -1932,7 +1933,7 @@ class HomeNearbyClassCard extends StatelessWidget {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                      color: AppColors.grey,
+                                      color: AppColors.textoSuave,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -2262,7 +2263,7 @@ class _HomeStudyCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: Color(0xFFB2A89F),
+                            color: AppColors.textoSecundario,
                             fontSize: 12,
                           ),
                         ),

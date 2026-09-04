@@ -1325,7 +1325,8 @@ class _ResultCard extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    color: Color(0xFFD0C6BD),
+                                    // Daba 1,5:1: no se leía. Ver AppColors.
+                                    color: AppColors.textoSuave,
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -1375,7 +1376,7 @@ class _ResultCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                color: Color(0xFFA49B94),
+                                color: AppColors.textoSecundario,
                                 fontSize: 12,
                               ),
                             ),
@@ -1391,7 +1392,7 @@ class _ResultCard extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    color: Color(0xFFB2A89F),
+                                    color: AppColors.textoSuave,
                                     fontSize: 11,
                                   ),
                                 ),

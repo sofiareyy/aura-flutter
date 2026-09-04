@@ -1365,6 +1365,51 @@ clase). `analyze` sin issues nuevos y la web compila.
 botones duplicados de "Comprar créditos" (ahora los dos llevan el `?volver=`).
 Está en la auditoría como ítem 9.
 
+## ✅ Diseño visual, ETAPA 1: los dos chicos — 4/9 (Dart, va en la 1.0.7)
+
+Los dos primeros de la auditoría de diseño, que eran los de más impacto por
+unidad de esfuerzo. Etapa 2 (el sistema) y etapa 3 (el hero) siguen pendientes.
+
+**1 · Los grises de las tarjetas ahora se leen.** Eran texto que decidía la
+reserva y no pasaba el mínimo de 4,5:1 sobre la crema: la categoría **1,5:1**,
+la fecha **2,2:1**, la dirección **2,5:1**. Y la tarjeta del Inicio usaba
+`AppColors.grey` para el estudio y la fecha, que da **3,2:1** y tampoco
+alcanzaba.
+
+Se consolidaron **dos tonos que ya existían sueltos en el código**, así que no
+se inventó paleta:
+
+| Token | Sobre crema | Sobre blanco | Para qué |
+|---|---|---|---|
+| `textoSecundario` `#5A534D` | 6,94:1 | 7,56:1 | estudio, dirección |
+| `textoSuave` `#6E6761` | 5,11:1 | 5,56:1 | etiqueta de categoría, fecha |
+
+Siguen siendo cálidos —la temperatura es parte de la marca— y mantienen la
+jerarquía entre sí. `grey` y `mutedText` quedan para íconos y bordes, con un
+test que lo dice. Los dos íconos decorativos que usaban `#B2A89F` se dejaron:
+son íconos de 44 px de un estado vacío, no texto.
+
+**2 · Toda la app en DM Sans.** El tema declaraba DM Sans en los títulos e
+**Inter** en cuerpo, etiquetas y hints de input: 7 lugares. Ahora es una sola
+tipografía en las 54 pantallas.
+
+**🔒 NO se tocó, y hay test que lo protege:** el **negro sobre naranja** de los
+botones. Da 5,87:1; el blanco daría 2,96:1 y no pasa. Es la firma visual de
+Aura y la decisión correcta.
+
+**`test/contraste_test.dart`** calcula el contraste con la fórmula de WCAG y
+falla si alguno de estos colores se afloja: los dos tokens sobre las dos
+superficies, la jerarquía entre ellos, que los tres grises viejos sigan siendo
+insuficientes (si dejaran de serlo, el test sobra), que el botón sea negro y
+no blanco, y que no vuelva a aparecer Inter. Un color se afloja de a poco y
+nadie lo nota; acá se nota.
+
+⚠️ **Queda para la etapa 2** el link "Ver todo" en naranja sobre crema
+(**2,72:1**): es de las secciones, no de la tarjeta, y entra con la pasada de
+tokens.
+
+217 tests (10 nuevos), `analyze` sin issues nuevos, web compila.
+
 ## 🎨 Auditoría de DISEÑO VISUAL — 4/9
 
 Análisis completo, sin construir, en **`AUDITORIA_DISENO_VISUAL.md`**, con el marco

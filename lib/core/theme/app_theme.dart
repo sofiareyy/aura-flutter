@@ -11,6 +11,29 @@ class AppColors {
   static const Color grey = Color(0xFF8A8A8A);
   static const Color lightGrey = Color(0xFFE8E6E3);
   static const Color mutedText = Color(0xFFB8B0A9);
+
+  // ── Texto secundario LEGIBLE (4/9/2026) ─────────────────────────────────
+  //
+  // Los grises que usaban las tarjetas de clase no se leían: la categoría
+  // (#D0C6BD) daba 1,5:1 sobre la crema, la fecha (#B2A89F) 2,2:1 y la
+  // dirección (#A49B94) 2,5:1, contra un mínimo legible de 4,5:1. En un
+  // teléfono al sol, la información que decide la reserva desaparecía.
+  //
+  // Estos dos tonos ya existían sueltos en el código: se consolidan acá.
+  // Siguen siendo cálidos —la temperatura es parte de la marca— y mantienen
+  // la jerarquía entre sí, pero los dos PASAN sobre las dos superficies:
+  //
+  //   textoSecundario  6,94:1 sobre crema · 7,56:1 sobre blanco
+  //   textoSuave       5,11:1 sobre crema · 5,56:1 sobre blanco
+  //
+  // `grey` (#8A8A8A) queda para íconos y bordes: como TEXTO da 3,2:1 y no
+  // alcanza.
+
+  /// Texto secundario principal: estudio, dirección, subtítulos.
+  static const Color textoSecundario = Color(0xFF5A534D);
+
+  /// El escalón más suave que TODAVÍA se lee: etiquetas, fecha y hora.
+  static const Color textoSuave = Color(0xFF6E6761);
   static const Color warmSurface = Color(0xFFFDF8F3);
   static const Color warmBorder = Color(0xFFE9DED4);
   static const Color cardBackground = Color(0xFFFFFFFF);
@@ -83,32 +106,32 @@ class AppTheme {
           fontWeight: FontWeight.w600,
           color: AppColors.black,
         ),
-        bodyLarge: GoogleFonts.inter(
+        bodyLarge: GoogleFonts.dmSans(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           color: AppColors.black,
         ),
-        bodyMedium: GoogleFonts.inter(
+        bodyMedium: GoogleFonts.dmSans(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: AppColors.black,
         ),
-        bodySmall: GoogleFonts.inter(
+        bodySmall: GoogleFonts.dmSans(
           fontSize: 12,
           fontWeight: FontWeight.w400,
           color: AppColors.black,
         ),
-        labelLarge: GoogleFonts.inter(
+        labelLarge: GoogleFonts.dmSans(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           color: AppColors.grey,
         ),
-        labelMedium: GoogleFonts.inter(
+        labelMedium: GoogleFonts.dmSans(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: AppColors.grey,
         ),
-        labelSmall: GoogleFonts.inter(
+        labelSmall: GoogleFonts.dmSans(
           fontSize: 12,
           fontWeight: FontWeight.w400,
           color: AppColors.grey,
@@ -160,7 +183,7 @@ class AppTheme {
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        hintStyle: GoogleFonts.inter(
+        hintStyle: GoogleFonts.dmSans(
           color: AppColors.grey,
           fontSize: 14,
         ),
