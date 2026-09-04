@@ -10,6 +10,8 @@ import '../../services/aura_gestion_service.dart';
 import '../../services/clases_service.dart';
 import '../../services/reservas_service.dart';
 import '../../utils/cierre_minutos.dart';
+import '../../utils/creditos_faltantes.dart';
+import '../../utils/destino_post_login.dart';
 import '../../utils/grilla_responsive.dart';
 
 class ConfirmarReservaScreen extends StatefulWidget {
@@ -400,13 +402,40 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
                               color: AppColors.error.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(14),
                             ),
-                            child: const Text(
-                              'No tenés suficientes créditos para esta reserva.',
-                              style: TextStyle(
-                                color: AppColors.error,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  avisoConfirmarReserva(
+                                    saldo: actuales,
+                                    precio: creditos,
+                                  ),
+                                  style: const TextStyle(
+                                    color: AppColors.error,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.45,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                // Antes esta pantalla era un callejón: aviso
+                                // rojo, botón muerto y ninguna salida hacia
+                                // adelante. El `volver` la trae de vuelta acá
+                                // después de comprar (4/9/2026).
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 46,
+                                  child: ElevatedButton(
+                                    onPressed: () => context.push(
+                                      DestinoPostLogin.conVolver(
+                                        '/comprar-creditos',
+                                        DestinoPostLogin.rutaActualDe(context),
+                                      ),
+                                    ),
+                                    child: const Text('Comprar créditos'),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],

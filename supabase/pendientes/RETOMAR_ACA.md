@@ -1137,6 +1137,48 @@ No son tareas técnicas. Están acá para que no se pierdan.
 | ✅ | **Mail de confirmación de reserva — DECIDIDO Y ACTIVO desde el 29/8** | Cableado por base (trigger al confirmarse), texto aprobado ("fitness y experiencias", línea del código). Le llega a todas las alumnas ya. |
 | ⬜ | **Categorías faltantes** | Avisarle a Yessi (112 clases) y Ambra (77) que las completen. O que el form las exija (Dart). |
 
+## ✅ El paywall de créditos, arreglado — 4/9 (Dart, va en la 1.0.7)
+
+Punto 9 de la auditoría, más el punto 4.5 que entró en la misma tanda. Los tres
+lugares donde se le dice a alguien que no le alcanzan los créditos hablan ahora
+el mismo idioma, desde `utils/creditos_faltantes.dart` (con test propio).
+
+**1 · Los dos botones que parecían opciones distintas.** El paywall tenía
+`ElevatedButton('Comprar créditos')` y debajo `OutlinedButton('Comprar
+créditos')`: mismo texto, mismo destino, dibujados distinto. Venía del commit
+inicial, no fue una regresión. Ahora hay **una sola acción principal** y una
+salida discreta **"Ahora no"** (la hoja se podía cerrar arrastrándola, pero
+nada en pantalla lo decía).
+
+**2 · El texto, según quién mira.** `saldo == 0` se usa como proxy de "todavía
+no compró" —no hace falta una consulta más y la situación visible es la misma:
+- **Sin créditos:** *"Necesitás créditos para reservar / Esta clase cuesta 10
+  créditos. En Aura comprás un pack de créditos y los usás en cualquier
+  estudio, sin cuota mensual."* Ese segundo renglón es el que explica el modelo
+  a quien llega de la pauta, y no estaba en ningún lado del camino.
+- **Con créditos:** *"Te faltan 8 créditos / Esta clase cuesta 10 y tenés 2."*
+- Se fue **"Créditos insuficientes"**, que era lenguaje de cajero automático.
+
+**3 · El número negativo.** El renglón "Tu saldo" del detalle hacía
+`saldo - precio` sin piso y mostraba **"Quedan -8 tras reservar"**. Ahora dice
+**"Te faltan 8 créditos"**. Hay un test que barre saldo y precio de 0 a 30 y
+falla si aparece un guion en cualquiera de los textos.
+
+**4 · Confirmar reserva dejó de ser un callejón** (punto 4.5): mostraba el
+aviso en rojo, desactivaba el botón y **no ofrecía comprar**. Ahora el mismo
+aviso lleva un botón **"Comprar créditos"** con `?volver=` a esta pantalla, así
+que después de comprar vuelve acá y reserva.
+
+**Verificado:** 176 tests (20 nuevos), incluido un widget test sobre la hoja
+real —expuesta con `debugPaywallSheet`, mismo criterio que `debugResultCard`—
+que comprueba que hay **un solo** "Comprar créditos", que existe "Ahora no",
+que cerrar no navega a ningún lado, y que ningún texto tiene un negativo.
+`analyze` sin issues nuevos y la web compila.
+
+**Queda afuera, como se decidió:** mostrar el precio del pack más chico en la
+hoja. Sale de la base con una llamada de red y la hoja tiene que abrir al
+instante. Tanda aparte si algún día se quiere.
+
 ## ✅ Los 2 agujeros de conversión de la auditoría — CERRADOS el 4/9 (Dart, va en la 1.0.7)
 
 Los dos eran el mismo bug —perder la clase que trajo a la usuaria— y los dos se

@@ -15,6 +15,7 @@ import '../../services/clases_service.dart';
 import '../../services/reservas_service.dart';
 import '../../services/reviews_service.dart';
 import '../../services/waitlist_service.dart';
+import '../../utils/creditos_faltantes.dart';
 import '../../utils/destino_post_login.dart';
 import '../../widgets/registro_muro.dart';
 import '../../utils/cierre_minutos.dart';
@@ -987,7 +988,13 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                             ),
                                             const SizedBox(height: 6),
                                             Text(
-                                              'Quedan ${creditosSaldo - creditos} tras reservar',
+                                              // Antes: 'Quedan ${creditosSaldo - creditos}',
+                                              // una resta cruda que con saldo 0
+                                              // mostraba "Quedan -8 tras reservar".
+                                              textoSaldoTrasReservar(
+                                                saldo: creditosSaldo,
+                                                precio: creditos,
+                                              ),
                                               style: const TextStyle(
                                                 color: Color(0xFFA7A09A),
                                                 fontSize: 12,
@@ -1662,7 +1669,6 @@ class _PaywallSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final faltan = creditosNecesarios - creditosActuales;
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFFF7F5F2),
@@ -1700,9 +1706,13 @@ class _PaywallSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          const Text(
-            'Créditos insuficientes',
-            style: TextStyle(
+          Text(
+            tituloPaywall(
+              saldo: creditosActuales,
+              precio: creditosNecesarios,
+            ),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
               color: AppColors.black,
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -1710,8 +1720,13 @@ class _PaywallSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Esta clase requiere $creditosNecesarios crédito${creditosNecesarios != 1 ? 's' : ''}.\n'
-            'Tenés $creditosActuales — te faltan $faltan.',
+            // A quien todavía no compró se le explica QUÉ es un crédito: para
+            // alguien que llega de la pauta, "créditos insuficientes" no
+            // significa nada. Ver utils/creditos_faltantes.dart.
+            mensajePaywall(
+              saldo: creditosActuales,
+              precio: creditosNecesarios,
+            ),
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Color(0xFF8F877F),
@@ -1720,6 +1735,9 @@ class _PaywallSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
+          // UNA sola acción principal. Antes había dos botones con el mismo
+          // texto y el mismo destino, uno lleno y otro con borde: se veían
+          // como opciones distintas y no lo eran (4/9/2026).
           SizedBox(
             width: double.infinity,
             height: 52,
@@ -1733,22 +1751,18 @@ class _PaywallSheet extends StatelessWidget {
               child: const Text('Comprar créditos'),
             ),
           ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: OutlinedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                context.push(
-                  DestinoPostLogin.conVolver('/comprar-creditos', volver),
-                );
-              },
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
-              ),
-              child: const Text('Comprar créditos'),
+          const SizedBox(height: 4),
+          // La salida, discreta y explícita: la hoja se podía cerrar
+          // arrastrándola, pero nada en pantalla lo decía.
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF8F877F),
+              minimumSize: const Size(double.infinity, 44),
+            ),
+            child: const Text(
+              'Ahora no',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -2051,3 +2065,17 @@ class _PolicyItem extends StatelessWidget {
     );
   }
 }
+
+/// SOLO PARA TESTS: expone la hoja del paywall para poder medirla sin levantar
+/// la pantalla de detalle entera (que necesita Supabase y el router). Mismo
+/// criterio que `debugResultCard` y `debugHorariosPorDiaEditor`.
+@visibleForTesting
+Widget debugPaywallSheet({
+  required int creditosNecesarios,
+  required int creditosActuales,
+  String volver = '/clase/1',
+}) => _PaywallSheet(
+  creditosNecesarios: creditosNecesarios,
+  creditosActuales: creditosActuales,
+  volver: volver,
+);
