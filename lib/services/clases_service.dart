@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/constants/app_constants.dart';
 import '../models/estudio.dart';
+import '../utils/volver_a_tus_estudios.dart';
 
 String _toSupaDate(DateTime dt) {
   return '${dt.year.toString().padLeft(4, '0')}-'
@@ -110,6 +111,95 @@ class ClasesService {
       }
     }
     return result;
+  }
+
+  /// "VOLVÉ A TUS ESTUDIOS": próximas clases de los estudios donde la usuaria
+  /// YA reservó alguna vez.
+  ///
+  /// Es el complemento de [getClasesSugeridas], que hace lo contrario:
+  /// recomienda estudios que todavía NO visitó. Ésta es retención; aquélla,
+  /// descubrimiento.
+  ///
+  /// Reglas, todas verificadas contra producción:
+  ///  · **cualquier reserva cuenta**, haya asistido o no: con haber reservado
+  ///    alcanza para que ese estudio sea "suyo";
+  ///  · **fuera lo que ya tiene reservado** (sólo las reservas VIVAS: si
+  ///    canceló, esa clase puede volver a ofrecérsele);
+  ///  · **fuera los estudios inactivos**, con filtro explícito. La policy de
+  ///    `clases` ya los esconde, pero no se depende de eso para algo visible
+  ///    (mismo criterio que el catálogo de estudios, 4/9);
+  ///  · **hasta [max] clases repartidas parejo** entre sus estudios, para que
+  ///    no queden 8 tarjetas casi idénticas del mismo lugar.
+  ///
+  /// Devuelve lista vacía si nunca reservó: la sección se oculta sola.
+  Future<List<Map<String, dynamic>>> getClasesDeMisEstudios({
+    required String userId,
+    int max = 6,
+  }) async {
+    if (userId.isEmpty) return [];
+    try {
+      // 1 · Sus reservas. Se traen el estado para saber cuáles siguen vivas.
+      final reservas = await _supabase
+          .from('reservas')
+          .select('clase_id, estado')
+          .eq('usuario_id', userId);
+      final reservaList = List<Map<String, dynamic>>.from(reservas as List);
+      if (reservaList.isEmpty) return [];
+
+      final claseIds = reservaList
+          .map((r) => (r['clase_id'] as num?)?.toInt())
+          .whereType<int>()
+          .toSet()
+          .toList();
+      if (claseIds.isEmpty) return [];
+
+      // Las que ya tiene reservadas y siguen en pie: no se le vuelven a
+      // ofrecer. Una cancelada SÍ, porque puede querer volver a anotarse.
+      const muertas = {'cancelada', 'cancelada_por_estudio'};
+      final yaReservadas = reservaList
+          .where((r) => !muertas.contains(r['estado']?.toString() ?? ''))
+          .map((r) => (r['clase_id'] as num?)?.toInt())
+          .whereType<int>()
+          .toSet();
+
+      // 2 · De esas clases salen SUS estudios.
+      final clasesReservadas = await _supabase
+          .from(AppConstants.tableClases)
+          .select('estudio_id')
+          .inFilter('id', claseIds);
+      final estudioIds = List<Map<String, dynamic>>.from(clasesReservadas as List)
+          .map((c) => (c['estudio_id'] as num?)?.toInt())
+          .whereType<int>()
+          .toSet()
+          .toList();
+      if (estudioIds.isEmpty) return [];
+
+      // 3 · Las próximas de esos estudios. Se piden de más (max * 4) porque
+      // después se recorta repartiendo por estudio.
+      final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
+      final hasta = ahora.add(const Duration(days: 30));
+      final proximas = await _supabase
+          .from(AppConstants.tableClases)
+          .select(
+              '*, estudios!inner(id, nombre, categoria, categorias, barrio, foto_url, activo)')
+          .inFilter('estudio_id', estudioIds)
+          .eq('cancelada', false)
+          .eq('estudios.activo', true)
+          .gte('fecha', _toSupaDate(ahora))
+          .lte('fecha', _toSupaDate(hasta))
+          .order('fecha', ascending: true)
+          .limit(max * 4);
+
+      final candidatas = List<Map<String, dynamic>>.from(proximas as List)
+          .where((c) => !yaReservadas.contains((c['id'] as num?)?.toInt()))
+          .toList();
+      if (candidatas.isEmpty) return [];
+
+      return _attachOcupacion(repartirEntreEstudios(candidatas, max: max));
+    } catch (_) {
+      // Una sección de retención no puede tumbar el Inicio.
+      return [];
+    }
   }
 
   Future<List<Map<String, dynamic>>> getClasesSugeridas({

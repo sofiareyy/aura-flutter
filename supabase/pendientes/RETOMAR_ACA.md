@@ -1137,6 +1137,55 @@ No son tareas técnicas. Están acá para que no se pierdan.
 | ✅ | **Mail de confirmación de reserva — DECIDIDO Y ACTIVO desde el 29/8** | Cableado por base (trigger al confirmarse), texto aprobado ("fitness y experiencias", línea del código). Le llega a todas las alumnas ya. |
 | ⬜ | **Categorías faltantes** | Avisarle a Yessi (112 clases) y Ambra (77) que las completen. O que el form las exija (Dart). |
 
+## ✅ "VOLVÉ A TUS ESTUDIOS" en el Inicio — 4/9 (Dart puro, va en la 1.0.7)
+
+Sección de **retención**: las próximas clases de los estudios donde la usuaria
+ya reservó alguna vez, listas para reservar de un toque.
+
+Es el complemento de "PARA VOS ✨" (`getClasesSugeridas`), que hace lo
+contrario: recomienda estudios que **no** visitó. Ésta es volver; aquélla,
+descubrir. No se pisan.
+
+**Datos: sin tocar base.** Tres consultas encadenadas, mismo patrón que
+sugeridas: sus reservas → los estudios de esas clases → las próximas de esos
+estudios. La policy `reservas_select_own` alcanza; no hizo falta ninguna RPC,
+policy ni función nueva.
+
+**Dónde va:** después de "Tu próxima clase" y el banner de vencimiento, y
+**ARRIBA de los chips**. No es cosmético: los chips filtran por categoría todo
+lo de abajo, y esta sección es personal — filtrarla la dejaría vacía casi
+siempre.
+
+**Reglas:** cuenta cualquier reserva, haya asistido o no · fuera lo que ya
+tiene reservado, pero **sólo las reservas vivas** (si canceló, esa clase vuelve
+a ofrecérsele) · fuera estudios inactivos, con filtro explícito además de la
+policy · se oculta sola si no queda nada.
+
+### El reparto, que nació de una medición
+
+La consulta cruda le devolvía a Malena **8 tarjetas casi idénticas** ("Citra
+barre · 18 cr", cambiando sólo la hora) porque reservó en un solo estudio.
+Por eso `utils/volver_a_tus_estudios.dart` reparte: **hasta 6, con cupo por
+estudio** calculado solo (1 estudio → 6 · 2 → 3 c/u · 3 → 2 c/u). Y una
+**segunda pasada de relleno**: si un estudio tiene una sola clase, el otro
+completa, para que el carrusel no quede a medias teniendo contenido.
+
+### Verificado contra producción, simulando cada cuenta
+
+| Cuenta | Reservas | Estudios | Qué ve |
+|---|---|---|---|
+| Malena | 3 | 1 | 6 clases de Citra |
+| Juanita | 1 | 1 | 6 clases de Citra |
+| Agustina (registrada el 1/9, sin reservas) | 0 | 0 | **no ve la sección** |
+| Cuenta de estudio | 0 | 0 | **no ve la sección** |
+
+Y la exclusión, en rollback: se le reservó a Malena la primera clase que le
+aparecía (id 500, 4/9 17:30) → **deja de aparecer**; se canceló esa reserva →
+**vuelve a aparecer**. Es exactamente la regla pedida.
+
+207 tests (12 nuevos sobre el reparto), `analyze` sin issues nuevos, web
+compila.
+
 ## ✅ DESTACADOS HOY: turno PAREJO que rota por día — 4/9 (Dart, va en la 1.0.7)
 
 Ajuste sobre el punto 4 de la auditoría, en dos pasos. Vuelve el nombre lindo y

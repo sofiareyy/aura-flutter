@@ -43,6 +43,9 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _proximasClases = [];
   List<Map<String, dynamic>> _experiencias = [];
   List<Map<String, dynamic>> _sugerencias = [];
+  /// "VOLVÉ A TUS ESTUDIOS": próximas clases de los estudios donde ya reservó.
+  /// Vacía = la sección no se dibuja (usuaria nueva, o ya reservó todo).
+  List<Map<String, dynamic>> _misEstudios = [];
   final _reservasService = ReservasService();
   // Próxima reserva del usuario dentro de las próximas 24 h (para el QR de hoy).
   Map<String, dynamic>? _proximaReserva;
@@ -227,12 +230,20 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
       _cargarSugerencias().ignore();
+      _cargarMisEstudios().ignore();
       _cargarProximaReserva().ignore();
     } catch (_) {
       // Dejamos UI vacia si falla la carga.
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _cargarMisEstudios() async {
+    final uid = context.read<AppProvider>().userId;
+    if (uid.isEmpty) return;
+    final clases = await _clasesService.getClasesDeMisEstudios(userId: uid);
+    if (mounted) setState(() => _misEstudios = clases);
   }
 
   Future<void> _cargarSugerencias() async {
@@ -510,6 +521,54 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 );
                               },
+                            ),
+                          ),
+                        ],
+                        // VOLVÉ A TUS ESTUDIOS (4/9/2026): retención. Va
+                        // acá, entre lo personal (tu próxima clase) y las
+                        // herramientas de búsqueda, y ARRIBA de los chips a
+                        // propósito: los chips filtran por categoría lo de
+                        // abajo, y esta sección es personal — filtrarla la
+                        // dejaría vacía casi siempre. Se oculta sola si la
+                        // usuaria no reservó nunca.
+                        if (_misEstudios.isNotEmpty) ...[
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 22, 20, 14),
+                              child: Text(
+                                'VOLVÉ A TUS ESTUDIOS',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(
+                                      letterSpacing: 0.8,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                            ),
+                          ),
+                          SliverToBoxAdapter(
+                            child: SizedBox(
+                              height: altoCarruselVidriera,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.only(left: 20),
+                                itemCount: _misEstudios.length,
+                                itemBuilder: (context, index) {
+                                  final clase = _misEstudios[index];
+                                  return SizedBox(
+                                    width: 320,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(right: 14),
+                                      child: HomeNearbyClassCard(
+                                        clase: clase,
+                                        onTap: () => context.push(
+                                          '/clase/${clase['id']}',
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ],
