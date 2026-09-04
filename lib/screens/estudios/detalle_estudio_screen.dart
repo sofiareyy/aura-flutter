@@ -6,6 +6,9 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
+import '../../widgets/texto_expandible.dart';
+import '../../widgets/aura_skeleton.dart';
 import '../../utils/mapa_link.dart';
 import '../../models/estudio.dart';
 import '../../providers/app_provider.dart';
@@ -202,8 +205,40 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
+          // Antes: un spinner solo en el medio de una pantalla crema vacía, y
+          // al llegar los datos aparecía todo de golpe. Ahora deja la silueta
+          // de lo que viene, con el alto REAL del hero.
+          ? LayoutBuilder(
+              builder: (context, r) => SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AuraSkeleton(
+                      height: altoHero(r.maxWidth),
+                      borderRadius: BorderRadius.zero,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(AuraEspacio.margen),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const AuraSkeleton(height: 26, width: 220),
+                          const SizedBox(height: AuraEspacio.m),
+                          AuraSkeleton.renglon(),
+                          const SizedBox(height: AuraEspacio.s),
+                          AuraSkeleton.renglon(),
+                          const SizedBox(height: AuraEspacio.s),
+                          // El último renglón corto: es como termina un
+                          // párrafo de verdad.
+                          AuraSkeleton.renglon(
+                            ancho: (r.maxWidth - AuraEspacio.margen * 2) * 0.6,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             )
           : _estudio == null
           ? const Center(child: Text('Estudio no encontrado'))
@@ -273,7 +308,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                               avgRating.toStringAsFixed(1),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
-                                fontSize: 14,
+                                fontSize: AuraTipo.cuerpo,
                               ),
                             ),
                             if (_reviews.isNotEmpty) ...[
@@ -282,7 +317,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                                 '${_reviews.length} reseñas',
                                 style: const TextStyle(
                                   color: AppColors.primary,
-                                  fontSize: 13,
+                                  fontSize: AuraTipo.secundario,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -298,15 +333,12 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
 
                     // Descripción
                     if (e.descripcion?.isNotEmpty == true) ...[
-                      const SizedBox(height: 16),
-                      Text(
-                        e.descripcion!,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.grey,
-                          height: 1.5,
-                        ),
-                      ),
+                      const SizedBox(height: AuraEspacio.l),
+                      // Antes era un Text suelto: la descripción de Yoguica
+                      // (986 caracteres, 13 saltos de línea) quedaba como una
+                      // pared. Ahora muestra 4 renglones y ofrece "Ver más",
+                      // y sólo cuando de verdad no entra.
+                      TextoExpandible(e.descripcion!),
                     ],
 
                     // Dirección con pin naranja
@@ -334,7 +366,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                                 e.direccion!,
                                 style: const TextStyle(
                                   color: AppColors.primary,
-                                  fontSize: 13,
+                                  fontSize: AuraTipo.secundario,
                                   decoration: TextDecoration.underline,
                                   decorationColor: AppColors.primary,
                                 ),
@@ -394,7 +426,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                         'EXPERIENCIAS',
                         style: TextStyle(
                           color: Color(0xFF8F877F),
-                          fontSize: 12,
+                          fontSize: AuraTipo.secundario,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1,
                         ),
@@ -426,7 +458,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                               'CLASES DISPONIBLES',
                               style: TextStyle(
                                 color: Color(0xFF8F877F),
-                                fontSize: 12,
+                                fontSize: AuraTipo.secundario,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 1,
                               ),
@@ -446,7 +478,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                                   _verTodasLasClases ? 'Ver menos' : 'Ver más',
                                   style: const TextStyle(
                                     color: AppColors.primary,
-                                    fontSize: 12,
+                                    fontSize: AuraTipo.secundario,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -471,7 +503,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                         padding: EdgeInsets.symmetric(horizontal: 20),
                         child: Text(
                           'No hay clases disponibles por ahora.',
-                          style: TextStyle(color: AppColors.grey, fontSize: 14),
+                          style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.cuerpo),
                         ),
                       ),
                     )
@@ -589,13 +621,13 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(AuraRadio.chip),
                     ),
                     child: Text(
                       e.categoria,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 11,
+                        fontSize: AuraTipo.etiqueta,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -618,7 +650,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 14,
+                        fontSize: AuraTipo.cuerpo,
                       ),
                     ),
                 ],
@@ -730,7 +762,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                     '${currentIndex + 1}/${imageUrls.length}',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
+                      fontSize: AuraTipo.cuerpo,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -832,7 +864,7 @@ class _SocialButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(9999),
+          borderRadius: BorderRadius.circular(AuraRadio.pastilla),
           border: Border.all(color: AppColors.lightGrey),
         ),
         child: Row(
@@ -842,7 +874,7 @@ class _SocialButton extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              style: const TextStyle(fontSize: AuraTipo.secundario, fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -874,10 +906,10 @@ class _GallerySection extends StatelessWidget {
             itemCount: imageUrls.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (context, index) => InkWell(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
               onTap: () => onTapImage(index),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                 child: SizedBox(
                   width: 124,
                   child: _RemoteImage(
@@ -925,7 +957,7 @@ class _ReviewsSection extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         border: Border.all(color: AppColors.lightGrey),
       ),
       child: Column(
@@ -956,7 +988,7 @@ class _ReviewsSection extends StatelessWidget {
                   : 'Las reseñas se habilitan cuando ya viviste una experiencia en este estudio.',
               style: const TextStyle(
                 color: AppColors.grey,
-                fontSize: 14,
+                fontSize: AuraTipo.cuerpo,
                 height: 1.5,
               ),
             )
@@ -985,7 +1017,7 @@ class _ReviewsSection extends StatelessWidget {
                           : 'Ver las $totalCount reseñas',
                       style: const TextStyle(
                         color: AppColors.primary,
-                        fontSize: 13,
+                        fontSize: AuraTipo.secundario,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1017,7 +1049,7 @@ class _ReviewCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFFFAF8F5),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1044,7 +1076,7 @@ class _ReviewCard extends StatelessWidget {
                       nombre?.isNotEmpty == true ? nombre! : 'Usuario Aura',
                       style: const TextStyle(
                         color: AppColors.black,
-                        fontSize: 14,
+                        fontSize: AuraTipo.cuerpo,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -1053,7 +1085,7 @@ class _ReviewCard extends StatelessWidget {
                         'Experiencia: $experiencia',
                         style: const TextStyle(
                           color: AppColors.grey,
-                          fontSize: 12,
+                          fontSize: AuraTipo.secundario,
                         ),
                       ),
                   ],
@@ -1079,7 +1111,7 @@ class _ReviewCard extends StatelessWidget {
               comentario,
               style: const TextStyle(
                 color: Color(0xFF5E5853),
-                fontSize: 14,
+                fontSize: AuraTipo.cuerpo,
                 height: 1.45,
               ),
             ),

@@ -1026,7 +1026,7 @@ class _ProximaReservaCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.primary,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         ),
         child: Row(
           children: [
@@ -1035,7 +1035,7 @@ class _ProximaReservaCard extends StatelessWidget {
               height: 46,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AuraRadio.boton),
               ),
               child: const Icon(
                 Icons.qr_code_2_rounded,
@@ -1135,7 +1135,7 @@ class _CreditosExpiryBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFFDF0E8),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AuraRadio.boton),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -1181,7 +1181,7 @@ class _CreditosExpiryBanner extends StatelessWidget {
               minimumSize: const Size(0, 0),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AuraRadio.chip),
               ),
               elevation: 0,
               textStyle: const TextStyle(
@@ -1349,7 +1349,7 @@ class _PlanCard extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(9999),
+                  borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                 ),
                 child: Text(
                   plan,
@@ -1372,7 +1372,7 @@ class _PlanCard extends StatelessWidget {
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(AuraRadio.boton),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -1390,7 +1390,7 @@ class _PlanCard extends StatelessWidget {
                     foregroundColor: AppColors.primary,
                     side: const BorderSide(color: AppColors.primary),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(AuraRadio.boton),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -1455,7 +1455,7 @@ class _NotificacionesSheetState extends State<_NotificacionesSheet> {
               height: 5,
               decoration: BoxDecoration(
                 color: const Color(0xFFE0DBD6),
-                borderRadius: BorderRadius.circular(999),
+                borderRadius: BorderRadius.circular(AuraRadio.pastilla),
               ),
             ),
           ),
@@ -1567,7 +1567,7 @@ class _NuevoUsuarioCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -1604,7 +1604,7 @@ class _NuevoUsuarioCard extends StatelessWidget {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AuraRadio.boton),
                 ),
                 textStyle: const TextStyle(
                   fontSize: 15,
@@ -1637,7 +1637,7 @@ class _SinCreditosCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -1678,7 +1678,7 @@ class _SinCreditosCard extends StatelessWidget {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AuraRadio.boton),
                 ),
                 textStyle: const TextStyle(
                   fontSize: 15,
@@ -1698,7 +1698,7 @@ class _SinCreditosCard extends StatelessWidget {
                 foregroundColor: const Color(0xFFF7F5F2),
                 side: const BorderSide(color: Color(0xFFF7F5F2), width: 1.5),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AuraRadio.boton),
                 ),
                 textStyle: const TextStyle(
                   fontSize: 15,
@@ -1729,7 +1729,7 @@ class _CategoryChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
           color: active ? AppColors.black : AppColors.white,
-          borderRadius: BorderRadius.circular(9999),
+          borderRadius: BorderRadius.circular(AuraRadio.pastilla),
           border: active
               ? null
               : Border.all(color: AppColors.grey.withValues(alpha: 0.18)),
@@ -1771,19 +1771,19 @@ class HomeNearbyClassCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         child: Ink(
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.grey.withValues(alpha: 0.14)),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+            border: Border.all(color: AppColors.warmBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
+                  top: Radius.circular(AuraRadio.tarjeta),
                 ),
                 // PROPORCIÓN, no alto fijo: así la foto no puede volver a
                 // aplanarse por más ancha que quede la tarjeta. Con alto fijo
@@ -1874,7 +1874,7 @@ class HomeNearbyClassCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(9999),
+                        borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                       ),
                       child: Text(
                         '${clase['creditos'] ?? 0} cr',
@@ -1917,12 +1917,12 @@ class _HomeExperienceCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         child: Ink(
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.grey.withValues(alpha: 0.14)),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+            border: Border.all(color: AppColors.warmBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1931,7 +1931,7 @@ class _HomeExperienceCard extends StatelessWidget {
                 children: [
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(20),
+                      top: Radius.circular(AuraRadio.tarjeta),
                     ),
                     child: SizedBox(
                       height: 180,
@@ -1949,7 +1949,7 @@ class _HomeExperienceCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(AuraRadio.chip),
                       ),
                       child: const Text(
                         'EVENTO',
@@ -1992,7 +1992,7 @@ class _HomeExperienceCard extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(9999),
+                            borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                           ),
                           child: Text(
                             '${clase['creditos'] ?? 0} cr',
@@ -2093,19 +2093,19 @@ class _HomeStudyCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         child: Ink(
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.grey.withValues(alpha: 0.14)),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+            border: Border.all(color: AppColors.warmBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
+                  top: Radius.circular(AuraRadio.tarjeta),
                 ),
                 child: SizedBox(
                   height: 100,
@@ -2210,7 +2210,7 @@ class _EmptyNearbyCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         border: Border.all(color: AppColors.warmBorder),
       ),
       child: const Text(
@@ -2241,19 +2241,19 @@ class _NearbyStudyCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         child: Ink(
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.grey.withValues(alpha: 0.14)),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+            border: Border.all(color: AppColors.warmBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
+                  top: Radius.circular(AuraRadio.tarjeta),
                 ),
                 child: SizedBox(
                   height: 96,
@@ -2378,7 +2378,7 @@ class _LocationPromptCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         border: Border.all(color: AppColors.warmBorder),
       ),
       child: Row(
@@ -2389,7 +2389,7 @@ class _LocationPromptCard extends StatelessWidget {
             height: 42,
             decoration: BoxDecoration(
               color: const Color(0xFFFFF4EC),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AuraRadio.boton),
             ),
             child: const Icon(
               Icons.location_on_outlined,
@@ -2490,7 +2490,7 @@ class _EstudioAsociadoCard extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(999),
+                      borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                     ),
                     child: const Text(
                       'Tu estudio',
@@ -2535,7 +2535,7 @@ class _EstudioAsociadoCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF7F5F2), // crema
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                       ),
                       child: const Text(
                         'Ver clases',

@@ -9,6 +9,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
+import '../../widgets/texto_expandible.dart';
+import '../../widgets/aura_skeleton.dart';
 import '../../providers/app_provider.dart';
 import '../../services/aura_gestion_service.dart';
 import '../../services/clases_service.dart';
@@ -523,8 +526,39 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
+          // Antes: un spinner solo en el medio de una pantalla vacía. Ahora la
+          // silueta de lo que viene, con el alto real de la foto.
+          //
+          // Los otros dos spinners de esta pantalla SÍ se dejan: son de 18 y 20
+          // px y viven DENTRO de un botón mientras se manda la reserva. Ahí un
+          // spinner es lo correcto; una silueta sería mentir sobre lo que pasa.
+          ? LayoutBuilder(
+              builder: (context, r) => SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AuraSkeleton(
+                      height: altoHero(r.maxWidth),
+                      borderRadius: BorderRadius.zero,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(AuraEspacio.margen),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const AuraSkeleton(height: 26, width: 240),
+                          const SizedBox(height: AuraEspacio.m),
+                          AuraSkeleton.renglon(),
+                          const SizedBox(height: AuraEspacio.s),
+                          AuraSkeleton.renglon(
+                            ancho: (r.maxWidth - AuraEspacio.margen * 2) * 0.55,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             )
           : _clase == null
           ? const Center(child: Text('Clase no encontrada'))
@@ -649,13 +683,13 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: AppColors.primary,
-                                    borderRadius: BorderRadius.circular(999),
+                                    borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                                   ),
                                   child: Text(
                                     categoria,
                                     style: const TextStyle(
                                       color: AppColors.white,
-                                      fontSize: 12,
+                                      fontSize: AuraTipo.secundario,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -687,7 +721,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                       color: Colors.white.withValues(
                                         alpha: 0.85,
                                       ),
-                                      fontSize: 15,
+                                      fontSize: AuraTipo.cuerpo,
                                       decoration: TextDecoration.underline,
                                       decorationColor: Colors.white.withValues(
                                         alpha: 0.85,
@@ -733,7 +767,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                     : 'Nuevo',
                                 style: const TextStyle(
                                   color: AppColors.black,
-                                  fontSize: 14,
+                                  fontSize: AuraTipo.cuerpo,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -746,7 +780,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                   color: reviewCount == 0
                                       ? AppColors.grey
                                       : AppColors.primary,
-                                  fontSize: 13,
+                                  fontSize: AuraTipo.secundario,
                                   fontWeight: reviewCount == 0
                                       ? FontWeight.w400
                                       : FontWeight.w600,
@@ -836,7 +870,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                           padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
                           decoration: BoxDecoration(
                             color: AppColors.blackSoft,
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                             boxShadow: const [
                               BoxShadow(
                                 color: Color(0x12000000),
@@ -871,7 +905,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                             'Reserva gratuita',
                                             style: TextStyle(
                                               color: Color(0xFF66BB6A),
-                                              fontSize: 18,
+                                              fontSize: AuraTipo.titulo,
                                               fontWeight: FontWeight.w700,
                                             ),
                                           ),
@@ -880,7 +914,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                             'Sos alumno/a de este estudio',
                                             style: TextStyle(
                                               color: Color(0xFFA7A09A),
-                                              fontSize: 13,
+                                              fontSize: AuraTipo.secundario,
                                             ),
                                           ),
                                         ],
@@ -942,7 +976,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                             'Precio de esta clase',
                                             style: TextStyle(
                                               color: Color(0xFFA7A09A),
-                                              fontSize: 14,
+                                              fontSize: AuraTipo.cuerpo,
                                             ),
                                           ),
                                         ],
@@ -974,7 +1008,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                               'Tu saldo',
                                               style: TextStyle(
                                                 color: Color(0xFFA7A09A),
-                                                fontSize: 14,
+                                                fontSize: AuraTipo.cuerpo,
                                               ),
                                             ),
                                             const SizedBox(height: 6),
@@ -982,7 +1016,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                               '$creditosSaldo créditos',
                                               style: const TextStyle(
                                                 color: AppColors.white,
-                                                fontSize: 14,
+                                                fontSize: AuraTipo.cuerpo,
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
@@ -997,7 +1031,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                               ),
                                               style: const TextStyle(
                                                 color: Color(0xFFA7A09A),
-                                                fontSize: 12,
+                                                fontSize: AuraTipo.secundario,
                                                 height: 1.35,
                                               ),
                                             ),
@@ -1025,7 +1059,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                     itemBuilder: (context, index) {
                                       final imageUrl = galleryUrls[index];
                                       return InkWell(
-                                        borderRadius: BorderRadius.circular(14),
+                                        borderRadius: BorderRadius.circular(AuraRadio.boton),
                                         onTap: () => _abrirGaleria(
                                           galleryUrls,
                                           initialIndex: index,
@@ -1067,11 +1101,14 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                             children: [
                               _SectionBlock(
                                 title: 'Sobre el evento',
-                                child: Text(
+                                // La descripción más larga de producción es la
+                                // de un workshop: 1484 caracteres, más de 35
+                                // renglones en un teléfono.
+                                child: TextoExpandible(
                                   clase['descripcion'].toString(),
-                                  style: const TextStyle(
+                                  estilo: const TextStyle(
                                     color: Color(0xFF5E584F),
-                                    fontSize: 14,
+                                    fontSize: AuraTipo.cuerpo,
                                     height: 1.5,
                                   ),
                                 ),
@@ -1125,7 +1162,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                           clase['direccion'].toString(),
                                           style: const TextStyle(
                                             color: AppColors.primary,
-                                            fontSize: 14,
+                                            fontSize: AuraTipo.cuerpo,
                                             height: 1.5,
                                             decoration:
                                                 TextDecoration.underline,
@@ -1150,7 +1187,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                   clase['incluye'].toString(),
                                   style: const TextStyle(
                                     color: Color(0xFF5E584F),
-                                    fontSize: 14,
+                                    fontSize: AuraTipo.cuerpo,
                                     height: 1.5,
                                   ),
                                 ),
@@ -1194,7 +1231,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                         clase['instructor']?.toString() ?? '',
                                         style: const TextStyle(
                                           color: AppColors.black,
-                                          fontSize: 16,
+                                          fontSize: AuraTipo.titulo,
                                           fontWeight: FontWeight.w700,
                                         ),
                                       ),
@@ -1209,7 +1246,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                               .toString(),
                                           style: const TextStyle(
                                             color: Color(0xFF8F877F),
-                                            fontSize: 13,
+                                            fontSize: AuraTipo.secundario,
                                             height: 1.4,
                                           ),
                                         ),
@@ -1266,7 +1303,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                             side: const BorderSide(color: AppColors.primary),
                             minimumSize: const Size(double.infinity, 48),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(AuraRadio.boton),
                             ),
                           ),
                         ),
@@ -1281,7 +1318,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                 : 'Podés reservar ${ReservasService.labelCierreReserva(cierreMinutos)}.',
                             style: const TextStyle(
                               color: AppColors.grey,
-                              fontSize: 15,
+                              fontSize: AuraTipo.cuerpo,
                               height: 1.5,
                             ),
                           ),
@@ -1378,7 +1415,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
             margin: const EdgeInsets.only(bottom: 10),
             decoration: BoxDecoration(
               color: const Color(0xFFFDF0E8),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AuraRadio.boton),
               border: Border.all(
                 color: AppColors.primary.withValues(alpha: 0.3),
               ),
@@ -1388,7 +1425,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.primary,
-                fontSize: 12,
+                fontSize: AuraTipo.secundario,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1481,7 +1518,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                     '${currentIndex + 1}/${imageUrls.length}',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
+                      fontSize: AuraTipo.cuerpo,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1581,7 +1618,7 @@ class _InfoChipCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
           boxShadow: const [
             BoxShadow(
               color: Color(0x10000000),
@@ -1599,7 +1636,7 @@ class _InfoChipCard extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Color(0xFF625C57),
-                fontSize: 12,
+                fontSize: AuraTipo.secundario,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1623,7 +1660,7 @@ class _SectionBlock extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         boxShadow: const [
           BoxShadow(
             color: Color(0x10000000),
@@ -1639,7 +1676,7 @@ class _SectionBlock extends StatelessWidget {
             title.toUpperCase(),
             style: const TextStyle(
               color: AppColors.black,
-              fontSize: 16,
+              fontSize: AuraTipo.titulo,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
             ),
@@ -1689,7 +1726,7 @@ class _PaywallSheet extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 20),
             decoration: BoxDecoration(
               color: const Color(0xFFCCC5BD),
-              borderRadius: BorderRadius.circular(99),
+              borderRadius: BorderRadius.circular(AuraRadio.pastilla),
             ),
           ),
           Container(
@@ -1714,7 +1751,7 @@ class _PaywallSheet extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppColors.black,
-              fontSize: 18,
+              fontSize: AuraTipo.titulo,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1730,7 +1767,7 @@ class _PaywallSheet extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Color(0xFF8F877F),
-              fontSize: 14,
+              fontSize: AuraTipo.cuerpo,
               height: 1.5,
             ),
           ),
@@ -1762,7 +1799,7 @@ class _PaywallSheet extends StatelessWidget {
             ),
             child: const Text(
               'Ahora no',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: AuraTipo.cuerpo, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -1790,7 +1827,7 @@ class _HeaderActionPill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(AuraRadio.pastilla),
           border: Border.all(color: Colors.black12),
         ),
         child: Row(
@@ -1801,7 +1838,7 @@ class _HeaderActionPill extends StatelessWidget {
               label,
               style: const TextStyle(
                 color: AppColors.black,
-                fontSize: 12,
+                fontSize: AuraTipo.secundario,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1837,7 +1874,7 @@ class _PreReservaConfirmCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFFDF0E8),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         border: Border.all(color: AppColors.primary, width: 1.5),
         boxShadow: const [
           BoxShadow(
@@ -1863,7 +1900,7 @@ class _PreReservaConfirmCard extends StatelessWidget {
                   text: TextSpan(
                     style: const TextStyle(
                       color: AppColors.black,
-                      fontSize: 14,
+                      fontSize: AuraTipo.cuerpo,
                       fontWeight: FontWeight.w600,
                     ),
                     children: [
@@ -1872,7 +1909,7 @@ class _PreReservaConfirmCard extends StatelessWidget {
                         text: formatTime(remaining),
                         style: const TextStyle(
                           color: AppColors.primary,
-                          fontSize: 16,
+                          fontSize: AuraTipo.titulo,
                           fontWeight: FontWeight.w800,
                           fontFamily: 'Courier',
                         ),
@@ -1895,7 +1932,7 @@ class _PreReservaConfirmCard extends StatelessWidget {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AuraRadio.boton),
                 ),
               ),
               child: loading
@@ -1912,7 +1949,7 @@ class _PreReservaConfirmCard extends StatelessWidget {
                           ? 'Confirmar (gratis)'
                           : 'Confirmar y pagar · $creditos cr',
                       style: const TextStyle(
-                        fontSize: 15,
+                        fontSize: AuraTipo.cuerpo,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -1929,7 +1966,7 @@ class _PreReservaConfirmCard extends StatelessWidget {
               ),
               child: const Text(
                 'No me interesa',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: AuraTipo.cuerpo, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -1973,7 +2010,7 @@ class _WaitlistButton extends StatelessWidget {
                   : 'Sos la N° $miPosicion de $waitlistCount en la lista',
               style: const TextStyle(
                 color: AppColors.primary,
-                fontSize: 12,
+                fontSize: AuraTipo.secundario,
                 fontWeight: FontWeight.w700,
               ),
               textAlign: TextAlign.center,
@@ -1984,7 +2021,7 @@ class _WaitlistButton extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               '$waitlistCount ${waitlistCount == 1 ? 'persona' : 'personas'} esperando un lugar',
-              style: const TextStyle(color: AppColors.grey, fontSize: 12),
+              style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
               textAlign: TextAlign.center,
             ),
           ),
@@ -2055,7 +2092,7 @@ class _PolicyItem extends StatelessWidget {
               text,
               style: const TextStyle(
                 color: Color(0xFF6D6660),
-                fontSize: 15,
+                fontSize: AuraTipo.cuerpo,
                 height: 1.35,
               ),
             ),

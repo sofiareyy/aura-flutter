@@ -1409,6 +1409,74 @@ límite de 50 corta al cuarto día. Se resuelve solo cuando haya más volumen.
 
 240 tests (7 nuevos), `analyze` sin issues nuevos, web compila.
 
+## ✅ Etapa 2, sub-parte 3: los DETALLES + el "Ver más" — 4/9 (Dart, 1.0.7)
+
+### El "Ver más" de los textos largos
+
+Sofía vio una descripción que quedaba como una pared. Medido, **no era el peor
+caso**: Yoguica tiene **986 caracteres y 13 saltos de línea**, y la descripción
+del workshop "Rito del Útero Munay Ki" tiene **1484** — más de 35 renglones en
+un teléfono.
+
+Nuevo `lib/widgets/texto_expandible.dart`, con dos decisiones:
+
+- **El "Ver más" aparece SÓLO si el texto de verdad no entra.** Se mide con un
+  `TextPainter` contra el ancho real, no se adivina por cantidad de caracteres.
+  Las descripciones cortas —4 de los 12 estudios activos tienen menos de 160—
+  se siguen viendo enteras y sin ningún adorno.
+- **Se puede volver a plegar** ("Ver menos"): tras abrir 1484 caracteres, hay
+  que poder cerrarlos sin salir de la pantalla.
+
+Puesto en la descripción del **estudio** y en la de la **experiencia**, que era
+justamente la más larga.
+
+### El sistema en las dos pantallas de detalle
+
+| | Detalle de clase | Detalle de estudio |
+|---|---|---|
+| Radios distintos antes | 7 | 5 |
+| Ahora | 1 (la hoja modal) | **0** |
+| Tamaños de letra antes | 9 | 5 |
+| Spinners de pantalla antes | 1 | 1 |
+| Ahora | 0 (siluetas) | 0 |
+
+Las siluetas usan `altoHero()`, o sea **la medida real** de la foto que viene,
+así que al cargar no salta nada de lugar.
+
+⚠️ **Los dos spinners que quedan en el detalle de clase son a propósito.** Miden
+18 y 20 px y viven DENTRO de un botón mientras se manda la reserva. Ahí un
+spinner es lo correcto: una silueta mentiría sobre lo que está pasando.
+
+### Lo que NO se tocó, con test que lo cuida
+
+**Los créditos.** Un reemplazo global de la escala se habría comido el número
+grande de 38 px y el " créditos" de 16 que va al lado. Los dos siguen igual y
+hay un test que falla si alguien los cambia. Tampoco se tocaron el negro sobre
+naranja ni los tonos cálidos.
+
+También quedan a propósito: el 24 de las hojas modales, el 20 de las iniciales
+del instructor (es un gráfico dentro de un círculo, no texto) y el 24 del
+título de la clase.
+
+### Cerradas las dos diferencias entre Inicio y Explorar
+
+Las que habían quedado abiertas ayer:
+
+| | Antes | Ahora |
+|---|---|---|
+| Esquinas de las tarjetas | Inicio 20, Explorar 18 | las dos `AuraRadio.tarjeta` (16) |
+| Borde de las tarjetas | Inicio gris frío al 14%, Explorar cálido | las dos `warmBorder` |
+
+El Inicio pasó de **8 radios escritos a mano a 1** (la hoja modal). Hay un test
+que compara las dos pantallas y falla si vuelven a separarse.
+
+291 tests (17 nuevos), `analyze` en 97 como la línea de base, web compila.
+
+### Falta de la Etapa 2
+
+Perfil / Configuración, y Checkout / Packs. Después va el HERO (Etapa 3), que
+arranca con una maqueta de variantes para que Sofía elija.
+
 ## ✅ Alta de estudio con cuenta: ahora entra al panel — 4/9 (edge + Dart)
 
 Sofía quería crear la cuenta del estudio ella, con contraseña temporal, sin
