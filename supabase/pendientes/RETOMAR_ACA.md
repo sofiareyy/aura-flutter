@@ -1409,6 +1409,71 @@ límite de 50 corta al cuarto día. Se resuelve solo cuando haya más volumen.
 
 240 tests (7 nuevos), `analyze` sin issues nuevos, web compila.
 
+## ✅ ETAPA 2 CERRADA: el sistema en TODA la app de la alumna — 4/9
+
+Las 22 pantallas del lado de la alumna pasadas al sistema. Antes de esta tanda
+faltaban 18; ahora **no queda ninguna suelta**, y hay un test
+(`cobertura_sistema_test.dart`) que recorre las 22 y falla si aparece una nueva
+con radios escritos a mano.
+
+| Grupo | Pantallas |
+|---|---|
+| Perfil | mi perfil, configuración, editar, notificaciones, ayuda, cambiar contraseña |
+| Plata | checkout, cambiar plan, resultado de pago, comprar créditos, mis créditos, historial |
+| Reservas | confirmar, mis reservas, confirmada, gestión |
+| Otras | mapa, referidos |
+
+**Y se cerró un hueco de la pasada de ayer:** el Inicio tenía los encabezados,
+los márgenes y las siluetas, pero **nunca se le había tocado la escala
+tipográfica**: seguía con 11 tamaños distintos. Ahora está.
+
+### El checkout, que es donde se paga
+
+Verificado que **sólo cambió estilo**: el diff de `checkout_screen` y
+`comprar_creditos_screen`, filtrando las líneas de `fontSize`, `circular` e
+imports, **queda vacío**. Ni una línea de lógica de pago, precios o navegación.
+
+Lo mismo para todas las pantallas de la tanda: el único cambio que no es de
+estilo son los dos spinners que pasaron a siluetas.
+
+### Lo que NO se tocó, con test que lo cuida
+
+**Los créditos.** Se saltearon a mano las líneas que los dibujan:
+
+| Dónde | Qué quedó igual |
+|---|---|
+| Inicio, tarjeta de créditos | el número de 50 px y sus dos etiquetas |
+| Inicio, tarjetas de clase | el monto de créditos de cada clase |
+| Mis créditos | el saldo de 56 px |
+| Detalle de clase | el número de 38 y el " créditos" de 16 |
+| Comprar créditos | los 32 del plan y el "cr/mes" |
+
+Hay un test que falla si alguien se lleva puesto alguno de esos números.
+Tampoco se tocaron el negro sobre naranja ni los tonos cálidos.
+
+### Los radios que quedan a mano, a propósito
+
+- **24** → las hojas modales: son otra superficie.
+- **30** → el mapa entero, mismo criterio.
+- **2** → las barritas de arrastre de 4 px de alto.
+
+El test los tiene en una lista blanca con el motivo escrito.
+
+### Un tropiezo que vale anotar
+
+El reemplazo automático se comió un `fontSize: 13.5` y lo dejó en
+`AuraTipo.secundario.5`, que no compila. Lo cazó el analyze. El script quedó
+arreglado para que no matchee decimales, pero **la lección es la de siempre**:
+un reemplazo global sobre 18 archivos necesita que el analyze corra después de
+cada tanda, no al final.
+
+294 tests (3 nuevos), `analyze` en 97 como la línea de base, web compila.
+
+### Lo que sigue: la Etapa 3, el HERO
+
+Arranca con una **maqueta de 2-3 variantes** para que Sofía vea y decida si le
+gusta, ANTES de construir nada.
+
 ## ✅ Etapa 2, sub-parte 3: los DETALLES + el "Ver más" — 4/9 (Dart, 1.0.7)
 
 ### El "Ver más" de los textos largos

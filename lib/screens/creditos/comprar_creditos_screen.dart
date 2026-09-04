@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../services/pricing_service.dart';
 
 class ComprarCreditosScreen extends StatefulWidget {
@@ -168,7 +169,7 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
                   margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
                     color: const Color(0xFFCCC5BD),
-                    borderRadius: BorderRadius.circular(99),
+                    borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                   ),
                 ),
               ),
@@ -176,7 +177,7 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
                 '¿A quién le regalás?',
                 style: TextStyle(
                     color: AppColors.black,
-                    fontSize: 18,
+                    fontSize: AuraTipo.titulo,
                     fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 16),
@@ -331,7 +332,7 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
                     child: Text(
                       'Renovación automática · Cancelá cuando quieras',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: AuraTipo.secundario,
                         color: AppColors.grey,
                       ),
                       textAlign: TextAlign.center,
@@ -390,13 +391,13 @@ class _PacksTab extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AuraRadio.boton),
           ),
           child: const Text(
             'Pago seguro con Mercado Pago. Vas a completar la compra en el checkout oficial.',
             style: TextStyle(
               color: AppColors.primary,
-              fontSize: 12,
+              fontSize: AuraTipo.secundario,
               fontWeight: FontWeight.w600,
               height: 1.4,
             ),
@@ -407,7 +408,7 @@ class _PacksTab extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AuraRadio.boton),
             border: Border.all(color: AppColors.warmBorder),
           ),
           child: const Column(
@@ -415,12 +416,12 @@ class _PacksTab extends StatelessWidget {
             children: [
               Text(
                 'Vencimiento de los packs',
-                style: TextStyle(color: AppColors.black, fontSize: 13, fontWeight: FontWeight.w700),
+                style: TextStyle(color: AppColors.black, fontSize: AuraTipo.secundario, fontWeight: FontWeight.w700),
               ),
               SizedBox(height: 6),
               Text(
                 'Pack Prueba: vence a los 30 días. Pack Esencial, Popular y Full: vencen a los 60 días.',
-                style: TextStyle(color: AppColors.grey, fontSize: 12, height: 1.4),
+                style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario, height: 1.4),
               ),
             ],
           ),
@@ -438,7 +439,7 @@ class _PacksTab extends StatelessWidget {
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: selected ? AppColors.primary : AppColors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                 border: Border.all(
                   color: selected ? AppColors.primary : AppColors.lightGrey,
                   width: 2,
@@ -456,7 +457,7 @@ class _PacksTab extends StatelessWidget {
                               child: Text(
                                 '${pack['nombre']} · ${pack['creditos']} créditos',
                                 style: TextStyle(
-                                  fontSize: 18,
+                                  fontSize: AuraTipo.titulo,
                                   fontWeight: FontWeight.w700,
                                   color: selected ? AppColors.white : AppColors.black,
                                 ),
@@ -468,12 +469,12 @@ class _PacksTab extends StatelessWidget {
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: selected ? AppColors.white : AppColors.primary,
-                                  borderRadius: BorderRadius.circular(9999),
+                                  borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                                 ),
                                 child: Text(
                                   pack['badge'].toString(),
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AuraTipo.etiqueta,
                                     fontWeight: FontWeight.w700,
                                     color: selected ? AppColors.primary : AppColors.white,
                                   ),
@@ -487,7 +488,7 @@ class _PacksTab extends StatelessWidget {
                           pack['descripcion']?.toString() ?? '',
                           style: TextStyle(
                             color: selected ? Colors.white70 : AppColors.grey,
-                            fontSize: 13,
+                            fontSize: AuraTipo.secundario,
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -495,7 +496,7 @@ class _PacksTab extends StatelessWidget {
                           '\$${_fmt((pack['precio'] as num).toInt())}',
                           style: TextStyle(
                             color: selected ? AppColors.white : AppColors.black,
-                            fontSize: 18,
+                            fontSize: AuraTipo.titulo,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -574,13 +575,13 @@ class _SuscripcionesTab extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AuraRadio.boton),
           ),
           child: const Text(
             'Podés cancelar cuando quieras desde tu perfil.',
             style: TextStyle(
               color: AppColors.primary,
-              fontSize: 12,
+              fontSize: AuraTipo.secundario,
               fontWeight: FontWeight.w600,
               height: 1.4,
             ),
@@ -602,7 +603,7 @@ class _SuscripcionesTab extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: selected ? const Color(0xFFFDF0E8) : AppColors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                 border: Border.all(
                   color: selected ? AppColors.primary : const Color(0xFFE8E5E0),
                   width: 2,
@@ -628,13 +629,13 @@ class _SuscripcionesTab extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(9999),
+                            borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                           ),
                           child: Text(
                             badge,
                             style: const TextStyle(
                               color: AppColors.white,
-                              fontSize: 11,
+                              fontSize: AuraTipo.etiqueta,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -644,13 +645,13 @@ class _SuscripcionesTab extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     plan['descripcion']?.toString() ?? '',
-                    style: const TextStyle(color: AppColors.grey, fontSize: 13),
+                    style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
                   ),
                   if (subtitulo != null) ...[
                     const SizedBox(height: 4),
                     Text(
                       subtitulo,
-                      style: const TextStyle(color: AppColors.grey, fontSize: 12),
+                      style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
                     ),
                   ],
                   const SizedBox(height: 14),
@@ -686,7 +687,7 @@ class _SuscripcionesTab extends StatelessWidget {
                           ),
                           const Text(
                             'por mes',
-                            style: TextStyle(fontSize: 12, color: AppColors.grey),
+                            style: TextStyle(fontSize: AuraTipo.secundario, color: AppColors.grey),
                           ),
                         ],
                       ),
@@ -706,7 +707,7 @@ class _SuscripcionesTab extends StatelessWidget {
                       const Text(
                         'Renovación automática mensual',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: AuraTipo.secundario,
                           color: AppColors.grey,
                         ),
                       ),
@@ -773,7 +774,7 @@ class _RegalarTab extends StatelessWidget {
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: selected ? AppColors.primary : const Color(0xFF2A2A2A),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                 border: Border.all(
                   color: selected ? AppColors.primary : const Color(0xFF3A3A3A),
                   width: 2,
@@ -790,7 +791,7 @@ class _RegalarTab extends StatelessWidget {
                             Text(
                               '${pack['nombre']} · ${pack['creditos']} créditos',
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: AuraTipo.titulo,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
                               ),
@@ -800,7 +801,7 @@ class _RegalarTab extends StatelessWidget {
                               pack['descripcion']?.toString() ?? '',
                               style: TextStyle(
                                 color: selected ? Colors.white70 : Colors.white54,
-                                fontSize: 13,
+                                fontSize: AuraTipo.secundario,
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -808,7 +809,7 @@ class _RegalarTab extends StatelessWidget {
                               '\$${_fmt((pack['precio'] as num).toInt())}',
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 18,
+                                fontSize: AuraTipo.titulo,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),

@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 import '../../services/reservas_service.dart';
 
@@ -126,7 +127,7 @@ Future<void> _abrirShareSheet({
       backgroundColor: Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AuraRadio.tarjeta)),
       ),
       builder: (_) => _ShareSheet(
         mensaje: mensaje,
@@ -227,7 +228,7 @@ Future<void> _abrirShareSheet({
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Color(0xFF8F877F),
-                fontSize: 15,
+                fontSize: AuraTipo.cuerpo,
                 height: 1.5,
               ),
             ),
@@ -324,7 +325,7 @@ Future<void> _abrirShareSheet({
                           : studioName,
                       style: const TextStyle(
                         color: Color(0xFF8F877F),
-                        fontSize: 15,
+                        fontSize: AuraTipo.cuerpo,
                       ),
                     ),
                     const SizedBox(height: 18),
@@ -333,7 +334,7 @@ Future<void> _abrirShareSheet({
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: AppColors.white,
-                        borderRadius: BorderRadius.circular(22),
+                        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x12000000),
@@ -349,7 +350,7 @@ Future<void> _abrirShareSheet({
                             className,
                             style: const TextStyle(
                               color: AppColors.black,
-                              fontSize: 17,
+                              fontSize: AuraTipo.titulo,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -360,7 +361,7 @@ Future<void> _abrirShareSheet({
                                 : '$studioName · $studioArea',
                             style: const TextStyle(
                               color: Color(0xFF8F877F),
-                              fontSize: 14,
+                              fontSize: AuraTipo.cuerpo,
                             ),
                           ),
                           const Padding(
@@ -387,7 +388,7 @@ Future<void> _abrirShareSheet({
                                                     'QR de asistencia',
                                                     style: TextStyle(
                                                       color: AppColors.black,
-                                                      fontSize: 18,
+                                                      fontSize: AuraTipo.titulo,
                                                       fontWeight: FontWeight.w700,
                                                     ),
                                                   ),
@@ -411,7 +412,7 @@ Future<void> _abrirShareSheet({
                                 height: 120,
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFF1F1EF),
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(AuraRadio.boton),
                                 ),
                                 child: codigoQr == null || codigoQr.isEmpty
                                     ? const Icon(
@@ -437,7 +438,7 @@ Future<void> _abrirShareSheet({
                                       'ID de reserva',
                                       style: TextStyle(
                                         color: Color(0xFF9A928B),
-                                        fontSize: 12,
+                                        fontSize: AuraTipo.secundario,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
@@ -450,7 +451,7 @@ Future<void> _abrirShareSheet({
                                       '#BK-${_idCorto(widget.codigoQr)}',
                                       style: const TextStyle(
                                         color: AppColors.black,
-                                        fontSize: 18,
+                                        fontSize: AuraTipo.titulo,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
@@ -459,7 +460,7 @@ Future<void> _abrirShareSheet({
                                       'Créditos usados',
                                       style: TextStyle(
                                         color: Color(0xFF9A928B),
-                                        fontSize: 12,
+                                        fontSize: AuraTipo.secundario,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
@@ -467,7 +468,7 @@ Future<void> _abrirShareSheet({
                                       '$creditosUsados créditos',
                                       style: const TextStyle(
                                         color: AppColors.primary,
-                                        fontSize: 17,
+                                        fontSize: AuraTipo.titulo,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
@@ -477,7 +478,7 @@ Future<void> _abrirShareSheet({
                                         'Créditos restantes: $currentCredits',
                                         style: const TextStyle(
                                           color: Color(0xFF6F6862),
-                                          fontSize: 13,
+                                          fontSize: AuraTipo.secundario,
                                         ),
                                       ),
                                   ],
@@ -590,7 +591,7 @@ class _ComoLlegarCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0A000000),
@@ -606,7 +607,7 @@ class _ComoLlegarCard extends StatelessWidget {
             'CÓMO LLEGAR',
             style: TextStyle(
               color: Color(0xFF9A928B),
-              fontSize: 11,
+              fontSize: AuraTipo.etiqueta,
               fontWeight: FontWeight.w700,
               letterSpacing: 1,
             ),
@@ -626,7 +627,7 @@ class _ComoLlegarCard extends StatelessWidget {
                   hasAddress ? direccion : nombre,
                   style: const TextStyle(
                     color: Color(0xFF1A1A1A),
-                    fontSize: 14,
+                    fontSize: AuraTipo.cuerpo,
                     height: 1.4,
                   ),
                 ),
@@ -687,10 +688,10 @@ class _MapButton extends StatelessWidget {
         side: const BorderSide(color: Color(0xFFE8E5E0)),
         padding: const EdgeInsets.symmetric(vertical: 10),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AuraRadio.chip),
         ),
         textStyle: const TextStyle(
-          fontSize: 13,
+          fontSize: AuraTipo.secundario,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -728,7 +729,7 @@ class _ShareSheet extends StatelessWidget {
           const Text(
             'Compartir reserva',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: AuraTipo.titulo,
               fontWeight: FontWeight.w700,
               color: Color(0xFF1A1A1A),
             ),
@@ -823,7 +824,7 @@ class _ShareSheet extends StatelessWidget {
             onPressed: () => Navigator.pop(context),
             child: const Text(
               'Cancelar',
-              style: TextStyle(color: Color(0xFF8F877F), fontSize: 16),
+              style: TextStyle(color: Color(0xFF8F877F), fontSize: AuraTipo.titulo),
             ),
           ),
         ],
@@ -847,7 +848,7 @@ class _ShareOptionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AuraRadio.boton),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
         child: Row(
@@ -858,7 +859,7 @@ class _ShareOptionRow extends StatelessWidget {
               child: Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: AuraTipo.cuerpo,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF1A1A1A),
                 ),
@@ -893,15 +894,15 @@ class _MiniAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.white,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x10000000),
@@ -919,7 +920,7 @@ class _MiniAction extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Color(0xFF625C57),
-                  fontSize: 13,
+                  fontSize: AuraTipo.secundario,
                   height: 1.25,
                 ),
               ),

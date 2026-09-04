@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 import '../../services/media_upload_service.dart';
 import '../../services/usuarios_service.dart';
@@ -140,7 +141,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                   const SizedBox(height: 10),
                   const Text(
                     'Podés subir una foto o usar una URL.',
-                    style: TextStyle(color: AppColors.grey, fontSize: 12),
+                    style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
                   ),
                   const SizedBox(height: 10),
                   OutlinedButton(
@@ -185,7 +186,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
               'La imagen queda guardada en Storage para que el perfil no dependa solo de URLs externas.',
               style: TextStyle(
                 color: AppColors.grey,
-                fontSize: 13,
+                fontSize: AuraTipo.secundario,
                 height: 1.5,
               ),
             ),

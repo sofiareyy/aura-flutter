@@ -411,7 +411,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                               .bodyMedium
                                               ?.copyWith(
                                                 color: AppColors.grey,
-                                                fontSize: 14,
+                                                fontSize: AuraTipo.cuerpo,
                                               ),
                                         ),
                                         const SizedBox(height: 2),
@@ -422,7 +422,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 .headlineSmall
                                                 ?.copyWith(
                                                   color: AppColors.black,
-                                                  fontSize: 18,
+                                                  fontSize: AuraTipo.titulo,
                                                   fontWeight: FontWeight.w700,
                                                 ),
                                             children: [
@@ -491,7 +491,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         style: const TextStyle(
                                           color: AppColors.white,
                                           fontWeight: FontWeight.w700,
-                                          fontSize: 18,
+                                          fontSize: AuraTipo.titulo,
                                         ),
                                       ),
                                     ),
@@ -1052,7 +1052,7 @@ class _ProximaReservaCard extends StatelessWidget {
                     'Tu próxima clase',
                     style: TextStyle(
                       color: Colors.white70,
-                      fontSize: 12,
+                      fontSize: AuraTipo.secundario,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1063,7 +1063,7 @@ class _ProximaReservaCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
+                      fontSize: AuraTipo.titulo,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -1075,7 +1075,7 @@ class _ProximaReservaCard extends StatelessWidget {
                     ].join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    style: const TextStyle(color: Colors.white70, fontSize: AuraTipo.secundario),
                   ),
                 ],
               ),
@@ -1088,7 +1088,7 @@ class _ProximaReservaCard extends StatelessWidget {
                   'Ver QR',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 12,
+                    fontSize: AuraTipo.secundario,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1156,7 +1156,7 @@ class _CreditosExpiryBanner extends StatelessWidget {
                       : 'Tus créditos vencen en $dias ${dias == 1 ? 'día' : 'días'}',
                   style: const TextStyle(
                     color: Color(0xFF1A1A1A),
-                    fontSize: 14,
+                    fontSize: AuraTipo.cuerpo,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1165,7 +1165,7 @@ class _CreditosExpiryBanner extends StatelessWidget {
                   'Tenés $creditos crédito${creditos != 1 ? 's' : ''} disponibles — reservá algo',
                   style: const TextStyle(
                     color: Color(0xFF8F877F),
-                    fontSize: 13,
+                    fontSize: AuraTipo.secundario,
                   ),
                 ),
               ],
@@ -1185,7 +1185,7 @@ class _CreditosExpiryBanner extends StatelessWidget {
               ),
               elevation: 0,
               textStyle: const TextStyle(
-                fontSize: 13,
+                fontSize: AuraTipo.secundario,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1237,7 +1237,7 @@ class _InvitadoCard extends StatelessWidget {
             'Estás explorando como invitada',
             style: TextStyle(
               color: Colors.white70,
-              fontSize: 13,
+              fontSize: AuraTipo.secundario,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1272,7 +1272,7 @@ class _InvitadoCard extends StatelessWidget {
                     'Ingresar',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
+                      fontSize: AuraTipo.cuerpo,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1356,7 +1356,7 @@ class _PlanCard extends StatelessWidget {
                   style: const TextStyle(
                     color: AppColors.white,
                     fontWeight: FontWeight.w700,
-                    fontSize: 13,
+                    fontSize: AuraTipo.secundario,
                   ),
                 ),
               ),
@@ -1464,7 +1464,7 @@ class _NotificacionesSheetState extends State<_NotificacionesSheet> {
             'Notificaciones',
             style: TextStyle(
               color: AppColors.black,
-              fontSize: 18,
+              fontSize: AuraTipo.titulo,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1526,7 +1526,7 @@ class _NotificacionesSheetState extends State<_NotificacionesSheet> {
                                   titulo,
                                   style: const TextStyle(
                                     color: AppColors.black,
-                                    fontSize: 14,
+                                    fontSize: AuraTipo.cuerpo,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -1535,7 +1535,7 @@ class _NotificacionesSheetState extends State<_NotificacionesSheet> {
                                 mensaje,
                                 style: const TextStyle(
                                   color: Color(0xFF5F5953),
-                                  fontSize: 13,
+                                  fontSize: AuraTipo.secundario,
                                   height: 1.45,
                                 ),
                               ),
@@ -1579,7 +1579,7 @@ class _NuevoUsuarioCard extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Color(0xFFF7F5F2),
-              fontSize: 18,
+              fontSize: AuraTipo.titulo,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1589,7 +1589,7 @@ class _NuevoUsuarioCard extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Color(0xFF8F877F),
-              fontSize: 13,
+              fontSize: AuraTipo.secundario,
               height: 1.45,
             ),
           ),
@@ -1607,7 +1607,7 @@ class _NuevoUsuarioCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AuraRadio.boton),
                 ),
                 textStyle: const TextStyle(
-                  fontSize: 15,
+                  fontSize: AuraTipo.cuerpo,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1653,7 +1653,7 @@ class _SinCreditosCard extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Color(0xFFF7F5F2),
-              fontSize: 18,
+              fontSize: AuraTipo.titulo,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1663,7 +1663,7 @@ class _SinCreditosCard extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Color(0xFF8F877F),
-              fontSize: 13,
+              fontSize: AuraTipo.secundario,
               height: 1.45,
             ),
           ),
@@ -1681,7 +1681,7 @@ class _SinCreditosCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AuraRadio.boton),
                 ),
                 textStyle: const TextStyle(
-                  fontSize: 15,
+                  fontSize: AuraTipo.cuerpo,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1701,7 +1701,7 @@ class _SinCreditosCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AuraRadio.boton),
                 ),
                 textStyle: const TextStyle(
-                  fontSize: 15,
+                  fontSize: AuraTipo.cuerpo,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1738,7 +1738,7 @@ class _CategoryChip extends StatelessWidget {
           label,
           style: TextStyle(
             color: active ? AppColors.white : AppColors.grey,
-            fontSize: 15,
+            fontSize: AuraTipo.cuerpo,
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
           ),
         ),
@@ -1810,7 +1810,7 @@ class HomeNearbyClassCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: AppColors.primary,
-                                fontSize: 11,
+                                fontSize: AuraTipo.etiqueta,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.5,
                               ),
@@ -1821,7 +1821,7 @@ class HomeNearbyClassCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 15,
+                              fontSize: AuraTipo.cuerpo,
                               fontWeight: FontWeight.w700,
                               color: AppColors.black,
                             ),
@@ -1834,7 +1834,7 @@ class HomeNearbyClassCard extends StatelessWidget {
                             style: const TextStyle(
                               // Era AppColors.grey: 3,2:1, no alcanzaba.
                               color: AppColors.textoSecundario,
-                              fontSize: 13,
+                              fontSize: AuraTipo.secundario,
                               height: 1.35,
                             ),
                           ),
@@ -1855,7 +1855,7 @@ class HomeNearbyClassCard extends StatelessWidget {
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       color: AppColors.textoSuave,
-                                      fontSize: 12,
+                                      fontSize: AuraTipo.secundario,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -1955,7 +1955,7 @@ class _HomeExperienceCard extends StatelessWidget {
                         'EVENTO',
                         style: TextStyle(
                           color: AppColors.white,
-                          fontSize: 11,
+                          fontSize: AuraTipo.etiqueta,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.5,
                         ),
@@ -1978,7 +1978,7 @@ class _HomeExperienceCard extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 17,
+                              fontSize: AuraTipo.titulo,
                               fontWeight: FontWeight.w700,
                               color: AppColors.black,
                             ),
@@ -2012,7 +2012,7 @@ class _HomeExperienceCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppColors.grey,
-                        fontSize: 13,
+                        fontSize: AuraTipo.secundario,
                       ),
                     ),
                     if (organizadores.isNotEmpty) ...[
@@ -2036,7 +2036,7 @@ class _HomeExperienceCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: AppColors.grey,
-                                fontSize: 12,
+                                fontSize: AuraTipo.secundario,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -2126,7 +2126,7 @@ class _HomeStudyCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: AppColors.primary,
-                            fontSize: 11,
+                            fontSize: AuraTipo.etiqueta,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.5,
                           ),
@@ -2138,7 +2138,7 @@ class _HomeStudyCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 15,
+                          fontSize: AuraTipo.cuerpo,
                           fontWeight: FontWeight.w700,
                           color: AppColors.black,
                           height: 1.2,
@@ -2159,7 +2159,7 @@ class _HomeStudyCard extends StatelessWidget {
                                 : 'Nuevo',
                             style: const TextStyle(
                               color: AppColors.black,
-                              fontSize: 13,
+                              fontSize: AuraTipo.secundario,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -2174,7 +2174,7 @@ class _HomeStudyCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: AppColors.grey,
-                          fontSize: 13,
+                          fontSize: AuraTipo.secundario,
                         ),
                       ),
                       if ((estudio.direccion ?? '').isNotEmpty) ...[
@@ -2185,7 +2185,7 @@ class _HomeStudyCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: AppColors.textoSecundario,
-                            fontSize: 12,
+                            fontSize: AuraTipo.secundario,
                           ),
                         ),
                       ],
@@ -2215,7 +2215,7 @@ class _EmptyNearbyCard extends StatelessWidget {
       ),
       child: const Text(
         'Todavía no pudimos estimar estudios cercanos con esta categoría. Probá explorar todo desde el mapa.',
-        style: TextStyle(color: AppColors.grey, fontSize: 13, height: 1.45),
+        style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario, height: 1.45),
       ),
     );
   }
@@ -2271,7 +2271,7 @@ class _NearbyStudyCard extends StatelessWidget {
                         distanceLabel,
                         style: const TextStyle(
                           color: AppColors.primary,
-                          fontSize: 11,
+                          fontSize: AuraTipo.etiqueta,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.5,
                         ),
@@ -2282,7 +2282,7 @@ class _NearbyStudyCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 15,
+                          fontSize: AuraTipo.cuerpo,
                           fontWeight: FontWeight.w700,
                           color: AppColors.black,
                           height: 1.2,
@@ -2301,7 +2301,7 @@ class _NearbyStudyCard extends StatelessWidget {
                             ratingLabel,
                             style: const TextStyle(
                               color: AppColors.black,
-                              fontSize: 13,
+                              fontSize: AuraTipo.secundario,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -2316,7 +2316,7 @@ class _NearbyStudyCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: AppColors.grey,
-                          fontSize: 13,
+                          fontSize: AuraTipo.secundario,
                         ),
                       ),
                     ],
@@ -2405,7 +2405,7 @@ class _LocationPromptCard extends StatelessWidget {
                   _title,
                   style: TextStyle(
                     color: AppColors.black,
-                    fontSize: 15,
+                    fontSize: AuraTipo.cuerpo,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -2414,7 +2414,7 @@ class _LocationPromptCard extends StatelessWidget {
                   _subtitle,
                   style: const TextStyle(
                     color: AppColors.grey,
-                    fontSize: 13,
+                    fontSize: AuraTipo.secundario,
                     height: 1.35,
                   ),
                 ),
@@ -2496,7 +2496,7 @@ class _EstudioAsociadoCard extends StatelessWidget {
                       'Tu estudio',
                       style: TextStyle(
                         color: AppColors.white,
-                        fontSize: 11,
+                        fontSize: AuraTipo.etiqueta,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.3,
                       ),
@@ -2520,7 +2520,7 @@ class _EstudioAsociadoCard extends StatelessWidget {
                       estudio.barrio!,
                       style: const TextStyle(
                         color: Colors.white60,
-                        fontSize: 13,
+                        fontSize: AuraTipo.secundario,
                       ),
                     ),
                   ],
@@ -2541,7 +2541,7 @@ class _EstudioAsociadoCard extends StatelessWidget {
                         'Ver clases',
                         style: TextStyle(
                           color: AppColors.black,
-                          fontSize: 13,
+                          fontSize: AuraTipo.secundario,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

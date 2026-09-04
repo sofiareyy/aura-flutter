@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 import '../../services/referidos_service.dart';
 
@@ -123,7 +124,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
                     padding: const EdgeInsets.all(28),
                     decoration: BoxDecoration(
                       color: AppColors.black,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                     ),
                     child: const Column(
                       children: [
@@ -148,7 +149,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white70,
-                            fontSize: 14,
+                            fontSize: AuraTipo.cuerpo,
                           ),
                         ),
                       ],
@@ -172,7 +173,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
           border: Border.all(color: const Color(0xFFE5E0DA)),
         ),
         child: Column(
@@ -182,7 +183,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
               height: 52,
               decoration: BoxDecoration(
                 color: const Color(0xFFF2EDE8),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(AuraRadio.boton),
               ),
               child: const Icon(
                 Icons.lock_outline_rounded,
@@ -195,7 +196,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
               'Tu código está bloqueado',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                fontSize: 16,
+                fontSize: AuraTipo.titulo,
               ),
             ),
             const SizedBox(height: 8),
@@ -204,7 +205,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.grey,
-                fontSize: 13,
+                fontSize: AuraTipo.secundario,
                 height: 1.4,
               ),
             ),
@@ -226,7 +227,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,7 +271,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0xFFFFF4EC),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AuraRadio.boton),
             ),
             child: Builder(builder: (_) {
               final restantes = _maxReferidos - _referidosCount;
@@ -282,7 +283,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
               return Text(
                 msg,
                 style: const TextStyle(
-                  fontSize: 13,
+                  fontSize: AuraTipo.secundario,
                   color: AppColors.black,
                   height: 1.35,
                 ),
@@ -317,7 +318,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -371,7 +372,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
       ),
       child: const Column(
         children: [
@@ -439,14 +440,14 @@ class _Step extends StatelessWidget {
                 title,
                 style: const TextStyle(
                   fontWeight: FontWeight.w600,
-                  fontSize: 14,
+                  fontSize: AuraTipo.cuerpo,
                 ),
               ),
               Text(
                 desc,
                 style: const TextStyle(
                   color: AppColors.grey,
-                  fontSize: 12,
+                  fontSize: AuraTipo.secundario,
                 ),
               ),
             ],

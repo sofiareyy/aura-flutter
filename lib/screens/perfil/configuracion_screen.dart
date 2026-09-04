@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_constants.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../services/admin_service.dart';
 import '../../widgets/eliminar_cuenta_helper.dart';
 import '../../widgets/soporte_card.dart';
@@ -212,7 +213,7 @@ class _Section extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
           ),
           child: Column(
             children: items.asMap().entries.map((entry) {
@@ -251,13 +252,13 @@ class _Item extends StatelessWidget {
         height: 36,
         decoration: BoxDecoration(
           color: AppColors.primaryLight,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AuraRadio.chip),
         ),
         child: Icon(icon, color: AppColors.primary, size: 18),
       ),
       title: Text(
         label,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+        style: const TextStyle(fontSize: AuraTipo.cuerpo, fontWeight: FontWeight.w500),
       ),
       trailing: const Icon(
         Icons.chevron_right_rounded,
@@ -278,7 +279,7 @@ class _DangerSection extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
       ),
       child: child,
@@ -308,14 +309,14 @@ class _DangerItem extends StatelessWidget {
         height: 36,
         decoration: BoxDecoration(
           color: AppColors.error.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AuraRadio.chip),
         ),
         child: Icon(icon, color: AppColors.error, size: 18),
       ),
       title: Text(
         label,
         style: TextStyle(
-          fontSize: 15,
+          fontSize: AuraTipo.cuerpo,
           fontWeight: FontWeight.w600,
           color: AppColors.error.withValues(alpha: onTap == null ? 0.4 : 1),
         ),

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/aura_gestion_design.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 import '../../services/aura_gestion_service.dart';
 import '../../services/clases_service.dart';
@@ -175,7 +176,7 @@ class _ReservaGestionScreenState extends State<ReservaGestionScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AuraRadio.boton),
                 child: AspectRatio(
                   aspectRatio: 16 / 9,
                   child: imageUrl != null && imageUrl.isNotEmpty
@@ -193,7 +194,7 @@ class _ReservaGestionScreenState extends State<ReservaGestionScreen> {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: AuraGestionDesign.softBadge,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                 ),
                 child: Text(
                   categoria,
@@ -289,7 +290,7 @@ class _ReservaGestionScreenState extends State<ReservaGestionScreen> {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: AuraGestionDesign.accent,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                 ),
                 child: Text(
                   'GRATIS',
@@ -360,7 +361,7 @@ class _InfoPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: AuraGestionDesign.background,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

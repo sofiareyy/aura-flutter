@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../models/estudio.dart';
 import '../../providers/app_provider.dart';
 import '../../services/clases_service.dart';
@@ -370,13 +371,13 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
           ),
           title: const Text(
             'Ya no se puede cancelar',
             style: TextStyle(
                 color: AppColors.black,
-                fontSize: 16,
+                fontSize: AuraTipo.titulo,
                 fontWeight: FontWeight.w700),
           ),
           content: Text(
@@ -385,7 +386,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
             'Si no asistís, se descuentan los créditos: el estudio ya te '
             'guardó el lugar y no puede ofrecérselo a otra persona.',
             style: const TextStyle(
-                color: AppColors.black, fontSize: 14, height: 1.4),
+                color: AppColors.black, fontSize: AuraTipo.cuerpo, height: 1.4),
           ),
           actions: [
             TextButton(
@@ -404,13 +405,13 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         ),
         title: const Text(
           '¿Cancelar esta reserva?',
           style: TextStyle(
             color: AppColors.black,
-            fontSize: 16,
+            fontSize: AuraTipo.titulo,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -418,7 +419,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
           'Tus créditos se devuelven al instante.',
           style: TextStyle(
             color: AppColors.black,
-            fontSize: 14,
+            fontSize: AuraTipo.cuerpo,
             height: 1.4,
           ),
         ),
@@ -439,7 +440,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(AuraRadio.chip),
               ),
               padding: const EdgeInsets.symmetric(
                   horizontal: 16, vertical: 10),
@@ -514,7 +515,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
           'Mis Reservas',
           style: TextStyle(
             color: _cream,
-            fontSize: 18,
+            fontSize: AuraTipo.titulo,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -704,7 +705,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                           'Tu historial está vacío.',
                           style: TextStyle(
                             color: AppColors.grey,
-                            fontSize: 13,
+                            fontSize: AuraTipo.secundario,
                           ),
                         ),
                       )
@@ -760,12 +761,12 @@ class _CreditosChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(AuraRadio.pastilla),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: AppColors.primary,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(AuraRadio.pastilla),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -783,7 +784,7 @@ class _CreditosChip extends StatelessWidget {
               '$creditos cr',
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 13,
+                fontSize: AuraTipo.secundario,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -806,7 +807,7 @@ class _SectionLabel extends StatelessWidget {
         text,
         style: const TextStyle(
           color: AppColors.primary,
-          fontSize: 13,
+          fontSize: AuraTipo.secundario,
           fontWeight: FontWeight.w700,
           letterSpacing: 1,
         ),
@@ -863,7 +864,7 @@ class _ProximaCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppColors.black,
-                        fontSize: 14,
+                        fontSize: AuraTipo.cuerpo,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -874,7 +875,7 @@ class _ProximaCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppColors.grey,
-                        fontSize: 12,
+                        fontSize: AuraTipo.secundario,
                       ),
                     ),
                   ],
@@ -885,7 +886,7 @@ class _ProximaCard extends StatelessWidget {
                 hora,
                 style: const TextStyle(
                   color: AppColors.primary,
-                  fontSize: 14,
+                  fontSize: AuraTipo.cuerpo,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -969,7 +970,7 @@ class _ClaseDisponibleCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppColors.black,
-                        fontSize: 14,
+                        fontSize: AuraTipo.cuerpo,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -980,7 +981,7 @@ class _ClaseDisponibleCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppColors.grey,
-                        fontSize: 12,
+                        fontSize: AuraTipo.secundario,
                       ),
                     ),
                   ],
@@ -991,7 +992,7 @@ class _ClaseDisponibleCard extends StatelessWidget {
                 hora,
                 style: const TextStyle(
                   color: AppColors.primary,
-                  fontSize: 14,
+                  fontSize: AuraTipo.cuerpo,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1018,7 +1019,7 @@ class _ClaseDisponibleCard extends StatelessWidget {
                 '$creditos cr',
                 style: const TextStyle(
                   color: AppColors.primary,
-                  fontSize: 13,
+                  fontSize: AuraTipo.secundario,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1042,12 +1043,12 @@ class _HistorialToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AuraRadio.boton),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AuraRadio.boton),
           border: Border.all(color: AppColors.lightGrey),
         ),
         child: Row(
@@ -1060,7 +1061,7 @@ class _HistorialToggle extends StatelessWidget {
                 'Ver historial',
                 style: TextStyle(
                   color: AppColors.grey,
-                  fontSize: 13,
+                  fontSize: AuraTipo.secundario,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1145,13 +1146,13 @@ class _HistorialCompactCard extends StatelessWidget {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AuraRadio.boton),
         border: Border.all(color: AppColors.lightGrey),
       ),
       child: Row(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(AuraRadio.chip),
             child: SizedBox(
               width: 40,
               height: 40,
@@ -1176,7 +1177,7 @@ class _HistorialCompactCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppColors.black,
-                    fontSize: 13,
+                    fontSize: AuraTipo.secundario,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1186,7 +1187,7 @@ class _HistorialCompactCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppColors.grey,
-                    fontSize: 11,
+                    fontSize: AuraTipo.etiqueta,
                   ),
                 ),
                 if (fecha != null)
@@ -1194,7 +1195,7 @@ class _HistorialCompactCard extends StatelessWidget {
                     DateFormat('d MMM · HH:mm', 'es').format(fecha),
                     style: const TextStyle(
                       color: AppColors.mutedText,
-                      fontSize: 10,
+                      fontSize: AuraTipo.etiqueta,
                     ),
                   ),
               ],
@@ -1229,7 +1230,7 @@ class _HistorialCompactCard extends StatelessWidget {
                         resena != null ? 'Tu reseña' : 'Reseñar',
                         style: const TextStyle(
                           color: AppColors.primary,
-                          fontSize: 11,
+                          fontSize: AuraTipo.etiqueta,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1266,7 +1267,7 @@ class _WhiteCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -1280,10 +1281,10 @@ class _WhiteCard extends StatelessWidget {
     if (onTap == null) return container;
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         child: container,
       ),
     );
@@ -1301,14 +1302,14 @@ class _StudioImage extends StatelessWidget {
       height: 60,
       decoration: BoxDecoration(
         color: AppColors.lightGrey,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AuraRadio.chip),
       ),
       child: const Icon(Icons.fitness_center_rounded,
           color: AppColors.grey, size: 26),
     );
     if (url == null || url!.isEmpty) return fallback;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(AuraRadio.chip),
       child: CachedNetworkImage(
         imageUrl: url!,
         width: 60,
@@ -1333,13 +1334,13 @@ class _Badge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AuraRadio.boton),
       ),
       child: Text(
         text,
         style: TextStyle(
           color: fg,
-          fontSize: 10,
+          fontSize: AuraTipo.etiqueta,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -1488,19 +1489,19 @@ class _SmallButton extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(AuraRadio.chip),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AuraRadio.chip),
           border: Border.all(color: border),
         ),
         child: Text(
           label,
           style: TextStyle(
             color: fg,
-            fontSize: 11,
+            fontSize: AuraTipo.etiqueta,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -1562,13 +1563,13 @@ class _DaySelector extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color: active ? AppColors.primary : _chipDark,
-                borderRadius: BorderRadius.circular(999),
+                borderRadius: BorderRadius.circular(AuraRadio.pastilla),
               ),
               child: Text(
                 _label(dia),
                 style: TextStyle(
                   color: active ? Colors.black : _cream,
-                  fontSize: 12,
+                  fontSize: AuraTipo.secundario,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.4,
                 ),
@@ -1611,7 +1612,7 @@ class _CategorySelector extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
                 color: active ? _darkAppBar : Colors.transparent,
-                borderRadius: BorderRadius.circular(999),
+                borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                 border: Border.all(
                   color: active ? AppColors.primary : _chipBorder,
                   width: active ? 1.4 : 1,
@@ -1622,7 +1623,7 @@ class _CategorySelector extends StatelessWidget {
                 style: TextStyle(
                   color:
                       active ? AppColors.primary : const Color(0xFF5A534D),
-                  fontSize: 12,
+                  fontSize: AuraTipo.secundario,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1644,7 +1645,7 @@ class _ProximasVacioCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         border: Border.all(color: AppColors.lightGrey),
       ),
       child: Column(
@@ -1659,7 +1660,7 @@ class _ProximasVacioCard extends StatelessWidget {
             'No tenés clases próximas',
             style: TextStyle(
               color: AppColors.black,
-              fontSize: 15,
+              fontSize: AuraTipo.cuerpo,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1668,7 +1669,7 @@ class _ProximasVacioCard extends StatelessWidget {
             'Explorá lo que hay disponible',
             style: TextStyle(
               color: AppColors.grey,
-              fontSize: 13,
+              fontSize: AuraTipo.secundario,
             ),
           ),
           const SizedBox(height: 14),
@@ -1681,14 +1682,14 @@ class _ProximasVacioCard extends StatelessWidget {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AuraRadio.chip),
                 ),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               child: const Text(
                 'Explorar clases',
                 style:
-                    TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                    TextStyle(fontSize: AuraTipo.secundario, fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -1708,7 +1709,7 @@ class _SinDisponiblesCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         border: Border.all(color: AppColors.lightGrey),
       ),
       child: Row(
@@ -1716,7 +1717,7 @@ class _SinDisponiblesCard extends StatelessWidget {
           const Expanded(
             child: Text(
               'Por ahora no hay clases disponibles para reservar.',
-              style: TextStyle(color: AppColors.grey, fontSize: 13),
+              style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
             ),
           ),
           TextButton(
@@ -1749,7 +1750,7 @@ class _EmptyDayState extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppColors.black,
-              fontSize: 14,
+              fontSize: AuraTipo.cuerpo,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1759,7 +1760,7 @@ class _EmptyDayState extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppColors.grey,
-              fontSize: 12,
+              fontSize: AuraTipo.secundario,
             ),
           ),
         ],
@@ -1812,7 +1813,7 @@ class _PreReservaCard extends StatelessWidget {
                   'Tenés $remainingStr para confirmar',
                   style: const TextStyle(
                     color: AppColors.primary,
-                    fontSize: 12,
+                    fontSize: AuraTipo.secundario,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1824,7 +1825,7 @@ class _PreReservaCard extends StatelessWidget {
             (clase?['nombre'] ?? 'Clase').toString(),
             style: const TextStyle(
               color: AppColors.black,
-              fontSize: 14,
+              fontSize: AuraTipo.cuerpo,
               fontWeight: FontWeight.w700,
             ),
             maxLines: 1,
@@ -1833,7 +1834,7 @@ class _PreReservaCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             (estudio?['nombre'] ?? '').toString(),
-            style: const TextStyle(color: AppColors.grey, fontSize: 12),
+            style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -1842,7 +1843,7 @@ class _PreReservaCard extends StatelessWidget {
             fechaStr,
             style: const TextStyle(
               color: AppColors.mutedText,
-              fontSize: 11,
+              fontSize: AuraTipo.etiqueta,
             ),
           ),
           const SizedBox(height: 10),
@@ -1851,14 +1852,14 @@ class _PreReservaCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 9),
             decoration: BoxDecoration(
               color: AppColors.primary,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(AuraRadio.chip),
             ),
             alignment: Alignment.center,
             child: const Text(
               'Confirmar mi lugar',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 13,
+                fontSize: AuraTipo.secundario,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1900,13 +1901,13 @@ class _EsperaCard extends StatelessWidget {
                     horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: _categoryBadgeBg,
-                  borderRadius: BorderRadius.circular(99),
+                  borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                 ),
                 child: Text(
                   'Posición #$posicion',
                   style: const TextStyle(
                     color: AppColors.primary,
-                    fontSize: 11,
+                    fontSize: AuraTipo.etiqueta,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1918,7 +1919,7 @@ class _EsperaCard extends StatelessWidget {
             (clase?['nombre'] ?? 'Clase').toString(),
             style: const TextStyle(
               color: AppColors.black,
-              fontSize: 14,
+              fontSize: AuraTipo.cuerpo,
               fontWeight: FontWeight.w700,
             ),
             maxLines: 1,
@@ -1927,7 +1928,7 @@ class _EsperaCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             (estudio?['nombre'] ?? '').toString(),
-            style: const TextStyle(color: AppColors.grey, fontSize: 12),
+            style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -1936,7 +1937,7 @@ class _EsperaCard extends StatelessWidget {
             fechaStr,
             style: const TextStyle(
               color: AppColors.mutedText,
-              fontSize: 11,
+              fontSize: AuraTipo.etiqueta,
             ),
           ),
           const SizedBox(height: 6),
@@ -1944,7 +1945,7 @@ class _EsperaCard extends StatelessWidget {
             'No se cobran créditos hasta confirmar.',
             style: TextStyle(
               color: AppColors.primary,
-              fontSize: 11,
+              fontSize: AuraTipo.etiqueta,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1961,7 +1962,7 @@ class _EsperaCard extends StatelessWidget {
               child: const Text(
                 'Salir de la lista',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: AuraTipo.secundario,
                   fontWeight: FontWeight.w600,
                 ),
               ),

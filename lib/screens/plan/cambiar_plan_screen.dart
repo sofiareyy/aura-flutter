@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 import '../../services/pricing_service.dart';
 import '../../services/usuarios_service.dart';
@@ -125,7 +126,7 @@ class _CambiarPlanScreenState extends State<CambiarPlanScreen> {
                                       : esCurrent
                                           ? AppColors.primaryLight
                                           : AppColors.white,
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                                   border: Border.all(
                                     color: selected
                                         ? AppColors.primary
@@ -161,7 +162,7 @@ class _CambiarPlanScreenState extends State<CambiarPlanScreen> {
                                                   ? AppColors.white
                                                   : AppColors.primary,
                                               borderRadius:
-                                                  BorderRadius.circular(9999),
+                                                  BorderRadius.circular(AuraRadio.pastilla),
                                             ),
                                             child: Text(
                                               'Más popular',
@@ -169,7 +170,7 @@ class _CambiarPlanScreenState extends State<CambiarPlanScreen> {
                                                 color: selected
                                                     ? AppColors.primary
                                                     : AppColors.white,
-                                                fontSize: 11,
+                                                fontSize: AuraTipo.etiqueta,
                                                 fontWeight: FontWeight.w700,
                                               ),
                                             ),
@@ -182,13 +183,13 @@ class _CambiarPlanScreenState extends State<CambiarPlanScreen> {
                                               color: AppColors.primary
                                                   .withValues(alpha: 0.2),
                                               borderRadius:
-                                                  BorderRadius.circular(9999),
+                                                  BorderRadius.circular(AuraRadio.pastilla),
                                             ),
                                             child: const Text(
                                               'Actual',
                                               style: TextStyle(
                                                 color: AppColors.primary,
-                                                fontSize: 11,
+                                                fontSize: AuraTipo.etiqueta,
                                                 fontWeight: FontWeight.w700,
                                               ),
                                             ),
@@ -202,7 +203,7 @@ class _CambiarPlanScreenState extends State<CambiarPlanScreen> {
                                         color: selected
                                             ? Colors.white70
                                             : AppColors.grey,
-                                        fontSize: 13,
+                                        fontSize: AuraTipo.secundario,
                                       ),
                                     ),
                                     const SizedBox(height: 12),
@@ -229,7 +230,7 @@ class _CambiarPlanScreenState extends State<CambiarPlanScreen> {
                                               color: selected
                                                   ? Colors.white60
                                                   : AppColors.grey,
-                                              fontSize: 14,
+                                              fontSize: AuraTipo.cuerpo,
                                             ),
                                           ),
                                         ),
@@ -237,7 +238,7 @@ class _CambiarPlanScreenState extends State<CambiarPlanScreen> {
                                         Text(
                                           '\$${_fmt((plan['precio'] as num).toInt())}',
                                           style: TextStyle(
-                                            fontSize: 18,
+                                            fontSize: AuraTipo.titulo,
                                             fontWeight: FontWeight.w600,
                                             color: selected
                                                 ? AppColors.white
@@ -253,7 +254,7 @@ class _CambiarPlanScreenState extends State<CambiarPlanScreen> {
                                         color: selected
                                             ? Colors.white70
                                             : AppColors.primary,
-                                        fontSize: 13,
+                                        fontSize: AuraTipo.secundario,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 import '../../services/referidos_service.dart';
 import '../../services/reservas_service.dart';
@@ -41,7 +42,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
           ),
           title: const Text('Canjear regalo'),
           content: Column(
@@ -50,7 +51,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
             children: [
               const Text(
                 'Ingresá el código de tu gift card.',
-                style: TextStyle(color: AppColors.grey, fontSize: 14),
+                style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.cuerpo),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -60,7 +61,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                 decoration: InputDecoration(
                   hintText: 'GIFT-XXXXXXXX',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(AuraRadio.chip),
                   ),
                 ),
               ),
@@ -204,14 +205,14 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'Créditos disponibles',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                      style: TextStyle(color: Colors.white70, fontSize: AuraTipo.cuerpo),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -274,13 +275,13 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: AppColors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                 ),
                 child: const Text(
                   'Tus packs vencen según su vigencia. El Pack Prueba dura 30 días. Los packs Esencial, Popular y Full duran 60 días. Siempre se descuentan primero los créditos que vencen antes.',
                   style: TextStyle(
                     color: AppColors.grey,
-                    fontSize: 13,
+                    fontSize: AuraTipo.secundario,
                     height: 1.45,
                   ),
                 ),
@@ -323,7 +324,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: AppColors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                 ),
                 child: const Column(
                   children: [
@@ -385,7 +386,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         ),
         child: const Column(
           children: [
@@ -395,14 +396,14 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
               'Reservá tu primera clase',
               style: TextStyle(
                 color: Color(0xFF1A1A1A),
-                fontSize: 15,
+                fontSize: AuraTipo.cuerpo,
                 fontWeight: FontWeight.w600,
               ),
             ),
             SizedBox(height: 4),
             Text(
               'y empezá a ahorrar con Aura',
-              style: TextStyle(color: Color(0xFF8F877F), fontSize: 14),
+              style: TextStyle(color: Color(0xFF8F877F), fontSize: AuraTipo.cuerpo),
             ),
           ],
         ),
@@ -421,7 +422,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
           ),
           child: Column(
             children: [
@@ -437,7 +438,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                     'Este mes ahorraste',
                     style: TextStyle(
                       color: Color(0xFFF5F0EB),
-                      fontSize: 14,
+                      fontSize: AuraTipo.cuerpo,
                     ),
                   ),
                   const Spacer(),
@@ -458,7 +459,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
               const Text(
                 'vs pagar precio de mercado en Buenos Aires',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF8F877F), fontSize: 12),
+                style: TextStyle(color: Color(0xFF8F877F), fontSize: AuraTipo.secundario),
               ),
             ],
           ),
@@ -489,7 +490,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AuraRadio.boton),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -501,7 +502,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                 child: Text(
                   nombre,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: AuraTipo.cuerpo,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF1A1A1A),
                   ),
@@ -514,7 +515,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                   Text(
                     _fmt(precioMercado),
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: AuraTipo.secundario,
                       color: Color(0xFF9A928B),
                       decoration: TextDecoration.lineThrough,
                     ),
@@ -522,7 +523,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                   Text(
                     _fmt(precioAura),
                     style: const TextStyle(
-                      fontSize: 13,
+                      fontSize: AuraTipo.secundario,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF2E7D32),
                     ),
@@ -538,12 +539,12 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: const Color(0xFFE8F5E9),
-                borderRadius: BorderRadius.circular(999),
+                borderRadius: BorderRadius.circular(AuraRadio.pastilla),
               ),
               child: Text(
                 '+${_fmt(ahorro)} ahorrado',
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: AuraTipo.etiqueta,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF2E7D32),
                 ),
@@ -571,7 +572,7 @@ class _BeneficioEmpresaBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.primaryLight,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AuraRadio.boton),
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
       ),
       child: Row(
@@ -583,7 +584,7 @@ class _BeneficioEmpresaBadge extends StatelessWidget {
               text: TextSpan(
                 style: const TextStyle(
                   color: AppColors.black,
-                  fontSize: 13.5,
+                  fontSize: AuraTipo.secundario,
                   height: 1.3,
                 ),
                 children: [
@@ -612,7 +613,7 @@ class _SectionLabel extends StatelessWidget {
       text,
       style: const TextStyle(
         color: Color(0xFF8F877F),
-        fontSize: 12,
+        fontSize: AuraTipo.secundario,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
       ),
@@ -639,7 +640,7 @@ class _ActionCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         ),
         child: Column(
           children: [
@@ -649,7 +650,7 @@ class _ActionCard extends StatelessWidget {
               label,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: AuraTipo.secundario,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -686,7 +687,7 @@ class _HowItem extends StatelessWidget {
               style: const TextStyle(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w700,
-                fontSize: 13,
+                fontSize: AuraTipo.secundario,
               ),
             ),
           ),
@@ -696,7 +697,7 @@ class _HowItem extends StatelessWidget {
           child: Text(
             text,
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: AuraTipo.cuerpo,
               color: AppColors.black,
             ),
           ),

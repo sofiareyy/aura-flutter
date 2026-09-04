@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 
 class HistorialCreditosScreen extends StatefulWidget {
@@ -215,13 +216,13 @@ class _HistorialCreditosScreenState extends State<HistorialCreditosScreen> {
                           const SizedBox(height: 16),
                           const Text(
                             'Todavía no hay movimientos',
-                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: AuraTipo.titulo),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 8),
                           const Text(
                             'Comprá un pack o plan para sumar créditos.',
-                            style: TextStyle(color: AppColors.grey, fontSize: 14),
+                            style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.cuerpo),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 20),
@@ -272,7 +273,7 @@ class _SaldoHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       decoration: BoxDecoration(
         color: AppColors.black,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
       ),
       child: Row(
         children: [
@@ -283,7 +284,7 @@ class _SaldoHeader extends StatelessWidget {
             children: [
               const Text(
                 'Saldo actual',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+                style: TextStyle(color: Colors.white70, fontSize: AuraTipo.secundario),
               ),
               const SizedBox(height: 4),
               Text(
@@ -319,7 +320,7 @@ class _MovimientoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
       ),
       child: Row(
         children: [
@@ -342,7 +343,7 @@ class _MovimientoRow extends StatelessWidget {
                   movimiento.descripcion,
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: AuraTipo.cuerpo,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -350,7 +351,7 @@ class _MovimientoRow extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   fecha,
-                  style: const TextStyle(color: AppColors.grey, fontSize: 12),
+                  style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
                 ),
               ],
             ),
@@ -361,7 +362,7 @@ class _MovimientoRow extends StatelessWidget {
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.w700,
-              fontSize: 16,
+              fontSize: AuraTipo.titulo,
             ),
           ),
         ],

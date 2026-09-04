@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../utils/destino_post_login.dart';
 import '../../providers/app_provider.dart';
 import '../../services/usuarios_service.dart';
@@ -158,7 +159,7 @@ class _LoadingView extends StatelessWidget {
           'Confirmando tu pago…',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 15,
+            fontSize: AuraTipo.cuerpo,
             color: AppColors.blackSoft,
           ),
         ),
@@ -206,7 +207,7 @@ class _FailureView extends StatelessWidget {
           'Tu banco no autorizó el pago. Esto puede pasar con tarjetas de débito o cuando el banco bloquea cobros recurrentes.\n\nPodés intentar con otra tarjeta o habilitarlo desde la app de tu banco.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: AuraTipo.cuerpo,
             color: AppColors.grey,
             height: 1.5,
           ),
@@ -270,7 +271,7 @@ class _PendingView extends StatelessWidget {
           'Tu pago está siendo procesado. Una vez acreditado, tus créditos van a aparecer automáticamente en tu cuenta.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: AuraTipo.cuerpo,
             color: AppColors.grey,
             height: 1.5,
           ),
@@ -328,7 +329,7 @@ class _ConfirmErrorView extends StatelessWidget {
           'Estamos verificando tu pago. Puede demorar unos segundos.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: AuraTipo.cuerpo,
             color: AppColors.grey,
             height: 1.5,
           ),

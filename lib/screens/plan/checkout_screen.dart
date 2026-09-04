@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../utils/destino_post_login.dart';
 import '../../providers/app_provider.dart';
 import '../../services/usuarios_service.dart';
@@ -333,7 +334,7 @@ class _IdleView extends StatelessWidget {
                           : isGift
                               ? 'Gift card para regalar'
                               : 'Pack de créditos',
-                      style: const TextStyle(color: Colors.white60, fontSize: 13),
+                      style: const TextStyle(color: Colors.white60, fontSize: AuraTipo.secundario),
                     ),
                     const SizedBox(height: 10),
                     Text(
@@ -347,7 +348,7 @@ class _IdleView extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       descripcion,
-                      style: const TextStyle(color: Colors.white70, fontSize: 14),
+                      style: const TextStyle(color: Colors.white70, fontSize: AuraTipo.cuerpo),
                     ),
                     const SizedBox(height: 18),
                     Row(
@@ -356,7 +357,7 @@ class _IdleView extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(9999),
+                            borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                           ),
                           child: Text(
                             '$creditos créditos',
@@ -390,7 +391,7 @@ class _IdleView extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                   border: Border.all(color: AppColors.primary, width: 1.6),
                 ),
                 child: const Row(
@@ -406,11 +407,11 @@ class _IdleView extends StatelessWidget {
                         children: [
                           Text(
                             'Mercado Pago',
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                            style: TextStyle(fontSize: AuraTipo.cuerpo, fontWeight: FontWeight.w600),
                           ),
                           Text(
                             'Tarjeta, débito, efectivo o saldo MP',
-                            style: TextStyle(fontSize: 12, color: AppColors.grey),
+                            style: TextStyle(fontSize: AuraTipo.secundario, color: AppColors.grey),
                           ),
                         ],
                       ),
@@ -424,7 +425,7 @@ class _IdleView extends StatelessWidget {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: AppColors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                   border: Border.all(color: AppColors.warmBorder),
                 ),
                 child: Row(
@@ -449,7 +450,7 @@ class _IdleView extends StatelessWidget {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: AppColors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                   border: Border.all(color: AppColors.warmBorder),
                 ),
                 child: Row(

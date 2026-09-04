@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
+import '../../widgets/aura_skeleton.dart';
 import '../../models/estudio.dart';
 import '../../models/usuario.dart';
 import '../../providers/app_provider.dart';
@@ -67,7 +69,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AuraRadio.tarjeta)),
           title: const Text('Canjear regalo'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -75,7 +77,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
             children: [
               const Text(
                 'Ingresá el código de tu gift card.',
-                style: TextStyle(color: AppColors.grey, fontSize: 14),
+                style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.cuerpo),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -85,7 +87,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                 decoration: InputDecoration(
                   hintText: 'GIFT-XXXXXXXX',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(AuraRadio.chip),
                   ),
                 ),
               ),
@@ -272,7 +274,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: AppColors.white,
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,7 +285,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                                 : 'Esta cuenta administra ${_misEstudios.length} estudios.',
                             style: const TextStyle(
                               color: AppColors.black,
-                              fontSize: 14,
+                              fontSize: AuraTipo.cuerpo,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -296,14 +298,14 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                               padding: const EdgeInsets.only(bottom: 8),
                               child: InkWell(
                                 onTap: id == null ? null : () => _entrarAEstudio(id),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(AuraRadio.boton),
                                 child: Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
                                     color: esActivo
                                         ? AppColors.primaryLight
                                         : const Color(0xFFF7F3EE),
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(AuraRadio.boton),
                                   ),
                                   child: Row(
                                     children: [
@@ -312,7 +314,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                                         height: 36,
                                         decoration: BoxDecoration(
                                           color: AppColors.white,
-                                          borderRadius: BorderRadius.circular(10),
+                                          borderRadius: BorderRadius.circular(AuraRadio.chip),
                                         ),
                                         child: const Icon(
                                           Icons.storefront_outlined,
@@ -331,7 +333,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                                               style: const TextStyle(
                                                 color: AppColors.black,
                                                 fontWeight: FontWeight.w600,
-                                                fontSize: 14,
+                                                fontSize: AuraTipo.cuerpo,
                                               ),
                                             ),
                                             if (esActivo)
@@ -339,7 +341,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                                                 'Activo',
                                                 style: TextStyle(
                                                   color: AppColors.primary,
-                                                  fontSize: 11,
+                                                  fontSize: AuraTipo.etiqueta,
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),
@@ -471,7 +473,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                         'Aura ${_appVersion!}',
                         style: const TextStyle(
                           color: Color(0xFFB0A8A0),
-                          fontSize: 11,
+                          fontSize: AuraTipo.etiqueta,
                         ),
                       ),
                     ),
@@ -491,7 +493,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
       ),
       child: Column(
         children: [
@@ -568,7 +570,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                         _nombreController.text = usuario?.nombre ?? '';
                         setState(() => _editandoNombre = true);
                       },
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                       child: const Padding(
                         padding: EdgeInsets.all(4),
                         child: Icon(
@@ -583,7 +585,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
           const SizedBox(height: 4),
           Text(
             usuario?.email ?? '',
-            style: const TextStyle(color: AppColors.grey, fontSize: 13),
+            style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
           ),
           if (usuario?.creditosVencimiento != null) ...[
             const SizedBox(height: 12),
@@ -591,13 +593,13 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
                 color: AppColors.primaryLight,
-                borderRadius: BorderRadius.circular(9999),
+                borderRadius: BorderRadius.circular(AuraRadio.pastilla),
               ),
               child: Text(
                 'Créditos vigentes hasta el ${DateFormat('d/M/yy').format(usuario!.creditosVencimiento!)}',
                 style: const TextStyle(
                   color: AppColors.primary,
-                  fontSize: 13,
+                  fontSize: AuraTipo.secundario,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -625,15 +627,15 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AuraRadio.boton),
               borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AuraRadio.boton),
               borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AuraRadio.boton),
               borderSide: const BorderSide(color: AppColors.primary),
             ),
           ),
@@ -657,7 +659,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                 foregroundColor: AppColors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AuraRadio.boton),
                 ),
               ),
               child: _guardandoNombre
@@ -732,7 +734,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
       context: context,
       backgroundColor: AppColors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AuraRadio.tarjeta)),
       ),
       builder: (ctx) => SafeArea(
         child: Column(
@@ -930,13 +932,19 @@ class _FavoritosSection extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
           ),
           child: loading
-              ? const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
+              // La silueta de la lista que viene, en vez de un spinner en un
+              // hueco: así la tarjeta no cambia de alto al cargar.
+              ? Padding(
+                  padding: const EdgeInsets.all(AuraEspacio.margen),
+                  child: Column(
+                    children: [
+                      AuraSkeleton.renglon(alto: 16),
+                      const SizedBox(height: AuraEspacio.m),
+                      AuraSkeleton.renglon(alto: 16),
+                    ],
                   ),
                 )
               : estudios.isEmpty
@@ -1009,7 +1017,7 @@ class _StatBox extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         ),
         child: Column(
           children: [
@@ -1020,14 +1028,14 @@ class _StatBox extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: AuraTipo.titulo,
                 fontWeight: FontWeight.w700,
                 color: valueColor ?? AppColors.black,
               ),
             ),
             Text(
               label,
-              style: const TextStyle(fontSize: 11, color: AppColors.grey),
+              style: const TextStyle(fontSize: AuraTipo.etiqueta, color: AppColors.grey),
             ),
           ],
         ),
@@ -1079,7 +1087,7 @@ class _ProgresoCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1100,14 +1108,14 @@ class _ProgresoCard extends StatelessWidget {
                     child: Text('de $_meta clases',
                         style: TextStyle(
                             color: AppColors.black,
-                            fontSize: 14,
+                            fontSize: AuraTipo.cuerpo,
                             fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AuraRadio.chip),
                 child: LinearProgressIndicator(
                   value: progreso,
                   minHeight: 12,
@@ -1119,7 +1127,7 @@ class _ProgresoCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 mensaje,
-                style: const TextStyle(color: AppColors.grey, fontSize: 13),
+                style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
               ),
             ],
           ),
@@ -1155,7 +1163,7 @@ class _MenuSection extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
           ),
           child: Column(
             children: items.asMap().entries.map((entry) {
@@ -1198,14 +1206,14 @@ class _MenuItem extends StatelessWidget {
         height: 36,
         decoration: BoxDecoration(
           color: AppColors.primaryLight,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AuraRadio.chip),
         ),
         child: Icon(icon, color: color ?? AppColors.primary, size: 18),
       ),
       title: Text(
         label,
         style: TextStyle(
-          fontSize: 15,
+          fontSize: AuraTipo.cuerpo,
           fontWeight: FontWeight.w500,
           color: color ?? AppColors.black,
         ),
@@ -1214,7 +1222,7 @@ class _MenuItem extends StatelessWidget {
           ? null
           : Text(
               subtitle!,
-              style: const TextStyle(fontSize: 12, color: AppColors.grey),
+              style: const TextStyle(fontSize: AuraTipo.secundario, color: AppColors.grey),
             ),
       trailing: const Icon(
         Icons.chevron_right_rounded,

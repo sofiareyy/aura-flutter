@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../models/estudio.dart';
 import '../../services/estudios_service.dart';
 import '../../services/location_service.dart';
@@ -146,7 +147,7 @@ class _MapaScreenState extends State<MapaScreen> {
                                 '${results.length} estudios para explorar',
                                 style: const TextStyle(
                                   color: AppColors.grey,
-                                  fontSize: 13,
+                                  fontSize: AuraTipo.secundario,
                                 ),
                               ),
                             ],
@@ -161,7 +162,7 @@ class _MapaScreenState extends State<MapaScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFFCF8),
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                         border: Border.all(color: const Color(0xFFE9DED3)),
                         boxShadow: const [
                           BoxShadow(
@@ -208,6 +209,10 @@ class _MapaScreenState extends State<MapaScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           child: ClipRRect(
+                            // El 30 queda a mano a propósito: es el redondeo
+                            // del MAPA entero, una superficie grande, no una
+                            // tarjeta. Mismo criterio que el 24 de las hojas
+                            // modales.
                             borderRadius: BorderRadius.circular(30),
                             child: Stack(
                               children: [
@@ -365,7 +370,7 @@ class _MapPillMarker extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
         decoration: BoxDecoration(
           color: active ? AppColors.black : const Color(0xFFFFFCF8),
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(AuraRadio.pastilla),
           border: Border.all(
             color: active ? AppColors.black : const Color(0xFFE7DBCE),
           ),
@@ -390,7 +395,7 @@ class _MapPillMarker extends StatelessWidget {
               label,
               style: TextStyle(
                 color: active ? AppColors.white : AppColors.black,
-                fontSize: 12,
+                fontSize: AuraTipo.secundario,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -416,12 +421,12 @@ class _MapHintCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         child: Ink(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x14000000),
@@ -437,7 +442,7 @@ class _MapHintCard extends StatelessWidget {
                 height: 42,
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF4EC),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(AuraRadio.boton),
                 ),
                 child: const Icon(
                   Icons.place_outlined,
@@ -452,7 +457,7 @@ class _MapHintCard extends StatelessWidget {
                       : 'Explorá el mapa y tocá un rating para abrir un estudio.',
                   style: const TextStyle(
                     color: AppColors.black,
-                    fontSize: 13,
+                    fontSize: AuraTipo.secundario,
                     height: 1.4,
                   ),
                 ),
@@ -485,12 +490,12 @@ class _MapSelectedStudyCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         child: Ink(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x18000000),
@@ -502,7 +507,7 @@ class _MapSelectedStudyCard extends StatelessWidget {
           child: Row(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                 child: SizedBox(
                   width: 62,
                   height: 62,
@@ -533,13 +538,13 @@ class _MapSelectedStudyCard extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFF4EC),
-                            borderRadius: BorderRadius.circular(999),
+                            borderRadius: BorderRadius.circular(AuraRadio.pastilla),
                           ),
                           child: Text(
                             ratingLabel,
                             style: const TextStyle(
                               color: AppColors.primary,
-                              fontSize: 11,
+                              fontSize: AuraTipo.etiqueta,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -553,7 +558,7 @@ class _MapSelectedStudyCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppColors.black,
-                        fontSize: 15,
+                        fontSize: AuraTipo.cuerpo,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -564,7 +569,7 @@ class _MapSelectedStudyCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppColors.grey,
-                        fontSize: 13,
+                        fontSize: AuraTipo.secundario,
                       ),
                     ),
                   ],

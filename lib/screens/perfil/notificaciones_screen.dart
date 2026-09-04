@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
+import '../../widgets/aura_skeleton.dart';
 import '../../providers/app_provider.dart';
 
 class NotificacionesScreen extends StatefulWidget {
@@ -85,8 +87,17 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Notificaciones')),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
+          // La silueta de la lista de interruptores que viene.
+          ? ListView(
+              padding: const EdgeInsets.all(AuraEspacio.margen),
+              children: [
+                AuraSkeleton.renglon(alto: 14),
+                const SizedBox(height: AuraEspacio.xl),
+                for (var i = 0; i < 4; i++) ...[
+                  AuraSkeleton.renglon(alto: 44),
+                  const SizedBox(height: AuraEspacio.m),
+                ],
+              ],
             )
           : ListView(
               padding: const EdgeInsets.all(20),
@@ -157,7 +168,7 @@ class _SwitchTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
       ),
       child: SwitchListTile(
         value: value,
@@ -166,7 +177,7 @@ class _SwitchTile extends StatelessWidget {
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(color: AppColors.grey, fontSize: 12),
+          style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
         ),
       ),
     );
