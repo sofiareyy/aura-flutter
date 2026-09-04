@@ -20,6 +20,7 @@ import '../../services/studio_geo_service.dart';
 import '../../utils/categorias_con_oferta.dart';
 import '../../utils/volver_a_tus_estudios.dart';
 import '../../utils/grilla_responsive.dart';
+import '../../utils/clases_tomables.dart';
 import '../../widgets/foto_red.dart';
 import '../../widgets/organizadores_links.dart';
 import '../../widgets/aura_skeleton.dart';
@@ -289,9 +290,19 @@ class _HomeScreenState extends State<HomeScreen> {
     // Hora Argentina (UTC-3) en frame UTC, independiente del timezone del device.
     final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
     final finSemana = ahora.add(const Duration(days: 7));
+    // Sólo lo que TODAVÍA SE PUEDE TOMAR.
+    //
+    // El pozo de clases se filtra por fecha en la CONSULTA, o sea una sola vez
+    // al cargar la pantalla. Si el Inicio queda abierto un rato, las que ya
+    // arrancaron se siguen dibujando. Medido contra la oferta real: a las dos
+    // horas de tener la pantalla abierta, 6 de las 50 clases cargadas ya
+    // empezaron, y con una vidriera de 6 tarjetas eso puede ser la sección
+    // entera ofreciendo cosas que ya pasaron. Ahora se refiltra en cada
+    // build, igual que ya hacía "Clases esta semana" (4/9/2026).
+    final ofrecibles = clasesTomables(_proximasClases, ahora: ahora);
     final clasesFiltradas = _categoriaSeleccionada == 'Todos'
-        ? _proximasClases
-        : _proximasClases.where((clase) {
+        ? ofrecibles
+        : ofrecibles.where((clase) {
             final estudio = clase['estudios'] as Map<String, dynamic>?;
             if (estudio == null) return false;
             // El estudio entra si CUALQUIERA de sus categorias matchea.
@@ -315,17 +326,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 (estudio) => estudio.tieneCategoria(_categoriaSeleccionada),
               )
               .toList();
-    // La vidriera del final: POCAS y VARIADAS, no las 50 cargadas.
+    // La vidriera del final: LAS PRÓXIMAS POCAS, no las 50 cargadas.
     //
     // Antes esta sección listaba `clasesFiltradas` entera. Medido con las
     // medidas reales de la tarjeta, eso daba **21 pantallas de scroll en el
     // celular** para una sección que es la última del Inicio: dejaba de ser
     // vidriera y pasaba a ser un catálogo volcado al final (4/9/2026).
     //
-    // El reparto es el MISMO que usa "Volvé a tus estudios"
-    // (`repartirEntreEstudios`): una por estudio y, si sobra lugar, una
-    // segunda. Así no salen 6 clases del mismo lugar un día en que ese
-    // estudio tenga los primeros horarios.
+    // El primer recorte fue "una por estudio", que forzaba 6 estudios
+    // distintos. Sofía corrigió el criterio: lo que importa es que sean las
+    // próximas clases que todavía se pueden tomar, y repetir estudio no
+    // molesta. Así que ahora es por fecha, con un tope blando de 3 por
+    // estudio: si hay con qué completar, entran otros lugares; si no hay, se
+    // repite antes que dejar la sección corta.
+    //
+    // Ese tope hoy NO recorta nada: simulando la oferta real cada 6 horas
+    // durante 6 días, ninguno de los 25 momentos tenía más de 3 clases del
+    // mismo estudio entre las 6 primeras, y siempre había al menos 3 estudios
+    // distintos. O sea que hoy se comporta exactamente como "las próximas 6
+    // por fecha"; el tope está para el día que un estudio cargue un bloque
+    // largo de horarios seguidos.
     //
     // Se sacan las que ya están arriba en "Volvé a tus estudios": con 6
     // tarjetas, repetir una se nota. NO se deduplica contra "Clases esta
@@ -341,6 +361,7 @@ class _HomeScreenState extends State<HomeScreen> {
           .where((c) => !yaArriba.contains((c['id'] as num?)?.toInt()))
           .toList(),
       max: clasesEnLaVidriera,
+      cupo: topeVidrieraPorEstudio,
     );
 
     final estudiosCerca = _studioGeoService

@@ -41,9 +41,15 @@ int cupoPorEstudio(int cantidadDeEstudios, {int max = 6}) {
 /// segunda rellena con lo que quedó si sobraron lugares. Sin la segunda, dos
 /// estudios donde uno tiene 1 sola clase dejarían el carrusel a la mitad
 /// teniendo contenido para llenarlo.
+/// [cupo] fija a mano el tope por estudio. Sin él se reparte parejo
+/// (`cupoPorEstudio`), que es lo que quiere "Volvé a tus estudios": con un solo
+/// estudio, sus 6. La vidriera del Inicio pasa un cupo fijo porque ahí la
+/// prioridad es OTRA: mostrar lo que viene antes, sin que importe repetir
+/// estudio, y el cupo es sólo una red para que no salgan 6 iguales.
 List<Map<String, dynamic>> repartirEntreEstudios(
   List<Map<String, dynamic>> clases, {
   int max = 6,
+  int? cupo,
 }) {
   if (clases.isEmpty || max <= 0) return const [];
 
@@ -54,7 +60,7 @@ List<Map<String, dynamic>> repartirEntreEstudios(
   }
   if (estudios.isEmpty) return const [];
 
-  final cupo = cupoPorEstudio(estudios.length, max: max);
+  final tope = cupo ?? cupoPorEstudio(estudios.length, max: max);
   final usadas = <int, int>{};
   final elegidas = <Map<String, dynamic>>[];
   final sobrantes = <Map<String, dynamic>>[];
@@ -64,7 +70,7 @@ List<Map<String, dynamic>> repartirEntreEstudios(
     final id = _estudioDe(c);
     if (id == null) continue;
     final ya = usadas[id] ?? 0;
-    if (ya < cupo) {
+    if (ya < tope) {
       elegidas.add(c);
       usadas[id] = ya + 1;
     } else {
@@ -72,6 +78,10 @@ List<Map<String, dynamic>> repartirEntreEstudios(
     }
   }
 
+  // El relleno IGNORA el tope a propósito: llenar la sección pesa más que
+  // repartir. Si un estudio es el único que tiene clases, se muestran las
+  // suyas antes que dejar el carrusel a medias. O sea que el tope ordena la
+  // preferencia, no prohíbe repetir.
   for (final c in sobrantes) {
     if (elegidas.length >= max) break;
     elegidas.add(c);

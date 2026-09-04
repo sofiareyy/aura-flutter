@@ -176,3 +176,11 @@ const double altoCarruselDestacados = 180;
 /// tarjetas. Antes la sección listaba las 50 clases cargadas, que medido con la
 /// tarjeta real daba 21 pantallas de scroll en el celular.
 const int clasesEnLaVidriera = 6;
+
+/// Cuántas clases del MISMO estudio se admiten en la vidriera del Inicio.
+///
+/// No es un criterio de variedad: la vidriera ordena por fecha y repetir
+/// estudio no molesta. Es sólo el piso para que la sección no termine siendo
+/// seis veces el mismo lugar. Con la oferta real de hoy nunca llega a
+/// aplicarse.
+const int topeVidrieraPorEstudio = 3;

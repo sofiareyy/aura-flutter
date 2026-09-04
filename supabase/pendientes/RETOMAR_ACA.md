@@ -1386,11 +1386,9 @@ donde están el buscador, los filtros y la paginación. Explorar **arranca siemp
 en "Todos"** porque la pestaña se reconstruye al entrar: verificado, no hace
 falta pasarle nada.
 
-**El criterio de las 6: el MISMO reparto de "Volvé a tus estudios"**
-(`repartirEntreEstudios`), no una regla nueva. Una por estudio y, si sobra
-lugar, una segunda. Sin eso, un día en que un estudio tenga los primeros
-horarios la vidriera serían 6 clases del mismo lugar. **Con la oferta real de
-hoy da 6 clases de 6 estudios distintos.**
+**El criterio de las 6 (corregido el 4/9, ver abajo).** Primero fue el mismo
+reparto de "Volvé a tus estudios": una por estudio, o sea 6 estudios distintos.
+Sofía corrigió el criterio y ahora es **por fecha**.
 
 ### La repetición: se decidió deduplicar sólo contra una sección
 
@@ -1410,6 +1408,70 @@ límite de 50 corta al cuarto día. Se resuelve solo cuando haya más volumen.
 **"CERCA TUYO" ya estaba en 6** con su "Ver todo": no hizo falta tocarlo.
 
 240 tests (7 nuevos), `analyze` sin issues nuevos, web compila.
+
+## ✅ "MÁS CLASES": futuras de verdad, y por fecha — 4/9 (Dart, va en la 1.0.7)
+
+Sofía aclaró el criterio: lo que importa es que sean clases que **todavía se
+puedan tomar**, y **repetir estudio no molesta**.
+
+### 1. El hueco: la sección podía ofrecer clases ya empezadas
+
+**Confirmado, y no era teórico.** El pozo de clases se filtra por fecha **en la
+consulta**, o sea una sola vez al cargar la pantalla. Después se dibuja tal
+cual. `clasesEstaSemana` sí se refiltraba en cada build; la vidriera **no**.
+
+Medido contra la oferta real: **a las dos horas de tener el Inicio abierto, 6
+de las 50 clases cargadas ya arrancaron** — con una vidriera de 6 tarjetas, eso
+puede ser la sección entera ofreciendo cosas que ya pasaron.
+
+Nuevo `lib/utils/clases_tomables.dart`. Filtra dos cosas, no una:
+
+- **que no haya arrancado**, refiltrado en cada build;
+- **que no haya cerrado la ventana de reserva** (`reserva_cierre_minutos`, en
+  cascada clase → estudio → default). Una clase futura que ya no se puede
+  reservar es un callejón sin salida.
+
+Chequeado en producción antes de aplicarlo, porque el default de la constante
+es 60 minutos y eso podía esconder clases legítimas: **los 12 estudios activos
+tienen la ventana cargada** (11 en 0, sólo Barre Estudio en 60) y **no hay
+ninguna clase futura sin estudio**. O sea que la cascada siempre resuelve con
+dato real y el default no llega a usarse.
+
+### 2. El criterio: por fecha, con tope blando de 3 por estudio
+
+Se midió "las próximas 6 por fecha" puro, simulando cada 6 horas durante 6
+días (25 momentos):
+
+| | Mínimo | Máximo |
+|---|---|---|
+| Estudios distintos entre las 6 | 3 | 6 |
+| Clases del mismo estudio | 1 | 3 |
+
+Nunca degenera en 6 iguales. Y **un tope de 3 no habría cambiado nada en
+ninguno de los 25 momentos**: hoy se comporta exactamente como "por fecha"
+puro. Se dejó igual, como red para el día que un estudio cargue un bloque largo
+de horarios seguidos.
+
+**El tope es blando:** el relleno lo pisa antes que dejar la sección corta. Si
+un solo estudio tiene clases, se muestran las suyas — son la oferta real,
+esconder la mitad no ayuda a nadie.
+
+Lo que cambia con la oferta de hoy:
+
+| | Antes (una por estudio) | Ahora (por fecha) |
+|---|---|---|
+| Primera | 4/9 19:30 Tiwar | 4/9 19:30 Tiwar |
+| Última | **7/9 15:00** Yessi Funes | **5/9 12:00** Citra |
+| Estudios | 6 distintos | 3 (Tiwar 3, Citra 2, Barre 1) |
+
+Antes, la mitad de las tarjetas saltaban al domingo con tal de no repetir
+estudio. Ahora la vidriera muestra lo que se viene **en las próximas 24 horas**.
+
+`repartirEntreEstudios` recibió un parámetro `cupo` opcional: **"Volvé a tus
+estudios" no cambió** (sigue repartiendo parejo, que es lo que esa sección
+necesita); sólo la vidriera pasa el tope fijo.
+
+255 tests (15 nuevos), `analyze` en 97 como la línea de base, web compila.
 
 ## ✅ Diseño visual, ETAPA 2 · sub-parte 1: el INICIO — 4/9
 
