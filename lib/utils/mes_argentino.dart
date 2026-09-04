@@ -36,3 +36,15 @@ DateTime primerDiaDe(String mes) {
     finExclusivoUtc: DateTime.utc(y, m + 1, 1).add(_offsetArgentina),
   );
 }
+
+/// El DÍA calendario argentino de un instante, como 'YYYY-MM-DD'.
+///
+/// Se usa como semilla de lo que tiene que rotar una vez por día y quedarse
+/// quieto dentro del día (los destacados de Explorar). Mismo offset fijo que
+/// el resto del archivo.
+String diaArgentinoDe(DateTime instante) {
+  final art = instante.toUtc().subtract(_offsetArgentina);
+  final m = art.month.toString().padLeft(2, '0');
+  final d = art.day.toString().padLeft(2, '0');
+  return '${art.year}-$m-$d';
+}

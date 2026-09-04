@@ -1,4 +1,6 @@
+import 'dart:math' as math;
 import '../models/estudio.dart';
+import 'mes_argentino.dart';
 
 // Filtros de Explorar a nivel PLAN (clase o experiencia), no estudio.
 //
@@ -104,24 +106,86 @@ List<Map<String, dynamic>> experienciasDestacadas(
 }) =>
     feed.where((p) => p['tipo']?.toString() == 'workshop').take(max).toList();
 
-/// Los estudios que van arriba de todo en Explorar.
+/// Los estudios de "DESTACADOS HOY", arriba de Explorar.
 ///
-/// Antes eran `_estudiosFiltrados.take(2)`: los DOS PRIMEROS EN ORDEN
-/// ALFABÉTICO, siempre los mismos (Ambra y Barre Estudio), bajo un título que
-/// prometía curaduría — "DESTACADOS HOY" (auditoría del 4/9).
+/// Historia corta (auditoría del 4/9): eran `_estudiosFiltrados.take(2)`, o
+/// sea los DOS PRIMEROS EN ORDEN ALFABÉTICO, siempre los mismos. Después
+/// pasaron a ordenarse por cantidad de clases, que era honesto pero también
+/// fijo: Tiwar y Citra todos los días.
 ///
-/// El criterio ahora es real y verificable: **cuántas clases próximas tiene
-/// cada estudio en el feed que ya está cargado**. Es lo que le sirve a alguien
-/// que está buscando dónde reservar, no cambia solo entre recargas, y no puede
-/// prometer algo que la pantalla no tenga.
+/// Ahora se combinan las dos cosas que pidió Sofía:
+///  · **sólo estudios con clases próximas** — no se destaca una vidriera vacía;
+///  · **más chances al que tiene más oferta**, pero sin que gane siempre;
+///  · **rotación por día**: cambia cada día y no se mueve dentro del mismo día.
 ///
-/// Empate: por nombre, para que el orden sea estable y no baile.
-/// [asociadoId] (el estudio del que sos alumna) queda primero si está.
-List<Estudio> estudiosDestacados({
+/// Cómo: sorteo PONDERADO y determinístico (Efraimidis–Spirakis). A cada
+/// estudio se le calcula `clave = u^(1/peso)`, con `u` entre 0 y 1 derivado del
+/// día argentino y del id; se ordena por la clave y se toman los primeros. Como
+/// `u` sale de un hash y no de un `Random()`, dos aperturas del mismo día dan
+/// lo MISMO, y al día siguiente cambia solo: sin cron y sin guardar nada.
+///
+/// ⚠️ **El peso es un bonus CHICO, y eso es a propósito.** `u^(1/peso)` empuja
+/// todo hacia 1 muy rápido: cualquier ventaja apreciable en el exponente vuelve
+/// el sorteo determinista y la rotación queda de adorno. Medido con el reparto
+/// real (Tiwar 312 clases … Barre 51), sobre 28 días y 4 lugares:
+///
+/// | peso | Tiwar | Citra | Yessi | Yoguica | Ambra | Barre |
+/// |---|---|---|---|---|---|---|
+/// | `clases` (crudo) | 28 | 28 | 28 | 27 | 1 | **0** |
+/// | `log(1+clases)` | 27 | 27 | 28 | 25 | 4 | **1** |
+/// | `1 + 0.15·proporción` | 27 | 26 | 20 | 19 | 10 | **10** |
+///
+/// Con el peso crudo los dos estudios más chicos NO SALÍAN NUNCA, que es lo
+/// contrario de rotar. Con el bonus del 15% el que tiene más oferta sigue
+/// apareciendo casi siempre y los chicos entran ~1 de cada 3 días.
+///
+/// [asociadoId] (el estudio del que sos alumna) va primero y ocupa un lugar.
+List<Estudio> destacadosDelDia({
   required List<Estudio> estudios,
   required List<Map<String, dynamic>> clases,
+  required DateTime hoy,
+  int max = 4,
   int? asociadoId,
 }) {
+  final cuenta = clasesPorEstudio(clases);
+  final dia = diaArgentinoDe(hoy);
+  final tope = cuenta.values.fold<int>(0, (a, b) => b > a ? b : a);
+
+  final elegidos = <Estudio>[];
+  final usados = <int>{};
+
+  // Tu propio estudio primero, tenga o no clases: es tuyo.
+  if (asociadoId != null) {
+    for (final e in estudios) {
+      if (e.id == asociadoId) {
+        elegidos.add(e);
+        usados.add(asociadoId);
+        break;
+      }
+    }
+  }
+
+  final candidatos = estudios
+      .where((e) => e.id != null && !usados.contains(e.id) && (cuenta[e.id] ?? 0) > 0)
+      .toList();
+
+  candidatos.sort((a, b) {
+    final ka = _claveDelDia(dia, a.id!, cuenta[a.id] ?? 0, tope);
+    final kb = _claveDelDia(dia, b.id!, cuenta[b.id] ?? 0, tope);
+    if (ka != kb) return kb.compareTo(ka);
+    // Desempate estable, para que el orden nunca dependa del azar del sort.
+    return a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase());
+  });
+
+  for (final e in candidatos) {
+    if (elegidos.length >= max) break;
+    elegidos.add(e);
+  }
+  return elegidos;
+}
+
+/// Cuántas clases próximas tiene cada estudio en el feed ya cargado.
+Map<int, int> clasesPorEstudio(List<Map<String, dynamic>> clases) {
   final cuenta = <int, int>{};
   for (final clase in clases) {
     final estudio = clase['estudios'];
@@ -129,17 +193,30 @@ List<Estudio> estudiosDestacados({
     if (id == null) continue;
     cuenta[id] = (cuenta[id] ?? 0) + 1;
   }
+  return cuenta;
+}
 
-  final orden = [...estudios];
-  orden.sort((a, b) {
-    if (asociadoId != null) {
-      if (a.id == asociadoId) return -1;
-      if (b.id == asociadoId) return 1;
-    }
-    final ca = cuenta[a.id] ?? 0;
-    final cb = cuenta[b.id] ?? 0;
-    if (ca != cb) return cb.compareTo(ca);
-    return a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase());
-  });
-  return orden;
+/// Cuánto pesa la oferta en el sorteo: un 15% de ventaja como máximo, para el
+/// que tiene tantas clases como el que más. Ver la tabla de [destacadosDelDia].
+const double _bonusPorOferta = 0.15;
+
+/// `u^(1/peso)`: la clave del sorteo ponderado. Más peso ⇒ más cerca de 1.
+double _claveDelDia(String dia, int estudioId, int clases, int tope) {
+  final u = _uniforme('$dia|$estudioId');
+  final proporcion = tope > 0 ? (clases / tope).clamp(0.0, 1.0) : 0.0;
+  final peso = 1 + _bonusPorOferta * proporcion;
+  return math.pow(u, 1 / peso).toDouble();
+}
+
+/// Un número estable en (0, 1) a partir de un texto. FNV-1a de 32 bits: no es
+/// criptográfico y no hace falta que lo sea — sólo tiene que dar SIEMPRE lo
+/// mismo para el mismo texto, en cualquier dispositivo.
+double _uniforme(String semilla) {
+  var h = 0x811c9dc5;
+  for (final unidad in semilla.codeUnits) {
+    h ^= unidad;
+    h = (h * 0x01000193) & 0xFFFFFFFF;
+  }
+  // +1 y /2^32+1 para que nunca dé exactamente 0 ni 1.
+  return (h + 1) / 4294967297.0;
 }

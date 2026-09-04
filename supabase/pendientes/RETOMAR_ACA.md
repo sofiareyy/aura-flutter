@@ -1137,6 +1137,46 @@ No son tareas técnicas. Están acá para que no se pierdan.
 | ✅ | **Mail de confirmación de reserva — DECIDIDO Y ACTIVO desde el 29/8** | Cableado por base (trigger al confirmarse), texto aprobado ("fitness y experiencias", línea del código). Le llega a todas las alumnas ya. |
 | ⬜ | **Categorías faltantes** | Avisarle a Yessi (112 clases) y Ambra (77) que las completen. O que el form las exija (Dart). |
 
+## ✅ DESTACADOS HOY: rota por día — 4/9 (Dart, va en la 1.0.7)
+
+Ajuste pedido por Sofía sobre el punto 4 de arriba. Vuelve el nombre lindo, y
+ahora es cierto: **son de hoy y están destacados con criterio**.
+
+- **"DESTACADOS HOY"** otra vez (era "LOS QUE MÁS CLASES TIENEN", correcto pero
+  técnico).
+- **4 estudios en vez de 2**: con dos se veía pobre. Es un carrusel horizontal
+  de tarjetas de 166 px, así que entran de sobra.
+- **Sólo estudios con clases próximas**: no se destaca una vidriera vacía. Si
+  ninguno tiene, la tira se oculta entera.
+- **Rotan por día**: sorteo ponderado determinístico
+  (`destacadosDelDia`, `utils/explorar_filtros.dart`). La semilla es el **día
+  argentino** + el id del estudio, así que **no cambia dentro del mismo día** y
+  al siguiente cambia solo, sin cron y sin guardar nada.
+
+### ⚠️ El peso tuvo que ser CHICO, y costó dos intentos
+
+`u^(1/peso)` empuja todo hacia 1 muy rápido: cualquier ventaja apreciable en el
+exponente vuelve el sorteo determinista y la rotación queda de adorno. Medido
+con el reparto real (Tiwar 312 clases … Barre 51), 28 días y 4 lugares:
+
+| peso | Tiwar | Citra | Yessi | Yoguica | Ambra | Barre |
+|---|---|---|---|---|---|---|
+| `clases` (crudo) | 28 | 28 | 28 | 27 | 1 | **0** |
+| `log(1+clases)` | 27 | 27 | 28 | 25 | 4 | **1** |
+| **`1 + 0,15·proporción`** | 27 | 26 | 20 | 19 | 10 | **10** |
+
+Con el peso crudo los dos estudios más chicos **no salían NUNCA**. Con el bonus
+del 15% el grande sigue apareciendo casi siempre y los chicos entran una de cada
+tres días. Sobre 14 días reales: Tiwar 14, Citra 13, Yoguica 10, Yessi 9, Ambra
+5, Barre 5.
+
+**De paso se desacopló un enganche**: el cartel "No encontramos resultados"
+dependía de que la tira de destacados estuviera vacía. Ahora depende de los
+estudios filtrados, como antes, y la tira se oculta sola por separado.
+
+`diaArgentinoDe` se sumó a `utils/mes_argentino.dart`, que es donde vive la
+regla del huso. 194 tests (8 nuevos), `analyze` sin issues nuevos, web compila.
+
 ## ✅ Las 4 inconsistencias del Inicio y Explorar — 4/9 (Dart, va en la 1.0.7)
 
 Grupo A de la auditoría, la parte que no pedía decisiones de diseño.

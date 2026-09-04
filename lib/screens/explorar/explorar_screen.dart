@@ -574,14 +574,17 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Ordenados por cuántas clases próximas tiene cada uno, no alfabético.
-    final porOferta = estudiosDestacados(
-      estudios: _estudiosFiltrados,
-      clases: _clasesConEstudio,
-      asociadoId: _estudioAsociadoId,
-    );
-    final destacados =
-        _showAllDestacados ? porOferta : porOferta.take(2).toList();
+    // Colapsado: 4 estudios CON clases, sorteados por día con más chances
+    // para el que tiene más oferta (ver destacadosDelDia). Expandido: todos
+    // los del filtro, como siempre.
+    final destacados = _showAllDestacados
+        ? _estudiosFiltrados
+        : destacadosDelDia(
+            estudios: _estudiosFiltrados,
+            clases: _clasesConEstudio,
+            hoy: DateTime.now(),
+            asociadoId: _estudioAsociadoId,
+          );
     final lista = _clasesConEstudio;
 
     return Scaffold(
@@ -803,9 +806,10 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        // Se llamaba 'DESTACADOS HOY' y eran los dos primeros
-                        // en orden alfabético: ni destacados ni de hoy.
-                        'LOS QUE MÁS CLASES TIENEN',
+                        // Ahora el nombre es cierto: son de HOY (rotan por día)
+                        // y están destacados con un criterio (más oferta, más
+                        // chances). Antes eran los dos primeros del abecedario.
+                        'DESTACADOS HOY',
                         style: TextStyle(
                           color: Color(0xFF403A35),
                           fontSize: 13,
@@ -837,7 +841,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                         ),
                       ),
                     )
-                  else if (destacados.isEmpty)
+                  else if (_estudiosFiltrados.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 32),
                       child: Column(
@@ -879,7 +883,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                       ),
                     )
                   else ...[
-                    SizedBox(
+                    // La tira se oculta si ningún estudio del filtro tiene
+                    // clases próximas: mejor sin tira que destacando vacíos.
+                    if (destacados.isNotEmpty) SizedBox(
                       height: 180,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,

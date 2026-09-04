@@ -195,74 +195,145 @@ void main() {
     });
   });
 
-  // ── Los estudios de arriba de Explorar (4/9/2026) ──────────────────────
+  // ── DESTACADOS HOY (4/9/2026) ─────────────────────────────────────────
   //
-  // Eran `take(2)` sobre una lista alfabética bajo el título "DESTACADOS HOY":
-  // siempre los mismos dos, sin ningún criterio.
-  group('estudiosDestacados', () {
+  // Eran take(2) alfabético: siempre Ambra y Barre. Ahora: sólo estudios con
+  // clases, hasta 4, sorteados por DÍA con más chances para el que tiene más
+  // oferta.
+  group('destacadosDelDia', () {
     Estudio e(int id, String nombre) =>
         Estudio.fromMap({'id': id, 'nombre': nombre, 'categorias': <String>[]});
     Map<String, dynamic> claseDe(int estudioId) => {
           'id': estudioId * 100,
           'estudios': {'id': estudioId, 'nombre': 'x'},
         };
+    List<Map<String, dynamic>> nClases(int estudioId, int n) =>
+        List.generate(n, (_) => claseDe(estudioId));
 
-    final estudios = [e(1, 'Ambra'), e(2, 'Barre'), e(3, 'Citra'), e(4, 'Tiwar')];
+    final estudios = [
+      e(1, 'Ambra'), e(2, 'Barre'), e(3, 'Citra'), e(4, 'Tiwar'),
+      e(5, 'Yessi'), e(6, 'Yoguica'), e(7, 'Sculpt'),
+    ];
+    // Reparto parecido al real: Tiwar y Citra mandan, Ambra tiene poco.
+    final clases = [
+      ...nClases(4, 312), ...nClases(3, 194), ...nClases(5, 176),
+      ...nClases(6, 125), ...nClases(1, 66), ...nClases(2, 51),
+      // Sculpt (7) sin clases: no puede salir destacado.
+    ];
+    final unDia = DateTime.utc(2026, 9, 4, 15);
 
-    test('manda la cantidad de clases, no el abecedario', () {
-      final orden = estudiosDestacados(
-        estudios: estudios,
-        clases: [
-          claseDe(4), claseDe(4), claseDe(4),
-          claseDe(3), claseDe(3),
-          claseDe(1),
-        ],
+    test('muestra 4, no 2', () {
+      expect(
+        destacadosDelDia(estudios: estudios, clases: clases, hoy: unDia).length,
+        4,
       );
-      expect(orden.map((x) => x.nombre).toList(),
-          ['Tiwar', 'Citra', 'Ambra', 'Barre']);
     });
 
-    test('los dos de arriba dejan de ser siempre los mismos', () {
-      final orden = estudiosDestacados(
-        estudios: estudios,
-        clases: [claseDe(4), claseDe(3)],
-      );
-      // Antes: Ambra y Barre, por alfabético. Ahora los que tienen clases.
-      expect(orden.take(2).map((x) => x.nombre).toList(), ['Citra', 'Tiwar']);
+    test('NUNCA destaca un estudio sin clases', () {
+      for (var d = 0; d < 60; d++) {
+        final sel = destacadosDelDia(
+          estudios: estudios,
+          clases: clases,
+          hoy: DateTime.utc(2026, 9, 4, 15).add(Duration(days: d)),
+        );
+        expect(sel.map((x) => x.nombre), isNot(contains('Sculpt')),
+            reason: 'día +$d');
+      }
     });
 
-    test('empate: por nombre, para que el orden no baile', () {
-      final orden = estudiosDestacados(
-        estudios: estudios,
-        clases: [claseDe(3), claseDe(4)],
-      );
-      expect(orden.map((x) => x.nombre).toList(),
-          ['Citra', 'Tiwar', 'Ambra', 'Barre']);
+    test('ESTABLE dentro del mismo día: no cambia entre aperturas', () {
+      final manana = destacadosDelDia(
+          estudios: estudios, clases: clases, hoy: DateTime.utc(2026, 9, 4, 11));
+      final tarde = destacadosDelDia(
+          estudios: estudios, clases: clases, hoy: DateTime.utc(2026, 9, 4, 22));
+      expect(tarde.map((x) => x.nombre).toList(),
+          manana.map((x) => x.nombre).toList());
     });
 
-    test('sin clases cargadas no rompe: queda alfabético', () {
-      final orden = estudiosDestacados(estudios: estudios, clases: const []);
-      expect(orden.map((x) => x.nombre).toList(),
-          ['Ambra', 'Barre', 'Citra', 'Tiwar']);
+    test('el corte es el día ARGENTINO, no el UTC', () {
+      // 4/9 23:00 ART = 5/9 02:00 UTC: sigue siendo el 4 para nosotras.
+      final antes = destacadosDelDia(
+          estudios: estudios, clases: clases, hoy: DateTime.utc(2026, 9, 5, 2));
+      final mismoDia = destacadosDelDia(
+          estudios: estudios, clases: clases, hoy: DateTime.utc(2026, 9, 4, 15));
+      expect(antes.map((x) => x.nombre).toList(),
+          mismoDia.map((x) => x.nombre).toList());
     });
 
-    test('tu propio estudio sigue primero, tenga las clases que tenga', () {
-      final orden = estudiosDestacados(
-        estudios: estudios,
-        clases: [claseDe(4), claseDe(4), claseDe(4)],
-        asociadoId: 2,
+    test('ROTA: no son los mismos todos los días', () {
+      final vistos = <String>{};
+      for (var d = 0; d < 30; d++) {
+        final sel = destacadosDelDia(
+          estudios: estudios,
+          clases: clases,
+          hoy: DateTime.utc(2026, 9, 4, 15).add(Duration(days: d)),
+        );
+        vistos.add(sel.map((x) => x.nombre).join(','));
+      }
+      // En 30 días tiene que haber varias combinaciones distintas.
+      expect(vistos.length, greaterThan(5),
+          reason: 'sólo salieron ${vistos.length} combinaciones en 30 días');
+    });
+
+    test('TODOS los que tienen clases salen alguna vez en 60 días', () {
+      final salieron = <String>{};
+      for (var d = 0; d < 60; d++) {
+        destacadosDelDia(
+          estudios: estudios,
+          clases: clases,
+          hoy: DateTime.utc(2026, 9, 4, 15).add(Duration(days: d)),
+        ).forEach((x) => salieron.add(x.nombre));
+      }
+      expect(salieron, containsAll(
+          ['Tiwar', 'Citra', 'Yessi', 'Yoguica', 'Ambra', 'Barre']));
+    });
+
+    test('el que tiene MÁS oferta sale MÁS seguido', () {
+      var tiwar = 0, barre = 0;
+      for (var d = 0; d < 120; d++) {
+        final sel = destacadosDelDia(
+          estudios: estudios,
+          clases: clases,
+          hoy: DateTime.utc(2026, 9, 4, 15).add(Duration(days: d)),
+        ).map((x) => x.nombre);
+        if (sel.contains('Tiwar')) tiwar++;
+        if (sel.contains('Barre')) barre++;
+      }
+      expect(tiwar, greaterThan(barre),
+          reason: 'Tiwar (312 clases) $tiwar vs Barre (51) $barre');
+    });
+
+    test('tu propio estudio va primero, aunque no tenga clases', () {
+      final sel = destacadosDelDia(
+        estudios: estudios, clases: clases, hoy: unDia, asociadoId: 7,
       );
-      expect(orden.first.nombre, 'Barre');
-      expect(orden[1].nombre, 'Tiwar');
+      expect(sel.first.nombre, 'Sculpt');
+      expect(sel.length, 4);
+    });
+
+    test('si hay menos estudios con clases que el máximo, muestra los que hay',
+        () {
+      final sel = destacadosDelDia(
+        estudios: estudios,
+        clases: [...nClases(3, 5), ...nClases(4, 2)],
+        hoy: unDia,
+      );
+      expect(sel.length, 2);
+      expect(sel.map((x) => x.nombre), containsAll(['Citra', 'Tiwar']));
+    });
+
+    test('sin clases cargadas no destaca a nadie', () {
+      expect(destacadosDelDia(estudios: estudios, clases: const [], hoy: unDia),
+          isEmpty);
     });
 
     test('no rompe con clases sin estudio', () {
-      final orden = estudiosDestacados(estudios: estudios, clases: [
+      final sel = destacadosDelDia(estudios: estudios, hoy: unDia, clases: [
         {'id': 1},
         {'id': 2, 'estudios': null},
         claseDe(3),
       ]);
-      expect(orden.first.nombre, 'Citra');
+      expect(sel.single.nombre, 'Citra');
     });
   });
 }
