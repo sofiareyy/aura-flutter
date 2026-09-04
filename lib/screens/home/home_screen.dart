@@ -16,6 +16,7 @@ import '../../services/location_service.dart';
 import '../../services/notificaciones_service.dart';
 import '../../services/reservas_service.dart';
 import '../../services/studio_geo_service.dart';
+import '../../utils/categorias_con_oferta.dart';
 import '../../utils/grilla_responsive.dart';
 import '../../widgets/foto_red.dart';
 import '../../widgets/organizadores_links.dart';
@@ -212,10 +213,17 @@ class _HomeScreenState extends State<HomeScreen> {
           _proximasClases = clases;
           _experiencias = experiencias;
           _estudios = estudios;
-          _categorias = categorias;
-          if (!_categorias.contains(_categoriaSeleccionada)) {
-            _categoriaSeleccionada = 'Todos';
-          }
+          // Los chips salen de las clases que se acaban de cargar, no del
+          // catálogo: así ninguno lleva a una pantalla vacía. Antes se
+          // mostraban las 13 categorías y seis no tenían ni una clase —
+          // incluida "GRATIS", que está desactivada en la base y se colaba
+          // porque la consulta del catálogo no mira `activa` (4/9/2026).
+          _categorias = categoriasConOferta(
+            catalogo: categorias,
+            clases: clases,
+          );
+          _categoriaSeleccionada =
+              categoriaValida(_categoriaSeleccionada, _categorias);
         });
       }
       _cargarSugerencias().ignore();
@@ -899,7 +907,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'TODAS LAS EXPERIENCIAS',
+                                  // Se llamaba 'TODAS LAS EXPERIENCIAS' y
+                                  // listaba `clasesFiltradas`, o sea TODAS las
+                                  // clases: quien bajaba buscando experiencias
+                                  // encontraba funcional (4/9/2026). Las
+                                  // experiencias de verdad tienen su propia
+                                  // sección arriba, que se oculta si no hay.
+                                  // No dice "esta semana" porque la ventana es
+                                  // de 30 días: eso es la sección de arriba.
+                                  'TODAS LAS CLASES',
                                   style: Theme.of(context).textTheme.titleMedium
                                       ?.copyWith(
                                         letterSpacing: 0.8,

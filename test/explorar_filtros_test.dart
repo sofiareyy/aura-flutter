@@ -5,6 +5,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:aura_app/models/estudio.dart';
 import 'package:aura_app/utils/explorar_filtros.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -191,6 +192,77 @@ void main() {
       expect(planVisible(conEtiquetas, categoria: 'Spa'), isFalse);
       // Sin etiquetas: fallback a categorías.
       expect(planVisible(experiencia, categoria: 'Ceramica'), isTrue);
+    });
+  });
+
+  // ── Los estudios de arriba de Explorar (4/9/2026) ──────────────────────
+  //
+  // Eran `take(2)` sobre una lista alfabética bajo el título "DESTACADOS HOY":
+  // siempre los mismos dos, sin ningún criterio.
+  group('estudiosDestacados', () {
+    Estudio e(int id, String nombre) =>
+        Estudio.fromMap({'id': id, 'nombre': nombre, 'categorias': <String>[]});
+    Map<String, dynamic> claseDe(int estudioId) => {
+          'id': estudioId * 100,
+          'estudios': {'id': estudioId, 'nombre': 'x'},
+        };
+
+    final estudios = [e(1, 'Ambra'), e(2, 'Barre'), e(3, 'Citra'), e(4, 'Tiwar')];
+
+    test('manda la cantidad de clases, no el abecedario', () {
+      final orden = estudiosDestacados(
+        estudios: estudios,
+        clases: [
+          claseDe(4), claseDe(4), claseDe(4),
+          claseDe(3), claseDe(3),
+          claseDe(1),
+        ],
+      );
+      expect(orden.map((x) => x.nombre).toList(),
+          ['Tiwar', 'Citra', 'Ambra', 'Barre']);
+    });
+
+    test('los dos de arriba dejan de ser siempre los mismos', () {
+      final orden = estudiosDestacados(
+        estudios: estudios,
+        clases: [claseDe(4), claseDe(3)],
+      );
+      // Antes: Ambra y Barre, por alfabético. Ahora los que tienen clases.
+      expect(orden.take(2).map((x) => x.nombre).toList(), ['Citra', 'Tiwar']);
+    });
+
+    test('empate: por nombre, para que el orden no baile', () {
+      final orden = estudiosDestacados(
+        estudios: estudios,
+        clases: [claseDe(3), claseDe(4)],
+      );
+      expect(orden.map((x) => x.nombre).toList(),
+          ['Citra', 'Tiwar', 'Ambra', 'Barre']);
+    });
+
+    test('sin clases cargadas no rompe: queda alfabético', () {
+      final orden = estudiosDestacados(estudios: estudios, clases: const []);
+      expect(orden.map((x) => x.nombre).toList(),
+          ['Ambra', 'Barre', 'Citra', 'Tiwar']);
+    });
+
+    test('tu propio estudio sigue primero, tenga las clases que tenga', () {
+      final orden = estudiosDestacados(
+        estudios: estudios,
+        clases: [claseDe(4), claseDe(4), claseDe(4)],
+        asociadoId: 2,
+      );
+      expect(orden.first.nombre, 'Barre');
+      expect(orden[1].nombre, 'Tiwar');
+    });
+
+    test('no rompe con clases sin estudio', () {
+      final orden = estudiosDestacados(estudios: estudios, clases: [
+        {'id': 1},
+        {'id': 2, 'estudios': null},
+        claseDe(3),
+      ]);
+      expect(orden.first.nombre, 'Citra');
     });
   });
 }

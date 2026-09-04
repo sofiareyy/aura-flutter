@@ -1137,6 +1137,49 @@ No son tareas técnicas. Están acá para que no se pierdan.
 | ✅ | **Mail de confirmación de reserva — DECIDIDO Y ACTIVO desde el 29/8** | Cableado por base (trigger al confirmarse), texto aprobado ("fitness y experiencias", línea del código). Le llega a todas las alumnas ya. |
 | ⬜ | **Categorías faltantes** | Avisarle a Yessi (112 clases) y Ambra (77) que las completen. O que el form las exija (Dart). |
 
+## ✅ Las 4 inconsistencias del Inicio y Explorar — 4/9 (Dart, va en la 1.0.7)
+
+Grupo A de la auditoría, la parte que no pedía decisiones de diseño.
+
+**1 · Un estudio APAGADO aparecía en el catálogo.** Sofía lo reportó y mi
+primer chequeo dijo que no pasaba: lo había medido **sólo como anónima**. La
+policy de `estudios` es `activo OR es_miembro_de_estudio(id)` —esa excepción
+existe para que un estudio lea SU ficha apagada, que es lo que necesita el
+cartel "Tu estudio está oculto"— y `getEstudios()` **no filtraba `activo`**, así
+que se apoyaba en la RLS. Medido con cuentas reales: `aura.hola.app`, miembro
+de Hot Clic, lo veía en Inicio, Explorar y el mapa mezclado con los reales.
+Ahora el catálogo filtra a mano; `getEstudio(id)`, que alimenta la ficha, **no**
+filtra a propósito. Verificado: esa misma cuenta ve 12 activos y 0 inactivos, y
+sigue leyendo la ficha de Hot Clic.
+
+**2 · "TODAS LAS EXPERIENCIAS" listaba clases.** Esa sección muestra
+`clasesFiltradas` —todas las clases— y las experiencias de verdad tienen su
+propia sección arriba, que se oculta cuando no hay. Pasó a **"TODAS LAS
+CLASES"**. No dice "esta semana" porque su ventana es de 30 días: eso es la
+sección de arriba.
+
+**3 · Seis chips de trece llevaban a una pantalla vacía.** Salían del catálogo
+completo (Cerámica, Danza, Recovery, Running club, Spa y **GRATIS**, que está
+`activa=false` en la base y se colaba porque la consulta no la mira). Ahora
+salen de **las clases que el Inicio ya tiene cargadas**
+(`utils/categorias_con_oferta.dart`), así que la promesa del chip y lo que se ve
+al tocarlo no se pueden separar. Si la categoría elegida se queda sin clases,
+vuelve sola a "Todos". Medido antes de elegir la regla: las primeras 50 clases
+que carga el Inicio **ya cubren las 7 categorías** con oferta a 30 días, así que
+el límite no esconde ninguna.
+
+**4 · "DESTACADOS HOY" no era ninguna de las dos cosas.** Era
+`_estudiosFiltrados.take(2)`: los dos primeros en orden **alfabético**, siempre
+Ambra y Barre Estudio. Ahora se ordenan por **cuántas clases próximas tiene cada
+estudio** en el feed cargado (empate por nombre, para que el orden no baile) y
+el título dice lo que hace: **"LOS QUE MÁS CLASES TIENEN"**. El estudio propio
+sigue primero si sos alumna de uno. Se evaluó sacarlo: se dejó porque con el
+criterio nuevo sí ayuda a decidir dónde reservar.
+
+**Verificado:** 189 tests (13 nuevos), `analyze` sin issues nuevos (97, los
+mismos de siempre) y la web compila. Los dos criterios nuevos viven en
+funciones puras con test propio.
+
 ## ✅ El paywall de créditos, arreglado — 4/9 (Dart, va en la 1.0.7)
 
 Punto 9 de la auditoría, más el punto 4.5 que entró en la misma tanda. Los tres

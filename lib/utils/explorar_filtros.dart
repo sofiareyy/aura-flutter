@@ -1,3 +1,5 @@
+import '../models/estudio.dart';
+
 // Filtros de Explorar a nivel PLAN (clase o experiencia), no estudio.
 //
 // Etapa E3 del rediseño (1/9/2026): el chip de categoría y la búsqueda de
@@ -101,3 +103,43 @@ List<Map<String, dynamic>> experienciasDestacadas(
   int max = 3,
 }) =>
     feed.where((p) => p['tipo']?.toString() == 'workshop').take(max).toList();
+
+/// Los estudios que van arriba de todo en Explorar.
+///
+/// Antes eran `_estudiosFiltrados.take(2)`: los DOS PRIMEROS EN ORDEN
+/// ALFABÉTICO, siempre los mismos (Ambra y Barre Estudio), bajo un título que
+/// prometía curaduría — "DESTACADOS HOY" (auditoría del 4/9).
+///
+/// El criterio ahora es real y verificable: **cuántas clases próximas tiene
+/// cada estudio en el feed que ya está cargado**. Es lo que le sirve a alguien
+/// que está buscando dónde reservar, no cambia solo entre recargas, y no puede
+/// prometer algo que la pantalla no tenga.
+///
+/// Empate: por nombre, para que el orden sea estable y no baile.
+/// [asociadoId] (el estudio del que sos alumna) queda primero si está.
+List<Estudio> estudiosDestacados({
+  required List<Estudio> estudios,
+  required List<Map<String, dynamic>> clases,
+  int? asociadoId,
+}) {
+  final cuenta = <int, int>{};
+  for (final clase in clases) {
+    final estudio = clase['estudios'];
+    final id = estudio is Map ? (estudio['id'] as num?)?.toInt() : null;
+    if (id == null) continue;
+    cuenta[id] = (cuenta[id] ?? 0) + 1;
+  }
+
+  final orden = [...estudios];
+  orden.sort((a, b) {
+    if (asociadoId != null) {
+      if (a.id == asociadoId) return -1;
+      if (b.id == asociadoId) return 1;
+    }
+    final ca = cuenta[a.id] ?? 0;
+    final cb = cuenta[b.id] ?? 0;
+    if (ca != cb) return cb.compareTo(ca);
+    return a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase());
+  });
+  return orden;
+}

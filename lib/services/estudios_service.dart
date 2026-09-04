@@ -41,9 +41,22 @@ class EstudiosService {
     }
   }
 
+  /// El CATÁLOGO de estudios: alimenta Inicio, Explorar y el mapa.
+  ///
+  /// Filtra `activo` a mano y no se apoya en la RLS. La policy de `estudios`
+  /// es `activo OR es_miembro_de_estudio(id)`: esa excepción existe para que
+  /// un estudio pueda leer SU propia ficha aunque esté apagada (es lo que
+  /// necesita el cartel "Tu estudio está oculto"), pero acá no corresponde.
+  /// Sin este filtro, quien fuera miembro de un estudio apagado lo veía en la
+  /// vidriera como uno más — medido el 4/9: la cuenta de Aura veía Hot Clic,
+  /// que está inactivo, mezclado con los reales.
+  ///
+  /// `getEstudio(id)` NO filtra, a propósito: es la que usa la ficha.
   Future<List<Estudio>> getEstudios({String? categoria}) async {
-    var query =
-        _supabase.from(AppConstants.tableEstudios).select();
+    var query = _supabase
+        .from(AppConstants.tableEstudios)
+        .select()
+        .eq('activo', true);
 
     if (categoria != null && categoria != 'Todos') {
       // `contains` sobre text[] = el estudio aparece si CUALQUIERA de sus
@@ -61,6 +74,7 @@ class EstudiosService {
     final data = await _supabase
         .from(AppConstants.tableEstudios)
         .select()
+        .eq('activo', true)
         .or('nombre.ilike.%$query%,barrio.ilike.%$query%')
         .order('nombre');
     final porNombre = (data as List).map((e) => Estudio.fromMap(e)).toList();
@@ -68,6 +82,7 @@ class EstudiosService {
     final todos = await _supabase
         .from(AppConstants.tableEstudios)
         .select()
+        .eq('activo', true)
         .order('nombre');
     final q = query.trim().toLowerCase();
     final porCategoria = (todos as List)

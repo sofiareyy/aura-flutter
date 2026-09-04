@@ -574,9 +574,14 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final destacados = _showAllDestacados
-        ? _estudiosFiltrados
-        : _estudiosFiltrados.take(2).toList();
+    // Ordenados por cuántas clases próximas tiene cada uno, no alfabético.
+    final porOferta = estudiosDestacados(
+      estudios: _estudiosFiltrados,
+      clases: _clasesConEstudio,
+      asociadoId: _estudioAsociadoId,
+    );
+    final destacados =
+        _showAllDestacados ? porOferta : porOferta.take(2).toList();
     final lista = _clasesConEstudio;
 
     return Scaffold(
@@ -798,7 +803,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'DESTACADOS HOY',
+                        // Se llamaba 'DESTACADOS HOY' y eran los dos primeros
+                        // en orden alfabético: ni destacados ni de hoy.
+                        'LOS QUE MÁS CLASES TIENEN',
                         style: TextStyle(
                           color: Color(0xFF403A35),
                           fontSize: 13,
