@@ -7,7 +7,17 @@ import '../../services/pricing_service.dart';
 class ComprarCreditosScreen extends StatefulWidget {
   /// Pestaña inicial: 0 = Packs, 1 = Suscripciones, 2 = Regalar.
   final int initialTab;
-  const ComprarCreditosScreen({super.key, this.initialTab = 0});
+
+  /// A dónde volver después de pagar, si vino de un lugar concreto (hoy: el
+  /// paywall de una clase). Viaja en el `extra` del checkout. Null = compra
+  /// suelta desde Perfil o Inicio, y ahí el final sigue siendo /home.
+  final String? volver;
+
+  const ComprarCreditosScreen({
+    super.key,
+    this.initialTab = 0,
+    this.volver,
+  });
 
   @override
   State<ComprarCreditosScreen> createState() => _ComprarCreditosScreenState();
@@ -83,6 +93,7 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
       final creditos = (pack['creditos'] as num).toInt();
       context.push('/checkout', extra: {
         'type': 'pack',
+        'volver': widget.volver,
         'nombre': pack['nombre'],
         'creditos': creditos,
         'precio': (pack['precio'] as num).toInt(),
@@ -95,6 +106,7 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
       final plan = _planes[_selectedPlan!];
       context.push('/checkout', extra: {
         'type': 'plan',
+        'volver': widget.volver,
         'nombre': plan['nombre'],
         'creditos': (plan['creditos'] as num).toInt(),
         'precio': (plan['precio'] as num).toInt(),
@@ -230,6 +242,7 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
     final creditos = (pack['creditos'] as num).toInt();
     context.push('/checkout', extra: {
       'type': 'gift',
+        'volver': widget.volver,
       'nombre': pack['nombre'],
       'creditos': creditos,
       'precio': (pack['precio'] as num).toInt(),

@@ -11,6 +11,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/referidos_service.dart';
+import '../../utils/destino_post_login.dart';
 import '../../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -46,9 +47,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  /// La clase (u otra ruta) desde la que la invitada llegó al registro, puesta
+  /// por el muro del modo visita como `?volver=`. Sólo se usa si el rol no
+  /// manda a otro lado — ver [DestinoPostLogin.resolver].
+  String? get _volver =>
+      GoRouterState.of(context).uri.queryParameters['volver'];
+
   Future<void> _loginWithGoogle() async {
     setState(() => _loadingGoogle = true);
     try {
+      // OAuth destruye esta pantalla (en web recarga la página, en la app sale
+      // al navegador), así que el `?volver=` de la ruta no sobrevive: se deja
+      // guardado y lo consume el callback en main.dart. Faltaba acá y por eso
+      // registrarse con Google desde una clase terminaba en /home (4/9/2026).
+      await DestinoPostLogin.recordar(_volver);
       final launched = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: kIsWeb
@@ -88,15 +100,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       // iOS: flujo NATIVO (hoja de Apple, sin navegador ni redirect).
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        // Se lee ANTES: después del await el context puede no servir.
+        final volver = _volver;
         await _authService.signInWithAppleNative();
         if (!mounted) return;
         final destino = await _authService.destinoInicial();
         if (!mounted) return;
-        context.go(destino);
+        context.go(DestinoPostLogin.resolver(destino, volver));
         return;
       }
 
-      // Web / Android: OAuth web (main.dart maneja el callback).
+      // Web / Android: OAuth web (main.dart maneja el callback). Igual que en
+      // Google, la pantalla se destruye: el destino se deja guardado.
+      await DestinoPostLogin.recordar(_volver);
       final launched = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.apple,
         redirectTo: kIsWeb
@@ -177,7 +193,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         );
         if (!mounted) return;
-        context.go('/login');
+        // El `?volver=` viaja al login: si no, la clase que la trajo se perdía
+        // justo acá, en el camino más largo (registro + validar mail).
+        context.go(DestinoPostLogin.conVolver('/login', _volver));
         return;
       }
 
@@ -222,10 +240,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
       // Pieza C: si venía de una clase (el muro de invitada puso `?volver=`),
       // se lo pasamos al onboarding para que la devuelva ahí en vez de /home.
-      final volver = GoRouterState.of(context).uri.queryParameters['volver'];
-      context.go(volver == null || volver.isEmpty
-          ? '/creditos-onboarding'
-          : '/creditos-onboarding?volver=${Uri.encodeComponent(volver)}');
+      context.go(DestinoPostLogin.conVolver('/creditos-onboarding', _volver));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

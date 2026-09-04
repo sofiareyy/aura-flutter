@@ -433,12 +433,15 @@ final appRouter = GoRouter(
         // ?tab=gift abre directo la pestaña Regalar (para el acceso desde el
         // perfil). Sin el query, arranca en Packs como siempre.
         final tab = state.uri.queryParameters['tab'];
+        // `?volver=` es la clase desde la que se abrió el paywall: viaja hasta
+        // el checkout para devolverla ahí después de pagar.
         return ComprarCreditosScreen(
           initialTab: tab == 'gift'
               ? 2
               : tab == 'plan'
                   ? 1
                   : 0,
+          volver: state.uri.queryParameters['volver'],
         );
       },
     ),

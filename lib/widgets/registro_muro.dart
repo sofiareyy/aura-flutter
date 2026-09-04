@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
+import '../utils/destino_post_login.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/constants/app_constants.dart';
@@ -72,17 +74,8 @@ class RegistroMuro extends StatelessWidget {
   /// no podía ni registrarse ni entrar. Por eso se pregunta desde el context
   /// del llamador (que sí es una página) y con `GoRouter.of` de respaldo, que
   /// funciona desde cualquier lado bajo el router.
-  static String rutaActualDe(BuildContext context) {
-    try {
-      return GoRouterState.of(context).uri.toString();
-    } catch (_) {
-      return GoRouter.of(context)
-          .routeInformationProvider
-          .value
-          .uri
-          .toString();
-    }
-  }
+  static String rutaActualDe(BuildContext context) =>
+      DestinoPostLogin.rutaActualDe(context);
 
   static Future<void> mostrar(
     BuildContext context, {

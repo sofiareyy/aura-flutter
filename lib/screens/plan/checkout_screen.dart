@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../utils/destino_post_login.dart';
 import '../../providers/app_provider.dart';
 import '../../services/usuarios_service.dart';
 
@@ -38,6 +39,11 @@ class _CheckoutScreenState extends State<CheckoutScreen>
   _PaymentState _state = _PaymentState.idle;
   String? _errorMsg;
   String? _pagoId;
+
+  /// A dónde vuelve la usuaria después de pagar: la clase que abrió el
+  /// paywall, que viaja en el `extra`. Null = compra suelta (Perfil, Inicio)
+  /// y entonces el final sigue siendo /home, como siempre.
+  String? _volver;
   Timer? _pollTimer;
   int _pollSeconds = 0;
   int _creditosIniciales = 0;
@@ -50,6 +56,8 @@ class _CheckoutScreenState extends State<CheckoutScreen>
   @override
   void initState() {
     super.initState();
+    _volver = DestinoPostLogin.sanear(
+        widget.purchase['volver'] as String?);
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -105,6 +113,11 @@ class _CheckoutScreenState extends State<CheckoutScreen>
       if (initPoint == null || initPoint.isEmpty) {
         throw Exception('Mercado Pago no devolvió una URL de pago válida.');
       }
+
+      // En web `launchUrl(..., '_self')` se lleva la pestaña y la app vuelve a
+      // arrancar de cero: sin esto el destino se perdía justo después de
+      // pagar. Mismo motivo por el que OAuth guarda el suyo.
+      await DestinoPostLogin.recordarCompra(_volver);
 
       final uri = Uri.parse(initPoint);
       final launched = kIsWeb
@@ -163,6 +176,10 @@ class _CheckoutScreenState extends State<CheckoutScreen>
       if (status == 'approved') {
         _pollTimer?.cancel();
         await p.refrescarUsuario();
+        // La app siguió viva (mobile): el destino está en `_volver` y el que
+        // quedó guardado ya no hace falta. Se limpia para que una compra
+        // futura no herede la clase de ésta.
+        await DestinoPostLogin.tomarCompra();
         if (!mounted) return;
         setState(() => _state = _PaymentState.approved);
         return;
@@ -189,6 +206,8 @@ class _CheckoutScreenState extends State<CheckoutScreen>
 
       if (packAcreditado || planActivado) {
         _pollTimer?.cancel();
+        await DestinoPostLogin.tomarCompra(); // ídem: ya no hace falta
+        if (!mounted) return;
         setState(() => _state = _PaymentState.approved);
       }
     } catch (_) {
@@ -233,7 +252,8 @@ class _CheckoutScreenState extends State<CheckoutScreen>
             isPlan: isPlan,
             isGift: isGift,
             giftEmail: widget.purchase['gift_email'] as String?,
-            onContinue: () => context.go('/home'),
+            volver: _volver,
+            onContinue: () => context.go(_volver ?? '/home'),
           ),
         _PaymentState.rejected => _RejectedView(
             onRetry: _reintentar,
@@ -582,6 +602,9 @@ class _ApprovedView extends StatelessWidget {
   final bool isPlan;
   final bool isGift;
   final String? giftEmail;
+
+  /// Sólo para el TEXTO del botón: si hay a dónde volver, el botón lo dice.
+  final String? volver;
   final VoidCallback onContinue;
 
   const _ApprovedView({
@@ -589,6 +612,7 @@ class _ApprovedView extends StatelessWidget {
     required this.onContinue,
     this.isGift = false,
     this.giftEmail,
+    this.volver,
   });
 
   @override
@@ -641,7 +665,11 @@ class _ApprovedView extends StatelessWidget {
               height: 48,
               child: ElevatedButton(
                 onPressed: onContinue,
-                child: const Text('Ir al inicio'),
+                // El botón dice a dónde va. Quien vino de una clase espera
+                // volver a ELLA (a reservar), no al inicio.
+                child: Text(
+                  volver == null ? 'Ir al inicio' : 'Volver a la clase',
+                ),
               ),
             ),
           ],

@@ -15,6 +15,7 @@ import '../../services/clases_service.dart';
 import '../../services/reservas_service.dart';
 import '../../services/reviews_service.dart';
 import '../../services/waitlist_service.dart';
+import '../../utils/destino_post_login.dart';
 import '../../widgets/registro_muro.dart';
 import '../../utils/cierre_minutos.dart';
 import '../../utils/grilla_responsive.dart';
@@ -375,6 +376,10 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
   }
 
   void _mostrarPaywall(int creditosNecesarios, int creditosActuales) {
+    // La ruta se captura ACÁ, con el context de la página: adentro del sheet
+    // (ruta hermana en el Navigator) `GoRouterState.of` tira GoError. Mismo
+    // motivo que en el muro del modo visita.
+    final volver = DestinoPostLogin.rutaActualDe(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -382,6 +387,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
       builder: (_) => _PaywallSheet(
         creditosNecesarios: creditosNecesarios,
         creditosActuales: creditosActuales,
+        volver: volver,
       ),
     );
   }
@@ -1642,9 +1648,16 @@ class _SectionBlock extends StatelessWidget {
 class _PaywallSheet extends StatelessWidget {
   final int creditosNecesarios;
   final int creditosActuales;
+
+  /// La clase desde la que se abrió el paywall. Viaja hasta el checkout para
+  /// que, después de pagar, la usuaria vuelva ACÁ y pueda reservar — en vez
+  /// de caer en /home y tener que buscar de nuevo la clase que ya pagó.
+  final String volver;
+
   const _PaywallSheet({
     required this.creditosNecesarios,
     required this.creditosActuales,
+    required this.volver,
   });
 
   @override
@@ -1713,7 +1726,9 @@ class _PaywallSheet extends StatelessWidget {
             child: ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                context.push('/comprar-creditos');
+                context.push(
+                  DestinoPostLogin.conVolver('/comprar-creditos', volver),
+                );
               },
               child: const Text('Comprar créditos'),
             ),
@@ -1725,7 +1740,9 @@ class _PaywallSheet extends StatelessWidget {
             child: OutlinedButton(
               onPressed: () {
                 Navigator.pop(context);
-                context.push('/comprar-creditos');
+                context.push(
+                  DestinoPostLogin.conVolver('/comprar-creditos', volver),
+                );
               },
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,

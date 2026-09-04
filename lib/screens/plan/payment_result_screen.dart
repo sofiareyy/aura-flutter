@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../utils/destino_post_login.dart';
 import '../../providers/app_provider.dart';
 import '../../services/usuarios_service.dart';
 import '../../widgets/soporte_card.dart';
@@ -82,8 +83,12 @@ class _PaymentResultScreenState extends State<PaymentResultScreen> {
       await context.read<AppProvider>().refrescarUsuario().timeout(
         const Duration(seconds: 15),
       );
+      // Camino de WEB: la pestaña se fue a Mercado Pago y la app arrancó de
+      // cero, así que el destino no está en memoria — sale de lo que dejó
+      // guardado el checkout. Sin nada guardado, /home como siempre.
+      final volver = await DestinoPostLogin.tomarCompra();
       if (!mounted) return;
-      context.go('/home');
+      context.go(volver ?? '/home');
     } catch (e) {
       if (!mounted) return;
       // El webhook puede no haber llegado todavía — tratar como pendiente

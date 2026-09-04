@@ -1137,6 +1137,47 @@ No son tareas técnicas. Están acá para que no se pierdan.
 | ✅ | **Mail de confirmación de reserva — DECIDIDO Y ACTIVO desde el 29/8** | Cableado por base (trigger al confirmarse), texto aprobado ("fitness y experiencias", línea del código). Le llega a todas las alumnas ya. |
 | ⬜ | **Categorías faltantes** | Avisarle a Yessi (112 clases) y Ambra (77) que las completen. O que el form las exija (Dart). |
 
+## ✅ Los 2 agujeros de conversión de la auditoría — CERRADOS el 4/9 (Dart, va en la 1.0.7)
+
+Los dos eran el mismo bug —perder la clase que trajo a la usuaria— y los dos se
+resolvieron con el `?volver=` que ya existía, sin inventar nada.
+
+**1 · El checkout perdía la clase.** Llegaba al pago desde el paywall de una
+clase, pagaba, y el único botón era "Ir al inicio": tenía que volver a buscar
+a mano la clase que acababa de pagar, con la plata puesta. Ahora el `?volver=`
+viaja **paywall → `/comprar-creditos` → `extra` del checkout**, y al aprobarse
+el botón dice **"Volver a la clase"**. Se persiste con `recordarCompra` antes
+de irse a Mercado Pago, porque en web `launchUrl(..., '_self')` se lleva la
+pestaña y la app arranca de cero; ese camino lo consume `payment_result`.
+
+**2 · El registro con Google/Apple perdía la clase.** El registro por email ya
+volvía; el social no llamaba nunca a `DestinoPostLogin.recordar`. Ahora Google,
+Apple web/Android (guardado, lo consume el callback de `main.dart`) y Apple
+nativo iOS (en memoria, con `resolver`) hacen lo mismo que el login. De yapa, el
+diálogo de "Revisá tu mail" ahora manda `/login?volver=…`: antes la clase se
+perdía en el camino más largo.
+
+**Dónde vive la regla, ahora toda junta:** `utils/destino_post_login.dart` sumó
+`recordarCompra`/`tomarCompra`, `rutaActualDe` (que se mudó del muro, que ahora
+delega) y `conVolver`, para no repetir el `Uri.encodeComponent` en cada
+pantalla.
+
+⚠️ **Las claves de storage están SEPARADAS a propósito** (`destino_post_login`
+y `destino_post_compra`): las consume gente distinta —el callback de OAuth y el
+checkout— y con una sola, un OAuth abandonado a mitad de camino se comería el
+destino del pago, o al revés. Hay test de eso.
+
+**Las dos puntas, con test (156 en total, 16 nuevos):** con clase de contexto
+vuelve a la clase; **sin** clase de contexto (compra desde Perfil o Inicio,
+login normal) el final sigue siendo `/home`, intacto. Más: es de un solo uso
+(la compra siguiente no hereda la clase anterior), no acepta destinos externos,
+y el redirect por rol sigue ganando siempre (un estudio nunca es desviado a una
+clase). `analyze` sin issues nuevos y la web compila.
+
+**Lo que NO se tocó, siendo scope aparte:** el paywall sigue teniendo sus dos
+botones duplicados de "Comprar créditos" (ahora los dos llevan el `?volver=`).
+Está en la auditoría como ítem 9.
+
 ## 📝 Auditoría de UX/UI del Inicio y del camino a la primera reserva — 4/9
 
 Análisis completo, sin construir nada, en **`AUDITORIA_UX_INICIO.md`**: primera

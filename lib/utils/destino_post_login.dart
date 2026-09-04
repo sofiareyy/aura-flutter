@@ -1,3 +1,5 @@
+import 'package:flutter/widgets.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// A dónde mandar a alguien DESPUÉS de loguearse, cuando venía de un lugar
@@ -7,6 +9,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// "reservar", el muro le ofrece entrar, se loguea… y caía en `/home`,
 /// perdiendo justo la clase que la trajo. Con pauta paga esa persona es
 /// alguien por quien se pagó: perderla en el último paso es caro.
+///
+/// El MISMO problema aparece después de PAGAR (4/9/2026): la usuaria llega al
+/// checkout desde una clase concreta, paga, y el único botón era "Ir al
+/// inicio". Tenía que volver a buscar a mano la clase que acababa de pagar,
+/// con la plata ya puesta. Se resuelve con este mismo mecanismo — ver
+/// [recordarCompra].
 ///
 /// **La regla de seguridad, en un solo lugar:** el destino sólo se respeta si
 /// el rol no manda a otro lado. `AuthService.destinoInicial()` devuelve
@@ -57,5 +65,70 @@ class DestinoPostLogin {
     final v = prefs.getString(_clave);
     await prefs.remove(_clave);
     return sanear(v);
+  }
+
+  // ── La vuelta del PAGO ────────────────────────────────────────────────
+
+  /// Clave APARTE de la del login, a propósito.
+  ///
+  /// Las dos guardan "a dónde volver", pero las consume gente distinta: la
+  /// del login la lee el callback de OAuth en `main.dart` y la de la compra
+  /// la lee el checkout. Con una sola clave, un OAuth abandonado a mitad de
+  /// camino dejaría una ruta guardada que después se comería el pago (o al
+  /// revés), y la usuaria terminaría en un lugar que nadie pidió.
+  static const _claveCompra = 'destino_post_compra';
+
+  /// Guarda a dónde volver después de pagar. Igual que en OAuth, hace falta
+  /// persistirlo: en web `launchUrl(..., '_self')` se lleva la pestaña a
+  /// Mercado Pago y al volver la app arranca de cero, sin el `?volver=` de la
+  /// ruta ni el estado del checkout.
+  static Future<void> recordarCompra(String? ruta) async {
+    final limpia = sanear(ruta);
+    final prefs = await SharedPreferences.getInstance();
+    if (limpia == null) {
+      await prefs.remove(_claveCompra);
+    } else {
+      await prefs.setString(_claveCompra, limpia);
+    }
+  }
+
+  /// Lee y BORRA el destino de la compra. De un solo uso, por lo mismo que
+  /// [tomar]: una compra siguiente no tiene por qué terminar en la clase de
+  /// la compra anterior.
+  static Future<String?> tomarCompra() async {
+    final prefs = await SharedPreferences.getInstance();
+    final v = prefs.getString(_claveCompra);
+    await prefs.remove(_claveCompra);
+    return sanear(v);
+  }
+
+  /// La ruta donde está parada la persona AHORA, para poder volver acá.
+  ///
+  /// Vive en esta clase (y no en el muro, de donde salió) porque la usan los
+  /// dos caminos: el muro del modo visita y el paywall de créditos.
+  ///
+  /// El `catch` no es decorativo: `showDialog` abre una ruta HERMANA en el
+  /// Navigator, así que preguntar desde adentro de un diálogo tira `GoError`.
+  /// Por eso se pregunta con el context de QUIEN abre, y `GoRouter.of` queda
+  /// de respaldo porque funciona desde cualquier lado bajo el router.
+  static String rutaActualDe(BuildContext context) {
+    try {
+      return GoRouterState.of(context).uri.toString();
+    } catch (_) {
+      return GoRouter.of(context)
+          .routeInformationProvider
+          .value
+          .uri
+          .toString();
+    }
+  }
+
+  /// Pega `?volver=` a una ruta, si hay algo que recordar. Un solo lugar para
+  /// no repetir el `Uri.encodeComponent` en cada pantalla.
+  static String conVolver(String ruta, String? volver) {
+    final limpia = sanear(volver);
+    if (limpia == null) return ruta;
+    final sep = ruta.contains('?') ? '&' : '?';
+    return '$ruta$sep' 'volver=${Uri.encodeComponent(limpia)}';
   }
 }
