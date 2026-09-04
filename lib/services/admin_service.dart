@@ -568,6 +568,48 @@ class AdminService {
     );
   }
 
+  // ── Servicios de precio fijo (backoffice, 3/9/2026) ────────────────────
+
+  /// Los servicios de precio fijo cargados para un estudio, activos o no.
+  /// Lee la tabla directo: la policy `servicios_precio_select_admin` deja
+  /// leer al superadmin (antes sólo la veían los miembros del estudio).
+  Future<List<Map<String, dynamic>>> listServiciosPrecio(int estudioId) async {
+    final rows = await _client
+        .from('estudio_servicios_precio')
+        .select('servicio, creditos, activo')
+        .eq('estudio_id', estudioId)
+        .order('servicio');
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
+  /// Crea o cambia un servicio de precio fijo para un estudio.
+  ///
+  /// Con [soloPreview] NO escribe nada: devuelve los conteos (clases futuras
+  /// sin reserva que cambiarían, futuras ya reservadas que quedan selladas,
+  /// pasadas que no se tocan, horarios) para el cartel de confirmación. El
+  /// predicado vive UNA vez en la RPC, así que el número del preview y el de
+  /// la aplicación no se pueden separar. La regla de plata la impone la base:
+  /// nunca toca reservas ni liquidaciones.
+  Future<Map<String, dynamic>> setServicioPrecio({
+    required int estudioId,
+    required String servicio,
+    required int creditos,
+    bool activo = true,
+    bool soloPreview = false,
+  }) async {
+    final res = await _client.rpc(
+      'admin_set_servicio_precio',
+      params: {
+        'p_estudio_id': estudioId,
+        'p_servicio': servicio.trim(),
+        'p_creditos': creditos,
+        'p_activo': activo,
+        'p_solo_preview': soloPreview,
+      },
+    );
+    return Map<String, dynamic>.from(res as Map);
+  }
+
   Future<Map<String, dynamic>> getPricingSnapshot() async {
     final res = await _client.rpc('admin_pricing_snapshot');
     return Map<String, dynamic>.from((res as List).first as Map);

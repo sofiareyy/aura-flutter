@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../services/admin_service.dart';
 import '../../services/pricing_service.dart';
 import '../../utils/pricing.dart';
 import '../../utils/datos_cobro.dart';
+import '../../utils/servicios_preview.dart';
 
 class AdminPricingScreen extends StatefulWidget {
   final int estudioId;
@@ -39,6 +41,15 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
 
   final _client = Supabase.instance.client;
   final _pricingService = PricingService();
+  final _adminService = AdminService();
+
+  // Servicios de precio fijo del estudio (backoffice, 3/9/2026). Se cargan y
+  // se guardan APARTE del botón grande: cada cambio pasa por
+  // admin_set_servicio_precio, que sólo toca clases futuras sin reserva, y
+  // nunca por el recálculo general (que incluye pasadas).
+  List<ServicioPrecio> _servicios = const [];
+  List<String> _catalogo = const [];
+  bool _guardandoServicio = false;
 
   bool _loading = true;
   bool _saving = false;
@@ -102,6 +113,7 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
           ? null
           : DatosCobro.aplanar(Map<String, dynamic>.from(rowRaw));
       _valorCredito = await _pricingService.getValorCreditoArs();
+      await _cargarServicios();
 
       if (row == null) {
         setState(() {
@@ -284,6 +296,176 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
     }
   }
 
+  Future<void> _cargarServicios() async {
+    final rows = await _adminService.listServiciosPrecio(widget.estudioId);
+    final catalogo = await _adminService.listStudyCategories();
+    _servicios = rows
+        .map((r) => ServicioPrecio(
+              servicio: r['servicio']?.toString() ?? '',
+              creditos: (r['creditos'] as num?)?.toInt() ?? 0,
+              activo: r['activo'] != false,
+            ))
+        .where((s) => s.servicio.isNotEmpty)
+        .toList();
+    _catalogo = catalogo;
+  }
+
+  /// Alta o edición de un servicio: diálogo → PREVIEW en la base → cartel de
+  /// confirmación con los números → aplicar → recargar.
+  Future<void> _editarServicio({ServicioPrecio? existente}) async {
+    final ya = _servicios.map((s) => s.servicio).toSet();
+    final opciones = existente != null
+        ? [existente.servicio]
+        : _catalogo.where((c) => !ya.contains(c)).toList();
+    if (opciones.isEmpty) {
+      _snack('Todas las categorías del catálogo ya tienen precio en este estudio.');
+      return;
+    }
+
+    final pedido = await showDialog<_ServicioPedido>(
+      context: context,
+      builder: (ctx) => _ServicioDialog(
+        opciones: opciones,
+        inicial: existente,
+      ),
+    );
+    if (pedido == null || !mounted) return;
+
+    setState(() => _guardandoServicio = true);
+    try {
+      final previewJson = await _adminService.setServicioPrecio(
+        estudioId: widget.estudioId,
+        servicio: pedido.servicio,
+        creditos: pedido.creditos,
+        activo: pedido.activo,
+        soloPreview: true,
+      );
+      final preview = ServicioPreview.fromJson(previewJson);
+      if (!mounted) return;
+
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(tituloConfirmacionServicio(
+              preview, widget.estudioNombre ?? 'el estudio')),
+          content: Text(
+            mensajeConfirmacionServicio(preview),
+            style: const TextStyle(height: 1.45),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Aplicar',
+                  style: TextStyle(color: AppColors.primary)),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+
+      final aplicadoJson = await _adminService.setServicioPrecio(
+        estudioId: widget.estudioId,
+        servicio: pedido.servicio,
+        creditos: pedido.creditos,
+        activo: pedido.activo,
+      );
+      final aplicado = ServicioPreview.fromJson(aplicadoJson);
+      await _cargarServicios();
+      if (!mounted) return;
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(resumenAplicadoServicio(aplicado)),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      // El mensaje de la base es el que sirve (categoría inexistente, créditos
+      // fuera de rango, sin permiso): se muestra tal cual.
+      _snack('No se pudo guardar el servicio: ${_mensajeError(e)}');
+    } finally {
+      if (mounted) setState(() => _guardandoServicio = false);
+    }
+  }
+
+  static String _mensajeError(Object e) {
+    if (e is PostgrestException) return e.message;
+    return e.toString();
+  }
+
+  Widget _buildServicios() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Servicios de precio fijo',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: AppColors.black,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Una categoría con precio único para este estudio, sin franja '
+          'horaria. Cambiar el precio sólo alcanza a las clases futuras sin '
+          'reserva: lo ya reservado y lo pasado no se toca.',
+          style: TextStyle(color: AppColors.grey, fontSize: 13, height: 1.4),
+        ),
+        const SizedBox(height: 12),
+        if (_servicios.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 6),
+            child: Text(
+              'Este estudio no tiene servicios de precio fijo.',
+              style: TextStyle(color: AppColors.mutedText, fontSize: 13),
+            ),
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.warmBorder),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < _servicios.length; i++) ...[
+                  if (i > 0)
+                    const Divider(height: 1, color: AppColors.warmBorder),
+                  _ServicioRow(
+                    servicio: _servicios[i],
+                    onTap: widget.readOnly || _guardandoServicio
+                        ? null
+                        : () => _editarServicio(existente: _servicios[i]),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        if (!widget.readOnly) ...[
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _guardandoServicio ? null : () => _editarServicio(),
+            icon: const Icon(Icons.add, size: 18),
+            label: Text(_guardandoServicio ? 'Guardando…' : 'Agregar servicio'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -323,6 +505,8 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
                         ],
                       ] else
                         _buildPrecioExperiencia(),
+                      const SizedBox(height: 28),
+                      _buildServicios(),
                       const SizedBox(height: 28),
                       SizedBox(
                         width: double.infinity,
@@ -830,6 +1014,181 @@ class _AccionDia extends StatelessWidget {
           fontWeight: FontWeight.w700,
         ),
       ),
+    );
+  }
+}
+
+// ── Servicios de precio fijo: fila y diálogo ─────────────────────────────────
+
+class _ServicioRow extends StatelessWidget {
+  final ServicioPrecio servicio;
+  final VoidCallback? onTap;
+
+  const _ServicioRow({required this.servicio, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final activo = servicio.activo;
+    return ListTile(
+      onTap: onTap,
+      dense: true,
+      title: Text(
+        servicio.servicio,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: activo ? AppColors.black : AppColors.grey,
+        ),
+      ),
+      subtitle: Text(
+        activo ? 'Activo' : 'Inactivo',
+        style: TextStyle(
+          fontSize: 12,
+          color: activo ? AppColors.success : AppColors.mutedText,
+        ),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: activo ? AppColors.primaryLight : AppColors.lightGrey,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              servicio.creditos == 0 ? 'GRATIS' : '${servicio.creditos} cr',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: activo ? AppColors.primary : AppColors.grey,
+              ),
+            ),
+          ),
+          if (onTap != null) ...[
+            const SizedBox(width: 6),
+            const Icon(Icons.edit_outlined, size: 18, color: AppColors.grey),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ServicioPedido {
+  final String servicio;
+  final int creditos;
+  final bool activo;
+  const _ServicioPedido(this.servicio, this.creditos, this.activo);
+}
+
+/// Lo mínimo: elegir la categoría del catálogo, el precio, y activar o no.
+/// La validación de verdad la hace la base (rango 0..500, categoría activa,
+/// permiso): acá sólo se evita mandar basura obvia.
+class _ServicioDialog extends StatefulWidget {
+  final List<String> opciones;
+  final ServicioPrecio? inicial;
+
+  const _ServicioDialog({required this.opciones, this.inicial});
+
+  @override
+  State<_ServicioDialog> createState() => _ServicioDialogState();
+}
+
+class _ServicioDialogState extends State<_ServicioDialog> {
+  late String _servicio;
+  late final TextEditingController _creditosCtrl;
+  late bool _activo;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _servicio = widget.inicial?.servicio ?? widget.opciones.first;
+    _creditosCtrl = TextEditingController(
+      text: widget.inicial?.creditos.toString() ?? '',
+    );
+    _activo = widget.inicial?.activo ?? true;
+  }
+
+  @override
+  void dispose() {
+    _creditosCtrl.dispose();
+    super.dispose();
+  }
+
+  void _confirmar() {
+    final n = int.tryParse(_creditosCtrl.text.trim());
+    if (n == null || n < 0 || n > 500) {
+      setState(() => _error = 'Créditos entre 0 y 500. 0 es gratis.');
+      return;
+    }
+    Navigator.pop(context, _ServicioPedido(_servicio, n, _activo));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final editando = widget.inicial != null;
+    return AlertDialog(
+      title: Text(editando ? 'Editar servicio' : 'Nuevo servicio de precio fijo'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DropdownButtonFormField<String>(
+            // Al editar la categoría no se cambia: es la clave de la fila.
+            initialValue: _servicio,
+            items: [
+              for (final o in widget.opciones)
+                DropdownMenuItem(value: o, child: Text(o)),
+            ],
+            onChanged: editando
+                ? null
+                : (v) => setState(() => _servicio = v ?? _servicio),
+            decoration: const InputDecoration(
+              labelText: 'Categoría del catálogo',
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _creditosCtrl,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            onSubmitted: (_) => _confirmar(),
+            decoration: InputDecoration(
+              labelText: 'Créditos',
+              suffixText: 'cr',
+              helperText: '0 = gratis (por ejemplo, Running club)',
+              errorText: _error,
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 6),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: const Text('Activo'),
+            subtitle: const Text(
+              'Inactivo: las clases ya cargadas conservan su precio.',
+              style: TextStyle(fontSize: 12),
+            ),
+            value: _activo,
+            activeThumbColor: AppColors.primary,
+            onChanged: (v) => setState(() => _activo = v),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: _confirmar,
+          child: const Text('Continuar',
+              style: TextStyle(color: AppColors.primary)),
+        ),
+      ],
     );
   }
 }

@@ -1277,6 +1277,64 @@ Explorar + los pendientes del build 27 del inventario).
 **La experiencia de prueba 6258 está BORRADA** (1/9, 0 reservas, verificado:
 0 workshops futuros en la base). El preview del 8099 está apagado.
 
+## ✅ Servicios de precio fijo: PANTALLA DEL BACKOFFICE — 3/9 (base aplicada + Dart, va en la 1.0.7)
+
+La última pieza de la Tanda D. Con esto **se levanta la regla de "no darle el
+alta de servicios a ningún estudio"**: la base y el panel del estudio ya
+calculaban bien desde el 30/8, y ahora Sofía puede cargarlos sin SQL.
+
+**Las 3 decisiones de la usuaria, aplicadas:**
+1. El desplegable muestra **todo el catálogo activo** (la RPC ya lo garantiza
+   para superadmin; se filtran las inactivas porque la RPC de guardado las
+   rechaza).
+2. **"Running club"** existe: se **renombró** la categoría "Running" (22/8,
+   sin uso en ninguna tabla) con `admin_rename_studio_category`, en vez de
+   dejar dos parecidas. Se usa como servicio a **0 créditos** por estudio.
+3. **Confirmación previa SÍ**, con número: la RPC ganó `p_solo_preview` y el
+   predicado de "qué clases cambian" vive **una sola vez** (se resuelve a ids y
+   se actualiza por id). El número del cartel y el que aplica no se pueden
+   separar.
+
+**Base** (`FEAT_SERVICIOS_BACKOFFICE_2026-09-03.sql`, APLICADA): la RPC con
+preview (se DROPeó la firma vieja para no dejar un overload que PostgREST
+devuelve como 300) · policy `servicios_precio_select_admin` para que el
+backoffice pueda leer la tabla (antes sólo los miembros) · el renombre.
+
+**Dart, lo mínimo que funciona:** una sección "Servicios de precio fijo" en
+la pantalla de precios del estudio (`admin_pricing_screen.dart`), con lista,
+"Agregar servicio", diálogo de categoría + créditos + activo, y el cartel de
+confirmación. **Guarda APARTE del botón grande**: cada cambio pasa por
+`admin_set_servicio_precio` y nunca por el recálculo general. El texto del
+cartel vive en `utils/servicios_preview.dart` y tiene test propio.
+
+### 💰 LA REGLA DE PLATA — medida contra la base, dos veces, en rollback
+
+| Qué | Citra (Barre a 20) | Hot Clic, punta a punta |
+|---|---|---|
+| Clases pasadas tocadas | **0** de 202 | 0 |
+| Futura con reserva viva | conservó 18 | Spa reservada conservó **8** (y la reserva, 8) |
+| Futuras sin reserva | 188/188 al precio nuevo | la Spa nueva tomó **10** |
+| Preview vs aplicado | 188 y 188 | 1 y 1 |
+| Reservas cambiadas | 0 | 0 |
+| Liquidaciones cambiadas | 0 | 0 |
+
+**Punta a punta en Hot Clic (rollback):** Sofía carga Spa a 8 y Running club
+a 0 → **el estudio crea las clases pidiendo 999 créditos** y la base fija 8,
+0 y 12 (la normal) → **Juanita reserva las tres** y descuenta 8 + 0 + 12 = 20
+(saldo 52 → 32) → la liquidación por reserva da 5.600 + 0 + 8.400 = **14.000**
+netos con el 30% → Spa sube a 10: la reservada queda sellada, la nueva toma 10.
+El **running gratis funciona**: clase a 0, reserva a 0, liquida 0.
+
+### ⚠️ Lo que NO se tocó y queda anotado (decisión pendiente)
+
+El botón "Guardar configuración" de esa misma pantalla llama a
+`admin_recalcular_precios_estudio` con **`p_incluir_pasadas: true`**. Medido:
+después de cambiar un servicio, ese botón reescribió las **199 clases pasadas
+de Citra** al precio nuevo. La plata no se mueve (0 reservas cambiadas: la
+liquidación sale de `reservas.creditos_usados`), pero el registro de qué costó
+cada clase pasada sí. Es anterior a esto, pasa también al cambiar el rango, y
+es un cambio de una línea. **No se aplicó porque la usuaria no lo decidió.**
+
 ## ✅ Foto más grande en Explorar-mobile — 3/9 (web, SALE CON PUSH)
 
 Decidido mirando la maqueta comparativa con datos de producción. En el teléfono
