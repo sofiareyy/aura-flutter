@@ -1409,6 +1409,86 @@ límite de 50 corta al cuarto día. Se resuelve solo cuando haya más volumen.
 
 240 tests (7 nuevos), `analyze` sin issues nuevos, web compila.
 
+## 🔎 "YOYO Yoga Studio no aparece" — 4/9: NO es un bug, le faltan clases
+
+Sofía cargó un estudio nuevo y no lo veía. Medido contra la base, **el sistema
+funciona como se diseñó**: al estudio le falta lo único que Explorar necesita
+para mostrarlo en la tira.
+
+### El estudio está perfecto
+
+| | |
+|---|---|
+| id | 56 |
+| activo | **true** |
+| categorías | `["Yoga"]` |
+| barrio, dirección, foto | cargados |
+| visible por RLS | **sí**, como anónimo y como alumna (medido con `set local role`) |
+| clases futuras | **0** ← la causa |
+
+`fecha_inicio_cobro` es 3/11/2026, pero eso **no afecta la visibilidad**: sólo
+decide la comisión (`lib/utils/liquidacion.dart`).
+
+### Por qué no aparece, exactamente
+
+Simulado con las funciones REALES de la app y los datos de producción:
+
+| Dónde | ¿Aparece YOYO? | Por qué |
+|---|---|---|
+| Inicio → sección ESTUDIOS | **SÍ** | lista estudios activos, no pide clases |
+| Explorar → DESTACADOS HOY → "Ver todo" | **SÍ** | expande a todos los del filtro |
+| Su propia página `/estudio/56` | **SÍ** | |
+| Explorar → tira colapsada | NO | `destacadosDelDia` sólo toma estudios **con clases** |
+| Explorar → TODOS LOS RESULTADOS | NO | esa lista son **clases**, no estudios |
+| Explorar → chip "Yoga" (colapsado) | NO | mismo motivo que la tira |
+
+Con el chip en Yoga, la tira da `[Yoguica, Ambra]` y el "Ver todo" da
+`[YOYO, Yoguica, Ambra, Sculpt Club]`. El chip "Yoga" **existe y filtra bien**:
+sale de las clases reales, y Yoguica y Ambra tienen clases de Yoga.
+
+⚠️ **Por qué igual pudo no verlo en el Inicio:** el carrusel de ESTUDIOS ordena
+por nombre y "YOYO Yoga Studio" queda **10º de 12**. Hay que scrollear bastante
+a la derecha.
+
+### No es sólo YOYO: son CINCO
+
+Estudios activos con **0 clases futuras**, o sea invisibles en la tira de
+Explorar:
+
+`YOYO Yoga Studio` · `Sculpt Club` · `BB Estudio Colegiales` ·
+`BB Estudio Urquiza` · `Clic Pilates` (éste es de prueba)
+
+Simulado a 14 días: **7 de 12 estudios aparecen en la tira, 5 nunca**.
+
+### La regla de Sofía ("Explorar muestra TODO"), revisada
+
+Se respeta **para los estudios**: ninguno activo queda inalcanzable — todos
+salen en "Ver todo" y en el Inicio. Lo que no se cumple es que se vean **de
+entrada**: la tira colapsada y la lista de resultados dependen de que haya
+clases.
+
+**Decisión de producto, no bug.** Antes de la pauta conviene definir qué hacer
+con un estudio activo sin clases: mostrarlo igual en la tira con un cartel tipo
+"Sin clases por ahora", o dejarlo como está. **No se tocó nada.**
+
+**Lo que resuelve el caso hoy: cargarle clases a YOYO.**
+
+## ⬜ Compartir un ESTUDIO (Dart, 1.0.7, menor) — pedido de Sofía el 4/9
+
+Hoy se comparte una **clase** (`_compartirClase` en `detalle_clase_screen.dart`)
+y no hay forma de compartir la **página del estudio**.
+
+Relevado: es chico y de bajo riesgo, porque todo lo que hace falta ya existe.
+
+- La ruta `/estudio/:id` ya existe y tiene la misma forma que `/clase/:id`.
+- El link en vivo `somosaurapass.com/#/estudio/56` responde **200**.
+- `detalle_estudio_screen.dart` **no tiene nada** de compartir (0 menciones).
+
+Falta: un `AppConstants.linkDeEstudio(id)` al lado de `linkDeClase`, y un botón
+en el detalle del estudio que copie `_compartirClase`, **incluido su fallback**
+(en web `Share.share` lanza donde no hay Web Share API y el botón queda mudo;
+la clase ya resuelve eso copiando al portapapeles).
+
 ## ✅ Etapa 2, sub-parte 2: el sistema llega a EXPLORAR — 4/9 (Dart, 1.0.7)
 
 Explorar no usaba **ni un solo token**. Lo que había:
