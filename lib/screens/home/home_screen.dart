@@ -18,6 +18,7 @@ import '../../services/notificaciones_service.dart';
 import '../../services/reservas_service.dart';
 import '../../services/studio_geo_service.dart';
 import '../../utils/categorias_con_oferta.dart';
+import '../../utils/volver_a_tus_estudios.dart';
 import '../../utils/grilla_responsive.dart';
 import '../../widgets/foto_red.dart';
 import '../../widgets/organizadores_links.dart';
@@ -314,6 +315,34 @@ class _HomeScreenState extends State<HomeScreen> {
                 (estudio) => estudio.tieneCategoria(_categoriaSeleccionada),
               )
               .toList();
+    // La vidriera del final: POCAS y VARIADAS, no las 50 cargadas.
+    //
+    // Antes esta sección listaba `clasesFiltradas` entera. Medido con las
+    // medidas reales de la tarjeta, eso daba **21 pantallas de scroll en el
+    // celular** para una sección que es la última del Inicio: dejaba de ser
+    // vidriera y pasaba a ser un catálogo volcado al final (4/9/2026).
+    //
+    // El reparto es el MISMO que usa "Volvé a tus estudios"
+    // (`repartirEntreEstudios`): una por estudio y, si sobra lugar, una
+    // segunda. Así no salen 6 clases del mismo lugar un día en que ese
+    // estudio tenga los primeros horarios.
+    //
+    // Se sacan las que ya están arriba en "Volvé a tus estudios": con 6
+    // tarjetas, repetir una se nota. NO se deduplica contra "Clases esta
+    // semana" a propósito: hoy las dos salen del mismo pozo de 50 clases
+    // —todas caen dentro de los 7 días— así que excluirlas dejaría esta
+    // sección VACÍA.
+    final yaArriba = _misEstudios
+        .map((c) => (c['id'] as num?)?.toInt())
+        .whereType<int>()
+        .toSet();
+    final vidriera = repartirEntreEstudios(
+      clasesFiltradas
+          .where((c) => !yaArriba.contains((c['id'] as num?)?.toInt()))
+          .toList(),
+      max: clasesEnLaVidriera,
+    );
+
     final estudiosCerca = _studioGeoService
         .sortByDistance(estudiosFiltrados, _locationState.position)
         .take(6)
@@ -848,8 +877,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         SliverToBoxAdapter(
                           child: _TituloSeccion(
-                            'TODAS LAS CLASES',
-                            accion: 'Ver todo',
+                            // Con 6 tarjetas, "TODAS" volvía a mentir.
+                            'MÁS CLASES',
+                            accion: 'Ver todas',
                             onAccion: () => context.go('/explorar'),
                           ),
                         ),
@@ -876,7 +906,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                           )
-                        else if (clasesFiltradas.isEmpty)
+                        else if (vidriera.isEmpty)
                           SliverToBoxAdapter(
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(
@@ -922,13 +952,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                 context,
                                 index,
                               ) {
-                                final clase = clasesFiltradas[index];
+                                final clase = vidriera[index];
                                 return HomeNearbyClassCard(
                                   clase: clase,
                                   onTap: () =>
                                       context.push('/clase/${clase['id']}'),
                                 );
-                              }, childCount: clasesFiltradas.length),
+                              }, childCount: vidriera.length),
                             ),
                           ),
                         const SliverToBoxAdapter(child: SizedBox(height: 28)),

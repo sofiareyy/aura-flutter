@@ -168,3 +168,11 @@ const double anchoMaxFormulario = 640;
 /// FIJO: si este número y el contenido se desincronizan, el texto desborda.
 /// `explorar_destacados_test.dart` lo mide con los nombres reales más largos.
 const double altoCarruselDestacados = 180;
+
+/// Cuántas clases muestra la vidriera del final del Inicio ("MÁS CLASES")
+/// antes del "Ver todas".
+///
+/// Un solo número para las dos vistas: con 2 columnas son 3 filas y con 1, seis
+/// tarjetas. Antes la sección listaba las 50 clases cargadas, que medido con la
+/// tarjeta real daba 21 pantallas de scroll en el celular.
+const int clasesEnLaVidriera = 6;

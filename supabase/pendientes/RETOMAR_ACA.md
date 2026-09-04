@@ -1365,6 +1365,52 @@ clase). `analyze` sin issues nuevos y la web compila.
 botones duplicados de "Comprar créditos" (ahora los dos llevan el `?volver=`).
 Está en la auditoría como ítem 9.
 
+## ✅ El Inicio vuelve a ser una VIDRIERA — 4/9 (Dart, va en la 1.0.7)
+
+La última sección listaba **las 50 clases cargadas**, sin corte. Medido con las
+medidas reales de la tarjeta:
+
+| | Antes | Ahora |
+|---|---|---|
+| Celular | **21,1 pantallas** de scroll | 2,5 |
+| Tablet | 10,3 | 1,2 |
+| Escritorio | 7,4 | 0,9 |
+
+Eso no era una vidriera: era el catálogo volcado al final del Inicio.
+
+**Ahora son 6**, un solo número para las dos vistas (`clasesEnLaVidriera`): con
+2 columnas son 3 filas, con 1 son seis tarjetas. El título pasó de "TODAS LAS
+CLASES" —que con 6 volvía a mentir, y es el que habíamos arreglado el día
+anterior— a **"MÁS CLASES"** con **"Ver todas"**, que sigue llevando a Explorar,
+donde están el buscador, los filtros y la paginación. Explorar **arranca siempre
+en "Todos"** porque la pestaña se reconstruye al entrar: verificado, no hace
+falta pasarle nada.
+
+**El criterio de las 6: el MISMO reparto de "Volvé a tus estudios"**
+(`repartirEntreEstudios`), no una regla nueva. Una por estudio y, si sobra
+lugar, una segunda. Sin eso, un día en que un estudio tenga los primeros
+horarios la vidriera serían 6 clases del mismo lugar. **Con la oferta real de
+hoy da 6 clases de 6 estudios distintos.**
+
+### La repetición: se decidió deduplicar sólo contra una sección
+
+Se sacan las clases que ya están arriba en **"Volvé a tus estudios"**: con 6
+tarjetas, repetir una se nota.
+
+**NO se deduplica contra "Clases esta semana", y es a propósito.** Medido: las
+50 clases que carga el Inicio caen **todas dentro de los 7 días** (van del 4/9
+al 8/9), así que `clasesEstaSemana` y el pozo de la vidriera son hoy **el mismo
+conjunto**. Excluirlas dejaría la sección **vacía**.
+
+⚠️ **Queda anotado para decidir:** esas dos secciones salen del mismo pozo, así
+que muestran clases del mismo rango. Una salida sería que la vidriera cubra "más
+adelante" (más allá de 7 días), pero hoy no hay oferta cargada tan lejos: el
+límite de 50 corta al cuarto día. Se resuelve solo cuando haya más volumen.
+
+**"CERCA TUYO" ya estaba en 6** con su "Ver todo": no hizo falta tocarlo.
+
+240 tests (7 nuevos), `analyze` sin issues nuevos, web compila.
+
 ## ✅ Diseño visual, ETAPA 2 · sub-parte 1: el INICIO — 4/9
 
 El sistema que ya existía en el repo, aplicado al lado de la alumna. **Nada
