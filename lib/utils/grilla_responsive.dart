@@ -161,3 +161,10 @@ double altoHero(double ancho) {
 /// 12,2:1 en un monitor de 1920: se veía el 12% de una foto apaisada, justo en
 /// la pantalla anterior a reservar. Peor que los heroes.
 const double anchoMaxFormulario = 640;
+
+/// Alto del carrusel de "DESTACADOS HOY" de Explorar.
+///
+/// Vive acá y no como literal en la pantalla porque la tarjeta tiene alto
+/// FIJO: si este número y el contenido se desincronizan, el texto desborda.
+/// `explorar_destacados_test.dart` lo mide con los nombres reales más largos.
+const double altoCarruselDestacados = 180;

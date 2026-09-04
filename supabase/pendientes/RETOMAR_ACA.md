@@ -1365,6 +1365,44 @@ clase). `analyze` sin issues nuevos y la web compila.
 botones duplicados de "Comprar créditos" (ahora los dos llevan el `?volver=`).
 Está en la auditoría como ítem 9.
 
+## ✅ Dos arreglos de las tarjetas de DESTACADOS de Explorar — 4/9
+
+Los vio Sofía mirando producción. Los dos son de la tarjeta de estudio del
+carrusel de "DESTACADOS HOY" (`_FeaturedExploreCard`).
+
+**1 · El badge sobre la foto mostraba TODAS las categorías.** Usaba
+`categoriasLabel`, que arma "YOGA · HOLISTICO +1": un cartel largo tapando la
+imagen. Ahora usa `categoriaPrincipal` (la **primera del array**, que es la que
+el resto del sistema ya trata como la etiqueta del estudio).
+
+**Confirmado lo del Inicio:** ahí **no hay badge sobre la foto**. Hay una línea
+de texto chica DEBAJO de la foto en la tarjeta de "CERCA TUYO", que usa el mismo
+`categoriasLabel`. No se tocó, porque el pedido era sólo Explorar, y además esa
+sección sólo aparece con permiso de ubicación dado. **Si se quiere, es una línea.**
+
+**2 · El nombre largo se comía la dirección.** La tarjeta tiene **alto fijo**
+(el del carrusel) y el nombre podía tomar 2 renglones: con "Ambra Espacio
+Holístico" —el más largo de producción— la dirección quedaba apretada o
+cortada. Ahora el nombre va en un `Flexible`: usa hasta 2 renglones si sobra
+lugar y **1 con puntos suspensivos si no**, así barrio y dirección **siempre**
+entran.
+
+De paso, el alto del carrusel dejó de ser un literal suelto y pasó a
+`altoCarruselDestacados` en `grilla_responsive.dart`: es un alto fijo con
+contenido variable, y si los dos se desincronizan el texto desborda.
+
+**Verificado midiendo la tarjeta real** (`explorar_destacados_card_test.dart`,
+expuesta con `debugFeaturedExploreCard`) con los 6 nombres reales de
+producción: ninguno desborda, la dirección se dibuja con el nombre más largo, y
+el badge muestra una sola categoría. **Probado que el test detecta el bug
+viejo**: revirtiendo sólo el `Flexible`, los 8 tests fallan.
+
+⚠️ **Dato, no código:** BB Colegiales y BB Urquiza tienen una **URL de Google
+Maps** cargada como dirección, así que la tarjeta muestra
+`https://maps.app.goo.gl/…`. Se arregla editando el estudio.
+
+225 tests (8 nuevos), `analyze` sin issues nuevos, web compila.
+
 ## ✅ Diseño visual, ETAPA 1: los dos chicos — 4/9 (Dart, va en la 1.0.7)
 
 Los dos primeros de la auditoría de diseño, que eran los de más impacto por

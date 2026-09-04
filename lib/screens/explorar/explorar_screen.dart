@@ -886,7 +886,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                     // La tira se oculta si ningún estudio del filtro tiene
                     // clases próximas: mejor sin tira que destacando vacíos.
                     if (destacados.isNotEmpty) SizedBox(
-                      height: 180,
+                      height: altoCarruselDestacados,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         itemCount: destacados.length,
@@ -1065,7 +1065,9 @@ class _FeaturedExploreCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _Pill(
-                                text: estudio.categoriasLabel.toUpperCase(),
+                                // Una sola: el badge va SOBRE la foto y con
+                                // varias categorías tapaba la imagen.
+                                text: estudio.categoriaPrincipal.toUpperCase(),
                                 dark: true,
                               ),
                               const Spacer(),
@@ -1095,16 +1097,25 @@ class _FeaturedExploreCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                  child: Text(
-                    estudio.nombre,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.black,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
+                // La tarjeta tiene ALTO FIJO. Sin `Flexible`, un nombre de
+                // dos renglones ("Ambra Espacio Holístico") se comía el lugar
+                // y la dirección quedaba apretada o cortada. Con esto el
+                // nombre cede: usa hasta 2 renglones si sobra lugar y 1 con
+                // puntos suspensivos si no, y barrio y dirección SIEMPRE
+                // entran (4/9/2026).
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                    child: Text(
+                      estudio.nombre,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.black,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
+                      ),
                     ),
                   ),
                 ),
@@ -1561,4 +1572,21 @@ Widget debugResultCard({
   accentColor: AppColors.beigeCard,
   fotoCompacta: fotoCompacta,
   onTap: () {},
+);
+
+/// SOLO PARA TESTS: expone la tarjeta de "DESTACADOS HOY" con su alto real
+/// (el del carrusel) para medir si el texto desborda. Mismo criterio que
+/// `debugResultCard` y `debugPaywallSheet`.
+@visibleForTesting
+Widget debugFeaturedExploreCard({
+  required Estudio estudio,
+  bool showBadge = false,
+}) => SizedBox(
+  height: altoCarruselDestacados,
+  child: _FeaturedExploreCard(
+    estudio: estudio,
+    accentColor: AppColors.beigeCard,
+    showBadge: showBadge,
+    onTap: () {},
+  ),
 );

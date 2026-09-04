@@ -42,6 +42,15 @@ class Estudio {
   String get categoria => categorias.isEmpty ? '' : categorias.first;
 
   /// Etiqueta corta para las cards: hasta dos categorías y un "+N".
+  /// La categoría PRINCIPAL: la primera del array, que es la que el resto del
+  /// sistema ya trata como la etiqueta del estudio.
+  ///
+  /// Se usa donde hay lugar para UNA sola (4/9/2026). El badge sobre la foto
+  /// en Explorar mostraba [categoriasLabel], y un estudio con varias quedaba
+  /// con un cartel tipo "YOGA · HOLISTICO +1" tapando la imagen.
+  String get categoriaPrincipal =>
+      categorias.isEmpty ? '' : categorias.first.trim();
+
   String get categoriasLabel {
     if (categorias.isEmpty) return '';
     if (categorias.length <= 2) return categorias.join(' · ');
