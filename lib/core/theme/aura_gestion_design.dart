@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'aura_tokens.dart';
+
 class AuraGestionDesign {
   static const Color background = Color(0xFFF7F5F2);
   static const Color card = Color(0xFFFFFFFF);
@@ -16,21 +18,18 @@ class AuraGestionDesign {
   static const Color successBg = Color(0xFF1A1A1A);
   static const Color errorBg = Color(0xFFFF4444);
 
-  static const double horizontalPadding = 20;
-  static const double sectionSpacing = 24;
-  static const double cardRadius = 16;
-  static const double buttonRadius = 12;
+  // Estos cuatro y la sombra se PROMOVIERON a `aura_tokens.dart` el 4/9/2026,
+  // para que el lado de la alumna use exactamente los mismos. Se dejan como
+  // alias para no tocar las pantallas que ya los usaban, y delegan: así los
+  // dos lados no se pueden volver a separar.
+  static const double horizontalPadding = AuraEspacio.margen;
+  static const double sectionSpacing = AuraEspacio.seccion;
+  static const double cardRadius = AuraRadio.tarjeta;
+  static const double buttonRadius = AuraRadio.boton;
 
-  static const BoxShadow softShadow = BoxShadow(
-    color: Color(0x141A1A1A),
-    blurRadius: 12,
-    offset: Offset(0, 2),
-  );
+  static const BoxShadow softShadow = AuraSombra.suave;
 
-  static TextStyle titleStyle({
-    Color color = textPrimary,
-    double size = 22,
-  }) {
+  static TextStyle titleStyle({Color color = textPrimary, double size = 22}) {
     return GoogleFonts.dmSans(
       fontSize: size,
       fontWeight: FontWeight.w600,
@@ -52,11 +51,7 @@ class AuraGestionDesign {
     double size = 15,
     FontWeight weight = FontWeight.w400,
   }) {
-    return GoogleFonts.dmSans(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-    );
+    return GoogleFonts.dmSans(fontSize: size, fontWeight: weight, color: color);
   }
 
   static ButtonStyle primaryButtonStyle() {
@@ -68,10 +63,7 @@ class AuraGestionDesign {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(buttonRadius),
       ),
-      textStyle: bodyStyle(
-        color: Colors.white,
-        weight: FontWeight.w600,
-      ),
+      textStyle: bodyStyle(color: Colors.white, weight: FontWeight.w600),
     );
   }
 
@@ -83,10 +75,7 @@ class AuraGestionDesign {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(buttonRadius),
       ),
-      textStyle: bodyStyle(
-        color: accent,
-        weight: FontWeight.w600,
-      ),
+      textStyle: bodyStyle(color: accent, weight: FontWeight.w600),
     );
   }
 
@@ -123,10 +112,7 @@ class AuraGestionDesign {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: successBg,
-        content: Text(
-          message,
-          style: bodyStyle(color: creamText, size: 14),
-        ),
+        content: Text(message, style: bodyStyle(color: creamText, size: 14)),
       ),
     );
   }
@@ -135,10 +121,7 @@ class AuraGestionDesign {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: errorBg,
-        content: Text(
-          message,
-          style: bodyStyle(color: Colors.white, size: 14),
-        ),
+        content: Text(message, style: bodyStyle(color: Colors.white, size: 14)),
       ),
     );
   }

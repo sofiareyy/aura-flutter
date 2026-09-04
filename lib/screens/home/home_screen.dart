@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../models/estudio.dart';
 import '../../providers/app_provider.dart';
 import '../../services/aviso_alumnos_service.dart';
@@ -20,6 +21,7 @@ import '../../utils/categorias_con_oferta.dart';
 import '../../utils/grilla_responsive.dart';
 import '../../widgets/foto_red.dart';
 import '../../widgets/organizadores_links.dart';
+import '../../widgets/aura_skeleton.dart';
 import '../../widgets/registro_muro.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -43,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _proximasClases = [];
   List<Map<String, dynamic>> _experiencias = [];
   List<Map<String, dynamic>> _sugerencias = [];
+
   /// "VOLVÉ A TUS ESTUDIOS": próximas clases de los estudios donde ya reservó.
   /// Vacía = la sección no se dibuja (usuaria nueva, o ya reservó todo).
   List<Map<String, dynamic>> _misEstudios = [];
@@ -225,8 +228,10 @@ class _HomeScreenState extends State<HomeScreen> {
             catalogo: categorias,
             clases: clases,
           );
-          _categoriaSeleccionada =
-              categoriaValida(_categoriaSeleccionada, _categorias);
+          _categoriaSeleccionada = categoriaValida(
+            _categoriaSeleccionada,
+            _categorias,
+          );
         });
       }
       _cargarSugerencias().ignore();
@@ -532,19 +537,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         // dejaría vacía casi siempre. Se oculta sola si la
                         // usuaria no reservó nunca.
                         if (_misEstudios.isNotEmpty) ...[
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.fromLTRB(20, 22, 20, 14),
-                              child: Text(
-                                'VOLVÉ A TUS ESTUDIOS',
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(
-                                      letterSpacing: 0.8,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                              ),
-                            ),
+                          const SliverToBoxAdapter(
+                            child: _TituloSeccion('VOLVÉ A TUS ESTUDIOS'),
                           ),
                           SliverToBoxAdapter(
                             child: SizedBox(
@@ -618,32 +612,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'CERCA TUYO',
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(
-                                        letterSpacing: 0.8,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                ),
-                                GestureDetector(
-                                  onTap: () => context.go('/explorar'),
-                                  child: const Text(
-                                    'Ver todo',
-                                    style: TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          child: _TituloSeccion(
+                            'CERCA TUYO',
+                            accion: 'Ver todo',
+                            onAccion: () => context.go('/explorar'),
                           ),
                         ),
                         SliverToBoxAdapter(
@@ -692,35 +664,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         if (_sugerencias.isNotEmpty) ...[
                           SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'PARA VOS ✨',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          letterSpacing: 0.8,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () => context.go('/explorar'),
-                                    child: const Text(
-                                      'Ver más',
-                                      style: TextStyle(
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            child: _TituloSeccion(
+                              'PARA VOS ✨',
+                              accion: 'Ver más',
+                              onAccion: () => context.go('/explorar'),
+                              separar: false,
                             ),
                           ),
                           SliverToBoxAdapter(
@@ -752,36 +700,23 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ],
                         SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'CLASES ESTA SEMANA',
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(
-                                        letterSpacing: 0.8,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                ),
-                                GestureDetector(
-                                  onTap: () => context.go('/explorar'),
-                                  child: const Text(
-                                    'Explorar',
-                                    style: TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          child: _TituloSeccion(
+                            'CLASES ESTA SEMANA',
+                            accion: 'Explorar',
+                            onAccion: () => context.go('/explorar'),
+                            separar: false,
                           ),
                         ),
+                        // Antes: `SizedBox.shrink()`. La sección desaparecía
+                        // mientras cargaba y reaparecía de golpe. Ahora deja la
+                        // silueta de lo que viene y nada salta de lugar.
                         if (_loading)
-                          const SliverToBoxAdapter(child: SizedBox.shrink())
+                          SliverToBoxAdapter(
+                            child: AuraSkeletonCarrusel(
+                              alto: altoCarruselVidriera,
+                              altoFoto: 320 / proporcionFotoVidriera,
+                            ),
+                          )
                         else if (clasesEstaSemana.isEmpty)
                           const SliverToBoxAdapter(
                             child: Padding(
@@ -826,39 +761,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         // ── Experiencias (workshops / eventos próximos) ──────────────
                         if (_experiencias.isNotEmpty) ...[
                           SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                20,
-                                24,
-                                20,
-                                14,
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'EXPERIENCIAS',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          letterSpacing: 0.8,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                  ),
-                                  // Acá había un "Ver todas" que iba a /explorar, y
-                                  // /explorar excluye los workshops
-                                  // (`getProximasClases` hace .neq('tipo','workshop')):
-                                  // la alumna caía en una pantalla sin ninguna
-                                  // experiencia. No existe pantalla de experiencias —
-                                  // es la feature en diseño con categorías y buscador
-                                  // propios (Tanda E). Mientras tanto el carrusel trae
-                                  // hasta 20 y hay 1 workshop en toda la base, así que
-                                  // ya las muestra todas y el link sobraba.
-                                ],
-                              ),
-                            ),
+                            child: _TituloSeccion('EXPERIENCIAS'),
                           ),
                           SliverToBoxAdapter(
                             child: SizedBox(
@@ -888,36 +791,20 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ],
                         SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'ESTUDIOS',
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(
-                                        letterSpacing: 0.8,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                ),
-                                GestureDetector(
-                                  onTap: () => context.go('/explorar'),
-                                  child: const Text(
-                                    'Ver todo',
-                                    style: TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          child: _TituloSeccion(
+                            'ESTUDIOS',
+                            accion: 'Ver todo',
+                            onAccion: () => context.go('/explorar'),
                           ),
                         ),
                         if (_loading)
-                          const SliverToBoxAdapter(child: SizedBox.shrink())
+                          const SliverToBoxAdapter(
+                            child: AuraSkeletonCarrusel(
+                              alto: 204,
+                              anchoTarjeta: 220,
+                              altoFoto: 100,
+                            ),
+                          )
                         else if (estudiosFiltrados.isEmpty)
                           const SliverToBoxAdapter(
                             child: Padding(
@@ -960,50 +847,32 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  // Se llamaba 'TODAS LAS EXPERIENCIAS' y
-                                  // listaba `clasesFiltradas`, o sea TODAS las
-                                  // clases: quien bajaba buscando experiencias
-                                  // encontraba funcional (4/9/2026). Las
-                                  // experiencias de verdad tienen su propia
-                                  // sección arriba, que se oculta si no hay.
-                                  // No dice "esta semana" porque la ventana es
-                                  // de 30 días: eso es la sección de arriba.
-                                  'TODAS LAS CLASES',
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(
-                                        letterSpacing: 0.8,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                ),
-                                GestureDetector(
-                                  onTap: () => context.go('/explorar'),
-                                  child: const Text(
-                                    'Ver todo',
-                                    style: TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          child: _TituloSeccion(
+                            'TODAS LAS CLASES',
+                            accion: 'Ver todo',
+                            onAccion: () => context.go('/explorar'),
                           ),
                         ),
+                        // Era un spinner suelto en un hueco crema.
                         if (_loading)
-                          const SliverToBoxAdapter(
-                            child: Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(32),
-                                child: CircularProgressIndicator(
-                                  color: AppColors.primary,
-                                ),
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AuraEspacio.margen,
+                            ),
+                            sliver: SliverToBoxAdapter(
+                              child: Column(
+                                children: [
+                                  for (var i = 0; i < 2; i++)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: AuraEspacio.m,
+                                      ),
+                                      child: AuraSkeletonTarjetaVidriera(
+                                        ancho: double.infinity,
+                                        altoFoto: 160,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                           )
@@ -2631,6 +2500,69 @@ class _EstudioAsociadoCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// El encabezado de una sección del Inicio: la etiqueta y, si corresponde, el
+/// link de la derecha.
+///
+/// Existe para que las seis secciones no sigan cada una con su propio padding
+/// (había 22, 24, 26 y 0 de arriba) ni su propio estilo. Ahora salen todas de
+/// los mismos tokens (4/9/2026).
+class _TituloSeccion extends StatelessWidget {
+  final String titulo;
+
+  /// El texto del link de la derecha. Sin él, no se dibuja.
+  final String? accion;
+  final VoidCallback? onAccion;
+
+  /// La primera sección después de otra cosa necesita el aire de separación;
+  /// una que va pegada a la anterior, no.
+  final bool separar;
+
+  const _TituloSeccion(
+    this.titulo, {
+    this.accion,
+    this.onAccion,
+    this.separar = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AuraEspacio.margen,
+        separar ? AuraEspacio.seccion : 0,
+        AuraEspacio.margen,
+        AuraEspacio.tituloAContenido,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Flexible(
+            child: Text(
+              titulo,
+              style: AuraTipo.estiloEtiqueta.copyWith(
+                color: AppColors.textoSecundario,
+              ),
+            ),
+          ),
+          if (accion != null)
+            GestureDetector(
+              onTap: onAccion,
+              child: Text(
+                accion!,
+                style: const TextStyle(
+                  // `primary` como texto da 2,72:1 y no se leía.
+                  color: AppColors.primaryTexto,
+                  fontWeight: FontWeight.w600,
+                  fontSize: AuraTipo.secundario,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

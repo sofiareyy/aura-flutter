@@ -1365,6 +1365,56 @@ clase). `analyze` sin issues nuevos y la web compila.
 botones duplicados de "Comprar créditos" (ahora los dos llevan el `?volver=`).
 Está en la auditoría como ítem 9.
 
+## ✅ Diseño visual, ETAPA 2 · sub-parte 1: el INICIO — 4/9
+
+El sistema que ya existía en el repo, aplicado al lado de la alumna. **Nada
+inventado**: son los valores que `AuraGestionDesign` usaba en las dos pantallas
+del estudio, promovidos a **`core/theme/aura_tokens.dart`**. Y
+`AuraGestionDesign` ahora **delega ahí**, así que los dos lados no se pueden
+volver a separar (hay test).
+
+**Los tokens:** `AuraEspacio` (margen 20, sección 24, escala de 4) ·
+`AuraRadio` (chip 8, botón 12, tarjeta 16, pastilla — antes había **tres
+literales** para la pastilla: 999, 9999 y 99) · `AuraSombra.suave`, una sola ·
+`AuraTipo`, cinco escalones con saltos reales (11 · 13 · 15 · 18 · 26) en vez
+de ocho tamaños contiguos.
+
+**Los esqueletos:** `widgets/aura_skeleton.dart`, extraído de `AuraShimmerBox`,
+que ya existía y **sólo veían 3 lugares de una pantalla de gestión**. En el
+Inicio, dos secciones **desaparecían** mientras cargaban (`SizedBox.shrink`) y
+reaparecían de golpe; la tercera era un spinner suelto en un hueco crema. Ahora
+las tres dejan la silueta de lo que viene, así nada salta de lugar.
+
+**Un encabezado único** (`_TituloSeccion`) para las 6 secciones + la nueva:
+antes cada una traía su propio padding de arriba (0, 22, 24 y 26) y su propio
+estilo. Y las etiquetas pasaron de `titleMedium` —**18 px en mayúscula y
+negrita**, que gritaban más que los nombres de las clases— al
+`sectionLabelStyle` de 13 que el estudio ya usaba.
+
+**El "Ver todo" ahora se lee.** Era `primary` como texto: **2,72:1**. `primary`
+es un color para ser FONDO (con negro encima, la firma de Aura). Se sumó
+`AppColors.primaryTexto` `#B84E1D`, que da **4,66:1** sobre crema y 5,07:1
+sobre blanco, y sigue siendo reconociblemente el mismo naranja.
+
+| En el Inicio | Antes | Ahora |
+|---|---|---|
+| Márgenes de página distintos | 6 | **1** (20) |
+| Encabezados con estilo propio | 7 | **1** componente |
+| Secciones que desaparecían al cargar | 2 | **0** |
+| Spinners sueltos en el scroll | 1 | **0** |
+| Contraste del "Ver todo" | 2,72:1 | **4,66:1** |
+
+**NO se tocó**, como se pidió: las tarjetas de créditos (`_PlanCard`,
+`_NuevoUsuarioCard`, `_SinCreditosCard`, `_InvitadoCard`, el banner de
+vencimiento), el negro sobre naranja del botón, y los tonos cálidos.
+
+⚠️ Quedan a propósito: los paddings internos de las tarjetas (chip 18,
+tarjetas 16), que son otra cosa que el margen de página; y el spinner del panel
+de notificaciones, que es una hoja modal.
+
+233 tests (8 nuevos), `analyze` sin issues nuevos (97), web compila.
+**Siguen: Explorar + detalle de clase, y después el resto.**
+
 ## ✅ Dos arreglos de las tarjetas de DESTACADOS de Explorar — 4/9
 
 Los vio Sofía mirando producción. Los dos son de la tarjeta de estudio del

@@ -34,6 +34,14 @@ class AppColors {
 
   /// El escalón más suave que TODAVÍA se lee: etiquetas, fecha y hora.
   static const Color textoSuave = Color(0xFF6E6761);
+
+  /// El naranja de la marca, oscurecido para poder usarlo COMO TEXTO.
+  ///
+  /// `primary` sobre la crema da 2,72:1 y no se lee: es un color pensado para
+  /// ser FONDO (con texto negro encima, la firma de Aura). Los links tipo
+  /// "Ver todo" lo usaban como texto. Éste da 4,66:1 sobre crema y 5,07:1
+  /// sobre blanco, y sigue siendo reconociblemente el mismo naranja.
+  static const Color primaryTexto = Color(0xFFB84E1D);
   static const Color warmSurface = Color(0xFFFDF8F3);
   static const Color warmBorder = Color(0xFFE9DED4);
   static const Color cardBackground = Color(0xFFFFFFFF);
@@ -181,19 +189,16 @@ class AppTheme {
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        hintStyle: GoogleFonts.dmSans(
-          color: AppColors.grey,
-          fontSize: 14,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
         ),
+        hintStyle: GoogleFonts.dmSans(color: AppColors.grey, fontSize: 14),
       ),
       cardTheme: CardThemeData(
         color: AppColors.warmSurface,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.background,
