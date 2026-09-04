@@ -818,8 +818,11 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                   TextFormField(
                     controller: emailCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Email (puede ser inventado)',
-                      helperText: 'No se manda mail de verificación',
+                      labelText: 'Email del estudio',
+                      helperText: 'Usá el REAL: sin él no puede recuperar la '
+                          'contraseña si la pierde. No se le manda mail de '
+                          'verificación.',
+                      helperMaxLines: 3,
                     ),
                     keyboardType: TextInputType.emailAddress,
                     autocorrect: false,

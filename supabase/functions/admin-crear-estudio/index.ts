@@ -129,17 +129,23 @@ Deno.serve(async (req: Request) => {
 
     const newUserId = created.user.id
 
-    // 5) Setear la fila en usuarios como 'estudio' vinculada al estudio.
+    // 5) Setear la fila en usuarios vinculada al estudio.
     // OJO: el trigger `on_auth_user_created` (handle_new_user) YA insertó una
     // fila en `usuarios` con rol 'usuario' y estudio_id NULL apenas se creo la
     // cuenta de auth. Por eso usamos upsert onConflict 'id' (no insert): un
     // insert chocaria con esa fila y tiraria duplicate key -> el estudio "con
-    // cuenta" fallaba siempre. El upsert actualiza esa fila a rol 'estudio'.
+    // cuenta" fallaba siempre. El upsert actualiza esa fila.
+    //
+    // El rol es 'admin_estudio', NO 'estudio' (4/9/2026). El check de la tabla
+    // acepta los dos y buena parte del codigo los trata igual, pero los 15
+    // accesos reales de produccion usan 'admin_estudio', y sobre todo
+    // `studio_promote_user_to_admin` solo actualiza el rol cuando es 'usuario':
+    // con 'estudio' la cuenta quedaba pegada en el valor viejo para siempre.
     const { error: usuarioErr } = await adminClient.from('usuarios').upsert({
       id: newUserId,
       email: emailLower,
       nombre: nombreLimpio,
-      rol: 'estudio',
+      rol: 'admin_estudio',
       estudio_id: estudioId,
       creditos: 0,
     }, { onConflict: 'id' })
@@ -151,6 +157,40 @@ Deno.serve(async (req: Request) => {
       console.error('Error insertando usuario:', usuarioErr.message)
       return json(
         { error: 'No se pudo registrar el usuario en la tabla: ' + usuarioErr.message },
+        500,
+      )
+    }
+
+    // 6) EL VINCULO DE ACCESO. Sin esto la cuenta se creaba pero NO entraba a
+    // su panel (4/9/2026).
+    //
+    // `usuarios.estudio_id` es solo el puntero al estudio ACTIVO, un resto del
+    // modelo de un estudio por cuenta. Quien decide si entras es
+    // `estudio_admins`: `list_my_studios` lee de ahi, y su propio codigo dice
+    // "si no hay estudios, no hay nada que elegir: modo usuario". Medido en
+    // rollback con el estado exacto que dejaba esta funcion, devolvia [] y el
+    // estudio caia en /home como una alumna mas. Agregando solo esta fila,
+    // devuelve su estudio y entra.
+    //
+    // Es la MISMA fila que inserta `studio_promote_user_to_admin` (la RPC
+    // detras del boton "Acceso"): misma tabla, mismo rol, mismo on conflict.
+    // Por eso el arreglo es aditivo y el workaround de crear y despues tocar
+    // "Acceso" sigue funcionando igual.
+    const { error: accesoErr } = await adminClient
+      .from('estudio_admins')
+      .upsert(
+        { estudio_id: estudioId, usuario_id: newUserId, rol: 'admin_estudio' },
+        { onConflict: 'estudio_id,usuario_id' },
+      )
+
+    if (accesoErr) {
+      // Rollback completo: una cuenta sin acceso es peor que ninguna, porque
+      // el email queda tomado y hay que borrarlo a mano para reintentar.
+      await adminClient.auth.admin.deleteUser(newUserId)
+      await adminClient.from('estudios').delete().eq('id', estudioId)
+      console.error('Error vinculando acceso:', accesoErr.message)
+      return json(
+        { error: 'No se pudo dar acceso al estudio: ' + accesoErr.message },
         500,
       )
     }

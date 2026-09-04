@@ -1750,6 +1750,21 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                     ),
                   ],
                   const SizedBox(height: 24),
+                  // La pantalla existía desde siempre, pero SOLO se llegaba
+                  // desde Configuración del lado alumna: un estudio no tenía
+                  // por dónde cambiarla (4/9/2026). Importa ahora que el alta
+                  // la hace Aura: el estudio entra con una contraseña temporal
+                  // que le pasan por WhatsApp y necesita poder cambiarla.
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          context.push('/perfil/cambiar-contrasena'),
+                      icon: const Icon(Icons.lock_outline_rounded),
+                      label: const Text('Cambiar contraseña'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(

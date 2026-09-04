@@ -1409,6 +1409,68 @@ límite de 50 corta al cuarto día. Se resuelve solo cuando haya más volumen.
 
 240 tests (7 nuevos), `analyze` sin issues nuevos, web compila.
 
+## ✅ Alta de estudio con cuenta: ahora entra al panel — 4/9 (edge + Dart)
+
+Sofía quería crear la cuenta del estudio ella, con contraseña temporal, sin
+pedirle a nadie que se registre antes. **Eso ya existía** (Estudios → "+" →
+"Crear con cuenta", edge function `admin-crear-estudio` desplegada) **pero
+estaba roto**: creaba el estudio y la cuenta y no el vínculo.
+
+### Lo que fallaba, medido
+
+`usuarios.estudio_id` es sólo el puntero al estudio ACTIVO. Quien decide si
+entrás es **`estudio_admins`**, de donde lee `list_my_studios`. Reproducido en
+rollback con el estado exacto que dejaba la función:
+
+```
+list_my_studios() → []
+```
+
+Y el código dice *"si no hay estudios, no hay nada que elegir: modo usuario"* →
+el estudio caía en `/home` **como una alumna más**. Control positivo: con sólo
+esa fila agregada, devuelve su estudio y entra.
+
+Segundo defecto: escribía `rol: 'estudio'`. El check acepta los dos valores,
+pero los 15 accesos reales usan `admin_estudio`, y `studio_promote_user_to_admin`
+**sólo corrige el rol cuando es `'usuario'`**: con `'estudio'` quedaba pegado.
+
+### Lo que se hizo
+
+1. **Edge function** (desplegada, **v9**, `verify_jwt` intacto en true): upsert
+   en `estudio_admins` con `admin_estudio`, y el rol de `usuarios` también.
+   Es la MISMA fila que inserta la RPC del botón "Acceso", así que el arreglo
+   es aditivo y el workaround sigue funcionando igual. Si el vínculo falla,
+   rollback completo: una cuenta sin acceso es peor que ninguna, porque el
+   email queda tomado.
+2. **"Cambiar contraseña" en el panel del estudio.** La pantalla existía desde
+   siempre pero sólo se llegaba desde Configuración del lado alumna. Ahora que
+   el alta la hace Aura con una contraseña temporal, el estudio necesita
+   poder cambiarla.
+3. **El aviso del mail.** Decía *"Email (puede ser inventado)"*. Si es
+   inventado, el estudio queda **sin forma de recuperar la contraseña**, porque
+   "olvidé mi contraseña" manda un mail a esa casilla. Ahora dice que use el
+   real y por qué.
+
+### ⚠️ Lo que falta verificar
+
+La función **arranca y autoriza bien** (probado: sin token da 401, con token
+inválido da 401 y no 500). Lo que NO se pudo probar de punta a punta es una
+creación real, porque hace falta una sesión de admin y desde acá no hay
+credenciales de Sofía.
+
+**Se verifica solo con el próximo alta real:** Sofía crea el estudio con
+"Crear con cuenta" y tiene que entrar directo, sin tocar "Acceso".
+
+## ⬜ Texto largo del estudio: "Ver más" (Etapa 2, detalle de estudio)
+
+Un estudio mandó una descripción muy larga y en la app queda una pared de
+texto. Pasado cierto número de renglones tiene que aparecer un **"Ver más"**
+que expanda.
+
+Aplica a la **descripción del estudio** y probablemente también a la de la
+**experiencia**. Va en la sub-parte del **detalle de estudio** de la Etapa 2 de
+diseño, que todavía no se hizo.
+
 ## 🔎 "YOYO Yoga Studio no aparece" — 4/9: NO es un bug, le faltan clases
 
 Sofía cargó un estudio nuevo y no lo veía. Medido contra la base, **el sistema
