@@ -1137,6 +1137,17 @@ No son tareas técnicas. Están acá para que no se pierdan.
 | ✅ | **Mail de confirmación de reserva — DECIDIDO Y ACTIVO desde el 29/8** | Cableado por base (trigger al confirmarse), texto aprobado ("fitness y experiencias", línea del código). Le llega a todas las alumnas ya. |
 | ⬜ | **Categorías faltantes** | Avisarle a Yessi (112 clases) y Ambra (77) que las completen. O que el form las exija (Dart). |
 
+## 📝 Auditoría de UX/UI del Inicio y del camino a la primera reserva — 4/9
+
+Análisis completo, sin construir nada, en **`AUDITORIA_UX_INICIO.md`**: primera
+impresión medida contra los datos del día (0 clases hoy, 0 experiencias, 6 de 12
+estudios en Pilar, 6 chips sin oferta, chip "GRATIS" filtrado al Inicio, sección
+"TODAS LAS EXPERIENCIAS" que lista clases), el flujo de conversión toque por toque
+(19 toques hasta la primera reserva; el checkout pierde la clase que motivó la
+compra; el registro con Google/Apple pierde el `?volver=`), y 23 sugerencias
+ordenadas por impacto con tamaño y prioridad. **Leerlo antes de tocar el Inicio.**
+Absorbe la lista de "WEB / INICIO — mejoras" de abajo.
+
 ## ⬜ WEB / INICIO — mejoras, no urgentes (anotadas el 28/8)
 
 | | Qué | Nota |
