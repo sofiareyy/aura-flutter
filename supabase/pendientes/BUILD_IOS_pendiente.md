@@ -1,6 +1,6 @@
 # Registro de builds de iOS
 
-Última actualización: 2026-08-21.
+Última actualización: 2026-09-04.
 
 ## Historial de versiones publicadas
 
@@ -11,6 +11,7 @@
 | `1.0.6+24` | Precios + los 5 fixes de Dart de abajo + `MinimumOSVersion 15` | subido a App Store Connect el 2026-08-18 ✅ |
 | **`1.0.6+25`** | Push (FCM) en Android e iOS · force-update · modo visita · lista de espera · fixes de seguridad de base | **PUBLICADO** ✅ — confirmado por Sofía el 30/8 |
 | **`1.0.6+26`** | DROP de la columna fantasma · manejo de errores legible de los guards · `#BK-` · foto de perfil unificada | **PUBLICADO** ✅ — aprobado el 29/8 |
+| **`1.0.7+27`** | Reseñas completas (pantalla, por reserva, Mis Reservas) · Cobros con liquidaciones reales y corte de mes argentino · Explorar con experiencias y foto grande en mobile · vidriera y heroes · muro de registro y vuelta a la clase · perfil reordenado · servicios de precio fijo (chips, precio único, backoffice) · bienvenida borrada (se van los 404 de cada login) · eliminar estudio seguro · 9 cortos | **compilado el 4/9, PENDIENTE de archivar y subir** — `pubspec` bumpeado en este mismo commit; iOS release compila sin firmar, AAB firmado con `aura-upload` en `build/app/outputs/bundle/release/` |
 
 ### ✅ RESUELTO el 2026-08-30 — el 25 sí se subió
 
