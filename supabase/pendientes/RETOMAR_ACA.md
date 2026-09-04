@@ -1365,6 +1365,22 @@ clase). `analyze` sin issues nuevos y la web compila.
 botones duplicados de "Comprar créditos" (ahora los dos llevan el `?volver=`).
 Está en la auditoría como ítem 9.
 
+## 🎨 Auditoría de DISEÑO VISUAL — 4/9
+
+Análisis completo, sin construir, en **`AUDITORIA_DISENO_VISUAL.md`**, con el marco
+"la gente compra por lo visual". Medido sobre las 9 pantallas de la alumna: **86
+colores a mano** (27 grises distintos para texto secundario), **19 tamaños de
+letra** (206 literales contra 9 usos del tema), **14 radios**, **6 márgenes de
+página**, **2 tipografías** (DM Sans + Inter en el cuerpo), **0 skeletons**, 5
+maneras de decir "no hay foto", y **ningún archivo de logo**. Contrastes
+calculados: 3 de los 5 renglones de la tarjeta de clase no pasan el mínimo de
+legibilidad; el negro sobre naranja de los botones SÍ (5,87:1) y hay que
+protegerlo. Hallazgo clave: **`aura_gestion_design.dart` ya es el sistema bueno**
+(tokens de espaciado, radio, sombra, una tipografía, skeleton) y sólo lo usan 2
+pantallas del estudio. 16 sugerencias ordenadas por conversión; las tres de
+antes de la pauta son los grises ilegibles, una sola tipografía y el hero del
+Inicio (propuesta detallada en §7, con decisiones pendientes de Sofía).
+
 ## 📝 Auditoría de UX/UI del Inicio y del camino a la primera reserva — 4/9
 
 Análisis completo, sin construir nada, en **`AUDITORIA_UX_INICIO.md`**: primera
