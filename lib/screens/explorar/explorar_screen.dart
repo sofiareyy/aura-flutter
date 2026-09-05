@@ -1059,13 +1059,22 @@ class _FeaturedExploreCard extends StatelessWidget {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _Pill(
-                                // Una sola: el badge va SOBRE la foto y con
-                                // varias categorías tapaba la imagen.
-                                text: estudio.categoriaPrincipal.toUpperCase(),
-                                dark: true,
+                              // En Flexible: cuando también está "Tu estudio"
+                              // (la cuenta del estudio mirando su propia
+                              // tarjeta), los dos carteles no entraban en 166
+                              // px y la fila desbordaba. Medido en la
+                              // auditoría del 4/9: ya desbordaba 32 px ANTES
+                              // de la escala nueva, y la escala lo llevó a 46.
+                              // Ahora la categoría cede y corta con puntos.
+                              Flexible(
+                                child: _Pill(
+                                  // Una sola: el badge va SOBRE la foto y con
+                                  // varias categorías tapaba la imagen.
+                                  text: estudio.categoriaPrincipal.toUpperCase(),
+                                  dark: true,
+                                ),
                               ),
-                              const Spacer(),
+                              const SizedBox(width: AuraEspacio.s),
                               if (showBadge)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
@@ -1545,6 +1554,8 @@ class _Pill extends StatelessWidget {
       ),
       child: Text(
         text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: dark ? AppColors.white : AppColors.primary,
           fontSize: AuraTipo.etiqueta,

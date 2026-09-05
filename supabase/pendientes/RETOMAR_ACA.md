@@ -1409,7 +1409,7 @@ límite de 50 corta al cuarto día. Se resuelve solo cuando haya más volumen.
 
 240 tests (7 nuevos), `analyze` sin issues nuevos, web compila.
 
-## ⏸️ Etapa 3, el HERO: maqueta hecha, ESPERANDO que Sofía decida — 4/9
+## ❌ Etapa 3, el HERO: DESCARTADO por Sofía el 4/9 (queda la maqueta y las medidas de las fotos)
 
 Tres variantes con fotos y horarios **reales** de producción. **No se construyó
 nada**: la maqueta es sólo para elegir, y "ninguna" es una respuesta válida.
@@ -1445,11 +1445,64 @@ acompaña, pero hoy acompaña en la mitad de los casos.
 **Si sale la A**, antes hay que o cambiar esas 4 fotos, o que el hero saltee a
 los estudios sin foto horizontal.
 
-## ⬜ Después del hero: auditoría de que la mejora visual no rompió nada
+## ✅ AUDITORÍA de la mejora visual (Etapa 1 + 2) — 4/9: 2 hallazgos, los 2 arreglados
 
-Pedida con Fable. Cubre las 22 pantallas de la Etapa 1 + 2: navegación,
-botones, formularios, el checkout de punta a punta, layout sin textos cortados,
-y que los créditos sigan intactos. Medido contra producción.
+Medido contra el código y contra producción, no estimado.
+
+### Funcional: cero líneas de lógica
+
+Se clasificaron **las 2332 líneas** que cambiaron en `lib/` en los 6 commits de
+diseño. Descontando estilo (1176), comentarios (322) y vacías, se leyeron a
+mano las que quedaban: son los widgets puros nuevos (`TextoExpandible`,
+`AuraSkeleton`, `TituloSeccion`), el export de prueba de una tarjeta y
+refactors con el cuerpo idéntico. **Ninguna línea de lógica.** El router no
+cambió y todas las rutas que usan las 22 pantallas existen.
+
+### Plata: cero regresión
+
+Las 10 pantallas de plata (checkout, packs, plan, resultado de pago, los 3 de
+créditos, las 4 de reservas): **0 líneas que no sean estilo** en cada una. Y en
+todo el rango **no cambió ningún servicio, ni `pricing.dart`, ni
+`liquidacion.dart`**.
+
+### Créditos: byte a byte iguales, tras 3 correcciones
+
+Se compararon los 4 bloques de créditos contra el código de ANTES de la Etapa
+1, sin sangría ni comentarios. **Dos diferían:** el título "Créditos
+disponibles" (14 → 15) y dos textos grises de la tarjeta del plan (12 → 13).
+Eran parte de las tarjetas de créditos y la regla era no tocarlas: **se
+devolvieron a su valor original**. Ahora los 4 bloques son idénticos.
+
+### Layout: un desborde real, preexistente, arreglado
+
+Escaneo estático: 38 cajas de alto fijo con texto que creció. Las 5 apretadas
+resultaron falsos positivos (la caja es un ícono, el texto es hermano).
+
+Render real de 8 piezas en 5 anchos (320 a 1280): **1 desborde**, en la
+tarjeta de Destacados cuando muestra "Tu estudio". Medido en un worktree
+contra `899db61`: **ya desbordaba 32 px ANTES de la escala nueva**; la escala lo
+llevó a 46. Sólo lo ve una cuenta de estudio mirando su propia tarjeta en
+Explorar (nunca una alumna). Arreglado con `Flexible` + elipsis en la
+categoría, y probado con la categoría más larga de producción.
+
+### "Ver más": 6 tests, y está en vivo
+
+Expande, pliega, no aparece en textos cortos, y no desborda con los 1484
+caracteres del workshop. El bundle en vivo tiene "Ver menos" ×3.
+
+### Producción
+
+`gh-pages` es `deploy: 77221cf`; las 4 páginas clave responden 200; el bundle
+vivo tiene las piezas nuevas; las funciones puras contra datos reales de
+producción siguen en verde (46 tests).
+
+**Total: 334 tests (40 nuevos de la auditoría), analyze en 97, web compila.**
+
+⚠️ **Lo que esta auditoría NO puede medir:** un flujo de pago real de punta a
+punta (hace falta una tarjeta y una cuenta), y el render de las pantallas
+enteras que dependen de Supabase. Lo primero está cubierto por "cero líneas de
+lógica en plata"; lo segundo, por el escaneo estático más el render de las
+piezas.
 
 ## ✅ ETAPA 2 CERRADA: el sistema en TODA la app de la alumna — 4/9
 

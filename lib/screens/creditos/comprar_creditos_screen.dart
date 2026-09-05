@@ -645,13 +645,13 @@ class _SuscripcionesTab extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     plan['descripcion']?.toString() ?? '',
-                    style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
+                    style: const TextStyle(color: AppColors.grey, fontSize: 12),
                   ),
                   if (subtitulo != null) ...[
                     const SizedBox(height: 4),
                     Text(
                       subtitulo,
-                      style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
+                      style: const TextStyle(color: AppColors.grey, fontSize: 12),
                     ),
                   ],
                   const SizedBox(height: 14),

@@ -212,7 +212,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                   children: [
                     const Text(
                       'Créditos disponibles',
-                      style: TextStyle(color: Colors.white70, fontSize: AuraTipo.cuerpo),
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
                     ),
                     const SizedBox(height: 8),
                     Row(
