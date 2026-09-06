@@ -10,6 +10,7 @@ import '../../utils/mes_argentino.dart';
 import '../../utils/liquidacion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/estudio_admin_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class CobrosScreen extends StatefulWidget {
   const CobrosScreen({super.key});
@@ -130,13 +131,35 @@ class _CobrosScreenState extends State<CobrosScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Próximo cobro', style: TextStyle(color: Color(0xFFA39B94), fontSize: 13)),
+                    const Text(
+                      'Próximo cobro',
+                      style: TextStyle(color: Color(0xFFA39B94), fontSize: 13),
+                    ),
                     const SizedBox(height: 10),
-                    Text(_money(_montoPendiente), style: const TextStyle(color: AppColors.primary, fontSize: 28, fontWeight: FontWeight.w700)),
+                    Text(
+                      _money(_montoPendiente),
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 6),
-                    Text('${_reservasMesActual.length} reservas · $_mesActualCapitalizado', style: const TextStyle(color: Color(0xFFA39B94), fontSize: 13)),
+                    Text(
+                      '${_reservasMesActual.length} reservas · $_mesActualCapitalizado',
+                      style: const TextStyle(
+                        color: Color(0xFFA39B94),
+                        fontSize: 13,
+                      ),
+                    ),
                     const SizedBox(height: 16),
-                    Text('Pago el $_diaPago', style: const TextStyle(color: Color(0xFFA39B94), fontSize: 13)),
+                    Text(
+                      'Pago el $_diaPago',
+                      style: const TextStyle(
+                        color: Color(0xFFA39B94),
+                        fontSize: 13,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     SizedBox(
                       height: 40,
@@ -158,30 +181,88 @@ class _CobrosScreenState extends State<CobrosScreen> {
         // Historial tabla
         const Text(
           'HISTORIAL',
-          style: TextStyle(color: Color(0xFF8F877F), fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1),
+          style: TextStyle(
+            color: Color(0xFF8F877F),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1,
+          ),
         ),
         const SizedBox(height: 10),
         Container(
-          decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: _historial.isEmpty
               ? const Padding(
                   padding: EdgeInsets.all(20),
-                  child: Text('Todavía no hay historial de cobros.', style: TextStyle(color: Color(0xFF8F877F))),
+                  child: Text(
+                    'Todavía no hay historial de cobros.',
+                    style: TextStyle(color: Color(0xFF8F877F)),
+                  ),
                 )
               : Column(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                       decoration: const BoxDecoration(
                         color: Color(0xFFF7F5F2),
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(16),
+                        ),
                       ),
                       child: const Row(
                         children: [
-                          Expanded(child: Text('Mes', style: TextStyle(color: Color(0xFF888888), fontSize: 11, fontWeight: FontWeight.w700))),
-                          SizedBox(width: 80, child: Text('Reservas', style: TextStyle(color: Color(0xFF888888), fontSize: 11, fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
-                          SizedBox(width: 120, child: Text('Monto neto', style: TextStyle(color: Color(0xFF888888), fontSize: 11, fontWeight: FontWeight.w700), textAlign: TextAlign.right)),
-                          SizedBox(width: 90, child: Text('Estado', style: TextStyle(color: Color(0xFF888888), fontSize: 11, fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
+                          Expanded(
+                            child: Text(
+                              'Mes',
+                              style: TextStyle(
+                                color: Color(0xFF888888),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 80,
+                            child: Text(
+                              'Reservas',
+                              style: TextStyle(
+                                color: Color(0xFF888888),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          SizedBox(
+                            width: 120,
+                            child: Text(
+                              'Monto neto',
+                              style: TextStyle(
+                                color: Color(0xFF888888),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              textAlign: TextAlign.right,
+                            ),
+                          ),
+                          SizedBox(
+                            width: 90,
+                            child: Text(
+                              'Estado',
+                              style: TextStyle(
+                                color: Color(0xFF888888),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -189,8 +270,12 @@ class _CobrosScreenState extends State<CobrosScreen> {
                       final item = e.value;
                       final estadoItem = item['estado'] as String;
                       final isPending = estadoItem != kEstadoPagado;
-                      final statusColor = isPending ? AppColors.primary : const Color(0xFF43A047);
-                      final statusBg = isPending ? const Color(0xFFFFF3DE) : const Color(0xFFE3F3E5);
+                      final statusColor = isPending
+                          ? AppColors.primary
+                          : const Color(0xFF43A047);
+                      final statusBg = isPending
+                          ? const Color(0xFFFFF3DE)
+                          : const Color(0xFFE3F3E5);
                       return InkWell(
                         // Tocar el mes abre su desglose: es el gesto para
                         // auditar "¿de dónde salen mis $54.000?".
@@ -201,43 +286,100 @@ class _CobrosScreenState extends State<CobrosScreen> {
                           comisionSellada: item['comision'] as String?,
                         ),
                         child: Container(
-                        decoration: BoxDecoration(
-                          border: Border(top: BorderSide(color: Colors.grey.shade100)),
-                          borderRadius: e.key == _historial.length - 1
-                              ? const BorderRadius.vertical(bottom: Radius.circular(16))
-                              : null,
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(item['mes'] as String, style: const TextStyle(color: AppColors.black, fontSize: 14, fontWeight: FontWeight.w600)),
-                                  // La constancia del mes pagado: con qué
-                                  // comisión se liquidó, aunque hoy rija otra.
-                                  if (item['comision'] != null)
-                                    Text('comisión ${item['comision']}', style: const TextStyle(color: Color(0xFFA39B94), fontSize: 11)),
-                                ],
-                              ),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              top: BorderSide(color: Colors.grey.shade100),
                             ),
-                            SizedBox(width: 80, child: Text('${item['reservas']}', style: const TextStyle(color: Color(0xFF8F877F), fontSize: 14), textAlign: TextAlign.center)),
-                            SizedBox(width: 120, child: Text(_money(item['monto'] as int), style: TextStyle(color: statusColor, fontSize: 14, fontWeight: FontWeight.w700), textAlign: TextAlign.right)),
-                            SizedBox(
-                              width: 90,
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(999)),
-                                  child: Text(item['estado'] as String, style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600)),
+                            borderRadius: e.key == _historial.length - 1
+                                ? const BorderRadius.vertical(
+                                    bottom: Radius.circular(16),
+                                  )
+                                : null,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 14,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item['mes'] as String,
+                                      style: const TextStyle(
+                                        color: AppColors.black,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    // La constancia del mes pagado: con qué
+                                    // comisión se liquidó, aunque hoy rija otra.
+                                    if (item['comision'] != null)
+                                      Text(
+                                        'comisión ${item['comision']}',
+                                        style: const TextStyle(
+                                          color: Color(0xFFA39B94),
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
-                            ),
-                            const Icon(Icons.chevron_right_rounded,
-                                size: 18, color: Color(0xFFC7C0B9)),
-                          ],
-                        ),
+                              SizedBox(
+                                width: 80,
+                                child: Text(
+                                  '${item['reservas']}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF8F877F),
+                                    fontSize: 14,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              SizedBox(
+                                width: 120,
+                                child: Text(
+                                  _money(item['monto'] as int),
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  textAlign: TextAlign.right,
+                                ),
+                              ),
+                              SizedBox(
+                                width: 90,
+                                child: Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: statusBg,
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      item['estado'] as String,
+                                      style: TextStyle(
+                                        color: statusColor,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                size: 18,
+                                color: Color(0xFFC7C0B9),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     }),
@@ -255,16 +397,20 @@ class _CobrosScreenState extends State<CobrosScreen> {
     if (isDesktop) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        body: _loading
-            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-            : RefreshIndicator(
-                onRefresh: _cargar,
-                color: AppColors.primary,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: _buildDesktopContent(),
+        body: AnchoMaximo(
+          child: _loading
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                )
+              : RefreshIndicator(
+                  onRefresh: _cargar,
+                  color: AppColors.primary,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: _buildDesktopContent(),
+                  ),
                 ),
-              ),
+        ),
       );
     }
 
@@ -346,7 +492,9 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                   child: ElevatedButton(
                                     onPressed: () => _verDetalle(context),
                                     style: ElevatedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 18,
+                                      ),
                                     ),
                                     child: const Text('Ver detalle'),
                                   ),
@@ -455,64 +603,69 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                           item['comision'] as String?,
                                     ),
                                     child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 16),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                item['mes'] as String,
-                                                style: const TextStyle(
-                                                  color: AppColors.black,
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w600,
+                                      padding: const EdgeInsets.only(
+                                        bottom: 16,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  item['mes'] as String,
+                                                  style: const TextStyle(
+                                                    color: AppColors.black,
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
                                                 ),
-                                              ),
-                                              Text(
-                                                '${item['reservas']} reservas',
-                                                style: const TextStyle(
-                                                  color: Color(0xFF8F877F),
-                                                  fontSize: 13,
+                                                Text(
+                                                  '${item['reservas']} reservas',
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF8F877F),
+                                                    fontSize: 13,
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Text(
-                                          _money(item['monto'] as int),
-                                          style: TextStyle(
-                                            color: statusColor,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: statusBg,
-                                            borderRadius: BorderRadius.circular(999),
-                                          ),
-                                          child: Text(
-                                            item['estado'] as String,
-                                            style: TextStyle(
-                                              color: statusColor,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
+                                              ],
                                             ),
                                           ),
-                                        ),
-                                        const Icon(
+                                          Text(
+                                            _money(item['monto'] as int),
+                                            style: TextStyle(
+                                              color: statusColor,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: statusBg,
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                            child: Text(
+                                              item['estado'] as String,
+                                              style: TextStyle(
+                                                color: statusColor,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          const Icon(
                                             Icons.chevron_right_rounded,
                                             size: 18,
-                                            color: Color(0xFFC7C0B9)),
-                                      ],
-                                    ),
+                                            color: Color(0xFFC7C0B9),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   );
                                 }).toList(),
@@ -556,25 +709,29 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                     ],
                                   ),
                                   const Divider(height: 16),
-                                  if ((_estudio?['cbu']?.toString() ?? '').isNotEmpty)
+                                  if ((_estudio?['cbu']?.toString() ?? '')
+                                      .isNotEmpty)
                                     _BankRow(
                                       icon: Icons.account_balance_outlined,
                                       label: 'CBU',
                                       value: _estudio!['cbu'].toString(),
                                     ),
-                                  if ((_estudio?['alias']?.toString() ?? '').isNotEmpty)
+                                  if ((_estudio?['alias']?.toString() ?? '')
+                                      .isNotEmpty)
                                     _BankRow(
                                       icon: Icons.alternate_email_rounded,
                                       label: 'Alias',
                                       value: _estudio!['alias'].toString(),
                                     ),
-                                  if ((_estudio?['banco']?.toString() ?? '').isNotEmpty)
+                                  if ((_estudio?['banco']?.toString() ?? '')
+                                      .isNotEmpty)
                                     _BankRow(
                                       icon: Icons.business_outlined,
                                       label: 'Banco',
                                       value: _estudio!['banco'].toString(),
                                     ),
-                                  if ((_estudio?['titular']?.toString() ?? '').isNotEmpty)
+                                  if ((_estudio?['titular']?.toString() ?? '')
+                                      .isNotEmpty)
                                     _BankRow(
                                       icon: Icons.person_outline_rounded,
                                       label: 'Titular',
@@ -637,8 +794,9 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                     child: ElevatedButton(
                                       onPressed: () =>
                                           context.go('/estudio/perfil'),
-                                      child:
-                                          const Text('Completar datos bancarios'),
+                                      child: const Text(
+                                        'Completar datos bancarios',
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -684,8 +842,10 @@ class _CobrosScreenState extends State<CobrosScreen> {
     if (userIds.isNotEmpty) {
       // 2026-08-25 (item 22): nombres vía RPC (solo id/nombre/email de alumnas
       // con reserva en clases del estudio); leer `usuarios` directo lo niega RLS.
-      final data = await client
-          .rpc('estudio_nombres_alumnas', params: {'p_ids': userIds});
+      final data = await client.rpc(
+        'estudio_nombres_alumnas',
+        params: {'p_ids': userIds},
+      );
       for (final row in (data as List)) {
         final id = row['id']?.toString();
         if (id != null) userNames[id] = row['nombre']?.toString() ?? '—';
@@ -705,17 +865,26 @@ class _CobrosScreenState extends State<CobrosScreen> {
   /// se pagó: manda sobre el cálculo en vivo, porque es lo que se cobró de
   /// verdad. Sin esto, si Aura cambia una comisión, el detalle mostraría un
   /// total distinto del que dice el historial para el mismo mes.
-  void _verDetalle(BuildContext context,
-      {String? mes, int? montoSellado, String? comisionSellada}) {
+  void _verDetalle(
+    BuildContext context, {
+    String? mes,
+    int? montoSellado,
+    String? comisionSellada,
+  }) {
     final mesObjetivo = mes ?? mesArgentinoDe(DateTime.now());
-    final reservas = _reservasNoCanceladas.where((r) {
-      final dt = DateTime.tryParse(r['created_at']?.toString() ?? '');
-      return dt != null && mesArgentinoDe(dt) == mesObjetivo;
-    }).toList()
-      ..sort((a, b) => (b['created_at']?.toString() ?? '')
-          .compareTo(a['created_at']?.toString() ?? ''));
-    final etiquetaMes = toBeginningOfSentenceCase(
-            DateFormat('MMMM yyyy', 'es').format(primerDiaDe(mesObjetivo))) ??
+    final reservas =
+        _reservasNoCanceladas.where((r) {
+          final dt = DateTime.tryParse(r['created_at']?.toString() ?? '');
+          return dt != null && mesArgentinoDe(dt) == mesObjetivo;
+        }).toList()..sort(
+          (a, b) => (b['created_at']?.toString() ?? '').compareTo(
+            a['created_at']?.toString() ?? '',
+          ),
+        );
+    final etiquetaMes =
+        toBeginningOfSentenceCase(
+          DateFormat('MMMM yyyy', 'es').format(primerDiaDe(mesObjetivo)),
+        ) ??
         mesObjetivo;
     final moneyFmt = NumberFormat.currency(
       locale: 'es_AR',
@@ -727,14 +896,15 @@ class _CobrosScreenState extends State<CobrosScreen> {
       final valorCredito = ValorCredito.deEstudio(_estudio);
       return acc + creditos * valorCredito;
     });
-    final aTransferir = montoSellado ??
-        Liquidacion.netoTotal(reservas, _estudio);
+    final aTransferir =
+        montoSellado ?? Liquidacion.netoTotal(reservas, _estudio);
     // La comisión sale de la resta, no de multiplicar por `_comisionAura`.
     // Con workshops de por medio (que van al 15%) el desglose no cerraba:
     // bruto - comisión daba distinto de "a transferir".
     final comisionMonto = totalBruto - aTransferir;
-    final hayWorkshops = reservas
-        .any((r) => r['_clase_tipo']?.toString() == 'workshop');
+    final hayWorkshops = reservas.any(
+      (r) => r['_clase_tipo']?.toString() == 'workshop',
+    );
 
     showModalBottomSheet(
       context: context,
@@ -796,34 +966,27 @@ class _CobrosScreenState extends State<CobrosScreen> {
                     : FutureBuilder<(Map<int, String>, Map<String, String>)>(
                         future: _loadDetalleData(),
                         builder: (context, snap) {
-                          final claseNames =
-                              snap.data?.$1 ?? <int, String>{};
-                          final userNames =
-                              snap.data?.$2 ?? <String, String>{};
+                          final claseNames = snap.data?.$1 ?? <int, String>{};
+                          final userNames = snap.data?.$2 ?? <String, String>{};
                           final isLoading = !snap.hasData;
 
                           return ListView.separated(
                             controller: controller,
-                            padding:
-                                const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                            padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
                             itemCount: reservas.length,
                             separatorBuilder: (_, __) =>
                                 const Divider(height: 1),
                             itemBuilder: (_, i) {
                               final r = reservas[i];
                               final dt = DateTime.tryParse(
-                                  r['created_at']?.toString() ?? '');
-                              final claseId =
-                                  (r['clase_id'] as num?)?.toInt();
-                              final userId =
-                                  r['usuario_id']?.toString() ?? '';
+                                r['created_at']?.toString() ?? '',
+                              );
+                              final claseId = (r['clase_id'] as num?)?.toInt();
+                              final userId = r['usuario_id']?.toString() ?? '';
                               final creditos =
-                                  (r['creditos_usados'] as num?)
-                                      ?.toInt() ??
-                                  0;
+                                  (r['creditos_usados'] as num?)?.toInt() ?? 0;
                               final monto = _montoReserva(r);
-                              final estado =
-                                  r['estado']?.toString() ?? '';
+                              final estado = r['estado']?.toString() ?? '';
                               // Mismo criterio que Mis Reservas (1/9): el
                               // cron pasa TODO a 'completada' 3 h después de
                               // la clase, así que `estado == presente` es
@@ -839,13 +1002,13 @@ class _CobrosScreenState extends State<CobrosScreen> {
                               final colorAsistencia = asistio
                                   ? const Color(0xFF2FAD5B)
                                   : (ausente
-                                      ? const Color(0xFFE65100)
-                                      : const Color(0xFF8F877F));
+                                        ? const Color(0xFFE65100)
+                                        : const Color(0xFF8F877F));
                               final fondoAsistencia = asistio
                                   ? const Color(0xFFE3F3E5)
                                   : (ausente
-                                      ? const Color(0xFFFFF3E0)
-                                      : const Color(0xFFF0EDE9));
+                                        ? const Color(0xFFFFF3E0)
+                                        : const Color(0xFFF0EDE9));
                               final claseNombre = isLoading
                                   ? '…'
                                   : (claseNames[claseId] ?? '—');
@@ -855,24 +1018,22 @@ class _CobrosScreenState extends State<CobrosScreen> {
 
                               return Padding(
                                 padding: const EdgeInsets.symmetric(
-                                    vertical: 14),
+                                  vertical: 14,
+                                ),
                                 child: Row(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Container(
                                       width: 40,
                                       height: 40,
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFFFF3DE),
-                                        borderRadius:
-                                            BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                       alignment: Alignment.center,
                                       child: Text(
                                         dt != null
-                                            ? DateFormat('d', 'es')
-                                                .format(dt)
+                                            ? DateFormat('d', 'es').format(dt)
                                             : '—',
                                         style: const TextStyle(
                                           color: AppColors.primary,
@@ -916,16 +1077,17 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                                 const Text(
                                                   ' · ',
                                                   style: TextStyle(
-                                                      color: Color(
-                                                          0xFFB0A8A0),
-                                                      fontSize: 11),
+                                                    color: Color(0xFFB0A8A0),
+                                                    fontSize: 11,
+                                                  ),
                                                 ),
                                                 Text(
-                                                  DateFormat('d MMM', 'es')
-                                                      .format(dt),
+                                                  DateFormat(
+                                                    'd MMM',
+                                                    'es',
+                                                  ).format(dt),
                                                   style: const TextStyle(
-                                                    color:
-                                                        Color(0xFFB0A8A0),
+                                                    color: Color(0xFFB0A8A0),
                                                     fontSize: 11,
                                                   ),
                                                 ),
@@ -949,14 +1111,15 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                         ),
                                         const SizedBox(height: 4),
                                         Container(
-                                          padding:
-                                              const EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                  vertical: 3),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 3,
+                                          ),
                                           decoration: BoxDecoration(
                                             color: fondoAsistencia,
-                                            borderRadius:
-                                                BorderRadius.circular(99),
+                                            borderRadius: BorderRadius.circular(
+                                              99,
+                                            ),
                                           ),
                                           child: Text(
                                             etiquetaAsistencia,
@@ -982,8 +1145,7 @@ class _CobrosScreenState extends State<CobrosScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
                 decoration: const BoxDecoration(
                   color: AppColors.white,
-                  border:
-                      Border(top: BorderSide(color: Color(0xFFEDE7E1))),
+                  border: Border(top: BorderSide(color: Color(0xFFEDE7E1))),
                 ),
                 child: Column(
                   children: [
@@ -1020,7 +1182,9 @@ class _CobrosScreenState extends State<CobrosScreen> {
                         'Calculado con la comisión de ese momento '
                         '($comisionSellada).',
                         style: const TextStyle(
-                            color: Color(0xFF8F877F), fontSize: 12),
+                          color: Color(0xFF8F877F),
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ],
@@ -1054,8 +1218,7 @@ class _CobrosScreenState extends State<CobrosScreen> {
 
   /// Comisión de clases del estudio (variable, default 30). Solo para mostrar
   /// el porcentaje; el cálculo real de plata pasa por [Liquidacion].
-  double get _comisionAura =>
-      Liquidacion.comision(_estudio, esWorkshop: false);
+  double get _comisionAura => Liquidacion.comision(_estudio, esWorkshop: false);
 
   int get _montoPendiente =>
       Liquidacion.netoTotal(_reservasMesActual, _estudio);
@@ -1064,8 +1227,10 @@ class _CobrosScreenState extends State<CobrosScreen> {
 
   int get _ticketPromedio {
     final cobrables = _reservas
-        .where((r) => AppConstants.estadosLiquidables
-            .contains(r['estado']?.toString()))
+        .where(
+          (r) =>
+              AppConstants.estadosLiquidables.contains(r['estado']?.toString()),
+        )
         .toList();
     if (cobrables.isEmpty) return 0;
     return Liquidacion.netoTotal(cobrables, _estudio) ~/ cobrables.length;
@@ -1074,9 +1239,11 @@ class _CobrosScreenState extends State<CobrosScreen> {
   int _montoReserva(Map<String, dynamic> reserva) =>
       Liquidacion.netoReserva(reserva, _estudio);
 
-  String _money(int value) =>
-      NumberFormat.currency(locale: 'es_AR', symbol: '\$', decimalDigits: 0)
-          .format(value);
+  String _money(int value) => NumberFormat.currency(
+    locale: 'es_AR',
+    symbol: '\$',
+    decimalDigits: 0,
+  ).format(value);
 
   String _moneyCompact(int value) {
     if (value >= 1000000) return '\$${(value / 1000000).toStringAsFixed(1)}M';
@@ -1086,24 +1253,37 @@ class _CobrosScreenState extends State<CobrosScreen> {
 
   List<Widget> _buildMonthlyBars() {
     final months = List.generate(6, (index) {
-      final date = DateTime(DateTime.now().year, DateTime.now().month - 5 + index, 1);
-      final total = _reservasNoCanceladas.where((reserva) {
-        final created = DateTime.tryParse(reserva['created_at']?.toString() ?? '');
-        return created != null &&
-            created.year == date.year &&
-            created.month == date.month;
-      }).fold<int>(0, (acc, reserva) => acc + _montoReserva(reserva));
+      final date = DateTime(
+        DateTime.now().year,
+        DateTime.now().month - 5 + index,
+        1,
+      );
+      final total = _reservasNoCanceladas
+          .where((reserva) {
+            final created = DateTime.tryParse(
+              reserva['created_at']?.toString() ?? '',
+            );
+            return created != null &&
+                created.year == date.year &&
+                created.month == date.month;
+          })
+          .fold<int>(0, (acc, reserva) => acc + _montoReserva(reserva));
       return {'date': date, 'total': total};
     });
 
-    final max = months.fold<int>(1, (acc, item) => (item['total'] as int) > acc ? item['total'] as int : acc);
+    final max = months.fold<int>(
+      1,
+      (acc, item) => (item['total'] as int) > acc ? item['total'] as int : acc,
+    );
     return months.asMap().entries.map((entry) {
       final total = entry.value['total'] as int;
       final active = entry.key == months.length - 1;
       final height = 24 + ((total / max) * 48);
       return Expanded(
         child: Container(
-          margin: EdgeInsets.only(right: entry.key == months.length - 1 ? 0 : 10),
+          margin: EdgeInsets.only(
+            right: entry.key == months.length - 1 ? 0 : 10,
+          ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -1117,10 +1297,7 @@ class _CobrosScreenState extends State<CobrosScreen> {
               const SizedBox(height: 8),
               Text(
                 DateFormat('MMM', 'es').format(entry.value['date'] as DateTime),
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF8F877F),
-                ),
+                style: const TextStyle(fontSize: 11, color: Color(0xFF8F877F)),
               ),
             ],
           ),
@@ -1133,11 +1310,11 @@ class _CobrosScreenState extends State<CobrosScreen> {
   /// pagados muestran lo SELLADO. La lógica vive en armarHistorialCobros(),
   /// pura y testeada — acá sólo se le pasan los datos.
   List<Map<String, dynamic>> get _historial => armarHistorialCobros(
-        reservas: _reservas,
-        liquidaciones: _liquidaciones,
-        estudio: _estudio,
-        ahora: DateTime.now(),
-      );
+    reservas: _reservas,
+    liquidaciones: _liquidaciones,
+    estudio: _estudio,
+    ahora: DateTime.now(),
+  );
 
   String get _mesActualCapitalizado {
     final text = DateFormat('MMMM', 'es').format(DateTime.now());
@@ -1185,10 +1362,7 @@ class _MetricTile extends StatelessWidget {
             ),
             Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF8F877F),
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: Color(0xFF8F877F), fontSize: 12),
             ),
           ],
         ),
@@ -1219,10 +1393,7 @@ class _BankRow extends StatelessWidget {
           Expanded(
             child: Text(
               '$label: $value',
-              style: const TextStyle(
-                color: Color(0xFF625C57),
-                fontSize: 14,
-              ),
+              style: const TextStyle(color: Color(0xFF625C57), fontSize: 14),
             ),
           ),
           const Icon(Icons.chevron_right_rounded, color: Color(0xFFC0B8B0)),
@@ -1261,7 +1432,9 @@ class _DetalleRow extends StatelessWidget {
         Text(
           value,
           style: TextStyle(
-            color: valueColor ?? (bold ? AppColors.black : const Color(0xFF8F877F)),
+            color:
+                valueColor ??
+                (bold ? AppColors.black : const Color(0xFF8F877F)),
             fontSize: bold ? 17 : 13,
             fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
           ),
@@ -1286,10 +1459,7 @@ class _InfoCard extends StatelessWidget {
       ),
       child: Text(
         message,
-        style: const TextStyle(
-          color: AppColors.black,
-          fontSize: 14,
-        ),
+        style: const TextStyle(color: AppColors.black, fontSize: 14),
       ),
     );
   }

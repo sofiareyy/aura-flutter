@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/aura_tokens.dart';
 import '../../services/pricing_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class ComprarCreditosScreen extends StatefulWidget {
   /// Pestaña inicial: 0 = Packs, 1 = Suscripciones, 2 = Regalar.
@@ -14,11 +15,7 @@ class ComprarCreditosScreen extends StatefulWidget {
   /// suelta desde Perfil o Inicio, y ahí el final sigue siendo /home.
   final String? volver;
 
-  const ComprarCreditosScreen({
-    super.key,
-    this.initialTab = 0,
-    this.volver,
-  });
+  const ComprarCreditosScreen({super.key, this.initialTab = 0, this.volver});
 
   @override
   State<ComprarCreditosScreen> createState() => _ComprarCreditosScreenState();
@@ -92,27 +89,34 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
       if (_selectedPack == null) return;
       final pack = _packs[_selectedPack!];
       final creditos = (pack['creditos'] as num).toInt();
-      context.push('/checkout', extra: {
-        'type': 'pack',
-        'volver': widget.volver,
-        'nombre': pack['nombre'],
-        'creditos': creditos,
-        'precio': (pack['precio'] as num).toInt(),
-        'vigencia_dias': (pack['vigencia_dias'] as num?)?.toInt() ??
-            _vigenciaDiasPorCreditos(creditos),
-        'descripcion': pack['descripcion']?.toString() ?? '',
-      });
+      context.push(
+        '/checkout',
+        extra: {
+          'type': 'pack',
+          'volver': widget.volver,
+          'nombre': pack['nombre'],
+          'creditos': creditos,
+          'precio': (pack['precio'] as num).toInt(),
+          'vigencia_dias':
+              (pack['vigencia_dias'] as num?)?.toInt() ??
+              _vigenciaDiasPorCreditos(creditos),
+          'descripcion': pack['descripcion']?.toString() ?? '',
+        },
+      );
     } else {
       if (_selectedPlan == null) return;
       final plan = _planes[_selectedPlan!];
-      context.push('/checkout', extra: {
-        'type': 'plan',
-        'volver': widget.volver,
-        'nombre': plan['nombre'],
-        'creditos': (plan['creditos'] as num).toInt(),
-        'precio': (plan['precio'] as num).toInt(),
-        'descripcion': plan['descripcion']?.toString() ?? '',
-      });
+      context.push(
+        '/checkout',
+        extra: {
+          'type': 'plan',
+          'volver': widget.volver,
+          'nombre': plan['nombre'],
+          'creditos': (plan['creditos'] as num).toInt(),
+          'precio': (plan['precio'] as num).toInt(),
+          'descripcion': plan['descripcion']?.toString() ?? '',
+        },
+      );
     }
   }
 
@@ -133,9 +137,9 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
   }
 
   String _fmt(int n) => n.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (m) => '${m[1]}.',
-      );
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    (m) => '${m[1]}.',
+  );
 
   // Vigencia por defecto si la fila de pricing_credit_packs no la trae.
   // Pack Prueba (20 cr): 30 dias. Esencial/Popular/Full: 60 dias.
@@ -157,7 +161,11 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: EdgeInsets.fromLTRB(
-              20, 16, 20, MediaQuery.of(ctx).padding.bottom + 24),
+            20,
+            16,
+            20,
+            MediaQuery.of(ctx).padding.bottom + 24,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -176,9 +184,10 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
               const Text(
                 '¿A quién le regalás?',
                 style: TextStyle(
-                    color: AppColors.black,
-                    fontSize: AuraTipo.titulo,
-                    fontWeight: FontWeight.w700),
+                  color: AppColors.black,
+                  fontSize: AuraTipo.titulo,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -241,18 +250,22 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
     if (_selectedPackGift == null) return;
     final pack = _packs[_selectedPackGift!];
     final creditos = (pack['creditos'] as num).toInt();
-    context.push('/checkout', extra: {
-      'type': 'gift',
+    context.push(
+      '/checkout',
+      extra: {
+        'type': 'gift',
         'volver': widget.volver,
-      'nombre': pack['nombre'],
-      'creditos': creditos,
-      'precio': (pack['precio'] as num).toInt(),
-      'vigencia_dias': (pack['vigencia_dias'] as num?)?.toInt() ??
-          _vigenciaDiasPorCreditos(creditos),
-      'descripcion': pack['descripcion']?.toString() ?? '',
-      'gift_email': email.trim().toLowerCase(),
-      'gift_mensaje': mensaje.trim(),
-    });
+        'nombre': pack['nombre'],
+        'creditos': creditos,
+        'precio': (pack['precio'] as num).toInt(),
+        'vigencia_dias':
+            (pack['vigencia_dias'] as num?)?.toInt() ??
+            _vigenciaDiasPorCreditos(creditos),
+        'descripcion': pack['descripcion']?.toString() ?? '',
+        'gift_email': email.trim().toLowerCase(),
+        'gift_mensaje': mensaje.trim(),
+      },
+    );
   }
 
   @override
@@ -260,13 +273,13 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
     final loading = _isGiftTab
         ? _loadingPacks
         : _isPackTab
-            ? _loadingPacks
-            : _loadingPlanes;
+        ? _loadingPacks
+        : _loadingPlanes;
     final selected = _isGiftTab
         ? _selectedPackGift
         : _isPackTab
-            ? _selectedPack
-            : _selectedPlan;
+        ? _selectedPack
+        : _selectedPlan;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -288,68 +301,72 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
           ],
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _PacksTab(
-                  packs: _packs,
-                  loading: _loadingPacks,
-                  selectedIndex: _selectedPack,
-                  onSelect: (i) => setState(() => _selectedPack = i),
-                ),
-                _SuscripcionesTab(
-                  planes: _planes,
-                  loading: _loadingPlanes,
-                  selectedIndex: _selectedPlan,
-                  onSelect: (i) => setState(() => _selectedPlan = i),
-                ),
-                _RegalarTab(
-                  packs: _packs,
-                  loading: _loadingPacks,
-                  selectedIndex: _selectedPackGift,
-                  onSelect: (i) => setState(() => _selectedPackGift = i),
-                ),
-              ],
+      body: AnchoMaximo(
+        child: Column(
+          children: [
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _PacksTab(
+                    packs: _packs,
+                    loading: _loadingPacks,
+                    selectedIndex: _selectedPack,
+                    onSelect: (i) => setState(() => _selectedPack = i),
+                  ),
+                  _SuscripcionesTab(
+                    planes: _planes,
+                    loading: _loadingPlanes,
+                    selectedIndex: _selectedPlan,
+                    onSelect: (i) => setState(() => _selectedPlan = i),
+                  ),
+                  _RegalarTab(
+                    packs: _packs,
+                    loading: _loadingPacks,
+                    selectedIndex: _selectedPackGift,
+                    onSelect: (i) => setState(() => _selectedPackGift = i),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Container(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              12,
-              20,
-              MediaQuery.of(context).padding.bottom + 16,
-            ),
-            color: AppColors.white,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!_isPackTab && !_isGiftTab && selected != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      'Renovación automática · Cancelá cuando quieras',
-                      style: TextStyle(
-                        fontSize: AuraTipo.secundario,
-                        color: AppColors.grey,
+            Container(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                12,
+                20,
+                MediaQuery.of(context).padding.bottom + 16,
+              ),
+              color: AppColors.white,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!_isPackTab && !_isGiftTab && selected != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        'Renovación automática · Cancelá cuando quieras',
+                        style: TextStyle(
+                          fontSize: AuraTipo.secundario,
+                          color: AppColors.grey,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
+                    ),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: (loading || selected == null)
+                          ? null
+                          : _continuar,
+                      child: Text(_btnLabel()),
                     ),
                   ),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: (loading || selected == null) ? null : _continuar,
-                    child: Text(_btnLabel()),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -375,7 +392,9 @@ class _PacksTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
     }
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -384,7 +403,9 @@ class _PacksTab extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           'Compra única, sin renovación automática.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.grey),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.grey),
         ),
         const SizedBox(height: 10),
         Container(
@@ -416,12 +437,20 @@ class _PacksTab extends StatelessWidget {
             children: [
               Text(
                 'Vencimiento de los packs',
-                style: TextStyle(color: AppColors.black, fontSize: AuraTipo.secundario, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: AppColors.black,
+                  fontSize: AuraTipo.secundario,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               SizedBox(height: 6),
               Text(
                 'Pack Prueba: vence a los 30 días. Pack Esencial, Popular y Full: vencen a los 60 días.',
-                style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario, height: 1.4),
+                style: TextStyle(
+                  color: AppColors.grey,
+                  fontSize: AuraTipo.secundario,
+                  height: 1.4,
+                ),
               ),
             ],
           ),
@@ -459,24 +488,36 @@ class _PacksTab extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: AuraTipo.titulo,
                                   fontWeight: FontWeight.w700,
-                                  color: selected ? AppColors.white : AppColors.black,
+                                  color: selected
+                                      ? AppColors.white
+                                      : AppColors.black,
                                 ),
                               ),
                             ),
-                            if ((pack['badge']?.toString() ?? '').isNotEmpty) ...[
+                            if ((pack['badge']?.toString() ?? '')
+                                .isNotEmpty) ...[
                               const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: selected ? AppColors.white : AppColors.primary,
-                                  borderRadius: BorderRadius.circular(AuraRadio.pastilla),
+                                  color: selected
+                                      ? AppColors.white
+                                      : AppColors.primary,
+                                  borderRadius: BorderRadius.circular(
+                                    AuraRadio.pastilla,
+                                  ),
                                 ),
                                 child: Text(
                                   pack['badge'].toString(),
                                   style: TextStyle(
                                     fontSize: AuraTipo.etiqueta,
                                     fontWeight: FontWeight.w700,
-                                    color: selected ? AppColors.primary : AppColors.white,
+                                    color: selected
+                                        ? AppColors.primary
+                                        : AppColors.white,
                                   ),
                                 ),
                               ),
@@ -505,7 +546,9 @@ class _PacksTab extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Icon(
-                    selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                    selected
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
                     color: selected ? AppColors.white : AppColors.lightGrey,
                     size: 24,
                   ),
@@ -519,9 +562,9 @@ class _PacksTab extends StatelessWidget {
   }
 
   String _fmt(int n) => n.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (m) => '${m[1]}.',
-      );
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    (m) => '${m[1]}.',
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -559,16 +602,23 @@ class _SuscripcionesTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
     }
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        Text('Elegí tu suscripción', style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          'Elegí tu suscripción',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: 6),
         Text(
           'Los créditos se renuevan automáticamente cada mes.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.grey),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.grey),
         ),
         const SizedBox(height: 10),
         Container(
@@ -626,10 +676,15 @@ class _SuscripcionesTab extends StatelessWidget {
                       ),
                       if (badge != null)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(AuraRadio.pastilla),
+                            borderRadius: BorderRadius.circular(
+                              AuraRadio.pastilla,
+                            ),
                           ),
                           child: Text(
                             badge,
@@ -651,7 +706,10 @@ class _SuscripcionesTab extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitulo,
-                      style: const TextStyle(color: AppColors.grey, fontSize: 12),
+                      style: const TextStyle(
+                        color: AppColors.grey,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 14),
@@ -687,7 +745,10 @@ class _SuscripcionesTab extends StatelessWidget {
                           ),
                           const Text(
                             'por mes',
-                            style: TextStyle(fontSize: AuraTipo.secundario, color: AppColors.grey),
+                            style: TextStyle(
+                              fontSize: AuraTipo.secundario,
+                              color: AppColors.grey,
+                            ),
                           ),
                         ],
                       ),
@@ -700,7 +761,9 @@ class _SuscripcionesTab extends StatelessWidget {
                         selected
                             ? Icons.check_circle_rounded
                             : Icons.radio_button_unchecked_rounded,
-                        color: selected ? AppColors.primary : AppColors.lightGrey,
+                        color: selected
+                            ? AppColors.primary
+                            : AppColors.lightGrey,
                         size: 20,
                       ),
                       const SizedBox(width: 6),
@@ -723,9 +786,9 @@ class _SuscripcionesTab extends StatelessWidget {
   }
 
   String _fmt(int n) => n.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (m) => '${m[1]}.',
-      );
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    (m) => '${m[1]}.',
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -748,18 +811,25 @@ class _RegalarTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
     }
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        Text('Regalá créditos', style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: Colors.white,
-        )),
+        Text(
+          'Regalá créditos',
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(color: Colors.white),
+        ),
         const SizedBox(height: 6),
         Text(
           'Elegí un pack y enviáselo a alguien especial.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: Colors.white70),
         ),
         const SizedBox(height: 20),
         ...packs.asMap().entries.map((entry) {
@@ -800,7 +870,9 @@ class _RegalarTab extends StatelessWidget {
                             Text(
                               pack['descripcion']?.toString() ?? '',
                               style: TextStyle(
-                                color: selected ? Colors.white70 : Colors.white54,
+                                color: selected
+                                    ? Colors.white70
+                                    : Colors.white54,
                                 fontSize: AuraTipo.secundario,
                               ),
                             ),
@@ -832,9 +904,7 @@ class _RegalarTab extends StatelessWidget {
                     right: 30,
                     child: Text(
                       '🎁',
-                      style: TextStyle(
-                        fontSize: selected ? 22 : 18,
-                      ),
+                      style: TextStyle(fontSize: selected ? 22 : 18),
                     ),
                   ),
                 ],
@@ -847,7 +917,7 @@ class _RegalarTab extends StatelessWidget {
   }
 
   String _fmt(int n) => n.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (m) => '${m[1]}.',
-      );
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    (m) => '${m[1]}.',
+  );
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/admin_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class AdminReservasScreen extends StatefulWidget {
   const AdminReservasScreen({super.key});
@@ -85,100 +86,105 @@ class _AdminReservasScreenState extends State<AdminReservasScreen> {
         scrolledUnderElevation: 0,
         automaticallyImplyLeading: false,
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Text(
-                  'Reservas',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Buscá y resolvé reservas problemáticas rápido.',
-                  style: TextStyle(color: AppColors.grey),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _searchCtrl,
-                  decoration: InputDecoration(
-                    hintText: 'Buscar por usuario, clase o estudio',
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.search),
-                      onPressed: _load,
-                    ),
+      body: AnchoMaximo(
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Text(
+                    'Reservas',
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
-                  onSubmitted: (_) => _load(),
-                ),
-                const SizedBox(height: 16),
-                if (_error != null)
-                  _ErrorCard(message: _error!)
-                else if (_reservas.isEmpty)
-                  const _EmptyCard(message: 'No hay reservas para mostrar.')
-                else
-                  ..._reservas.map(
-                    (reserva) => Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(18),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Buscá y resolvé reservas problemáticas rápido.',
+                    style: TextStyle(color: AppColors.grey),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _searchCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por usuario, clase o estudio',
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.search),
+                        onPressed: _load,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  reserva['clase_nombre']?.toString() ?? 'Clase',
-                                  style: const TextStyle(
+                    ),
+                    onSubmitted: (_) => _load(),
+                  ),
+                  const SizedBox(height: 16),
+                  if (_error != null)
+                    _ErrorCard(message: _error!)
+                  else if (_reservas.isEmpty)
+                    const _EmptyCard(message: 'No hay reservas para mostrar.')
+                  else
+                    ..._reservas.map(
+                      (reserva) => Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    reserva['clase_nombre']?.toString() ??
+                                        'Clase',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  reserva['estado']?.toString() ?? '',
+                                  style: TextStyle(
+                                    color: reserva['estado'] == 'cancelada'
+                                        ? AppColors.error
+                                        : AppColors.primary,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                              ),
-                              Text(
-                                reserva['estado']?.toString() ?? '',
-                                style: TextStyle(
-                                  color: reserva['estado'] == 'cancelada'
-                                      ? AppColors.error
-                                      : AppColors.primary,
-                                  fontWeight: FontWeight.w700,
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${reserva['usuario_nombre'] ?? 'Usuario'} · ${reserva['estudio_nombre'] ?? 'Estudio'}',
+                              style: const TextStyle(color: AppColors.grey),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Créditos: ${reserva['creditos_usados'] ?? 0}',
+                              style: const TextStyle(color: AppColors.grey),
+                            ),
+                            if (reserva['estado'] != 'cancelada') ...[
+                              const SizedBox(height: 12),
+                              OutlinedButton(
+                                onPressed: () =>
+                                    _cancelar((reserva['id'] as num).toInt()),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.error,
+                                  side: const BorderSide(
+                                    color: AppColors.error,
+                                  ),
                                 ),
+                                child: const Text('Cancelar reserva'),
                               ),
                             ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${reserva['usuario_nombre'] ?? 'Usuario'} · ${reserva['estudio_nombre'] ?? 'Estudio'}',
-                            style: const TextStyle(color: AppColors.grey),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Créditos: ${reserva['creditos_usados'] ?? 0}',
-                            style: const TextStyle(color: AppColors.grey),
-                          ),
-                          if (reserva['estado'] != 'cancelada') ...[
-                            const SizedBox(height: 12),
-                            OutlinedButton(
-                              onPressed: () =>
-                                  _cancelar((reserva['id'] as num).toInt()),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.error,
-                                side: const BorderSide(color: AppColors.error),
-                              ),
-                              child: const Text('Cancelar reserva'),
-                            ),
                           ],
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 }

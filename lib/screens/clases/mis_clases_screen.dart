@@ -17,6 +17,7 @@ import '../../services/media_upload_service.dart';
 import '../../services/notificaciones_service.dart';
 import '../../services/reservas_service.dart';
 import '../../services/admin_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 const String _kPrefsClasesGridView = 'mis_clases_grid_view';
 const String _kPrefsClasesShowPast = 'mis_clases_show_past';
@@ -67,7 +68,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   List<Map<String, dynamic>> _clases = [], _horarios = [];
   List<String> _categorias = [];
   List<Map<String, dynamic>> _reservas = [];
-  bool _loading = true, _tablaOk = true, _studio = false, _showFixed = true, _publishingWeek = false, _togglingFixed = false;
+  bool _loading = true,
+      _tablaOk = true,
+      _studio = false,
+      _showFixed = true,
+      _publishingWeek = false,
+      _togglingFixed = false;
   bool _estudiosDefinenCreditos = true;
   // M1: Próximas (fecha >= hoy AR) vs Pasadas en la vista "Clases cargadas".
   bool _showPast = false;
@@ -77,6 +83,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   bool _seleccionMultiple = false;
   final Set<int> _seleccionadas = {};
   bool _cancelandoLote = false;
+
   /// Ventana de días que se muestra en "Próximas". null = todo lo cargado.
   /// La grilla publica ~3 meses, así que sin esto la lista es inmanejable,
   /// pero acotarla por defecto era lo que hacía "desaparecer" clases.
@@ -99,7 +106,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   String? _filtroProfe;
   bool _esProfe = false;
   String _miNombre = '';
-  DateTime _selectedDay = DateTime.now(), _weekAnchor = DateTime.now(), _monthAnchor = DateTime.now();
+  DateTime _selectedDay = DateTime.now(),
+      _weekAnchor = DateTime.now(),
+      _monthAnchor = DateTime.now();
 
   List<String> get _profeNombres => _profesEstudio
       .map((p) => (p['nombre']?.toString() ?? '').trim())
@@ -140,14 +149,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     return '$ico$hhmm · ${p.creditos} cr';
   }
 
-  PricingResult _precioDe(int dia, TimeOfDay hora,
-          [List<String>? categorias]) =>
-      PricingCalculator.calcular(
-        estudio: _estudio,
-        hora: _hhmm(hora),
-        dia: dia,
-        categorias: categorias,
-      );
+  PricingResult _precioDe(
+    int dia,
+    TimeOfDay hora, [
+    List<String>? categorias,
+  ]) => PricingCalculator.calcular(
+    estudio: _estudio,
+    hora: _hhmm(hora),
+    dia: dia,
+    categorias: categorias,
+  );
 
   /// Créditos finales a guardar.
   ///
@@ -249,15 +260,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final categorias = <String>{
       ...categoriasAdmin.where((item) => item.trim().isNotEmpty),
       ...actuales.where((item) => item.trim().isNotEmpty),
-    }.toList()
-      ..sort();
+    }.toList()..sort();
     return categorias;
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final studio = GoRouterState.of(context).matchedLocation.startsWith('/estudio');
+    final studio = GoRouterState.of(
+      context,
+    ).matchedLocation.startsWith('/estudio');
     if (studio != _studio || _loading) {
       _studio = studio;
       _weekAnchor = _weekStart(DateTime.now());
@@ -309,86 +321,93 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 20, 20, 4),
-              child: Text(
-                'Configuración',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.black,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 20, 20, 4),
+                child: Text(
+                  'Configuración',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.black,
+                  ),
                 ),
               ),
-            ),
-            SwitchListTile(
-              value: notifReservas,
-              activeThumbColor: AppColors.primary,
-              secondary: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(10),
+              SwitchListTile(
+                value: notifReservas,
+                activeThumbColor: AppColors.primary,
+                secondary: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.notifications_active_outlined,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
                 ),
-                child: const Icon(Icons.notifications_active_outlined,
-                    color: AppColors.primary, size: 18),
-              ),
-              title: const Text(
-                'Avisarme nuevas reservas',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-              ),
-              subtitle: const Text(
-                'Cuando alguien se anota en tus clases.',
-                style: TextStyle(fontSize: 12, color: AppColors.grey),
-              ),
-              onChanged: (v) async {
-                setSheet(() => notifReservas = v);
-                if (uid != null) {
-                  try {
-                    await Supabase.instance.client
-                        .from('usuarios')
-                        .update({'notifs_reservas_profe': v}).eq('id', uid);
-                  } catch (_) {}
-                }
-              },
-            ),
-            const Divider(height: 1, indent: 20, endIndent: 20),
-            ListTile(
-              leading: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
+                title: const Text(
+                  'Avisarme nuevas reservas',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                 ),
-                child: const Icon(Icons.logout_rounded,
-                    color: AppColors.error, size: 18),
-              ),
-              title: Text(
-                'Salir del estudio $estudioNombre',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.error,
+                subtitle: const Text(
+                  'Cuando alguien se anota en tus clases.',
+                  style: TextStyle(fontSize: 12, color: AppColors.grey),
                 ),
+                onChanged: (v) async {
+                  setSheet(() => notifReservas = v);
+                  if (uid != null) {
+                    try {
+                      await Supabase.instance.client
+                          .from('usuarios')
+                          .update({'notifs_reservas_profe': v})
+                          .eq('id', uid);
+                    } catch (_) {}
+                  }
+                },
               ),
-              subtitle: const Text(
-                'Perdés el acceso al panel del estudio.',
-                style: TextStyle(fontSize: 12, color: AppColors.grey),
+              const Divider(height: 1, indent: 20, endIndent: 20),
+              ListTile(
+                leading: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.logout_rounded,
+                    color: AppColors.error,
+                    size: 18,
+                  ),
+                ),
+                title: Text(
+                  'Salir del estudio $estudioNombre',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.error,
+                  ),
+                ),
+                subtitle: const Text(
+                  'Perdés el acceso al panel del estudio.',
+                  style: TextStyle(fontSize: 12, color: AppColors.grey),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _salirDelEstudio();
+                },
               ),
-              onTap: () {
-                Navigator.pop(ctx);
-                _salirDelEstudio();
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -454,14 +473,26 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     if (_togglingFixed) return;
     setState(() => _togglingFixed = true);
     try {
-      final updated = await _service.actualizarHorarioFijo(id, {'activo': activo});
+      final updated = await _service.actualizarHorarioFijo(id, {
+        'activo': activo,
+      });
       if (!mounted) return;
       setState(() {
-        _horarios = _horarios.map((h) => ((h['id'] as num?)?.toInt() == (updated['id'] as num?)?.toInt()) ? updated : h).toList();
+        _horarios = _horarios
+            .map(
+              (h) =>
+                  ((h['id'] as num?)?.toInt() ==
+                      (updated['id'] as num?)?.toInt())
+                  ? updated
+                  : h,
+            )
+            .toList();
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo actualizar: ${e.toString()}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo actualizar: ${e.toString()}')),
+      );
     } finally {
       if (mounted) setState(() => _togglingFixed = false);
     }
@@ -592,23 +623,21 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
     // Solo clases futuras: avisar sobre una que ya pasó no tiene sentido.
     final ahora = _ahoraAr();
-    final candidatas = _clases.where((c) {
-      final f = DateTime.tryParse(c['fecha']?.toString() ?? '');
-      return f != null && f.isAfter(ahora);
-    }).toList()
-      ..sort((a, b) {
-        final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
-        final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
-        if (fa == null || fb == null) return 0;
-        return fa.compareTo(fb);
-      });
+    final candidatas =
+        _clases.where((c) {
+          final f = DateTime.tryParse(c['fecha']?.toString() ?? '');
+          return f != null && f.isAfter(ahora);
+        }).toList()..sort((a, b) {
+          final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
+          final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
+          if (fa == null || fb == null) return 0;
+          return fa.compareTo(fb);
+        });
 
     if (candidatas.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No tenés clases próximas para avisar.'),
-        ),
+        const SnackBar(content: Text('No tenés clases próximas para avisar.')),
       );
       return;
     }
@@ -629,8 +658,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         estudioNombre: _estudioNombre ?? 'Aura',
         cupoInicial: cupo,
         contarAlumnos: _avisoService.contarAlumnosDeClases,
-        onEnviar: (claseIds, mensaje, tipo) =>
-            _avisoService.enviarAviso(
+        onEnviar: (claseIds, mensaje, tipo) => _avisoService.enviarAviso(
           claseIds: claseIds,
           mensaje: mensaje,
           tipo: tipo,
@@ -641,7 +669,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
   Future<void> _editClaseDialog(Map<String, dynamic> clase) async {
     if (clase['cancelada'] == true) {
-      _snack('Esta clase está cancelada. Reactivala primero si querés editarla.');
+      _snack(
+        'Esta clase está cancelada. Reactivala primero si querés editarla.',
+      );
       return;
     }
     // Opción A: editar clase individual lo puede hacer la profe. El borrado y
@@ -650,10 +680,13 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final claseId = (clase['id'] as num?)?.toInt();
     if (claseId == null) return;
     final messenger = ScaffoldMessenger.of(context);
-    final categoriasDisponibles =
-        await _loadCategoriasDisponibles(_parseCategorias(clase));
+    final categoriasDisponibles = await _loadCategoriasDisponibles(
+      _parseCategorias(clase),
+    );
     final n = TextEditingController(text: clase['nombre']?.toString() ?? '');
-    final ins = TextEditingController(text: clase['instructor']?.toString() ?? '');
+    final ins = TextEditingController(
+      text: clase['instructor']?.toString() ?? '',
+    );
     final insDesc = TextEditingController(
       text: clase['instructor_descripcion']?.toString() ?? '',
     );
@@ -668,16 +701,20 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           .map((item) => item.toString())
           .join('\n'),
     );
-    final cupos = TextEditingController(text: ((clase['lugares_total'] as num?)?.toInt() ?? 12).toString());
-    final cred = TextEditingController(text: ((clase['creditos'] as num?)?.toInt() ?? 10).toString());
+    final cupos = TextEditingController(
+      text: ((clase['lugares_total'] as num?)?.toInt() ?? 12).toString(),
+    );
+    final cred = TextEditingController(
+      text: ((clase['creditos'] as num?)?.toInt() ?? 10).toString(),
+    );
     final tipoClase = clase['tipo']?.toString() ?? 'clase';
     if (tipoClase == 'workshop') {
       // El campo de workshop se edita en PESOS, no en créditos: convertimos
       // el precio guardado de vuelta al monto que recibe el estudio.
-      cred.text =
-          Liquidacion.montoEstudioDeWorkshop(
-              (clase['creditos'] as num?)?.toInt() ?? 0, _estudio)
-              .toString();
+      cred.text = Liquidacion.montoEstudioDeWorkshop(
+        (clase['creditos'] as num?)?.toInt() ?? 0,
+        _estudio,
+      ).toString();
     }
     // Las clases normales ya no precargan el campo: el precio lo calcula
     // _PrecioCalculadoField a partir de la fecha/hora elegida.
@@ -694,332 +731,367 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setD) {
-        final mq = MediaQuery.of(ctx);
-        return AnimatedPadding(
-          padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
-          duration: const Duration(milliseconds: 100),
-          child: FractionallySizedBox(
-            heightFactor: 0.92,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: _kFieldFill,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 8),
-                  Center(
-                    child: Container(
-                      width: 42,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD1CAC3),
-                        borderRadius: BorderRadius.circular(99),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) {
+          final mq = MediaQuery.of(ctx);
+          return AnimatedPadding(
+            padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+            duration: const Duration(milliseconds: 100),
+            child: FractionallySizedBox(
+              heightFactor: 0.92,
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: _kFieldFill,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD1CAC3),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 8, 8),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Editar clase',
-                            style: TextStyle(
-                              color: Color(0xFF1A1A1A),
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 8, 8),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Editar clase',
+                              style: TextStyle(
+                                color: Color(0xFF1A1A1A),
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          icon: const Icon(Icons.close_rounded,
-                              color: Color(0xFF1A1A1A)),
-                        ),
-                      ],
+                          IconButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: Color(0xFF1A1A1A),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                      child: Column(
-                        children: [
-                          _ServicioPrecioBanner(
-                            estudio: _estudio,
-                            categorias: cats,
-                          ),
-                          // Card 1: Información básica
-                          _SectionCard(
-                            title: 'Información básica',
-                            children: [
-                              _AuraTextField(
-                                controller: n,
-                                label: 'Nombre de la clase',
-                                hint: 'Yoga restaurativo',
-                              ),
-                              const SizedBox(height: 12),
-                              _InstructorField(
-                                controller: ins,
-                                profes: _profeNombres,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Card 2: Horario (fecha + hora)
-                          _SectionCard(
-                            title: 'Horario',
-                            children: [
-                              _AuraTapField(
-                                label: 'Fecha',
-                                value: DateFormat('EEE d MMM yyyy', 'es')
-                                    .format(fechaSel),
-                                icon: Icons.calendar_today_rounded,
-                                onTap: () async {
-                                  final d = await showDatePicker(
-                                    context: ctx,
-                                    initialDate: fechaSel,
-                                    firstDate: DateTime.now()
-                                        .subtract(const Duration(days: 30)),
-                                    lastDate: DateTime.now()
-                                        .add(const Duration(days: 90)),
-                                  );
-                                  if (d != null) {
-                                    setD(() => fechaSel = DateTime(
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                        child: Column(
+                          children: [
+                            _ServicioPrecioBanner(
+                              estudio: _estudio,
+                              categorias: cats,
+                            ),
+                            // Card 1: Información básica
+                            _SectionCard(
+                              title: 'Información básica',
+                              children: [
+                                _AuraTextField(
+                                  controller: n,
+                                  label: 'Nombre de la clase',
+                                  hint: 'Yoga restaurativo',
+                                ),
+                                const SizedBox(height: 12),
+                                _InstructorField(
+                                  controller: ins,
+                                  profes: _profeNombres,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Card 2: Horario (fecha + hora)
+                            _SectionCard(
+                              title: 'Horario',
+                              children: [
+                                _AuraTapField(
+                                  label: 'Fecha',
+                                  value: DateFormat(
+                                    'EEE d MMM yyyy',
+                                    'es',
+                                  ).format(fechaSel),
+                                  icon: Icons.calendar_today_rounded,
+                                  onTap: () async {
+                                    final d = await showDatePicker(
+                                      context: ctx,
+                                      initialDate: fechaSel,
+                                      firstDate: DateTime.now().subtract(
+                                        const Duration(days: 30),
+                                      ),
+                                      lastDate: DateTime.now().add(
+                                        const Duration(days: 90),
+                                      ),
+                                    );
+                                    if (d != null) {
+                                      setD(
+                                        () => fechaSel = DateTime(
                                           d.year,
                                           d.month,
                                           d.day,
                                           horaSel.hour,
                                           horaSel.minute,
-                                        ));
-                                  }
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraTapField(
-                                label: 'Hora',
-                                value: DateFormat('HH:mm').format(DateTime(
-                                    2024,
-                                    1,
-                                    1,
-                                    horaSel.hour,
-                                    horaSel.minute)),
-                                icon: Icons.schedule_rounded,
-                                onTap: () async {
-                                  final t = await _pickHora24(ctx, horaSel);
-                                  if (t != null) {
-                                    setD(() {
-                                      horaSel = t;
-                                      fechaSel = DateTime(
-                                        fechaSel.year,
-                                        fechaSel.month,
-                                        fechaSel.day,
-                                        t.hour,
-                                        t.minute,
+                                        ),
                                       );
-                                    });
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Card 3: Capacidad
-                          _SectionCard(
-                            title: 'Capacidad',
-                            children: [
-                              _AuraTextField(
-                                controller: cupos,
-                                label: 'Cupos disponibles',
-                                hint: '12',
-                                keyboardType: TextInputType.number,
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraDropdown<int?>(
-                                label: 'Cierre de reservas',
-                                value: cierreReserva,
-                                items: _bookingCutoffOptions
-                                    .map((v) => DropdownMenuItem(
+                                    }
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraTapField(
+                                  label: 'Hora',
+                                  value: DateFormat('HH:mm').format(
+                                    DateTime(
+                                      2024,
+                                      1,
+                                      1,
+                                      horaSel.hour,
+                                      horaSel.minute,
+                                    ),
+                                  ),
+                                  icon: Icons.schedule_rounded,
+                                  onTap: () async {
+                                    final t = await _pickHora24(ctx, horaSel);
+                                    if (t != null) {
+                                      setD(() {
+                                        horaSel = t;
+                                        fechaSel = DateTime(
+                                          fechaSel.year,
+                                          fechaSel.month,
+                                          fechaSel.day,
+                                          t.hour,
+                                          t.minute,
+                                        );
+                                      });
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Card 3: Capacidad
+                            _SectionCard(
+                              title: 'Capacidad',
+                              children: [
+                                _AuraTextField(
+                                  controller: cupos,
+                                  label: 'Cupos disponibles',
+                                  hint: '12',
+                                  keyboardType: TextInputType.number,
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraDropdown<int?>(
+                                  label: 'Cierre de reservas',
+                                  value: cierreReserva,
+                                  items: _bookingCutoffOptions
+                                      .map(
+                                        (v) => DropdownMenuItem(
                                           value: v,
-                                          child:
-                                              Text(_bookingCutoffLabel(v)),
-                                        ))
-                                    .toList(),
-                                onChanged: (v) =>
-                                    setD(() => cierreReserva = v),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Card 4: Categoría y precio
-                          _SectionCard(
-                            title: 'Categoría y precio',
-                            children: [
-                              if (categoriasDisponibles.isEmpty)
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFFF1E8),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Text(
-                                    'Todavía no hay categorías disponibles. Escribinos y las '
-                                    'configuramos para tu estudio.',
-                                    style: TextStyle(
+                                          child: Text(_bookingCutoffLabel(v)),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setD(() => cierreReserva = v),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Card 4: Categoría y precio
+                            _SectionCard(
+                              title: 'Categoría y precio',
+                              children: [
+                                if (categoriasDisponibles.isEmpty)
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFF1E8),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Text(
+                                      'Todavía no hay categorías disponibles. Escribinos y las '
+                                      'configuramos para tu estudio.',
+                                      style: TextStyle(
                                         color: AppColors.primary,
-                                        fontSize: 13),
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  CategoriasChecklist(
+                                    label:
+                                        'Categorías (máx '
+                                        '$kMaxCategoriasClase)',
+                                    disponibles: categoriasDisponibles,
+                                    seleccionadas: cats,
+                                    precios:
+                                        PricingCalculator.preciosServiciosDe(
+                                          _estudio,
+                                        ),
+                                    onToggle: (c, marcada) => setD(
+                                      () => CategoriasChecklist.aplicarToggle(
+                                        cats,
+                                        c,
+                                        marcada,
+                                        precios:
+                                            PricingCalculator.preciosServiciosDe(
+                                              _estudio,
+                                            ),
+                                        max: kMaxCategoriasClase,
+                                      ),
+                                    ),
                                   ),
-                                )
-                              else
-                                CategoriasChecklist(
-                                  label: 'Categorías (máx '
-                                      '$kMaxCategoriasClase)',
-                                  disponibles: categoriasDisponibles,
-                                  seleccionadas: cats,
-                                  precios: PricingCalculator
-                                      .preciosServiciosDe(_estudio),
-                                  onToggle: (c, marcada) => setD(
-                                    () => CategoriasChecklist.aplicarToggle(
-                                      cats,
-                                      c,
-                                      marcada,
-                                      precios: PricingCalculator
-                                          .preciosServiciosDe(_estudio),
-                                      max: kMaxCategoriasClase,
+                                const SizedBox(height: 12),
+                                if (tipoClase == 'workshop')
+                                  _WorkshopPrecioField(
+                                    controller: cred,
+                                    estudio: _estudio,
+                                    onChanged: () => setD(() {}),
+                                  )
+                                else ...[
+                                  _ServicioPrecioBanner(
+                                    estudio: _estudio,
+                                    categorias: cats,
+                                  ),
+                                  _PrecioCalculadoField(
+                                    estudio: _estudio,
+                                    dia: fechaSel.weekday,
+                                    hora: horaSel,
+                                    categorias: cats,
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Card 5: Detalles adicionales (colapsable)
+                            _SectionCard(
+                              title: 'Descripción, sala y fotos',
+                              children: [
+                                _AuraTextField(
+                                  controller: insDesc,
+                                  label: 'Descripción del instructor/a',
+                                  hint:
+                                      'Profesora certificada con 10 años de experiencia',
+                                  maxLines: 2,
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraTextField(
+                                  controller: incluye,
+                                  label: 'Descripción de la clase',
+                                  hint: 'Mat, agua, vestuario',
+                                  maxLines: 2,
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraTextField(
+                                  controller: imagenUrl,
+                                  label: 'Imagen principal (URL)',
+                                  hint: 'https://...',
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final uploaded =
+                                          await _subirImagenClase();
+                                      if (uploaded != null) {
+                                        imagenUrl.text = uploaded;
+                                        setD(() {});
+                                      }
+                                    },
+                                    icon: const Icon(Icons.image_outlined),
+                                    label: const Text('Subir imagen principal'),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraTextField(
+                                  controller: galeria,
+                                  label: 'Galería de fotos',
+                                  hint: 'Una URL por línea',
+                                  maxLines: 3,
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final uploaded =
+                                          await _subirImagenClase();
+                                      if (uploaded != null) {
+                                        galeria.text =
+                                            galeria.text.trim().isEmpty
+                                            ? uploaded
+                                            : '${galeria.text.trim()}\n$uploaded';
+                                        setD(() {});
+                                      }
+                                    },
+                                    icon: const Icon(
+                                      Icons.photo_library_outlined,
+                                    ),
+                                    label: const Text(
+                                      'Agregar imagen a galería',
                                     ),
                                   ),
                                 ),
-                              const SizedBox(height: 12),
-                              if (tipoClase == 'workshop')
-                                _WorkshopPrecioField(
-                                  controller: cred,
-                                  estudio: _estudio,
-                                  onChanged: () => setD(() {}),
-                                )
-                              else ...[
-                                _ServicioPrecioBanner(
-                                  estudio: _estudio,
-                                  categorias: cats,
-                                ),
-                                _PrecioCalculadoField(
-                                  estudio: _estudio,
-                                  dia: fechaSel.weekday,
-                                  hora: horaSel,
-                                  categorias: cats,
-                                ),
                               ],
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Card 5: Detalles adicionales (colapsable)
-                          _SectionCard(
-                            title: 'Descripción, sala y fotos',
-                            children: [
-                              _AuraTextField(
-                                controller: insDesc,
-                                label: 'Descripción del instructor/a',
-                                hint:
-                                    'Profesora certificada con 10 años de experiencia',
-                                maxLines: 2,
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraTextField(
-                                controller: incluye,
-                                label: 'Descripción de la clase',
-                                hint: 'Mat, agua, vestuario',
-                                maxLines: 2,
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraTextField(
-                                controller: imagenUrl,
-                                label: 'Imagen principal (URL)',
-                                hint: 'https://...',
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton.icon(
-                                  onPressed: () async {
-                                    final uploaded =
-                                        await _subirImagenClase();
-                                    if (uploaded != null) {
-                                      imagenUrl.text = uploaded;
-                                      setD(() {});
-                                    }
-                                  },
-                                  icon: const Icon(Icons.image_outlined),
-                                  label:
-                                      const Text('Subir imagen principal'),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraTextField(
-                                controller: galeria,
-                                label: 'Galería de fotos',
-                                hint: 'Una URL por línea',
-                                maxLines: 3,
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton.icon(
-                                  onPressed: () async {
-                                    final uploaded =
-                                        await _subirImagenClase();
-                                    if (uploaded != null) {
-                                      galeria.text =
-                                          galeria.text.trim().isEmpty
-                                              ? uploaded
-                                              : '${galeria.text.trim()}\n$uploaded';
-                                      setD(() {});
-                                    }
-                                  },
-                                  icon: const Icon(
-                                      Icons.photo_library_outlined),
-                                  label: const Text(
-                                      'Agregar imagen a galería'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                        16, 12, 16, mq.padding.bottom + 32),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          elevation: 0,
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
+                            ),
+                          ],
                         ),
-                        child: const Text('Guardar cambios'),
                       ),
                     ),
-                  ),
-                ],
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        12,
+                        16,
+                        mq.padding.bottom + 32,
+                      ),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          child: const Text('Guardar cambios'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      }),
+          );
+        },
+      ),
     );
-    if (ok != true || !mounted) { n.dispose(); ins.dispose(); insDesc.dispose(); incluye.dispose(); imagenUrl.dispose(); galeria.dispose(); cupos.dispose(); cred.dispose(); return; }
+    if (ok != true || !mounted) {
+      n.dispose();
+      ins.dispose();
+      insDesc.dispose();
+      incluye.dispose();
+      imagenUrl.dispose();
+      galeria.dispose();
+      cupos.dispose();
+      cred.dispose();
+      return;
+    }
     try {
       // 0 es valido: "clase visible pero no reservable". Si el usuario
       // explicitamente puso 0, lo aceptamos. Solo caemos al default (12)
@@ -1031,11 +1103,13 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       final payload = {
         'nombre': n.text.trim().isEmpty ? clase['nombre'] : n.text.trim(),
         'instructor': ins.text.trim().isEmpty ? null : ins.text.trim(),
-        'instructor_descripcion':
-            insDesc.text.trim().isEmpty ? null : insDesc.text.trim(),
+        'instructor_descripcion': insDesc.text.trim().isEmpty
+            ? null
+            : insDesc.text.trim(),
         'incluye': incluye.text.trim().isEmpty ? null : incluye.text.trim(),
-        'imagen_url':
-            imagenUrl.text.trim().isEmpty ? null : imagenUrl.text.trim(),
+        'imagen_url': imagenUrl.text.trim().isEmpty
+            ? null
+            : imagenUrl.text.trim(),
         'galeria_urls': _parseGaleria(galeria.text),
         'fecha': _toSupaDate(fechaSel),
         'lugares_total': lugaresTotal,
@@ -1043,8 +1117,13 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         // que el flujo de reservar la rechace (sino quedaba el viejo valor
         // de disponibles y la clase aparecia reservable).
         if (lugaresTotal == 0) 'lugares_disponibles': 0,
-        'creditos': _creditosFinal(cred, tipoClase,
-            dia: fechaSel.weekday, hora: horaSel, categorias: cats),
+        'creditos': _creditosFinal(
+          cred,
+          tipoClase,
+          dia: fechaSel.weekday,
+          hora: horaSel,
+          categorias: cats,
+        ),
         // Solo incluir categoria si tiene valor — evita pisar con null si la
         // columna tiene constraint NOT NULL o si el dropdown quedo vacio.
         'categorias': cats,
@@ -1052,23 +1131,34 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       };
       await _service.editarClase(claseId, payload);
       await _loadStudio();
-      NotificacionesService.instance.scheduleListaAsistentesReminder(
-        claseId: claseId,
-        claseNombre: payload['nombre']?.toString() ?? '',
-        fechaClase: fechaSel,
-        cantidadReservas: 0,
-        estudioNombre: '',
-      ).ignore();
-      messenger.showSnackBar(const SnackBar(content: Text('Clase actualizada')));
+      NotificacionesService.instance
+          .scheduleListaAsistentesReminder(
+            claseId: claseId,
+            claseNombre: payload['nombre']?.toString() ?? '',
+            fechaClase: fechaSel,
+            cantidadReservas: 0,
+            estudioNombre: '',
+          )
+          .ignore();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Clase actualizada')),
+      );
     } catch (e) {
       final msg = e is PostgrestException
           ? (e.message.toLowerCase().contains('row-level security')
-              ? 'No tenés permisos para editar esta clase. Contactá soporte.'
-              : 'No se pudo guardar: ${e.message}')
+                ? 'No tenés permisos para editar esta clase. Contactá soporte.'
+                : 'No se pudo guardar: ${e.message}')
           : 'No se pudo guardar: ${e.toString()}';
       messenger.showSnackBar(SnackBar(content: Text(msg)));
     } finally {
-      n.dispose(); ins.dispose(); insDesc.dispose(); incluye.dispose(); imagenUrl.dispose(); galeria.dispose(); cupos.dispose(); cred.dispose();
+      n.dispose();
+      ins.dispose();
+      insDesc.dispose();
+      incluye.dispose();
+      imagenUrl.dispose();
+      galeria.dispose();
+      cupos.dispose();
+      cred.dispose();
     }
   }
 
@@ -1082,12 +1172,20 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('¿Reactivar esta clase?'),
-        content: const Text('Vuelve a aparecer para las alumnas y se puede reservar. Las que ya recibieron sus créditos tienen que anotarse de nuevo.'),
+        content: const Text(
+          'Vuelve a aparecer para las alumnas y se puede reservar. Las que ya recibieron sus créditos tienen que anotarse de nuevo.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Volver')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Volver'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF43A047), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF43A047),
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Reactivar'),
           ),
         ],
@@ -1100,7 +1198,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       _snack('Clase reactivada: ya se puede reservar.');
     } catch (e) {
       debugPrint('[reactivarClase] $e');
-      _snack('No se pudo reactivar la clase. Escribinos a aura.hola.app@gmail.com');
+      _snack(
+        'No se pudo reactivar la clase. Escribinos a aura.hola.app@gmail.com',
+      );
     }
   }
 
@@ -1126,7 +1226,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.fromLTRB(
-          20, 20, 20, 24 + MediaQuery.of(ctx).viewInsets.bottom,
+          20,
+          20,
+          20,
+          24 + MediaQuery.of(ctx).viewInsets.bottom,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1206,7 +1309,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
     if (ok != true || !mounted) return;
     try {
-      final devueltos = await _reservasService.cancelarClaseConDevolucion(claseId, nombre);
+      final devueltos = await _reservasService.cancelarClaseConDevolucion(
+        claseId,
+        nombre,
+      );
       await _loadStudio();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1305,8 +1411,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         ...clases
             .map((item) => item['categoria']?.toString() ?? '')
             .where((item) => item.trim().isNotEmpty),
-      }.toList()
-        ..sort();
+      }.toList()..sort();
       if (!mounted) return;
       setState(() {
         _clases = clases;
@@ -1340,9 +1445,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     }
   }
 
-
-  Future<void> _openForm(
-      [Map<String, dynamic>? item, String? initialTipo]) async {
+  Future<void> _openForm([
+    Map<String, dynamic>? item,
+    String? initialTipo,
+  ]) async {
     // Opción A: crear/editar clase individual lo puede hacer la profe también.
     // Borrar / workshops los frena el backend (RLS + trigger).
     if (!_puedeGestionarClases) return;
@@ -1359,7 +1465,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       return;
     }
     final n = TextEditingController(text: item?['nombre']?.toString() ?? '');
-    final i = TextEditingController(text: item?['instructor']?.toString() ?? '');
+    final i = TextEditingController(
+      text: item?['instructor']?.toString() ?? '',
+    );
     final iDesc = TextEditingController(
       text: item?['instructor_descripcion']?.toString() ?? '',
     );
@@ -1382,8 +1490,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final dirCtrl = TextEditingController(
       text: item?['direccion']?.toString() ?? '',
     );
-    final c = TextEditingController(text: ((item?['lugares_total'] as num?)?.toInt() ?? 12).toString());
-    final cr = TextEditingController(text: ((item?['creditos'] as num?)?.toInt() ?? 10).toString());
+    final c = TextEditingController(
+      text: ((item?['lugares_total'] as num?)?.toInt() ?? 12).toString(),
+    );
+    final cr = TextEditingController(
+      text: ((item?['creditos'] as num?)?.toInt() ?? 10).toString(),
+    );
     // null = hereda el default del estudio (no forzamos 0).
     int? cierreReserva = (item?['reserva_cierre_minutos'] as num?)?.toInt();
     int d = (item?['dia_semana'] as num?)?.toInt() ?? 1;
@@ -1391,19 +1503,20 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final nowLocal = DateTime.now();
     DateTime fecha = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
     final hh = (item?['hora_inicio']?.toString() ?? '08:00').split(':');
-    TimeOfDay t = TimeOfDay(hour: int.tryParse(hh.first) ?? 8, minute: int.tryParse(hh.length > 1 ? hh[1] : '0') ?? 0);
+    TimeOfDay t = TimeOfDay(
+      hour: int.tryParse(hh.first) ?? 8,
+      minute: int.tryParse(hh.length > 1 ? hh[1] : '0') ?? 0,
+    );
     int dur = (item?['duracion_min'] as num?)?.toInt() ?? 60;
-    final cats = item == null
-        ? <String>[]
-        : _parseCategorias(item);
+    final cats = item == null ? <String>[] : _parseCategorias(item);
     // Tipo de clase: 'clase' normal o 'workshop' (evento). Solo elegible al
     // crear una clase individual (no en horarios fijos ni edición).
     String tipo = item?['tipo']?.toString() ?? initialTipo ?? 'clase';
     if (tipo == 'workshop') {
-      cr.text =
-          Liquidacion.montoEstudioDeWorkshop(
-              (item?['creditos'] as num?)?.toInt() ?? 0, _estudio)
-              .toString();
+      cr.text = Liquidacion.montoEstudioDeWorkshop(
+        (item?['creditos'] as num?)?.toInt() ?? 0,
+        _estudio,
+      ).toString();
     }
     // Las clases normales no precargan el campo: el precio lo calcula
     // _PrecioCalculadoField según el día y la hora elegidos.
@@ -1416,462 +1529,572 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final orgInstaCtrls = <TextEditingController>[];
     for (final o in (item?['organizadores'] as List?) ?? const []) {
       final m = o as Map?;
-      orgNombreCtrls
-          .add(TextEditingController(text: m?['nombre']?.toString() ?? ''));
-      orgInstaCtrls
-          .add(TextEditingController(text: m?['instagram']?.toString() ?? ''));
+      orgNombreCtrls.add(
+        TextEditingController(text: m?['nombre']?.toString() ?? ''),
+      );
+      orgInstaCtrls.add(
+        TextEditingController(text: m?['instagram']?.toString() ?? ''),
+      );
     }
     if (orgNombreCtrls.isEmpty) {
       orgNombreCtrls.add(TextEditingController());
       orgInstaCtrls.add(TextEditingController());
     }
     void disposeAll() {
-      n.dispose(); i.dispose(); iDesc.dispose(); incluye.dispose();
-      imagenUrl.dispose(); galeria.dispose(); s.dispose(); c.dispose();
-      cr.dispose(); descCtrl.dispose(); dirCtrl.dispose();
-      for (final x in orgNombreCtrls) { x.dispose(); }
-      for (final x in orgInstaCtrls) { x.dispose(); }
+      n.dispose();
+      i.dispose();
+      iDesc.dispose();
+      incluye.dispose();
+      imagenUrl.dispose();
+      galeria.dispose();
+      s.dispose();
+      c.dispose();
+      cr.dispose();
+      descCtrl.dispose();
+      dirCtrl.dispose();
+      for (final x in orgNombreCtrls) {
+        x.dispose();
+      }
+      for (final x in orgInstaCtrls) {
+        x.dispose();
+      }
     }
+
     if (!mounted) return;
     final ok = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setD) {
-        final mq = MediaQuery.of(ctx);
-        return AnimatedPadding(
-          padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
-          duration: const Duration(milliseconds: 100),
-          child: FractionallySizedBox(
-            heightFactor: 0.92,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: _kFieldFill,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 8),
-                  Center(
-                    child: Container(
-                      width: 42,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD1CAC3),
-                        borderRadius: BorderRadius.circular(99),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) {
+          final mq = MediaQuery.of(ctx);
+          return AnimatedPadding(
+            padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+            duration: const Duration(milliseconds: 100),
+            child: FractionallySizedBox(
+              heightFactor: 0.92,
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: _kFieldFill,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD1CAC3),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 8, 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            edit ? 'Editar clase' : 'Nueva clase',
-                            style: const TextStyle(
-                              color: Color(0xFF1A1A1A),
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 8, 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              edit ? 'Editar clase' : 'Nueva clase',
+                              style: const TextStyle(
+                                color: Color(0xFF1A1A1A),
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          icon: const Icon(Icons.close_rounded,
-                              color: Color(0xFF1A1A1A)),
-                        ),
-                      ],
+                          IconButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: Color(0xFF1A1A1A),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                      child: Column(
-                        children: [
-                          if (!edit) ...[
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFF1E8),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                'Esta es una clase individual: un evento único en la fecha que elijas. No se repite. Si querés clases que se repitan todas las semanas, usá "Crear grilla".',
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 13,
-                                  height: 1.35,
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                        child: Column(
+                          children: [
+                            if (!edit) ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF1E8),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  'Esta es una clase individual: un evento único en la fecha que elijas. No se repite. Si querés clases que se repitan todas las semanas, usá "Crear grilla".',
+                                  style: TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 13,
+                                    height: 1.35,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            _SectionCard(
-                              title: 'Tipo',
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _TipoOption(
-                                        label: 'Clase',
-                                        icon: Icons.fitness_center_rounded,
-                                        selected: tipo == 'clase',
-                                        onTap: () =>
-                                            setD(() => tipo = 'clase'),
+                              const SizedBox(height: 12),
+                              _SectionCard(
+                                title: 'Tipo',
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _TipoOption(
+                                          label: 'Clase',
+                                          icon: Icons.fitness_center_rounded,
+                                          selected: tipo == 'clase',
+                                          onTap: () =>
+                                              setD(() => tipo = 'clase'),
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: _TipoOption(
-                                        label: 'Workshop / Experiencia',
-                                        icon: Icons.celebration_rounded,
-                                        selected: tipo == 'workshop',
-                                        onTap: () => setD(() {
-                                          tipo = 'workshop';
-                                          // El campo pasa de créditos a
-                                          // pesos: lo vaciamos para que no
-                                          // se lea "10" como $10.
-                                          cr.clear();
-                                          // duración por defecto para eventos
-                                          if (![60, 90, 120, 150, 180, 240]
-                                              .contains(dur)) {
-                                            dur = 120;
-                                          }
-                                        }),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: _TipoOption(
+                                          label: 'Workshop / Experiencia',
+                                          icon: Icons.celebration_rounded,
+                                          selected: tipo == 'workshop',
+                                          onTap: () => setD(() {
+                                            tipo = 'workshop';
+                                            // El campo pasa de créditos a
+                                            // pesos: lo vaciamos para que no
+                                            // se lea "10" como $10.
+                                            cr.clear();
+                                            // duración por defecto para eventos
+                                            if (![
+                                              60,
+                                              90,
+                                              120,
+                                              150,
+                                              180,
+                                              240,
+                                            ].contains(dur)) {
+                                              dur = 120;
+                                            }
+                                          }),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (tipo == 'workshop') ...[
+                                    const SizedBox(height: 10),
+                                    // A propósito no se menciona ningún % de
+                                    // comisión: la maneja Aura desde el
+                                    // backoffice y el estudio solo carga precio.
+                                    const Text(
+                                      'Ponés en pesos cuánto querés recibir por el '
+                                      'workshop, sin restricción. Va a aparecer en '
+                                      'la sección Experiencias, no entre las clases.',
+                                      style: TextStyle(
+                                        color: AppColors.grey,
+                                        fontSize: 12,
+                                        height: 1.35,
                                       ),
                                     ),
                                   ],
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                            _ServicioPrecioBanner(
+                              estudio: _estudio,
+                              categorias: cats,
+                            ),
+                            // Card 1: Información básica
+                            _SectionCard(
+                              title: 'Información básica',
+                              children: [
+                                _AuraTextField(
+                                  controller: n,
+                                  label: 'Nombre de la clase',
+                                  hint: 'Yoga restaurativo',
                                 ),
-                                if (tipo == 'workshop') ...[
-                                  const SizedBox(height: 10),
-                                  // A propósito no se menciona ningún % de
-                                  // comisión: la maneja Aura desde el
-                                  // backoffice y el estudio solo carga precio.
+                                const SizedBox(height: 12),
+                                _InstructorField(
+                                  controller: i,
+                                  profes: _profeNombres,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Card 2: Horario
+                            _SectionCard(
+                              title: 'Horario',
+                              children: [
+                                if (edit)
+                                  _AuraDropdown<int>(
+                                    label: 'Día',
+                                    value: d,
+                                    items: List.generate(
+                                      7,
+                                      (x) => DropdownMenuItem(
+                                        value: x + 1,
+                                        child: Text(_dayName(x + 1)),
+                                      ),
+                                    ),
+                                    onChanged: (v) => setD(() => d = v ?? d),
+                                  )
+                                else
+                                  _AuraTapField(
+                                    label: 'Fecha',
+                                    value:
+                                        '${_dayName(fecha.weekday)} ${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}',
+                                    icon: Icons.calendar_today_rounded,
+                                    onTap: () async {
+                                      final hoy = DateTime.now();
+                                      final p = await showDatePicker(
+                                        context: ctx,
+                                        initialDate: fecha,
+                                        firstDate: DateTime(
+                                          hoy.year,
+                                          hoy.month,
+                                          hoy.day,
+                                        ),
+                                        lastDate: DateTime(
+                                          hoy.year + 1,
+                                          hoy.month,
+                                          hoy.day,
+                                        ),
+                                      );
+                                      if (p != null) {
+                                        setD(
+                                          () => fecha = DateTime(
+                                            p.year,
+                                            p.month,
+                                            p.day,
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                const SizedBox(height: 12),
+                                _AuraTapField(
+                                  label: 'Hora de inicio',
+                                  value: _timeText(t),
+                                  icon: Icons.schedule_rounded,
+                                  onTap: () async {
+                                    final p = await _pickHora24(ctx, t);
+                                    if (p != null) setD(() => t = p);
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraDropdown<int>(
+                                  label: 'Duración',
+                                  value: dur,
+                                  items:
+                                      (tipo == 'workshop'
+                                              ? const [
+                                                  60,
+                                                  90,
+                                                  120,
+                                                  150,
+                                                  180,
+                                                  240,
+                                                ]
+                                              : const [45, 60, 75, 90])
+                                          .map(
+                                            (m) => DropdownMenuItem(
+                                              value: m,
+                                              child: Text(_durLabel(m)),
+                                            ),
+                                          )
+                                          .toList(),
+                                  onChanged: (v) => setD(() => dur = v ?? dur),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Card 3: Capacidad
+                            _SectionCard(
+                              title: 'Capacidad',
+                              children: [
+                                _AuraTextField(
+                                  controller: c,
+                                  label: 'Cupos disponibles',
+                                  hint: '12',
+                                  keyboardType: TextInputType.number,
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraDropdown<int?>(
+                                  label: 'Cierre de reservas',
+                                  value: cierreReserva,
+                                  items: _bookingCutoffOptions
+                                      .map(
+                                        (v) => DropdownMenuItem(
+                                          value: v,
+                                          child: Text(_bookingCutoffLabel(v)),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setD(() => cierreReserva = v),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Card 4: Categoría y precio
+                            _SectionCard(
+                              title: 'Categoría y precio',
+                              children: [
+                                if (categoriasDisponibles.isEmpty)
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFF1E8),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Text(
+                                      'Todavía no hay categorías disponibles. Escribinos y las '
+                                      'configuramos para tu estudio.',
+                                      style: TextStyle(
+                                        color: AppColors.primary,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  CategoriasChecklist(
+                                    label:
+                                        'Categorías (máx '
+                                        '$kMaxCategoriasClase)',
+                                    disponibles: categoriasDisponibles,
+                                    seleccionadas: cats,
+                                    precios:
+                                        PricingCalculator.preciosServiciosDe(
+                                          _estudio,
+                                        ),
+                                    onToggle: (c, marcada) => setD(
+                                      () => CategoriasChecklist.aplicarToggle(
+                                        cats,
+                                        c,
+                                        marcada,
+                                        precios:
+                                            PricingCalculator.preciosServiciosDe(
+                                              _estudio,
+                                            ),
+                                        max: kMaxCategoriasClase,
+                                      ),
+                                    ),
+                                  ),
+                                const SizedBox(height: 12),
+                                if (tipo == 'workshop')
+                                  _WorkshopPrecioField(
+                                    controller: cr,
+                                    estudio: _estudio,
+                                    onChanged: () => setD(() {}),
+                                  )
+                                else ...[
+                                  _ServicioPrecioBanner(
+                                    estudio: _estudio,
+                                    categorias: cats,
+                                  ),
+                                  _PrecioCalculadoField(
+                                    estudio: _estudio,
+                                    dia: diaPrecio(),
+                                    hora: t,
+                                    categorias: cats,
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            if (tipo == 'workshop') ...[
+                              _SectionCard(
+                                title: 'Organizadores',
+                                children: [
                                   const Text(
-                                    'Ponés en pesos cuánto querés recibir por el '
-                                    'workshop, sin restricción. Va a aparecer en '
-                                    'la sección Experiencias, no entre las clases.',
+                                    'Nombre + Instagram de cada organizador/a. '
+                                    'Los @ se muestran clickeables en la app.',
                                     style: TextStyle(
                                       color: AppColors.grey,
                                       fontSize: 12,
                                       height: 1.35,
                                     ),
                                   ),
-                                ],
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                          _ServicioPrecioBanner(
-                            estudio: _estudio,
-                            categorias: cats,
-                          ),
-                          // Card 1: Información básica
-                          _SectionCard(
-                            title: 'Información básica',
-                            children: [
-                              _AuraTextField(
-                                controller: n,
-                                label: 'Nombre de la clase',
-                                hint: 'Yoga restaurativo',
-                              ),
-                              const SizedBox(height: 12),
-                              _InstructorField(
-                                controller: i,
-                                profes: _profeNombres,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Card 2: Horario
-                          _SectionCard(
-                            title: 'Horario',
-                            children: [
-                              if (edit)
-                                _AuraDropdown<int>(
-                                  label: 'Día',
-                                  value: d,
-                                  items: List.generate(
-                                      7,
-                                      (x) => DropdownMenuItem(
-                                            value: x + 1,
-                                            child: Text(_dayName(x + 1)),
-                                          )),
-                                  onChanged: (v) => setD(() => d = v ?? d),
-                                )
-                              else
-                                _AuraTapField(
-                                  label: 'Fecha',
-                                  value:
-                                      '${_dayName(fecha.weekday)} ${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}',
-                                  icon: Icons.calendar_today_rounded,
-                                  onTap: () async {
-                                    final hoy = DateTime.now();
-                                    final p = await showDatePicker(
-                                      context: ctx,
-                                      initialDate: fecha,
-                                      firstDate:
-                                          DateTime(hoy.year, hoy.month, hoy.day),
-                                      lastDate: DateTime(hoy.year + 1, hoy.month,
-                                          hoy.day),
-                                    );
-                                    if (p != null) {
-                                      setD(() => fecha =
-                                          DateTime(p.year, p.month, p.day));
-                                    }
-                                  },
-                                ),
-                              const SizedBox(height: 12),
-                              _AuraTapField(
-                                label: 'Hora de inicio',
-                                value: _timeText(t),
-                                icon: Icons.schedule_rounded,
-                                onTap: () async {
-                                  final p = await _pickHora24(ctx, t);
-                                  if (p != null) setD(() => t = p);
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraDropdown<int>(
-                                label: 'Duración',
-                                value: dur,
-                                items: (tipo == 'workshop'
-                                        ? const [60, 90, 120, 150, 180, 240]
-                                        : const [45, 60, 75, 90])
-                                    .map((m) => DropdownMenuItem(
-                                          value: m,
-                                          child: Text(_durLabel(m)),
-                                        ))
-                                    .toList(),
-                                onChanged: (v) => setD(() => dur = v ?? dur),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Card 3: Capacidad
-                          _SectionCard(
-                            title: 'Capacidad',
-                            children: [
-                              _AuraTextField(
-                                controller: c,
-                                label: 'Cupos disponibles',
-                                hint: '12',
-                                keyboardType: TextInputType.number,
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraDropdown<int?>(
-                                label: 'Cierre de reservas',
-                                value: cierreReserva,
-                                items: _bookingCutoffOptions
-                                    .map((v) => DropdownMenuItem(
-                                          value: v,
-                                          child: Text(_bookingCutoffLabel(v)),
-                                        ))
-                                    .toList(),
-                                onChanged: (v) =>
-                                    setD(() => cierreReserva = v),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Card 4: Categoría y precio
-                          _SectionCard(
-                            title: 'Categoría y precio',
-                            children: [
-                              if (categoriasDisponibles.isEmpty)
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFFF1E8),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Text(
-                                    'Todavía no hay categorías disponibles. Escribinos y las '
-                                    'configuramos para tu estudio.',
-                                    style: TextStyle(
-                                        color: AppColors.primary,
-                                        fontSize: 13),
-                                  ),
-                                )
-                              else
-                                CategoriasChecklist(
-                                  label: 'Categorías (máx '
-                                      '$kMaxCategoriasClase)',
-                                  disponibles: categoriasDisponibles,
-                                  seleccionadas: cats,
-                                  precios: PricingCalculator
-                                      .preciosServiciosDe(_estudio),
-                                  onToggle: (c, marcada) => setD(
-                                    () => CategoriasChecklist.aplicarToggle(
-                                      cats,
-                                      c,
-                                      marcada,
-                                      precios: PricingCalculator
-                                          .preciosServiciosDe(_estudio),
-                                      max: kMaxCategoriasClase,
-                                    ),
-                                  ),
-                                ),
-                              const SizedBox(height: 12),
-                              if (tipo == 'workshop')
-                                _WorkshopPrecioField(
-                                  controller: cr,
-                                  estudio: _estudio,
-                                  onChanged: () => setD(() {}),
-                                )
-                              else ...[
-                                _ServicioPrecioBanner(
-                                  estudio: _estudio,
-                                  categorias: cats,
-                                ),
-                                _PrecioCalculadoField(
-                                  estudio: _estudio,
-                                  dia: diaPrecio(),
-                                  hora: t,
-                                  categorias: cats,
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          if (tipo == 'workshop') ...[
-                            _SectionCard(
-                              title: 'Organizadores',
-                              children: [
-                                const Text(
-                                  'Nombre + Instagram de cada organizador/a. '
-                                  'Los @ se muestran clickeables en la app.',
-                                  style: TextStyle(
-                                    color: AppColors.grey,
-                                    fontSize: 12,
-                                    height: 1.35,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                for (int idx = 0;
+                                  const SizedBox(height: 12),
+                                  for (
+                                    int idx = 0;
                                     idx < orgNombreCtrls.length;
-                                    idx++) ...[
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.end,
-                                    children: [
-                                      Expanded(
-                                        child: _AuraTextField(
-                                          controller: orgNombreCtrls[idx],
-                                          label: 'Nombre',
-                                          hint: 'Citra Barre',
-                                        ),
-                                      ),
-                                      if (orgNombreCtrls.length > 1)
-                                        IconButton(
-                                          onPressed: () => setD(() {
-                                            orgNombreCtrls
-                                                .removeAt(idx)
-                                                .dispose();
-                                            orgInstaCtrls
-                                                .removeAt(idx)
-                                                .dispose();
-                                          }),
-                                          icon: const Icon(
-                                            Icons.remove_circle_outline,
-                                            color: AppColors.error,
+                                    idx++
+                                  ) ...[
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Expanded(
+                                          child: _AuraTextField(
+                                            controller: orgNombreCtrls[idx],
+                                            label: 'Nombre',
+                                            hint: 'Citra Barre',
                                           ),
                                         ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _AuraTextField(
-                                    controller: orgInstaCtrls[idx],
-                                    label: 'Instagram',
-                                    hint: '@citrabarre',
-                                  ),
-                                  const SizedBox(height: 14),
-                                ],
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: TextButton.icon(
-                                    onPressed: () => setD(() {
-                                      orgNombreCtrls
-                                          .add(TextEditingController());
-                                      orgInstaCtrls
-                                          .add(TextEditingController());
-                                    }),
-                                    icon: const Icon(Icons.add_rounded,
-                                        color: AppColors.primary),
-                                    label: const Text(
-                                      'Agregar organizador/a',
-                                      style:
-                                          TextStyle(color: AppColors.primary),
+                                        if (orgNombreCtrls.length > 1)
+                                          IconButton(
+                                            onPressed: () => setD(() {
+                                              orgNombreCtrls
+                                                  .removeAt(idx)
+                                                  .dispose();
+                                              orgInstaCtrls
+                                                  .removeAt(idx)
+                                                  .dispose();
+                                            }),
+                                            icon: const Icon(
+                                              Icons.remove_circle_outline,
+                                              color: AppColors.error,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _AuraTextField(
+                                      controller: orgInstaCtrls[idx],
+                                      label: 'Instagram',
+                                      hint: '@citrabarre',
+                                    ),
+                                    const SizedBox(height: 14),
+                                  ],
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: TextButton.icon(
+                                      onPressed: () => setD(() {
+                                        orgNombreCtrls.add(
+                                          TextEditingController(),
+                                        );
+                                        orgInstaCtrls.add(
+                                          TextEditingController(),
+                                        );
+                                      }),
+                                      icon: const Icon(
+                                        Icons.add_rounded,
+                                        color: AppColors.primary,
+                                      ),
+                                      label: const Text(
+                                        'Agregar organizador/a',
+                                        style: TextStyle(
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            // Detalles del evento (workshop): descripción larga,
-                            // foto con preview, dirección propia y qué incluye.
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              // Detalles del evento (workshop): descripción larga,
+                              // foto con preview, dirección propia y qué incluye.
+                              _SectionCard(
+                                title: 'Detalles del evento',
+                                children: [
+                                  _AuraTextField(
+                                    controller: descCtrl,
+                                    label: 'Descripción del evento',
+                                    hint:
+                                        'Contá de qué se trata, para quién es, qué van a vivir…',
+                                    maxLines: 4,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _AuraTextField(
+                                    controller: dirCtrl,
+                                    label: 'Dirección del evento',
+                                    hint: 'Puede ser distinta a la del estudio',
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _AuraTextField(
+                                    controller: incluye,
+                                    label: 'Qué incluye',
+                                    hint: 'Materiales, bebida, sorpresas…',
+                                    maxLines: 2,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _AuraTextField(
+                                    controller: imagenUrl,
+                                    label: 'Foto del evento (URL)',
+                                    hint: 'https://...',
+                                    onChanged: (_) => setD(() {}),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: imagenUrl.text.trim().isEmpty
+                                        ? Container(
+                                            height: 140,
+                                            width: double.infinity,
+                                            color: const Color(0xFFEDE7E1),
+                                            child: const Icon(
+                                              Icons.image_outlined,
+                                              color: AppColors.grey,
+                                              size: 44,
+                                            ),
+                                          )
+                                        : Image.network(
+                                            imagenUrl.text.trim(),
+                                            height: 140,
+                                            width: double.infinity,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) =>
+                                                Container(
+                                                  height: 140,
+                                                  width: double.infinity,
+                                                  color: const Color(
+                                                    0xFFEDE7E1,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.broken_image_outlined,
+                                                    color: AppColors.grey,
+                                                    size: 44,
+                                                  ),
+                                                ),
+                                          ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      onPressed: () async {
+                                        final uploaded =
+                                            await _subirImagenClase();
+                                        if (uploaded != null) {
+                                          imagenUrl.text = uploaded;
+                                          setD(() {});
+                                        }
+                                      },
+                                      icon: const Icon(Icons.image_outlined),
+                                      label: const Text(
+                                        'Subir foto del evento',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                            // Card 5: Detalles adicionales (colapsable)
                             _SectionCard(
-                              title: 'Detalles del evento',
+                              title: 'Descripción, sala y fotos',
                               children: [
                                 _AuraTextField(
-                                  controller: descCtrl,
-                                  label: 'Descripción del evento',
+                                  controller: iDesc,
+                                  label: 'Descripción del instructor/a',
                                   hint:
-                                      'Contá de qué se trata, para quién es, qué van a vivir…',
-                                  maxLines: 4,
-                                ),
-                                const SizedBox(height: 12),
-                                _AuraTextField(
-                                  controller: dirCtrl,
-                                  label: 'Dirección del evento',
-                                  hint: 'Puede ser distinta a la del estudio',
+                                      'Profesora certificada con 10 años de experiencia',
+                                  maxLines: 2,
                                 ),
                                 const SizedBox(height: 12),
                                 _AuraTextField(
                                   controller: incluye,
-                                  label: 'Qué incluye',
-                                  hint: 'Materiales, bebida, sorpresas…',
+                                  label: 'Descripción de la clase',
+                                  hint: 'Mat, agua, vestuario',
                                   maxLines: 2,
                                 ),
                                 const SizedBox(height: 12),
                                 _AuraTextField(
                                   controller: imagenUrl,
-                                  label: 'Foto del evento (URL)',
+                                  label: 'Imagen principal (URL)',
                                   hint: 'https://...',
-                                  onChanged: (_) => setD(() {}),
-                                ),
-                                const SizedBox(height: 10),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: imagenUrl.text.trim().isEmpty
-                                      ? Container(
-                                          height: 140,
-                                          width: double.infinity,
-                                          color: const Color(0xFFEDE7E1),
-                                          child: const Icon(
-                                            Icons.image_outlined,
-                                            color: AppColors.grey,
-                                            size: 44,
-                                          ),
-                                        )
-                                      : Image.network(
-                                          imagenUrl.text.trim(),
-                                          height: 140,
-                                          width: double.infinity,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => Container(
-                                            height: 140,
-                                            width: double.infinity,
-                                            color: const Color(0xFFEDE7E1),
-                                            child: const Icon(
-                                              Icons.broken_image_outlined,
-                                              color: AppColors.grey,
-                                              size: 44,
-                                            ),
-                                          ),
-                                        ),
                                 ),
                                 const SizedBox(height: 8),
                                 SizedBox(
@@ -1886,132 +2109,101 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                       }
                                     },
                                     icon: const Icon(Icons.image_outlined),
-                                    label: const Text('Subir foto del evento'),
+                                    label: const Text('Subir imagen principal'),
                                   ),
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraTextField(
+                                  controller: galeria,
+                                  label: 'Galería de fotos',
+                                  hint: 'Una URL por línea',
+                                  maxLines: 3,
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final uploaded =
+                                          await _subirImagenClase();
+                                      if (uploaded != null) {
+                                        galeria.text =
+                                            galeria.text.trim().isEmpty
+                                            ? uploaded
+                                            : '${galeria.text.trim()}\n$uploaded';
+                                        setD(() {});
+                                      }
+                                    },
+                                    icon: const Icon(
+                                      Icons.photo_library_outlined,
+                                    ),
+                                    label: const Text(
+                                      'Agregar imagen a galería',
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraTextField(
+                                  controller: s,
+                                  label: 'Sala',
+                                  hint: 'Sala 1',
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
                           ],
-                          // Card 5: Detalles adicionales (colapsable)
-                          _SectionCard(
-                            title: 'Descripción, sala y fotos',
-                            children: [
-                              _AuraTextField(
-                                controller: iDesc,
-                                label: 'Descripción del instructor/a',
-                                hint:
-                                    'Profesora certificada con 10 años de experiencia',
-                                maxLines: 2,
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraTextField(
-                                controller: incluye,
-                                label: 'Descripción de la clase',
-                                hint: 'Mat, agua, vestuario',
-                                maxLines: 2,
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraTextField(
-                                controller: imagenUrl,
-                                label: 'Imagen principal (URL)',
-                                hint: 'https://...',
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton.icon(
-                                  onPressed: () async {
-                                    final uploaded =
-                                        await _subirImagenClase();
-                                    if (uploaded != null) {
-                                      imagenUrl.text = uploaded;
-                                      setD(() {});
-                                    }
-                                  },
-                                  icon: const Icon(Icons.image_outlined),
-                                  label:
-                                      const Text('Subir imagen principal'),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraTextField(
-                                controller: galeria,
-                                label: 'Galería de fotos',
-                                hint: 'Una URL por línea',
-                                maxLines: 3,
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton.icon(
-                                  onPressed: () async {
-                                    final uploaded =
-                                        await _subirImagenClase();
-                                    if (uploaded != null) {
-                                      galeria.text =
-                                          galeria.text.trim().isEmpty
-                                              ? uploaded
-                                              : '${galeria.text.trim()}\n$uploaded';
-                                      setD(() {});
-                                    }
-                                  },
-                                  icon: const Icon(
-                                      Icons.photo_library_outlined),
-                                  label: const Text(
-                                      'Agregar imagen a galería'),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraTextField(
-                                controller: s,
-                                label: 'Sala',
-                                hint: 'Sala 1',
-                              ),
-                            ],
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                        16, 12, 16, mq.padding.bottom + 32),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        12,
+                        16,
+                        mq.padding.bottom + 32,
+                      ),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                          elevation: 0,
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                          child: Text(
+                            edit ? 'Guardar cambios' : 'Guardar clase',
                           ),
                         ),
-                        child: Text(
-                            edit ? 'Guardar cambios' : 'Guardar clase'),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      }),
+          );
+        },
+      ),
     );
     if (ok != true) {
-      disposeAll(); return;
+      disposeAll();
+      return;
     }
     if (n.text.trim().isEmpty) {
-      messenger.showSnackBar(const SnackBar(content: Text('Completá al menos el nombre de la clase')));
-      disposeAll(); return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Completá al menos el nombre de la clase'),
+        ),
+      );
+      disposeAll();
+      return;
     }
     // Organizadores (solo workshops): filas con nombre y/o instagram cargados.
     final organizadores = <Map<String, String>>[];
@@ -2026,18 +2218,26 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final payload = {
       'nombre': n.text.trim(),
       'dia_semana': d,
-      'hora_inicio': '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
+      'hora_inicio':
+          '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
       'duracion_min': dur,
       'lugares_total': int.tryParse(c.text.trim()) ?? 12,
-      'creditos': _creditosFinal(cr, tipo,
-          dia: diaPrecio(), hora: t, categorias: cats),
+      'creditos': _creditosFinal(
+        cr,
+        tipo,
+        dia: diaPrecio(),
+        hora: t,
+        categorias: cats,
+      ),
       'reserva_cierre_minutos': cierreReserva,
       'instructor': i.text.trim().isEmpty ? null : i.text.trim(),
-      'instructor_descripcion':
-          iDesc.text.trim().isEmpty ? null : iDesc.text.trim(),
+      'instructor_descripcion': iDesc.text.trim().isEmpty
+          ? null
+          : iDesc.text.trim(),
       'incluye': incluye.text.trim().isEmpty ? null : incluye.text.trim(),
-      'imagen_url':
-          imagenUrl.text.trim().isEmpty ? null : imagenUrl.text.trim(),
+      'imagen_url': imagenUrl.text.trim().isEmpty
+          ? null
+          : imagenUrl.text.trim(),
       'galeria_urls': _parseGaleria(galeria.text),
       'sala': s.text.trim().isEmpty ? null : s.text.trim(),
       'activo': item?['activo'] ?? true,
@@ -2046,19 +2246,34 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       // Campos exclusivos de workshops (columnas descripcion/direccion en
       // `clases`). No se mandan en clases normales / horarios fijos.
       if (tipo == 'workshop')
-        'descripcion': descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+        'descripcion': descCtrl.text.trim().isEmpty
+            ? null
+            : descCtrl.text.trim(),
       if (tipo == 'workshop')
         'direccion': dirCtrl.text.trim().isEmpty ? null : dirCtrl.text.trim(),
       'categorias': cats,
     };
     try {
       if (edit) {
-        final updated = await _service.actualizarHorarioFijo((item['id'] as num).toInt(), payload);
+        final updated = await _service.actualizarHorarioFijo(
+          (item['id'] as num).toInt(),
+          payload,
+        );
         setState(() {
-          _horarios = _horarios.map((h) => ((h['id'] as num?)?.toInt() == (updated['id'] as num?)?.toInt()) ? updated : h).toList();
+          _horarios = _horarios
+              .map(
+                (h) =>
+                    ((h['id'] as num?)?.toInt() ==
+                        (updated['id'] as num?)?.toInt())
+                    ? updated
+                    : h,
+              )
+              .toList();
           _sortFixed();
         });
-        messenger.showSnackBar(const SnackBar(content: Text('Horario fijo actualizado')));
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Horario fijo actualizado')),
+        );
       } else {
         // Clase INDIVIDUAL: evento único en la fecha elegida. No crea horario
         // fijo ni genera repeticiones semanales.
@@ -2081,7 +2296,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         await _loadStudio();
         if (mounted) {
           messenger.showSnackBar(
-            const SnackBar(content: Text('Clase individual creada (no se repite).')),
+            const SnackBar(
+              content: Text('Clase individual creada (no se repite).'),
+            ),
           );
         }
       }
@@ -2089,13 +2306,17 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       // El cartel muestra algo accionable, no el PostgrestException crudo. El
       // detalle tecnico va a debugPrint para poder diagnosticar sin que el
       // estudio lea "Could not find the 'tipo' column of 'horarios_fijos'".
-      debugPrint('Error guardando ${edit ? 'horario fijo' : 'clase individual'}: $e');
+      debugPrint(
+        'Error guardando ${edit ? 'horario fijo' : 'clase individual'}: $e',
+      );
       messenger.showSnackBar(
         SnackBar(
-          content: Text(_mensajeDeGuard(e) ??
-              (edit
-                  ? 'No se pudo guardar el horario. Intentá de nuevo.'
-                  : 'No se pudo crear la clase. Intentá de nuevo.')),
+          content: Text(
+            _mensajeDeGuard(e) ??
+                (edit
+                    ? 'No se pudo guardar el horario. Intentá de nuevo.'
+                    : 'No se pudo crear la clase. Intentá de nuevo.'),
+          ),
           duration: const Duration(seconds: 6),
         ),
       );
@@ -2154,427 +2375,477 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setD) {
-        final mq = MediaQuery.of(ctx);
-        return AnimatedPadding(
-          padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
-          duration: const Duration(milliseconds: 100),
-          child: FractionallySizedBox(
-            heightFactor: 0.92,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: _kFieldFill,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 8),
-                  Center(
-                    child: Container(
-                      width: 42,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD1CAC3),
-                        borderRadius: BorderRadius.circular(99),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) {
+          final mq = MediaQuery.of(ctx);
+          return AnimatedPadding(
+            padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+            duration: const Duration(milliseconds: 100),
+            child: FractionallySizedBox(
+              heightFactor: 0.92,
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: _kFieldFill,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD1CAC3),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 8, 8),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Nueva grilla',
-                            style: TextStyle(
-                              color: Color(0xFF1A1A1A),
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          icon: const Icon(Icons.close_rounded,
-                              color: Color(0xFF1A1A1A)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                      child: Column(
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 8, 8),
+                      child: Row(
                         children: [
-                          // Caption explicativo
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFF1E8),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              'Armá la grilla semanal: marcá los días y agregá los horarios de cada uno. Lo que ves en la lista es exactamente lo que se va a crear. Las clases se publican para las próximas $kGrillaSemanas semanas y se renuevan solas; después podés editar cada horario por separado.',
+                          const Expanded(
+                            child: Text(
+                              'Nueva grilla',
                               style: TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 13,
-                                height: 1.35,
+                                color: Color(0xFF1A1A1A),
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          _ServicioPrecioBanner(
-                            estudio: _estudio,
-                            categorias: cats,
-                          ),
-                          // Card 1: Información básica
-                          _SectionCard(
-                            title: 'Información básica',
-                            children: [
-                              _AuraTextField(
-                                controller: n,
-                                label: 'Nombre de la clase',
-                                hint: 'Yoga restaurativo',
-                              ),
-                              const SizedBox(height: 12),
-                              _InstructorField(
-                                controller: i,
-                                profes: _profeNombres,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Card 2: Horario (días, rango, duración)
-                          _SectionCard(
-                            title: 'Horario',
-                            children: [
-                              const Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  'Días',
-                                  style: TextStyle(
-                                    color: Color(0xFF6E6761),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: List.generate(7, (index) {
-                                  final dia = index + 1;
-                                  final selected =
-                                      diasSeleccionados.contains(dia);
-                                  return FilterChip(
-                                    label: Text(_dayName(dia)),
-                                    selected: selected,
-                                    backgroundColor: _kFieldFill,
-                                    selectedColor:
-                                        const Color(0xFFFFF1E8),
-                                    checkmarkColor: AppColors.primary,
-                                    labelStyle: TextStyle(
-                                      color: selected
-                                          ? AppColors.primary
-                                          : const Color(0xFF6E6761),
-                                      fontWeight: selected
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                    ),
-                                    side: BorderSide(
-                                      color: selected
-                                          ? AppColors.primary
-                                          : const Color(0xFFE5E0DA),
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(99),
-                                    ),
-                                    onSelected: (value) async {
-                                      if (value) {
-                                        setD(() => diasSeleccionados.add(dia));
-                                        return;
-                                      }
-                                      final cargados =
-                                          horariosPorDia[dia]?.length ?? 0;
-                                      if (cargados > 0) {
-                                        final seguro = await showDialog<bool>(
-                                          context: ctx,
-                                          builder: (dctx) => AlertDialog(
-                                            title: Text(
-                                                'Sacar ${_dayName(dia)}'),
-                                            content: Text(
-                                                'Se descartan los $cargados horario${cargados != 1 ? 's' : ''} que cargaste para ese día.'),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () =>
-                                                    Navigator.pop(dctx, false),
-                                                child: const Text('Volver'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () =>
-                                                    Navigator.pop(dctx, true),
-                                                child: const Text('Descartar'),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                        if (seguro != true) return;
-                                      }
-                                      setD(() {
-                                        diasSeleccionados.remove(dia);
-                                        horariosPorDia.remove(dia);
-                                      });
-                                    },
-                                  );
-                                }),
-                              ),
-                              const SizedBox(height: 14),
-                              _AuraDropdown<int>(
-                                label: 'Duración de cada clase',
-                                value: dur,
-                                items: const [
-                                  DropdownMenuItem(
-                                      value: 30, child: Text('30 min')),
-                                  DropdownMenuItem(
-                                      value: 45, child: Text('45 min')),
-                                  DropdownMenuItem(
-                                      value: 60, child: Text('60 min')),
-                                  DropdownMenuItem(
-                                      value: 75, child: Text('75 min')),
-                                  DropdownMenuItem(
-                                      value: 90, child: Text('90 min')),
-                                ],
-                                onChanged: (v) => setD(() => dur = v ?? dur),
-                              ),
-                              const SizedBox(height: 14),
-                              _HorariosPorDiaEditor(
-                                dias: (diasSeleccionados.toList()..sort()),
-                                horarios: horariosPorDia,
-                                duracionMin: dur,
-                                onChanged: () => setD(() {}),
-                                etiqueta: (d, t) =>
-                                    _etiquetaHorario(d, t, cats),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Card 3: Capacidad
-                          _SectionCard(
-                            title: 'Capacidad',
-                            children: [
-                              _AuraTextField(
-                                controller: c,
-                                label: 'Cupos disponibles',
-                                hint: '12',
-                                keyboardType: TextInputType.number,
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraDropdown<int?>(
-                                label: 'Cierre de reservas',
-                                value: cierreReserva,
-                                items: _bookingCutoffOptions
-                                    .map((v) => DropdownMenuItem(
-                                          value: v,
-                                          child:
-                                              Text(_bookingCutoffLabel(v)),
-                                        ))
-                                    .toList(),
-                                onChanged: (v) =>
-                                    setD(() => cierreReserva = v),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Card 4: Categoría y precio
-                          _SectionCard(
-                            title: 'Categoría y precio',
-                            children: [
-                              if (categoriasDisponibles.isEmpty)
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFFF1E8),
-                                    borderRadius:
-                                        BorderRadius.circular(12),
-                                  ),
-                                  child: const Text(
-                                    'Todavía no hay categorías disponibles. Escribinos y las '
-                                    'configuramos para tu estudio.',
-                                    style: TextStyle(
-                                        color: AppColors.primary,
-                                        fontSize: 13),
-                                  ),
-                                )
-                              else
-                                CategoriasChecklist(
-                                  label: 'Categorías (máx '
-                                      '$kMaxCategoriasClase)',
-                                  disponibles: categoriasDisponibles,
-                                  seleccionadas: cats,
-                                  precios: PricingCalculator
-                                      .preciosServiciosDe(_estudio),
-                                  onToggle: (c, marcada) => setD(
-                                    () => CategoriasChecklist.aplicarToggle(
-                                      cats,
-                                      c,
-                                      marcada,
-                                      precios: PricingCalculator
-                                          .preciosServiciosDe(_estudio),
-                                      max: kMaxCategoriasClase,
-                                    ),
-                                  ),
-                                ),
-                              const SizedBox(height: 12),
-                              _ServicioPrecioBanner(
-                                estudio: _estudio,
-                                categorias: cats,
-                              ),
-                              // La grilla genera clases en varios días y
-                              // horarios: en modo rango cada una toma el precio
-                              // de su propia franja, así que mostramos la regla
-                              // en vez de un número único.
-                              _PrecioCalculadoField(
-                                estudio: _estudio,
-                                dia: diasSeleccionados.isEmpty
-                                    ? 1
-                                    : (diasSeleccionados.toList()..sort()).first,
-                                hora: _primeraHora(
-                                    diasSeleccionados, horariosPorDia),
-                                porHorario: true,
-                                categorias: cats,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Card 5: Detalles adicionales (colapsable)
-                          _SectionCard(
-                            title: 'Descripción, sala y fotos',
-                            children: [
-                              _AuraTextField(
-                                controller: iDesc,
-                                label: 'Descripción del instructor/a',
-                                hint:
-                                    'Profesora certificada con 10 años de experiencia',
-                                maxLines: 2,
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraTextField(
-                                controller: incluye,
-                                label: 'Descripción de la clase',
-                                hint: 'Mat, agua, vestuario',
-                                maxLines: 2,
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraTextField(
-                                controller: imagenUrl,
-                                label: 'Imagen principal (URL)',
-                                hint: 'https://...',
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton.icon(
-                                  onPressed: () async {
-                                    final uploaded =
-                                        await _subirImagenClase();
-                                    if (uploaded != null) {
-                                      imagenUrl.text = uploaded;
-                                      setD(() {});
-                                    }
-                                  },
-                                  icon: const Icon(Icons.image_outlined),
-                                  label:
-                                      const Text('Subir imagen principal'),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraTextField(
-                                controller: galeria,
-                                label: 'Galería de fotos',
-                                hint: 'Una URL por línea',
-                                maxLines: 3,
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton.icon(
-                                  onPressed: () async {
-                                    final uploaded =
-                                        await _subirImagenClase();
-                                    if (uploaded != null) {
-                                      galeria.text =
-                                          galeria.text.trim().isEmpty
-                                              ? uploaded
-                                              : '${galeria.text.trim()}\n$uploaded';
-                                      setD(() {});
-                                    }
-                                  },
-                                  icon: const Icon(
-                                      Icons.photo_library_outlined),
-                                  label: const Text(
-                                      'Agregar imagen a galería'),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              _AuraTextField(
-                                controller: s,
-                                label: 'Sala',
-                                hint: 'Sala 1',
-                              ),
-                            ],
+                          IconButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: Color(0xFF1A1A1A),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                        16, 12, 16, mq.padding.bottom + 32),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: Builder(builder: (_) {
-                        final total = _totalHorarios(
-                            diasSeleccionados, horariosPorDia);
-                        final listo = diasSeleccionados.isNotEmpty &&
-                            diasSeleccionados.every((d) =>
-                                (horariosPorDia[d] ?? const []).isNotEmpty);
-                        return ElevatedButton(
-                          onPressed:
-                              listo ? () => Navigator.pop(ctx, true) : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            disabledBackgroundColor: const Color(0xFFE5E0DA),
-                            disabledForegroundColor: const Color(0xFF9A928B),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                        child: Column(
+                          children: [
+                            // Caption explicativo
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF1E8),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'Armá la grilla semanal: marcá los días y agregá los horarios de cada uno. Lo que ves en la lista es exactamente lo que se va a crear. Las clases se publican para las próximas $kGrillaSemanas semanas y se renuevan solas; después podés editar cada horario por separado.',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 13,
+                                  height: 1.35,
+                                ),
+                              ),
                             ),
-                            elevation: 0,
-                            textStyle: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
+                            const SizedBox(height: 12),
+                            _ServicioPrecioBanner(
+                              estudio: _estudio,
+                              categorias: cats,
                             ),
-                          ),
-                          child: Text(listo
-                              ? 'Crear $total horario${total != 1 ? 's' : ''}'
-                              : diasSeleccionados.isEmpty
-                                  ? 'Elegí al menos un día'
-                                  : 'Faltan horarios en algún día'),
-                        );
-                      }),
+                            // Card 1: Información básica
+                            _SectionCard(
+                              title: 'Información básica',
+                              children: [
+                                _AuraTextField(
+                                  controller: n,
+                                  label: 'Nombre de la clase',
+                                  hint: 'Yoga restaurativo',
+                                ),
+                                const SizedBox(height: 12),
+                                _InstructorField(
+                                  controller: i,
+                                  profes: _profeNombres,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Card 2: Horario (días, rango, duración)
+                            _SectionCard(
+                              title: 'Horario',
+                              children: [
+                                const Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Días',
+                                    style: TextStyle(
+                                      color: Color(0xFF6E6761),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: List.generate(7, (index) {
+                                    final dia = index + 1;
+                                    final selected = diasSeleccionados.contains(
+                                      dia,
+                                    );
+                                    return FilterChip(
+                                      label: Text(_dayName(dia)),
+                                      selected: selected,
+                                      backgroundColor: _kFieldFill,
+                                      selectedColor: const Color(0xFFFFF1E8),
+                                      checkmarkColor: AppColors.primary,
+                                      labelStyle: TextStyle(
+                                        color: selected
+                                            ? AppColors.primary
+                                            : const Color(0xFF6E6761),
+                                        fontWeight: selected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                      ),
+                                      side: BorderSide(
+                                        color: selected
+                                            ? AppColors.primary
+                                            : const Color(0xFFE5E0DA),
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(99),
+                                      ),
+                                      onSelected: (value) async {
+                                        if (value) {
+                                          setD(
+                                            () => diasSeleccionados.add(dia),
+                                          );
+                                          return;
+                                        }
+                                        final cargados =
+                                            horariosPorDia[dia]?.length ?? 0;
+                                        if (cargados > 0) {
+                                          final seguro = await showDialog<bool>(
+                                            context: ctx,
+                                            builder: (dctx) => AlertDialog(
+                                              title: Text(
+                                                'Sacar ${_dayName(dia)}',
+                                              ),
+                                              content: Text(
+                                                'Se descartan los $cargados horario${cargados != 1 ? 's' : ''} que cargaste para ese día.',
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        dctx,
+                                                        false,
+                                                      ),
+                                                  child: const Text('Volver'),
+                                                ),
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(dctx, true),
+                                                  child: const Text(
+                                                    'Descartar',
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                          if (seguro != true) return;
+                                        }
+                                        setD(() {
+                                          diasSeleccionados.remove(dia);
+                                          horariosPorDia.remove(dia);
+                                        });
+                                      },
+                                    );
+                                  }),
+                                ),
+                                const SizedBox(height: 14),
+                                _AuraDropdown<int>(
+                                  label: 'Duración de cada clase',
+                                  value: dur,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 30,
+                                      child: Text('30 min'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 45,
+                                      child: Text('45 min'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 60,
+                                      child: Text('60 min'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 75,
+                                      child: Text('75 min'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 90,
+                                      child: Text('90 min'),
+                                    ),
+                                  ],
+                                  onChanged: (v) => setD(() => dur = v ?? dur),
+                                ),
+                                const SizedBox(height: 14),
+                                _HorariosPorDiaEditor(
+                                  dias: (diasSeleccionados.toList()..sort()),
+                                  horarios: horariosPorDia,
+                                  duracionMin: dur,
+                                  onChanged: () => setD(() {}),
+                                  etiqueta: (d, t) =>
+                                      _etiquetaHorario(d, t, cats),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Card 3: Capacidad
+                            _SectionCard(
+                              title: 'Capacidad',
+                              children: [
+                                _AuraTextField(
+                                  controller: c,
+                                  label: 'Cupos disponibles',
+                                  hint: '12',
+                                  keyboardType: TextInputType.number,
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraDropdown<int?>(
+                                  label: 'Cierre de reservas',
+                                  value: cierreReserva,
+                                  items: _bookingCutoffOptions
+                                      .map(
+                                        (v) => DropdownMenuItem(
+                                          value: v,
+                                          child: Text(_bookingCutoffLabel(v)),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setD(() => cierreReserva = v),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Card 4: Categoría y precio
+                            _SectionCard(
+                              title: 'Categoría y precio',
+                              children: [
+                                if (categoriasDisponibles.isEmpty)
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFF1E8),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Text(
+                                      'Todavía no hay categorías disponibles. Escribinos y las '
+                                      'configuramos para tu estudio.',
+                                      style: TextStyle(
+                                        color: AppColors.primary,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  CategoriasChecklist(
+                                    label:
+                                        'Categorías (máx '
+                                        '$kMaxCategoriasClase)',
+                                    disponibles: categoriasDisponibles,
+                                    seleccionadas: cats,
+                                    precios:
+                                        PricingCalculator.preciosServiciosDe(
+                                          _estudio,
+                                        ),
+                                    onToggle: (c, marcada) => setD(
+                                      () => CategoriasChecklist.aplicarToggle(
+                                        cats,
+                                        c,
+                                        marcada,
+                                        precios:
+                                            PricingCalculator.preciosServiciosDe(
+                                              _estudio,
+                                            ),
+                                        max: kMaxCategoriasClase,
+                                      ),
+                                    ),
+                                  ),
+                                const SizedBox(height: 12),
+                                _ServicioPrecioBanner(
+                                  estudio: _estudio,
+                                  categorias: cats,
+                                ),
+                                // La grilla genera clases en varios días y
+                                // horarios: en modo rango cada una toma el precio
+                                // de su propia franja, así que mostramos la regla
+                                // en vez de un número único.
+                                _PrecioCalculadoField(
+                                  estudio: _estudio,
+                                  dia: diasSeleccionados.isEmpty
+                                      ? 1
+                                      : (diasSeleccionados.toList()..sort())
+                                            .first,
+                                  hora: _primeraHora(
+                                    diasSeleccionados,
+                                    horariosPorDia,
+                                  ),
+                                  porHorario: true,
+                                  categorias: cats,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Card 5: Detalles adicionales (colapsable)
+                            _SectionCard(
+                              title: 'Descripción, sala y fotos',
+                              children: [
+                                _AuraTextField(
+                                  controller: iDesc,
+                                  label: 'Descripción del instructor/a',
+                                  hint:
+                                      'Profesora certificada con 10 años de experiencia',
+                                  maxLines: 2,
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraTextField(
+                                  controller: incluye,
+                                  label: 'Descripción de la clase',
+                                  hint: 'Mat, agua, vestuario',
+                                  maxLines: 2,
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraTextField(
+                                  controller: imagenUrl,
+                                  label: 'Imagen principal (URL)',
+                                  hint: 'https://...',
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final uploaded =
+                                          await _subirImagenClase();
+                                      if (uploaded != null) {
+                                        imagenUrl.text = uploaded;
+                                        setD(() {});
+                                      }
+                                    },
+                                    icon: const Icon(Icons.image_outlined),
+                                    label: const Text('Subir imagen principal'),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraTextField(
+                                  controller: galeria,
+                                  label: 'Galería de fotos',
+                                  hint: 'Una URL por línea',
+                                  maxLines: 3,
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final uploaded =
+                                          await _subirImagenClase();
+                                      if (uploaded != null) {
+                                        galeria.text =
+                                            galeria.text.trim().isEmpty
+                                            ? uploaded
+                                            : '${galeria.text.trim()}\n$uploaded';
+                                        setD(() {});
+                                      }
+                                    },
+                                    icon: const Icon(
+                                      Icons.photo_library_outlined,
+                                    ),
+                                    label: const Text(
+                                      'Agregar imagen a galería',
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                _AuraTextField(
+                                  controller: s,
+                                  label: 'Sala',
+                                  hint: 'Sala 1',
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        12,
+                        16,
+                        mq.padding.bottom + 32,
+                      ),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: Builder(
+                          builder: (_) {
+                            final total = _totalHorarios(
+                              diasSeleccionados,
+                              horariosPorDia,
+                            );
+                            final listo =
+                                diasSeleccionados.isNotEmpty &&
+                                diasSeleccionados.every(
+                                  (d) => (horariosPorDia[d] ?? const [])
+                                      .isNotEmpty,
+                                );
+                            return ElevatedButton(
+                              onPressed: listo
+                                  ? () => Navigator.pop(ctx, true)
+                                  : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                disabledBackgroundColor: const Color(
+                                  0xFFE5E0DA,
+                                ),
+                                disabledForegroundColor: const Color(
+                                  0xFF9A928B,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                elevation: 0,
+                                textStyle: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              child: Text(
+                                listo
+                                    ? 'Crear $total horario${total != 1 ? 's' : ''}'
+                                    : diasSeleccionados.isEmpty
+                                    ? 'Elegí al menos un día'
+                                    : 'Faltan horarios en algún día',
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      }),
+          );
+        },
+      ),
     );
 
     if (ok != true) {
@@ -2592,7 +2863,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
     if (n.text.trim().isEmpty) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Completá al menos el nombre de la clase')),
+        const SnackBar(
+          content: Text('Completá al menos el nombre de la clase'),
+        ),
       );
       n.dispose();
       i.dispose();
@@ -2622,11 +2895,13 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       ),
       'reserva_cierre_minutos': cierreReserva,
       'instructor': i.text.trim().isEmpty ? null : i.text.trim(),
-      'instructor_descripcion':
-          iDesc.text.trim().isEmpty ? null : iDesc.text.trim(),
+      'instructor_descripcion': iDesc.text.trim().isEmpty
+          ? null
+          : iDesc.text.trim(),
       'incluye': incluye.text.trim().isEmpty ? null : incluye.text.trim(),
-      'imagen_url':
-          imagenUrl.text.trim().isEmpty ? null : imagenUrl.text.trim(),
+      'imagen_url': imagenUrl.text.trim().isEmpty
+          ? null
+          : imagenUrl.text.trim(),
       'galeria_urls': _parseGaleria(galeria.text),
       'sala': s.text.trim().isEmpty ? null : s.text.trim(),
       'activo': true,
@@ -2669,20 +2944,34 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       await _loadStudio();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Grilla creada: $creados horario${creados != 1 ? 's' : ''} fijo${creados != 1 ? 's' : ''}. Publicando las próximas $kGrillaSemanas semanas…')),
+        SnackBar(
+          content: Text(
+            'Grilla creada: $creados horario${creados != 1 ? 's' : ''} fijo${creados != 1 ? 's' : ''}. Publicando las próximas $kGrillaSemanas semanas…',
+          ),
+        ),
       );
       try {
-        final result = await _service.generarProximasSemanasDesdeHorarios(weeks: kGrillaSemanas);
+        final result = await _service.generarProximasSemanasDesdeHorarios(
+          weeks: kGrillaSemanas,
+        );
         await _loadStudio();
         if (!mounted) return;
         final creadas = result['creadas'] ?? 0;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Clases publicadas para $kGrillaSemanas semanas ($creadas nuevas).')),
+          SnackBar(
+            content: Text(
+              'Clases publicadas para $kGrillaSemanas semanas ($creadas nuevas).',
+            ),
+          ),
         );
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Grilla creada pero falló la generación automática: ${e.toString()}')),
+          SnackBar(
+            content: Text(
+              'Grilla creada pero falló la generación automática: ${e.toString()}',
+            ),
+          ),
         );
       }
     } catch (e) {
@@ -2690,7 +2979,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              _mensajeDeGuard(e) ?? 'No se pudo crear la grilla. Intentá de nuevo.'),
+            _mensajeDeGuard(e) ??
+                'No se pudo crear la grilla. Intentá de nuevo.',
+          ),
           duration: const Duration(seconds: 6),
         ),
       );
@@ -2771,16 +3062,18 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                       ),
                       Expanded(
                         child: Text(
-                          (List<TimeOfDay>.of(horariosPorDia[d]!)
-                                ..sort((a, b) =>
-                                    (a.hour * 60 + a.minute)
-                                        .compareTo(b.hour * 60 + b.minute)))
+                          (List<TimeOfDay>.of(horariosPorDia[d]!)..sort(
+                                (a, b) => (a.hour * 60 + a.minute).compareTo(
+                                  b.hour * 60 + b.minute,
+                                ),
+                              ))
                               .map((t) => _etiquetaHorario(d, t, categorias))
                               .join('   '),
                           style: const TextStyle(
-                              color: AppColors.black,
-                              fontSize: 13,
-                              height: 1.35),
+                            color: AppColors.black,
+                            fontSize: 13,
+                            height: 1.35,
+                          ),
                         ),
                       ),
                     ],
@@ -2799,7 +3092,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
               const SizedBox(height: 8),
               _FilaResumenGrilla(
                 icono: Icons.calendar_today_outlined,
-                texto: 'Desde el ${f.format(desde)} hasta el ${f.format(hasta)}',
+                texto:
+                    'Desde el ${f.format(desde)} hasta el ${f.format(hasta)}',
               ),
               // La sala forma parte de la clave: dos salones pueden dictar al
               // mismo minuto, el mismo salón (o ninguno) dos veces, no. Se
@@ -2808,14 +3102,17 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                 icono: Icons.meeting_room_outlined,
                 texto: sala.isEmpty
                     ? 'Sin sala. Si otro salón ya dicta a alguna de estas horas, '
-                        'volvé y cargá el nombre de la sala para que no choquen.'
+                          'volvé y cargá el nombre de la sala para que no choquen.'
                     : 'Sala: $sala',
               ),
               const Text(
                 'Si ya había clases en esos horarios no se duplican, así que el '
                 'número final puede ser menor.',
                 style: TextStyle(
-                    color: AppColors.grey, fontSize: 12, height: 1.35),
+                  color: AppColors.grey,
+                  fontSize: 12,
+                  height: 1.35,
+                ),
               ),
             ],
           ),
@@ -2849,7 +3146,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       final da = (a['dia_semana'] as num?)?.toInt() ?? 1;
       final db = (b['dia_semana'] as num?)?.toInt() ?? 1;
       if (da != db) return da.compareTo(db);
-      return (a['hora_inicio']?.toString() ?? '').compareTo(b['hora_inicio']?.toString() ?? '');
+      return (a['hora_inicio']?.toString() ?? '').compareTo(
+        b['hora_inicio']?.toString() ?? '',
+      );
     });
   }
 
@@ -2873,7 +3172,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
       final etiqueta = dt == null ? nom : '$nom · ${f.format(dt)}';
       try {
-        onDevueltos(await _reservasService.cancelarClaseConDevolucion(cid, nom));
+        onDevueltos(
+          await _reservasService.cancelarClaseConDevolucion(cid, nom),
+        );
       } catch (e) {
         debugPrint('[borrarClasesDeHorario cancelar $cid] $e');
         fallidas.add('$etiqueta — ${_mensajeDeError(e)}');
@@ -2909,14 +3210,19 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
               for (final t in fallidas)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
-                  child: Text('• $t',
-                      style: const TextStyle(fontSize: 12, height: 1.3)),
+                  child: Text(
+                    '• $t',
+                    style: const TextStyle(fontSize: 12, height: 1.3),
+                  ),
                 ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Entendido')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Entendido'),
+          ),
         ],
       ),
     );
@@ -2966,7 +3272,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       // null por el SET NULL), publicada e invisible en "Horarios fijos": el
       // estudio creía que la había borrado. Ahora: si alguna falla, se
       // informa cuál y por qué, y el horario NO se toca.
-      final fallidas = await _borrarClasesDeHorario(futuras, (n) => devueltos += n);
+      final fallidas = await _borrarClasesDeHorario(
+        futuras,
+        (n) => devueltos += n,
+      );
       if (fallidas.isNotEmpty) {
         await _loadStudio();
         if (!mounted) return;
@@ -2988,7 +3297,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('No se pudo eliminar el horario: ${_mensajeDeError(e)}')),
+        SnackBar(
+          content: Text(
+            'No se pudo eliminar el horario: ${_mensajeDeError(e)}',
+          ),
+        ),
       );
     }
   }
@@ -2996,7 +3309,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   Future<void> _generateWeek() async {
     setState(() => _publishingWeek = true);
     try {
-      final result = await _service.generarProximasSemanasDesdeHorarios(weeks: kGrillaSemanas);
+      final result = await _service.generarProximasSemanasDesdeHorarios(
+        weeks: kGrillaSemanas,
+      );
       await _loadStudio();
       if (!mounted) return;
       final creadas = result['creadas'] ?? 0;
@@ -3011,7 +3326,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo generar la semana: ${e.toString()}')),
+        SnackBar(
+          content: Text('No se pudo generar la semana: ${e.toString()}'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _publishingWeek = false);
@@ -3030,7 +3347,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final days = List.generate(7, (i) => start.add(Duration(days: i)));
     // All clases for the selected week, flattened and sorted
     final weekClases = days.expand((d) => _classesOn(d)).toList()
-      ..sort((a, b) => (a['fecha']?.toString() ?? '').compareTo(b['fecha']?.toString() ?? ''));
+      ..sort(
+        (a, b) => (a['fecha']?.toString() ?? '').compareTo(
+          b['fecha']?.toString() ?? '',
+        ),
+      );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3087,179 +3408,265 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               color: AppColors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              border: const Border(bottom: BorderSide(color: AppColors.warmBorder)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
+              border: const Border(
+                bottom: BorderSide(color: AppColors.warmBorder),
+              ),
             ),
             child: const Row(
               children: [
                 SizedBox(width: 80, child: Text('DÍA', style: headerStyle)),
                 SizedBox(width: 72, child: Text('HORA', style: headerStyle)),
                 Expanded(flex: 3, child: Text('CLASE', style: headerStyle)),
-                Expanded(flex: 2, child: Text('INSTRUCTOR', style: headerStyle)),
-                SizedBox(width: 60, child: Text('CUPOS', style: headerStyle, textAlign: TextAlign.center)),
-                SizedBox(width: 72, child: Text('CRÉDITOS', style: headerStyle, textAlign: TextAlign.center)),
-                SizedBox(width: 72, child: Text('ESTADO', style: headerStyle, textAlign: TextAlign.center)),
+                Expanded(
+                  flex: 2,
+                  child: Text('INSTRUCTOR', style: headerStyle),
+                ),
+                SizedBox(
+                  width: 60,
+                  child: Text(
+                    'CUPOS',
+                    style: headerStyle,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                SizedBox(
+                  width: 72,
+                  child: Text(
+                    'CRÉDITOS',
+                    style: headerStyle,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                SizedBox(
+                  width: 72,
+                  child: Text(
+                    'ESTADO',
+                    style: headerStyle,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
                 SizedBox(width: 60, child: SizedBox()),
               ],
             ),
           ),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  )
                 : _horarios.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Todavía no hay horarios fijos.\nUsá "Crear grilla" o "Nueva clase" para empezar.',
-                          style: const TextStyle(color: AppColors.grey, fontSize: 14),
-                          textAlign: TextAlign.center,
-                        ),
-                      )
-                    : Container(
-                        decoration: const BoxDecoration(
-                          color: AppColors.white,
-                          borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
-                        ),
-                        child: ListView.separated(
-                          itemCount: _horarios.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.warmBorder),
-                          itemBuilder: (context, index) {
-                            final h = _horarios[index];
-                            final dia = (h['dia_semana'] as num?)?.toInt() ?? 1;
-                            final hora = h['hora_inicio']?.toString() ?? '--:--';
-                            final nombre = h['nombre']?.toString() ?? 'Clase';
-                            final instructor = h['instructor']?.toString();
-                            final cupos = (h['lugares_total'] as num?)?.toInt() ?? 0;
-                            final creditos = (h['creditos'] as num?)?.toInt() ?? 0;
-                            final activo = h['activo'] != false;
-                            return InkWell(
-                              onTap: () => _openForm(h),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                child: Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 80,
-                                      child: Text(
-                                        _shortDay(dia),
-                                        style: const TextStyle(
-                                          color: AppColors.black,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      width: 72,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.blackSoft,
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          hora.length > 5 ? hora.substring(0, 5) : hora,
-                                          style: const TextStyle(
-                                            color: AppColors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      flex: 3,
-                                      child: Text(
-                                        nombre,
-                                        style: const TextStyle(
-                                          color: AppColors.black,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 2,
-                                      child: Text(
-                                        instructor ?? '—',
-                                        style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      width: 60,
-                                      child: Text(
-                                        '$cupos',
-                                        style: const TextStyle(color: AppColors.black, fontSize: 13),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      width: 72,
-                                      child: Text(
-                                        '$creditos cr.',
-                                        style: const TextStyle(color: AppColors.black, fontSize: 13),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      width: 72,
-                                      child: Center(
-                                        child: Switch(
-                                          value: activo,
-                                          activeColor: AppColors.primary,
-                                          onChanged: _togglingFixed ? null : (v) => _toggleFixed((h['id'] as num?)?.toInt() ?? 0, v),
-                                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      width: 60,
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            onPressed: () => _openForm(h),
-                                            icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF8F877F)),
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                          ),
-                                          IconButton(
-                                            onPressed: () => _deleteFixed((h['id'] as num?)?.toInt() ?? 0),
-                                            icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFE53935)),
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                ? Center(
+                    child: Text(
+                      'Todavía no hay horarios fijos.\nUsá "Crear grilla" o "Nueva clase" para empezar.',
+                      style: const TextStyle(
+                        color: AppColors.grey,
+                        fontSize: 14,
                       ),
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                : Container(
+                    decoration: const BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.vertical(
+                        bottom: Radius.circular(12),
+                      ),
+                    ),
+                    child: ListView.separated(
+                      itemCount: _horarios.length,
+                      separatorBuilder: (_, __) =>
+                          const Divider(height: 1, color: AppColors.warmBorder),
+                      itemBuilder: (context, index) {
+                        final h = _horarios[index];
+                        final dia = (h['dia_semana'] as num?)?.toInt() ?? 1;
+                        final hora = h['hora_inicio']?.toString() ?? '--:--';
+                        final nombre = h['nombre']?.toString() ?? 'Clase';
+                        final instructor = h['instructor']?.toString();
+                        final cupos =
+                            (h['lugares_total'] as num?)?.toInt() ?? 0;
+                        final creditos = (h['creditos'] as num?)?.toInt() ?? 0;
+                        final activo = h['activo'] != false;
+                        return InkWell(
+                          onTap: () => _openForm(h),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 80,
+                                  child: Text(
+                                    _shortDay(dia),
+                                    style: const TextStyle(
+                                      color: AppColors.black,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 72,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.blackSoft,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      hora.length > 5
+                                          ? hora.substring(0, 5)
+                                          : hora,
+                                      style: const TextStyle(
+                                        color: AppColors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  flex: 3,
+                                  child: Text(
+                                    nombre,
+                                    style: const TextStyle(
+                                      color: AppColors.black,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    instructor ?? '—',
+                                    style: const TextStyle(
+                                      color: Color(0xFF8F877F),
+                                      fontSize: 13,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 60,
+                                  child: Text(
+                                    '$cupos',
+                                    style: const TextStyle(
+                                      color: AppColors.black,
+                                      fontSize: 13,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 72,
+                                  child: Text(
+                                    '$creditos cr.',
+                                    style: const TextStyle(
+                                      color: AppColors.black,
+                                      fontSize: 13,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 72,
+                                  child: Center(
+                                    child: Switch(
+                                      value: activo,
+                                      activeColor: AppColors.primary,
+                                      onChanged: _togglingFixed
+                                          ? null
+                                          : (v) => _toggleFixed(
+                                              (h['id'] as num?)?.toInt() ?? 0,
+                                              v,
+                                            ),
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 60,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        onPressed: () => _openForm(h),
+                                        icon: const Icon(
+                                          Icons.edit_outlined,
+                                          size: 18,
+                                          color: Color(0xFF8F877F),
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 28,
+                                          minHeight: 28,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        onPressed: () => _deleteFixed(
+                                          (h['id'] as num?)?.toInt() ?? 0,
+                                        ),
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          size: 18,
+                                          color: Color(0xFFE53935),
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 28,
+                                          minHeight: 28,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ] else ...[
           // ── Clases cargadas: week selector + table ────────────────────
           Row(
             children: [
               IconButton(
-                onPressed: () => setState(() => _weekAnchor = _weekAnchor.subtract(const Duration(days: 7))),
+                onPressed: () => setState(
+                  () => _weekAnchor = _weekAnchor.subtract(
+                    const Duration(days: 7),
+                  ),
+                ),
                 icon: const Icon(Icons.chevron_left_rounded),
               ),
               Expanded(
                 child: Text(
                   '${DateFormat('d MMM', 'es').format(days.first)} — ${DateFormat('d MMM yyyy', 'es').format(days.last)}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.black, fontSize: 15, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    color: AppColors.black,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               IconButton(
-                onPressed: () => setState(() => _weekAnchor = _weekAnchor.add(const Duration(days: 7))),
+                onPressed: () => setState(
+                  () => _weekAnchor = _weekAnchor.add(const Duration(days: 7)),
+                ),
                 icon: const Icon(Icons.chevron_right_rounded),
               ),
             ],
@@ -3270,201 +3677,304 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               color: AppColors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              border: const Border(bottom: BorderSide(color: AppColors.warmBorder)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
+              border: const Border(
+                bottom: BorderSide(color: AppColors.warmBorder),
+              ),
             ),
             child: const Row(
               children: [
                 SizedBox(width: 80, child: Text('HORA', style: headerStyle)),
                 Expanded(flex: 3, child: Text('CLASE', style: headerStyle)),
-                Expanded(flex: 2, child: Text('INSTRUCTOR', style: headerStyle)),
-                SizedBox(width: 100, child: Text('CUPOS', style: headerStyle, textAlign: TextAlign.center)),
-                SizedBox(width: 80, child: Text('CRÉDITOS', style: headerStyle, textAlign: TextAlign.center)),
-                SizedBox(width: 100, child: Text('ESTADO', style: headerStyle, textAlign: TextAlign.center)),
+                Expanded(
+                  flex: 2,
+                  child: Text('INSTRUCTOR', style: headerStyle),
+                ),
+                SizedBox(
+                  width: 100,
+                  child: Text(
+                    'CUPOS',
+                    style: headerStyle,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                SizedBox(
+                  width: 80,
+                  child: Text(
+                    'CRÉDITOS',
+                    style: headerStyle,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                SizedBox(
+                  width: 100,
+                  child: Text(
+                    'ESTADO',
+                    style: headerStyle,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
                 SizedBox(width: 48, child: SizedBox()),
               ],
             ),
           ),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  )
                 : weekClases.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Sin clases para esta semana. Las clases se publican solas desde los horarios fijos; si todavía no cargaste ninguno, creá la grilla.',
-                          style: const TextStyle(color: AppColors.grey, fontSize: 14),
-                          textAlign: TextAlign.center,
-                        ),
-                      )
-                    : Container(
-                        decoration: const BoxDecoration(
-                          color: AppColors.white,
-                          borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
-                        ),
-                        child: ListView.separated(
-                          itemCount: weekClases.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.warmBorder),
-                          itemBuilder: (context, index) {
-                            final c = weekClases[index];
-                            final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
-                            final hora = dt != null ? DateFormat('HH:mm').format(dt) : '--:--';
-                            final diaLabel = dt != null ? DateFormat('EEE d/M', 'es').format(dt) : '';
-                            final nombre = c['nombre']?.toString() ?? 'Clase';
-                            final instructor = c['instructor']?.toString();
-                            final total = (c['lugares_total'] as num?)?.toInt() ?? 0;
-                            final disp = (c['lugares_disponibles'] as num?)?.toInt() ?? 0;
-                            final ocupados = (total - disp).clamp(0, total);
-                            final creditos = (c['creditos'] as num?)?.toInt() ?? 0;
-                            final dt2 = DateTime.tryParse(c['fecha']?.toString() ?? '');
-                            final now2 = DateTime.now();
-                            final status = c['cancelada'] == true
-                                ? 'Cancelada'
-                                : dt2 == null
-                                    ? 'Programada'
-                                    : (dt2.isBefore(now2) && now2.difference(dt2).inMinutes < 90)
-                                        ? 'En curso'
-                                        : dt2.difference(now2).inHours < 8
-                                            ? 'Confirmada'
-                                            : 'Programada';
-                            final statusColor = status == 'Cancelada'
-                                ? const Color(0xFFF1F1F1)
-                                : status == 'Confirmada'
-                                    ? const Color(0xFFE3F3E5)
-                                    : status == 'En curso'
-                                        ? const Color(0xFFFFF3DE)
-                                        : const Color(0xFFF1E7FF);
-                            return InkWell(
-                              onTap: () => _showClaseSheet(c),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                child: Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 80,
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.blackSoft,
-                                              borderRadius: BorderRadius.circular(6),
-                                            ),
-                                            child: Text(
-                                              hora,
-                                              style: const TextStyle(color: AppColors.white, fontSize: 11, fontWeight: FontWeight.w700),
-                                            ),
+                ? Center(
+                    child: Text(
+                      'Sin clases para esta semana. Las clases se publican solas desde los horarios fijos; si todavía no cargaste ninguno, creá la grilla.',
+                      style: const TextStyle(
+                        color: AppColors.grey,
+                        fontSize: 14,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                : Container(
+                    decoration: const BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.vertical(
+                        bottom: Radius.circular(12),
+                      ),
+                    ),
+                    child: ListView.separated(
+                      itemCount: weekClases.length,
+                      separatorBuilder: (_, __) =>
+                          const Divider(height: 1, color: AppColors.warmBorder),
+                      itemBuilder: (context, index) {
+                        final c = weekClases[index];
+                        final dt = DateTime.tryParse(
+                          c['fecha']?.toString() ?? '',
+                        );
+                        final hora = dt != null
+                            ? DateFormat('HH:mm').format(dt)
+                            : '--:--';
+                        final diaLabel = dt != null
+                            ? DateFormat('EEE d/M', 'es').format(dt)
+                            : '';
+                        final nombre = c['nombre']?.toString() ?? 'Clase';
+                        final instructor = c['instructor']?.toString();
+                        final total =
+                            (c['lugares_total'] as num?)?.toInt() ?? 0;
+                        final disp =
+                            (c['lugares_disponibles'] as num?)?.toInt() ?? 0;
+                        final ocupados = (total - disp).clamp(0, total);
+                        final creditos = (c['creditos'] as num?)?.toInt() ?? 0;
+                        final dt2 = DateTime.tryParse(
+                          c['fecha']?.toString() ?? '',
+                        );
+                        final now2 = DateTime.now();
+                        final status = c['cancelada'] == true
+                            ? 'Cancelada'
+                            : dt2 == null
+                            ? 'Programada'
+                            : (dt2.isBefore(now2) &&
+                                  now2.difference(dt2).inMinutes < 90)
+                            ? 'En curso'
+                            : dt2.difference(now2).inHours < 8
+                            ? 'Confirmada'
+                            : 'Programada';
+                        final statusColor = status == 'Cancelada'
+                            ? const Color(0xFFF1F1F1)
+                            : status == 'Confirmada'
+                            ? const Color(0xFFE3F3E5)
+                            : status == 'En curso'
+                            ? const Color(0xFFFFF3DE)
+                            : const Color(0xFFF1E7FF);
+                        return InkWell(
+                          onTap: () => _showClaseSheet(c),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 80,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 7,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.blackSoft,
+                                          borderRadius: BorderRadius.circular(
+                                            6,
                                           ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            diaLabel,
-                                            style: const TextStyle(color: Color(0xFF9A928B), fontSize: 10),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 3,
-                                      child: Text(
-                                        nombre,
-                                        style: const TextStyle(color: AppColors.black, fontSize: 14, fontWeight: FontWeight.w600),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 2,
-                                      child: Text(
-                                        instructor ?? '—',
-                                        style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      width: 100,
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            '$ocupados / $total',
-                                            style: const TextStyle(color: AppColors.black, fontSize: 13, fontWeight: FontWeight.w600),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                          const SizedBox(height: 4),
-                                          LinearProgressIndicator(
-                                            value: total > 0 ? ocupados / total : 0,
-                                            backgroundColor: const Color(0xFFEEEEEE),
-                                            color: AppColors.primary,
-                                            minHeight: 4,
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          // La lista de espera del estudio no
-                                          // se veía en ningún lado. Sólo
-                                          // aparece si hay alguien esperando.
-                                          if ((_enEspera[(c['id'] as num?)?.toInt()] ?? 0) > 0) ...[
-                                            const SizedBox(height: 3),
-                                            Text(
-                                              '${_enEspera[(c['id'] as num?)?.toInt()]} esperando',
-                                              style: const TextStyle(color: Color(0xFFE8763A), fontSize: 10, fontWeight: FontWeight.w700),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      width: 80,
-                                      child: Text(
-                                        '$creditos cr.',
-                                        style: const TextStyle(color: AppColors.black, fontSize: 13),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      width: 100,
-                                      child: Center(
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                          decoration: BoxDecoration(
-                                            color: statusColor,
-                                            borderRadius: BorderRadius.circular(20),
-                                          ),
-                                          child: Text(
-                                            status,
-                                            style: TextStyle(
-                                              color: status == 'En curso'
-                                                  ? const Color(0xFF7C5400)
-                                                  : status == 'Confirmada'
-                                                      ? const Color(0xFF2E7D32)
-                                                      : const Color(0xFF6B3FA0),
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                                        ),
+                                        child: Text(
+                                          hora,
+                                          style: const TextStyle(
+                                            color: AppColors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
                                           ),
                                         ),
                                       ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        diaLabel,
+                                        style: const TextStyle(
+                                          color: Color(0xFF9A928B),
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Expanded(
+                                  flex: 3,
+                                  child: Text(
+                                    nombre,
+                                    style: const TextStyle(
+                                      color: AppColors.black,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
                                     ),
-                                    IconButton(
-                                      onPressed: () => _mostrarAvisoSheet(c),
-                                      icon: const Icon(Icons.notifications_outlined, size: 18, color: Color(0xFF8F877F)),
-                                      tooltip: 'Avisar a alumnos',
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    instructor ?? '—',
+                                    style: const TextStyle(
+                                      color: Color(0xFF8F877F),
+                                      fontSize: 13,
                                     ),
-                                    SizedBox(
-                                      width: 48,
-                                      child: IconButton(
-                                        onPressed: () => _showClaseSheet(c),
-                                        icon: const Icon(Icons.more_vert_rounded, size: 18, color: Color(0xFF8F877F)),
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 100,
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        '$ocupados / $total',
+                                        style: const TextStyle(
+                                          color: AppColors.black,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      LinearProgressIndicator(
+                                        value: total > 0 ? ocupados / total : 0,
+                                        backgroundColor: const Color(
+                                          0xFFEEEEEE,
+                                        ),
+                                        color: AppColors.primary,
+                                        minHeight: 4,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      // La lista de espera del estudio no
+                                      // se veía en ningún lado. Sólo
+                                      // aparece si hay alguien esperando.
+                                      if ((_enEspera[(c['id'] as num?)
+                                                  ?.toInt()] ??
+                                              0) >
+                                          0) ...[
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          '${_enEspera[(c['id'] as num?)?.toInt()]} esperando',
+                                          style: const TextStyle(
+                                            color: Color(0xFFE8763A),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 80,
+                                  child: Text(
+                                    '$creditos cr.',
+                                    style: const TextStyle(
+                                      color: AppColors.black,
+                                      fontSize: 13,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 100,
+                                  child: Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: statusColor,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        status,
+                                        style: TextStyle(
+                                          color: status == 'En curso'
+                                              ? const Color(0xFF7C5400)
+                                              : status == 'Confirmada'
+                                              ? const Color(0xFF2E7D32)
+                                              : const Color(0xFF6B3FA0),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+                                IconButton(
+                                  onPressed: () => _mostrarAvisoSheet(c),
+                                  icon: const Icon(
+                                    Icons.notifications_outlined,
+                                    size: 18,
+                                    color: Color(0xFF8F877F),
+                                  ),
+                                  tooltip: 'Avisar a alumnos',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 32,
+                                    minHeight: 32,
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 48,
+                                  child: IconButton(
+                                    onPressed: () => _showClaseSheet(c),
+                                    icon: const Icon(
+                                      Icons.more_vert_rounded,
+                                      size: 18,
+                                      color: Color(0xFF8F877F),
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 32,
+                                      minHeight: 32,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ],
@@ -3489,12 +3999,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     if (isDesktop && _studio) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        body: _loading
-            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-            : Padding(
-                padding: const EdgeInsets.all(28),
-                child: _buildDesktopContent(),
-              ),
+        body: AnchoMaximo(
+          child: _loading
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                )
+              : Padding(
+                  padding: const EdgeInsets.all(28),
+                  child: _buildDesktopContent(),
+                ),
+        ),
       );
     }
 
@@ -3502,10 +4016,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       backgroundColor: AppColors.background,
       bottomNavigationBar:
           (_seleccionMultiple && _seleccionadas.isNotEmpty && !_showFixed)
-              ? _buildBarraCancelacion()
-              : null,
+          ? _buildBarraCancelacion()
+          : null,
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : SafeArea(
               child: RefreshIndicator(
                 color: AppColors.primary,
@@ -3513,109 +4029,138 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
                   children: [
-                    if (_studio)
-                      _EstudioInactivoBanner(estudio: _estudio),
-                    Row(children: [
-                      const Expanded(
-                        child: Text(
-                          'Mis clases',
-                          // En modo selección la fila suma tres controles;
-                          // sin esto el título desbordaba en pantallas chicas.
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
+                    if (_studio) _EstudioInactivoBanner(estudio: _estudio),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Mis clases',
+                            // En modo selección la fila suma tres controles;
+                            // sin esto el título desbordaba en pantallas chicas.
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
                               color: AppColors.black,
                               fontSize: 22,
-                              fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      // La profe tiene un panel acotado (Clases + Asistencia) sin
-                      // solapa de Perfil, así que su única puerta a "Salir del
-                      // estudio" es este engranaje de configuración.
-                      if (context.watch<AppProvider>().esProfe)
-                        IconButton(
-                          onPressed: _mostrarConfiguracionProfe,
-                          icon: const Icon(Icons.settings_outlined),
-                          color: AppColors.grey,
-                          tooltip: 'Configuración',
-                        ),
-                      if (_puedeGestionarClases) ...[
-                        if (_puedeEditar && !_showFixed && _seleccionMultiple) ...[
-                          IconButton(
-                            onPressed: _seleccionarPorHorario,
-                            icon: const Icon(Icons.event_repeat_rounded),
-                            color: AppColors.primary,
-                            tooltip: 'Seleccionar por horario',
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                          TextButton(
-                            onPressed: _toggleSeleccionarTodas,
-                            child: Text(
-                              _todasSeleccionadas ? 'Ninguna' : 'Todas',
-                              style: const TextStyle(
+                        ),
+                        // La profe tiene un panel acotado (Clases + Asistencia) sin
+                        // solapa de Perfil, así que su única puerta a "Salir del
+                        // estudio" es este engranaje de configuración.
+                        if (context.watch<AppProvider>().esProfe)
+                          IconButton(
+                            onPressed: _mostrarConfiguracionProfe,
+                            icon: const Icon(Icons.settings_outlined),
+                            color: AppColors.grey,
+                            tooltip: 'Configuración',
+                          ),
+                        if (_puedeGestionarClases) ...[
+                          if (_puedeEditar &&
+                              !_showFixed &&
+                              _seleccionMultiple) ...[
+                            IconButton(
+                              onPressed: _seleccionarPorHorario,
+                              icon: const Icon(Icons.event_repeat_rounded),
+                              color: AppColors.primary,
+                              tooltip: 'Seleccionar por horario',
+                            ),
+                            TextButton(
+                              onPressed: _toggleSeleccionarTodas,
+                              child: Text(
+                                _todasSeleccionadas ? 'Ninguna' : 'Todas',
+                                style: const TextStyle(
                                   color: AppColors.primary,
-                                  fontWeight: FontWeight.w700),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
-                          ),
-                          TextButton(
-                            onPressed: () => setState(() {
-                              _seleccionMultiple = false;
-                              _seleccionadas.clear();
-                            }),
-                            child: const Text('Cancelar',
-                                style: TextStyle(color: AppColors.grey)),
-                          ),
+                            TextButton(
+                              onPressed: () => setState(() {
+                                _seleccionMultiple = false;
+                                _seleccionadas.clear();
+                              }),
+                              child: const Text(
+                                'Cancelar',
+                                style: TextStyle(color: AppColors.grey),
+                              ),
+                            ),
+                          ] else ...[
+                            // Selección múltiple y grilla: solo admin/dueña.
+                            if (_puedeEditar && !_showFixed)
+                              IconButton(
+                                onPressed: () =>
+                                    setState(() => _seleccionMultiple = true),
+                                icon: const Icon(Icons.checklist_rounded),
+                                color: AppColors.primary,
+                                tooltip: 'Seleccionar',
+                              ),
+                            if (_puedeEditar)
+                              IconButton(
+                                onPressed: _openGridForm,
+                                icon: const Icon(Icons.grid_view_rounded),
+                                color: AppColors.primary,
+                                tooltip: 'Crear grilla',
+                              ),
+                            // Nueva clase: admin y profe (Opción A).
+                            IconButton(
+                              onPressed: _abrirMenuCrear,
+                              icon: const Icon(Icons.add),
+                              color: AppColors.primary,
+                              tooltip: 'Nueva clase',
+                            ),
+                          ],
                         ]
-                        else ...[
-                          // Selección múltiple y grilla: solo admin/dueña.
-                          if (_puedeEditar && !_showFixed)
-                            IconButton(
-                              onPressed: () =>
-                                  setState(() => _seleccionMultiple = true),
-                              icon: const Icon(Icons.checklist_rounded),
-                              color: AppColors.primary,
-                              tooltip: 'Seleccionar',
+                        // Solo el usuario final ve el atajo a Explorar. Una
+                        // profe no cae acá: no ve ni los botones de escritura
+                        // ni este botón, que es del lado usuario.
+                        else if (!_studio)
+                          SizedBox(
+                            height: 40,
+                            child: ElevatedButton(
+                              onPressed: () => context.go('/explorar'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                ),
+                              ),
+                              child: const Text('Nueva clase'),
                             ),
-                          if (_puedeEditar)
-                            IconButton(
-                              onPressed: _openGridForm,
-                              icon: const Icon(Icons.grid_view_rounded),
-                              color: AppColors.primary,
-                              tooltip: 'Crear grilla',
-                            ),
-                          // Nueva clase: admin y profe (Opción A).
-                          IconButton(
-                            onPressed: _abrirMenuCrear,
-                            icon: const Icon(Icons.add),
-                            color: AppColors.primary,
-                            tooltip: 'Nueva clase',
                           ),
-                        ],
-                      ]
-                      // Solo el usuario final ve el atajo a Explorar. Una
-                      // profe no cae acá: no ve ni los botones de escritura
-                      // ni este botón, que es del lado usuario.
-                      else if (!_studio)
-                        SizedBox(
-                          height: 40,
-                          child: ElevatedButton(
-                            onPressed: () => context.go('/explorar'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 18),
-                            ),
-                            child: const Text('Nueva clase'),
-                          ),
-                        ),
-                    ]),
+                      ],
+                    ),
                     // El toggle "Horarios fijos" es configuración de la
                     // grilla: la profe ve directo sus clases cargadas.
                     if (_puedeEditar) ...[
                       const SizedBox(height: 16),
                       Container(
                         padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
-                        child: Row(children: [
-                          Expanded(child: _SegmentButton(label: 'Horarios fijos', selected: _showFixed, onTap: () => setState(() { _showFixed = true; _seleccionMultiple = false; _seleccionadas.clear(); }))),
-                          Expanded(child: _SegmentButton(label: 'Clases cargadas', selected: !_showFixed, onTap: () => setState(() => _showFixed = false))),
-                        ]),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _SegmentButton(
+                                label: 'Horarios fijos',
+                                selected: _showFixed,
+                                onTap: () => setState(() {
+                                  _showFixed = true;
+                                  _seleccionMultiple = false;
+                                  _seleccionadas.clear();
+                                }),
+                              ),
+                            ),
+                            Expanded(
+                              child: _SegmentButton(
+                                label: 'Clases cargadas',
+                                selected: !_showFixed,
+                                onTap: () => setState(() => _showFixed = false),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       // La pestaña decide el alcance de editar/borrar: la serie
                       // entera o una sola fecha. Sin este renglón el estudio no
@@ -3625,8 +4170,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.info_outline_rounded,
-                                size: 14, color: Color(0xFF9A928B)),
+                            const Icon(
+                              Icons.info_outline_rounded,
+                              size: 14,
+                              color: Color(0xFF9A928B),
+                            ),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
@@ -3634,9 +4182,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                     ? 'Acá editás o borrás el horario semanal: cambia todas sus clases futuras. Las que ya pasaron no se tocan.'
                                     : 'Acá editás o cancelás una clase puntual: sólo esa fecha, sin tocar el resto de la semana.',
                                 style: const TextStyle(
-                                    color: Color(0xFF6E6761),
-                                    fontSize: 12,
-                                    height: 1.3),
+                                  color: Color(0xFF6E6761),
+                                  fontSize: 12,
+                                  height: 1.3,
+                                ),
                               ),
                             ),
                           ],
@@ -3655,8 +4204,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.person_search_rounded,
-                                color: AppColors.primary, size: 20),
+                            const Icon(
+                              Icons.person_search_rounded,
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: DropdownButtonHideUnderline(
@@ -3688,12 +4240,27 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                     const SizedBox(height: 16),
                     // `_puedeEditar` y no `_studio`: _buildFixed() renderiza
                     // filas con editar/eliminar del horario fijo.
-                    if (_puedeEditar && _showFixed) ..._buildFixed()
-                    else if (_studio) ..._buildClasesLoadedSection()
+                    if (_puedeEditar && _showFixed)
+                      ..._buildFixed()
+                    else if (_studio)
+                      ..._buildClasesLoadedSection()
                     else ...[
                       _buildMonthCalendar(),
                       const SizedBox(height: 14),
-                      Center(child: Text(DateFormat("EEEE d 'de' MMMM", 'es').format(_selectedDay).toUpperCase(), style: const TextStyle(color: Color(0xFF9A928B), fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 1))),
+                      Center(
+                        child: Text(
+                          DateFormat(
+                            "EEEE d 'de' MMMM",
+                            'es',
+                          ).format(_selectedDay).toUpperCase(),
+                          style: const TextStyle(
+                            color: Color(0xFF9A928B),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 16),
                       if (dayClasses.isEmpty)
                         Padding(
@@ -3712,8 +4279,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                           final card = _StudioClassCard(
                             clase: c,
                             studioMode: _studio,
-                            onAvisar:
-                                _puedeEditar ? () => _mostrarAvisoSheet(c) : null,
+                            onAvisar: _puedeEditar
+                                ? () => _mostrarAvisoSheet(c)
+                                : null,
                           );
                           if (_studio) {
                             return Padding(
@@ -3769,11 +4337,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                           ),
                           child: const Text(
                             'Todavía no tenés reservas próximas.',
-                            style: TextStyle(color: Color(0xFF8F877F), fontSize: 14),
+                            style: TextStyle(
+                              color: Color(0xFF8F877F),
+                              fontSize: 14,
+                            ),
                           ),
                         )
                       else
-                        ...upcomingReservas.take(3).map(
+                        ...upcomingReservas
+                            .take(3)
+                            .map(
                               (r) => Padding(
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: _UpcomingReservaCard(reserva: r),
@@ -3794,12 +4367,17 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       if (estado == 'cancelada' || estado == 'completada') return false;
       final clase = r['clases'] as Map<String, dynamic>?;
       final fecha = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
-      return fecha != null && fecha.isAfter(now.subtract(const Duration(hours: 2)));
+      return fecha != null &&
+          fecha.isAfter(now.subtract(const Duration(hours: 2)));
     }).toList();
 
     result.sort((a, b) {
-      final fechaA = DateTime.tryParse((a['clases'] as Map<String, dynamic>?)?['fecha']?.toString() ?? '');
-      final fechaB = DateTime.tryParse((b['clases'] as Map<String, dynamic>?)?['fecha']?.toString() ?? '');
+      final fechaA = DateTime.tryParse(
+        (a['clases'] as Map<String, dynamic>?)?['fecha']?.toString() ?? '',
+      );
+      final fechaB = DateTime.tryParse(
+        (b['clases'] as Map<String, dynamic>?)?['fecha']?.toString() ?? '',
+      );
       if (fechaA == null && fechaB == null) return 0;
       if (fechaA == null) return 1;
       if (fechaB == null) return -1;
@@ -3815,11 +4393,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       if (estado != 'confirmada' && estado != 'presente') return false;
       final clase = r['clases'] as Map<String, dynamic>?;
       final fecha = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
-      return fecha != null && fecha.isAfter(now.subtract(const Duration(hours: 2)));
+      return fecha != null &&
+          fecha.isAfter(now.subtract(const Duration(hours: 2)));
     }).toList();
     result.sort((a, b) {
-      final fechaA = DateTime.tryParse((a['clases'] as Map<String, dynamic>?)?['fecha']?.toString() ?? '');
-      final fechaB = DateTime.tryParse((b['clases'] as Map<String, dynamic>?)?['fecha']?.toString() ?? '');
+      final fechaA = DateTime.tryParse(
+        (a['clases'] as Map<String, dynamic>?)?['fecha']?.toString() ?? '',
+      );
+      final fechaB = DateTime.tryParse(
+        (b['clases'] as Map<String, dynamic>?)?['fecha']?.toString() ?? '',
+      );
       if (fechaA == null && fechaB == null) return 0;
       if (fechaA == null) return 1;
       if (fechaB == null) return -1;
@@ -3843,25 +4426,30 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       }
     }
 
-    final result = _clases.where((c) {
-      final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
-      return dt != null &&
-          dt.year == day.year &&
-          dt.month == day.month &&
-          dt.day == day.day;
-    }).map((c) {
-      final id = (c['id'] as num?)?.toInt();
-      final total = (c['lugares_total'] as num?)?.toInt() ?? 0;
-      final disponibles = (c['lugares_disponibles'] as num?)?.toInt() ?? 0;
-      final ocupacion = (c['_ocupacion'] as num?)?.toInt();
-      return {
-        ...c,
-        if (id != null && qrPorClase.containsKey(id))
-          '_user_reserva_qr': qrPorClase[id],
-        '_ocupados_real': ocupacion ?? (total > 0 ? (total - disponibles).clamp(0, total) : 0),
-        '_disponibles_real': disponibles,
-      };
-    }).toList();
+    final result = _clases
+        .where((c) {
+          final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
+          return dt != null &&
+              dt.year == day.year &&
+              dt.month == day.month &&
+              dt.day == day.day;
+        })
+        .map((c) {
+          final id = (c['id'] as num?)?.toInt();
+          final total = (c['lugares_total'] as num?)?.toInt() ?? 0;
+          final disponibles = (c['lugares_disponibles'] as num?)?.toInt() ?? 0;
+          final ocupacion = (c['_ocupacion'] as num?)?.toInt();
+          return {
+            ...c,
+            if (id != null && qrPorClase.containsKey(id))
+              '_user_reserva_qr': qrPorClase[id],
+            '_ocupados_real':
+                ocupacion ??
+                (total > 0 ? (total - disponibles).clamp(0, total) : 0),
+            '_disponibles_real': disponibles,
+          };
+        })
+        .toList();
 
     result.sort((a, b) {
       final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
@@ -3873,46 +4461,80 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
   List<Map<String, dynamic>> _reservedClassesOn(DateTime day) {
-    final list = _reservasActivas.where((r) {
-      final clase = r['clases'] as Map<String, dynamic>?;
-      final dt = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
-      return dt != null && dt.year == day.year && dt.month == day.month && dt.day == day.day;
-    }).map((r) {
-      final clase = Map<String, dynamic>.from((r['clases'] as Map<String, dynamic>?) ?? const {});
-      final total = (clase['lugares_total'] as num?)?.toInt() ?? 0;
-      final disponibles = (clase['lugares_disponibles'] as num?)?.toInt() ?? 0;
-      return {
-        ...clase,
-        '_user_reserva_qr': r['codigo_qr'],
-        '_ocupados_real': total > 0 ? (total - disponibles).clamp(0, total) : 0,
-        '_disponibles_real': disponibles,
-      };
-    }).toList();
-    list.sort((a, b) => (a['fecha']?.toString() ?? '').compareTo(b['fecha']?.toString() ?? ''));
+    final list = _reservasActivas
+        .where((r) {
+          final clase = r['clases'] as Map<String, dynamic>?;
+          final dt = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
+          return dt != null &&
+              dt.year == day.year &&
+              dt.month == day.month &&
+              dt.day == day.day;
+        })
+        .map((r) {
+          final clase = Map<String, dynamic>.from(
+            (r['clases'] as Map<String, dynamic>?) ?? const {},
+          );
+          final total = (clase['lugares_total'] as num?)?.toInt() ?? 0;
+          final disponibles =
+              (clase['lugares_disponibles'] as num?)?.toInt() ?? 0;
+          return {
+            ...clase,
+            '_user_reserva_qr': r['codigo_qr'],
+            '_ocupados_real': total > 0
+                ? (total - disponibles).clamp(0, total)
+                : 0,
+            '_disponibles_real': disponibles,
+          };
+        })
+        .toList();
+    list.sort(
+      (a, b) => (a['fecha']?.toString() ?? '').compareTo(
+        b['fecha']?.toString() ?? '',
+      ),
+    );
     return list;
   }
 
   Widget _buildMonthCalendar() {
     final monthStart = DateTime(_monthAnchor.year, _monthAnchor.month, 1);
-    final gridStart = monthStart.subtract(Duration(days: monthStart.weekday - 1));
-    final gridDays = List.generate(42, (index) => gridStart.add(Duration(days: index)));
-    final reservedKeys = _reservasActivas.map((r) {
-      final clase = r['clases'] as Map<String, dynamic>?;
-      final dt = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
-      return dt == null ? null : '${dt.year}-${dt.month}-${dt.day}';
-    }).whereType<String>().toSet();
+    final gridStart = monthStart.subtract(
+      Duration(days: monthStart.weekday - 1),
+    );
+    final gridDays = List.generate(
+      42,
+      (index) => gridStart.add(Duration(days: index)),
+    );
+    final reservedKeys = _reservasActivas
+        .map((r) {
+          final clase = r['clases'] as Map<String, dynamic>?;
+          final dt = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
+          return dt == null ? null : '${dt.year}-${dt.month}-${dt.day}';
+        })
+        .whereType<String>()
+        .toSet();
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(18)),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
       child: Column(
         children: [
           Row(
             children: [
               IconButton(
                 onPressed: () => setState(() {
-                  _monthAnchor = DateTime(_monthAnchor.year, _monthAnchor.month - 1, 1);
-                  _selectedDay = DateTime(_monthAnchor.year, _monthAnchor.month, 1);
+                  _monthAnchor = DateTime(
+                    _monthAnchor.year,
+                    _monthAnchor.month - 1,
+                    1,
+                  );
+                  _selectedDay = DateTime(
+                    _monthAnchor.year,
+                    _monthAnchor.month,
+                    1,
+                  );
                 }),
                 icon: const Icon(Icons.chevron_left_rounded),
               ),
@@ -3922,7 +4544,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                     final picked = await showDatePicker(
                       context: context,
                       initialDate: _selectedDay,
-                      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                      firstDate: DateTime.now().subtract(
+                        const Duration(days: 365),
+                      ),
                       lastDate: DateTime.now().add(const Duration(days: 365)),
                       locale: const Locale('es'),
                     );
@@ -3936,12 +4560,19 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                     children: [
                       Text(
                         DateFormat('MMMM yyyy', 'es').format(monthStart),
-                        style: const TextStyle(color: AppColors.black, fontSize: 15, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          color: AppColors.black,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       const Text(
                         'Tocá para elegir otro mes',
-                        style: TextStyle(color: Color(0xFF9A928B), fontSize: 11),
+                        style: TextStyle(
+                          color: Color(0xFF9A928B),
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
@@ -3949,8 +4580,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
               ),
               IconButton(
                 onPressed: () => setState(() {
-                  _monthAnchor = DateTime(_monthAnchor.year, _monthAnchor.month + 1, 1);
-                  _selectedDay = DateTime(_monthAnchor.year, _monthAnchor.month, 1);
+                  _monthAnchor = DateTime(
+                    _monthAnchor.year,
+                    _monthAnchor.month + 1,
+                    1,
+                  );
+                  _selectedDay = DateTime(
+                    _monthAnchor.year,
+                    _monthAnchor.month,
+                    1,
+                  );
                 }),
                 icon: const Icon(Icons.chevron_right_rounded),
               ),
@@ -3982,9 +4621,15 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
             ),
             itemBuilder: (context, index) {
               final day = gridDays[index];
-              final selected = day.day == _selectedDay.day && day.month == _selectedDay.month && day.year == _selectedDay.year;
-              final inMonth = day.month == monthStart.month && day.year == monthStart.year;
-              final hasReserva = reservedKeys.contains('${day.year}-${day.month}-${day.day}');
+              final selected =
+                  day.day == _selectedDay.day &&
+                  day.month == _selectedDay.month &&
+                  day.year == _selectedDay.year;
+              final inMonth =
+                  day.month == monthStart.month && day.year == monthStart.year;
+              final hasReserva = reservedKeys.contains(
+                '${day.year}-${day.month}-${day.day}',
+              );
               return GestureDetector(
                 onTap: () => setState(() => _selectedDay = day),
                 child: Column(
@@ -3994,7 +4639,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                       width: 34,
                       height: 34,
                       decoration: BoxDecoration(
-                        color: selected ? AppColors.blackSoft : Colors.transparent,
+                        color: selected
+                            ? AppColors.blackSoft
+                            : Colors.transparent,
                         shape: BoxShape.circle,
                       ),
                       child: Center(
@@ -4003,8 +4650,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                           style: TextStyle(
                             color: selected
                                 ? AppColors.white
-                                : (inMonth ? const Color(0xFF8F877F) : const Color(0xFFD2CAC3)),
-                            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                : (inMonth
+                                      ? const Color(0xFF8F877F)
+                                      : const Color(0xFFD2CAC3)),
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                           ),
                         ),
                       ),
@@ -4014,7 +4665,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                       width: 5,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: hasReserva ? AppColors.primary : Colors.transparent,
+                        color: hasReserva
+                            ? AppColors.primary
+                            : Colors.transparent,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -4032,91 +4685,154 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final start = _weekStart(_weekAnchor);
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(18)),
-      child: Column(children: [
-        Row(
-          children: [
-            IconButton(
-              onPressed: () => setState(() {
-                _weekAnchor = _weekAnchor.subtract(const Duration(days: 7));
-                _selectedDay = _selectedDay.subtract(const Duration(days: 7));
-              }),
-              icon: const Icon(Icons.chevron_left_rounded),
-            ),
-            Expanded(
-              child: GestureDetector(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _selectedDay,
-                    firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
-                    locale: const Locale('es'),
-                  );
-                  if (picked == null || !mounted) return;
-                  setState(() {
-                    _selectedDay = picked;
-                    _weekAnchor = _weekStart(picked);
-                  });
-                },
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              IconButton(
+                onPressed: () => setState(() {
+                  _weekAnchor = _weekAnchor.subtract(const Duration(days: 7));
+                  _selectedDay = _selectedDay.subtract(const Duration(days: 7));
+                }),
+                icon: const Icon(Icons.chevron_left_rounded),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _selectedDay,
+                      firstDate: DateTime.now().subtract(
+                        const Duration(days: 365),
+                      ),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                      locale: const Locale('es'),
+                    );
+                    if (picked == null || !mounted) return;
+                    setState(() {
+                      _selectedDay = picked;
+                      _weekAnchor = _weekStart(picked);
+                    });
+                  },
+                  child: Column(
+                    children: [
+                      Text(
+                        '${DateFormat('d MMM', 'es').format(start)} - ${DateFormat('d MMM', 'es').format(start.add(const Duration(days: 6)))}',
+                        style: const TextStyle(
+                          color: AppColors.black,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Tocá para elegir otra semana',
+                        style: TextStyle(
+                          color: Color(0xFF9A928B),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () => setState(() {
+                  _weekAnchor = _weekAnchor.add(const Duration(days: 7));
+                  _selectedDay = _selectedDay.add(const Duration(days: 7));
+                }),
+                icon: const Icon(Icons.chevron_right_rounded),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: const [
+              _WeekHeader('LUN'),
+              _WeekHeader('MAR'),
+              _WeekHeader('MIÉ'),
+              _WeekHeader('JUE'),
+              _WeekHeader('VIE'),
+              _WeekHeader('SÁB'),
+              _WeekHeader('DOM'),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(7, (index) {
+              final day = start.add(Duration(days: index));
+              final selected =
+                  day.day == _selectedDay.day &&
+                  day.month == _selectedDay.month;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedDay = day),
                 child: Column(
                   children: [
-                    Text(
-                      '${DateFormat('d MMM', 'es').format(start)} - ${DateFormat('d MMM', 'es').format(start.add(const Duration(days: 6)))}',
-                      style: const TextStyle(color: AppColors.black, fontSize: 15, fontWeight: FontWeight.w700),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? AppColors.blackSoft
+                            : Colors.transparent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${day.day}',
+                          style: TextStyle(
+                            color: selected
+                                ? AppColors.white
+                                : const Color(0xFF8F877F),
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Tocá para elegir otra semana',
-                      style: TextStyle(color: Color(0xFF9A928B), fontSize: 11),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ),
-            IconButton(
-              onPressed: () => setState(() {
-                _weekAnchor = _weekAnchor.add(const Duration(days: 7));
-                _selectedDay = _selectedDay.add(const Duration(days: 7));
-              }),
-              icon: const Icon(Icons.chevron_right_rounded),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: const [
-          _WeekHeader('LUN'), _WeekHeader('MAR'), _WeekHeader('MIÉ'), _WeekHeader('JUE'), _WeekHeader('VIE'), _WeekHeader('SÁB'), _WeekHeader('DOM')
-        ]),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: List.generate(7, (index) {
-            final day = start.add(Duration(days: index));
-            final selected = day.day == _selectedDay.day && day.month == _selectedDay.month;
-            return GestureDetector(
-              onTap: () => setState(() => _selectedDay = day),
-              child: Column(children: [
-                Container(
-                  width: 34, height: 34,
-                  decoration: BoxDecoration(color: selected ? AppColors.blackSoft : Colors.transparent, shape: BoxShape.circle),
-                  child: Center(child: Text('${day.day}', style: TextStyle(color: selected ? AppColors.white : const Color(0xFF8F877F), fontWeight: selected ? FontWeight.w700 : FontWeight.w500))),
-                ),
-                const SizedBox(height: 8),
-                Container(width: 5, height: 5, decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle)),
-              ]),
-            );
-          }),
-        ),
-      ]),
+              );
+            }),
+          ),
+        ],
+      ),
     );
   }
 
   List<Widget> _buildFixed() {
     if (!_tablaOk) {
-      return [_InfoPanel(title: 'No se pudieron cargar los horarios fijos', body: _error ?? 'Hubo un problema leyendo la tabla horarios_fijos.')];
+      return [
+        _InfoPanel(
+          title: 'No se pudieron cargar los horarios fijos',
+          body: _error ?? 'Hubo un problema leyendo la tabla horarios_fijos.',
+        ),
+      ];
     }
     if (_horarios.isEmpty) {
-      return const [_InfoPanel(title: 'Todavía no hay horarios fijos', body: 'Podés cargar una grilla semanal tipo Deportnet con el botón "Nuevo horario".')];
+      return const [
+        _InfoPanel(
+          title: 'Todavía no hay horarios fijos',
+          body:
+              'Podés cargar una grilla semanal tipo Deportnet con el botón "Nuevo horario".',
+        ),
+      ];
     }
     final horariosVisibles = _horarios
         .where((h) => _matchInstructor(h['instructor'], _filtroProfe))
@@ -4133,24 +4849,44 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         padding: const EdgeInsets.only(bottom: 16),
         child: Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(20)),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(_dayName(dia), style: const TextStyle(color: AppColors.black, fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 10),
-            if (items.isEmpty)
-              const Text('Sin horarios cargados.', style: TextStyle(color: Color(0xFF8F877F)))
-            else
-              ...items.map((h) => Padding(
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _dayName(dia),
+                style: const TextStyle(
+                  color: AppColors.black,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (items.isEmpty)
+                const Text(
+                  'Sin horarios cargados.',
+                  style: TextStyle(color: Color(0xFF8F877F)),
+                )
+              else
+                ...items.map(
+                  (h) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: _HorarioFijoCard(
                       horario: h,
                       esMiClase: _esMiClase(h['instructor']),
                       onEdit: () => _openForm(h),
-                      onDelete: () => _deleteFixed((h['id'] as num?)?.toInt() ?? 0),
-                      onToggle: (v) => _toggleFixed((h['id'] as num?)?.toInt() ?? 0, v),
+                      onDelete: () =>
+                          _deleteFixed((h['id'] as num?)?.toInt() ?? 0),
+                      onToggle: (v) =>
+                          _toggleFixed((h['id'] as num?)?.toInt() ?? 0, v),
                     ),
-                  )),
-          ]),
+                  ),
+                ),
+            ],
+          ),
         ),
       );
     });
@@ -4169,9 +4905,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       if (dt == null) return false;
       return !dt.isBefore(ahora) &&
           _matchInstructor(c['instructor'], _filtroProfe);
-    }).toList()
-      ..sort((a, b) => (a['fecha']?.toString() ?? '')
-          .compareTo(b['fecha']?.toString() ?? ''));
+    }).toList()..sort(
+      (a, b) => (a['fecha']?.toString() ?? '').compareTo(
+        b['fecha']?.toString() ?? '',
+      ),
+    );
   }
 
   List<Map<String, dynamic>> _clasesProximas() {
@@ -4190,14 +4928,17 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   List<Map<String, dynamic>> _clasesPasadas() {
     final ahora = _ahoraAr();
     return _clasesHistorial.where((c) {
-      final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
-      if (dt == null) return false;
-      return dt.isBefore(ahora) &&
-          _matchInstructor(c['instructor'], _filtroProfe);
-    }).toList()
+        final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
+        if (dt == null) return false;
+        return dt.isBefore(ahora) &&
+            _matchInstructor(c['instructor'], _filtroProfe);
+      }).toList()
       // Mas reciente primero — al estudio le interesa lo recien pasado.
-      ..sort((a, b) => (b['fecha']?.toString() ?? '')
-          .compareTo(a['fecha']?.toString() ?? ''));
+      ..sort(
+        (a, b) => (b['fecha']?.toString() ?? '').compareTo(
+          a['fecha']?.toString() ?? '',
+        ),
+      );
   }
 
   /// Trae del servidor las clases del mes [mes]. Se llama al abrir "Pasadas" y
@@ -4232,8 +4973,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
   void _irAMesHistorial(int delta) {
-    final destino =
-        DateTime(_mesHistorial.year, _mesHistorial.month + delta);
+    final destino = DateTime(_mesHistorial.year, _mesHistorial.month + delta);
     // No dejamos navegar al futuro: para eso está la solapa "Próximas".
     final ahora = _ahoraAr();
     if (destino.isAfter(DateTime(ahora.year, ahora.month))) return;
@@ -4241,8 +4981,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
   List<Widget> _buildClasesLoadedSection() {
-    final clases =
-        _showPast ? _clasesPasadas() : _clasesProximas();
+    final clases = _showPast ? _clasesPasadas() : _clasesProximas();
 
     return [
       // Tabs Próximas / Pasadas + toggle Lista/Grilla a la derecha.
@@ -4255,35 +4994,37 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                 color: AppColors.white,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Row(children: [
-                Expanded(
-                  child: _SegmentButton(
-                    label: 'Próximas',
-                    selected: !_showPast,
-                    onTap: () {
-                      setState(() => _showPast = false);
-                      _guardarPreferenciaPasadas(false);
-                    },
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _SegmentButton(
+                      label: 'Próximas',
+                      selected: !_showPast,
+                      onTap: () {
+                        setState(() => _showPast = false);
+                        _guardarPreferenciaPasadas(false);
+                      },
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: _SegmentButton(
-                    label: 'Historial',
-                    selected: _showPast,
-                    onTap: () {
-                      setState(() {
-                        _showPast = true;
-                        _seleccionMultiple = false;
-                        _seleccionadas.clear();
-                      });
-                      _guardarPreferenciaPasadas(true);
-                      // El historial se pide bajo demanda: la carga principal
-                      // solo trae 30 días para atrás.
-                      _cargarHistorial(_mesHistorial);
-                    },
+                  Expanded(
+                    child: _SegmentButton(
+                      label: 'Historial',
+                      selected: _showPast,
+                      onTap: () {
+                        setState(() {
+                          _showPast = true;
+                          _seleccionMultiple = false;
+                          _seleccionadas.clear();
+                        });
+                        _guardarPreferenciaPasadas(true);
+                        // El historial se pide bajo demanda: la carga principal
+                        // solo trae 30 días para atrás.
+                        _cargarHistorial(_mesHistorial);
+                      },
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -4338,12 +5079,14 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   /// entrada a esa información.
   Widget _buildNavegadorMes() {
     final ahora = _ahoraAr();
-    final esMesActual = _mesHistorial.year == ahora.year &&
-        _mesHistorial.month == ahora.month;
+    final esMesActual =
+        _mesHistorial.year == ahora.year && _mesHistorial.month == ahora.month;
     final clases = _clasesPasadas();
     final asistentes = clases.fold<int>(
       0,
-      (s, c) => s + ((c['lugares_total'] as num?)?.toInt() ?? 0) -
+      (s, c) =>
+          s +
+          ((c['lugares_total'] as num?)?.toInt() ?? 0) -
           ((c['lugares_disponibles'] as num?)?.toInt() ?? 0),
     );
 
@@ -4378,7 +5121,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                 // Al futuro no se navega: para eso está "Próximas".
                 onPressed: esMesActual ? null : () => _irAMesHistorial(1),
                 icon: const Icon(Icons.chevron_right_rounded),
-                color: esMesActual ? const Color(0xFFD1CAC3) : AppColors.primary,
+                color: esMesActual
+                    ? const Color(0xFFD1CAC3)
+                    : AppColors.primary,
                 tooltip: 'Mes siguiente',
               ),
             ],
@@ -4388,8 +5133,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(Icons.insights_outlined,
-                  size: 15, color: AppColors.grey),
+              const Icon(
+                Icons.insights_outlined,
+                size: 15,
+                color: AppColors.grey,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -4443,8 +5191,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
     String rangoTexto() {
       if (visibles.isEmpty) return 'No hay clases en este rango.';
-      final primera = DateTime.tryParse(visibles.first['fecha']?.toString() ?? '');
-      final ultima = DateTime.tryParse(visibles.last['fecha']?.toString() ?? '');
+      final primera = DateTime.tryParse(
+        visibles.first['fecha']?.toString() ?? '',
+      );
+      final ultima = DateTime.tryParse(
+        visibles.last['fecha']?.toString() ?? '',
+      );
       if (primera == null || ultima == null) return '';
       final f = DateFormat('d MMM', 'es');
       return '${visibles.length} clase${visibles.length != 1 ? 's' : ''} · '
@@ -4468,8 +5220,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         const SizedBox(height: 8),
         Row(
           children: [
-            const Icon(Icons.event_note_outlined,
-                size: 15, color: AppColors.grey),
+            const Icon(
+              Icons.event_note_outlined,
+              size: 15,
+              color: AppColors.grey,
+            ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
@@ -4496,11 +5251,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }
 
   /// Ids visibles ahora mismo en la lista (respeta rango y filtro de profe).
-  List<int> _idsVisibles() =>
-      (_showPast ? _clasesPasadas() : _clasesProximas())
-          .map((c) => (c['id'] as num?)?.toInt())
-          .whereType<int>()
-          .toList();
+  List<int> _idsVisibles() => (_showPast ? _clasesPasadas() : _clasesProximas())
+      .map((c) => (c['id'] as num?)?.toInt())
+      .whereType<int>()
+      .toList();
 
   bool get _todasSeleccionadas {
     final visibles = _idsVisibles();
@@ -4530,7 +5284,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     for (final c in visibles) {
       final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
       if (dt == null) continue;
-      final key = '${dt.weekday}|'
+      final key =
+          '${dt.weekday}|'
           '${dt.hour.toString().padLeft(2, '0')}:'
           '${dt.minute.toString().padLeft(2, '0')}';
       grupos.putIfAbsent(key, () => []).add(c);
@@ -4562,9 +5317,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
               child: Text(
                 'Seleccionar por horario',
                 style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.black),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.black,
+                ),
               ),
             ),
             const Padding(
@@ -4584,11 +5340,14 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                   final hora = partes.last;
                   final cant = grupos[k]!.length;
                   return ListTile(
-                    leading: const Icon(Icons.event_repeat_rounded,
-                        color: AppColors.primary),
+                    leading: const Icon(
+                      Icons.event_repeat_rounded,
+                      color: AppColors.primary,
+                    ),
                     title: Text('${_dayName(dia)} $hora'),
                     subtitle: Text(
-                        '$cant clase${cant != 1 ? 's' : ''} en este rango'),
+                      '$cant clase${cant != 1 ? 's' : ''} en este rango',
+                    ),
                     onTap: () => Navigator.pop(ctx, k),
                   );
                 }).toList(),
@@ -4625,50 +5384,54 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           Padding(
             padding: const EdgeInsets.only(bottom: 14),
             child: _seleccionMultiple
-                ? Builder(builder: (_) {
-                    final id = (c['id'] as num?)?.toInt();
-                    final selected =
-                        id != null && _seleccionadas.contains(id);
-                    return GestureDetector(
-                      onTap: () => _toggleSeleccion(id),
-                      child: Row(
-                        children: [
-                          Checkbox(
-                            value: selected,
-                            activeColor: AppColors.primary,
-                            onChanged: (_) => _toggleSeleccion(id),
-                          ),
-                          Expanded(
-                            child: AbsorbPointer(
-                              child: _StudioClassCard(
-                                clase: c,
-                                studioMode: true,
-                                esMiClase: _esMiClase(c['instructor']),
-                                onAvisar: () {},
-                                onMore: () {},
-                                onEdit: () {},
+                ? Builder(
+                    builder: (_) {
+                      final id = (c['id'] as num?)?.toInt();
+                      final selected =
+                          id != null && _seleccionadas.contains(id);
+                      return GestureDetector(
+                        onTap: () => _toggleSeleccion(id),
+                        child: Row(
+                          children: [
+                            Checkbox(
+                              value: selected,
+                              activeColor: AppColors.primary,
+                              onChanged: (_) => _toggleSeleccion(id),
+                            ),
+                            Expanded(
+                              child: AbsorbPointer(
+                                child: _StudioClassCard(
+                                  clase: c,
+                                  studioMode: true,
+                                  esMiClase: _esMiClase(c['instructor']),
+                                  onAvisar: () {},
+                                  onMore: () {},
+                                  onEdit: () {},
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    );
-                  })
+                          ],
+                        ),
+                      );
+                    },
+                  )
                 : GestureDetector(
                     // La profe ve la card en modo lectura: sin menú de
                     // acciones, sin editar y sin avisar.
-                    onLongPress:
-                        _puedeEditar ? () => _mostrarMenuClase(c) : null,
+                    onLongPress: _puedeEditar
+                        ? () => _mostrarMenuClase(c)
+                        : null,
                     child: _StudioClassCard(
                       clase: c,
                       studioMode: true,
                       esMiClase: _esMiClase(c['instructor']),
-                      onAvisar:
-                          _puedeEditar ? () => _mostrarAvisoSheet(c) : null,
-                      onMore:
-                          _puedeEditar ? () => _mostrarMenuClase(c) : null,
-                      onEdit:
-                          _puedeGestionarClases ? () => _editClaseDialog(c) : null,
+                      onAvisar: _puedeEditar
+                          ? () => _mostrarAvisoSheet(c)
+                          : null,
+                      onMore: _puedeEditar ? () => _mostrarMenuClase(c) : null,
+                      onEdit: _puedeGestionarClases
+                          ? () => _editClaseDialog(c)
+                          : null,
                     ),
                   ),
           ),
@@ -4697,8 +5460,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
             child: Stack(
               children: [
                 AbsorbPointer(
-                    child: _ClaseGridCard(
-                        clase: c, esMiClase: _esMiClase(c['instructor']))),
+                  child: _ClaseGridCard(
+                    clase: c,
+                    esMiClase: _esMiClase(c['instructor']),
+                  ),
+                ),
                 Positioned(
                   top: 6,
                   left: 6,
@@ -4725,7 +5491,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         return GestureDetector(
           onTap: () => _mostrarMenuClase(c),
           onLongPress: () => _mostrarMenuClase(c),
-          child: _ClaseGridCard(clase: c, esMiClase: _esMiClase(c['instructor'])),
+          child: _ClaseGridCard(
+            clase: c,
+            esMiClase: _esMiClase(c['instructor']),
+          ),
         );
       },
     );
@@ -4814,16 +5583,17 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
     final ok = await _confirmDialog(
       titulo: '¿Eliminar esta clase?',
-      mensaje:
-          'Los alumnos que reservaron reciben sus créditos de vuelta.',
+      mensaje: 'Los alumnos que reservaron reciben sus créditos de vuelta.',
       confirmar: 'Sí, eliminar',
     );
     if (ok != true || !mounted) return;
 
     try {
       // Devuelve créditos + marca reservas y clase como canceladas.
-      final devueltos =
-          await _reservasService.cancelarClaseConDevolucion(claseId, nombre);
+      final devueltos = await _reservasService.cancelarClaseConDevolucion(
+        claseId,
+        nombre,
+      );
       // cancelarClaseConDevolucion solo marca la clase como cancelada en DB.
       // La quitamos del todo asi no aparece ni en "pasadas".
       await _service.eliminarClaseRow(claseId);
@@ -4840,9 +5610,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo eliminar: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No se pudo eliminar: $e')));
     }
   }
 
@@ -4885,13 +5655,14 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     if (ok != true || !mounted) return;
 
     try {
-
       // 2) Para cada una: devolver creditos + eliminar la fila.
       int totalDevueltos = 0;
       // Mismo criterio que _deleteFixed: si una clase no se pudo borrar, el
       // horario no se toca y se informa cuál.
-      final fallidas =
-          await _borrarClasesDeHorario(futuras, (n) => totalDevueltos += n);
+      final fallidas = await _borrarClasesDeHorario(
+        futuras,
+        (n) => totalDevueltos += n,
+      );
       if (fallidas.isNotEmpty) {
         await _loadStudio();
         if (!mounted) return;
@@ -4916,7 +5687,9 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo eliminar la grilla: ${_mensajeDeError(e)}')),
+        SnackBar(
+          content: Text('No se pudo eliminar la grilla: ${_mensajeDeError(e)}'),
+        ),
       );
     }
   }
@@ -4963,13 +5736,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                   )
                 : const Icon(Icons.delete_outline_rounded),
             label: Text(
-              _cancelandoLote
-                  ? 'Eliminando…'
-                  : 'Eliminar seleccionadas ($n)',
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-              ),
+              _cancelandoLote ? 'Eliminando…' : 'Eliminar seleccionadas ($n)',
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
             ),
           ),
         ),
@@ -4992,8 +5760,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       titulo: '¿Eliminar $n clase${n != 1 ? 's' : ''}?',
       mensaje: alumnos > 0
           ? 'Ojo: hay $alumnos alumno${alumnos != 1 ? 's' : ''} con reserva '
-              'en estas clases. Se les devuelven los créditos '
-              'automáticamente, pero se quedan sin la clase.'
+                'en estas clases. Se les devuelven los créditos '
+                'automáticamente, pero se quedan sin la clase.'
           : 'Ninguna tiene reservas, así que no afecta a ningún alumno.',
       confirmar: 'Sí, eliminar',
     );
@@ -5010,8 +5778,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       );
       final nom = clase['nombre']?.toString() ?? 'la clase';
       try {
-        totalDevueltos +=
-            await _reservasService.cancelarClaseConDevolucion(id, nom);
+        totalDevueltos += await _reservasService.cancelarClaseConDevolucion(
+          id,
+          nom,
+        );
         canceladas++;
       } catch (_) {}
       // Borrado extra "por las dudas" (cancelarClaseConDevolucion ya borra la
@@ -5047,9 +5817,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           titulo,
           style: const TextStyle(
@@ -5085,8 +5853,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
             child: Text(
               confirmar,
@@ -5102,17 +5869,33 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final start = _weekStart(_weekAnchor);
     final days = List.generate(7, (i) => start.add(Duration(days: i)));
     return [
-      Row(children: [
-        IconButton(onPressed: () => setState(() => _weekAnchor = _weekAnchor.subtract(const Duration(days: 7))), icon: const Icon(Icons.chevron_left_rounded)),
-        Expanded(
-          child: Text(
-            '${DateFormat('d MMM', 'es').format(days.first)} - ${DateFormat('d MMM', 'es').format(days.last)}',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.black, fontSize: 16, fontWeight: FontWeight.w700),
+      Row(
+        children: [
+          IconButton(
+            onPressed: () => setState(
+              () => _weekAnchor = _weekAnchor.subtract(const Duration(days: 7)),
+            ),
+            icon: const Icon(Icons.chevron_left_rounded),
           ),
-        ),
-        IconButton(onPressed: () => setState(() => _weekAnchor = _weekAnchor.add(const Duration(days: 7))), icon: const Icon(Icons.chevron_right_rounded)),
-      ]),
+          Expanded(
+            child: Text(
+              '${DateFormat('d MMM', 'es').format(days.first)} - ${DateFormat('d MMM', 'es').format(days.last)}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.black,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: () => setState(
+              () => _weekAnchor = _weekAnchor.add(const Duration(days: 7)),
+            ),
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+        ],
+      ),
       const SizedBox(height: 12),
       SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -5124,37 +5907,77 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
             return Container(
               width: 150,
               margin: EdgeInsets.only(right: i == 6 ? 0 : 8),
-              decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(18)),
-              child: Column(children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-                  decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.warmBorder))),
-                  child: Column(children: [
-                    Text(_shortDay(day.weekday).toUpperCase(), style: const TextStyle(fontSize: 11, color: Color(0xFF8F877F), fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 4),
-                    Text('${day.day}', style: const TextStyle(fontSize: 18, color: AppColors.black, fontWeight: FontWeight.w700)),
-                  ]),
-                ),
-                SizedBox(
-                  height: 460,
-                  child: classes.isEmpty
-                      ? const Center(child: Padding(padding: EdgeInsets.all(8), child: Text('Sin clases', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Color(0xFFB0A8A0)))))
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(8),
-                          itemCount: classes.length,
-                              itemBuilder: (context, x) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: _WeekClassChip(
-                              clase: classes[x],
-                              onTap: classes[x]['_kind'] == 'loaded'
-                                  ? () => _showClaseSheet(classes[x])
-                                  : null,
-                            ),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 8,
+                    ),
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: AppColors.warmBorder),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          _shortDay(day.weekday).toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF8F877F),
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                ),
-              ]),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${day.day}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: AppColors.black,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    height: 460,
+                    child: classes.isEmpty
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(8),
+                              child: Text(
+                                'Sin clases',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFFB0A8A0),
+                                ),
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(8),
+                            itemCount: classes.length,
+                            itemBuilder: (context, x) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: _WeekClassChip(
+                                clase: classes[x],
+                                onTap: classes[x]['_kind'] == 'loaded'
+                                    ? () => _showClaseSheet(classes[x])
+                                    : null,
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
             );
           }),
         ),
@@ -5165,21 +5988,33 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   List<Map<String, dynamic>> _classesOn(DateTime day) {
     final list = _clases.where((c) {
       final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
-      return dt != null && dt.year == day.year && dt.month == day.month && dt.day == day.day;
+      return dt != null &&
+          dt.year == day.year &&
+          dt.month == day.month &&
+          dt.day == day.day;
     }).toList();
-    list.sort((a, b) => (a['fecha']?.toString() ?? '').compareTo(b['fecha']?.toString() ?? ''));
+    list.sort(
+      (a, b) => (a['fecha']?.toString() ?? '').compareTo(
+        b['fecha']?.toString() ?? '',
+      ),
+    );
     return list;
   }
 
   List<Map<String, dynamic>> _weekItemsOn(DateTime day) {
     final loaded = _classesOn(day)
-        .map((c) => {
-              ...c,
-              '_kind': 'loaded',
-              '_sort_time': DateTime.tryParse(c['fecha']?.toString() ?? '') != null
-                  ? DateFormat('HH:mm').format(DateTime.parse(c['fecha'].toString()))
-                  : '99:99',
-            })
+        .map(
+          (c) => {
+            ...c,
+            '_kind': 'loaded',
+            '_sort_time':
+                DateTime.tryParse(c['fecha']?.toString() ?? '') != null
+                ? DateFormat(
+                    'HH:mm',
+                  ).format(DateTime.parse(c['fecha'].toString()))
+                : '99:99',
+          },
+        )
         .toList();
 
     // Suprimir horarios fijos que ya tienen una clase cargada con el mismo horario_fijo_id
@@ -5188,32 +6023,47 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         .whereType<int>()
         .toSet();
 
-    final fixed = _horarios.where((h) {
-      final dia = (h['dia_semana'] as num?)?.toInt() ?? 0;
-      if (dia != day.weekday) return false;
-      final hId = (h['id'] as num?)?.toInt();
-      // Suprimir si ya hay clase cargada con este horario_fijo_id
-      if (hId != null && loadedHorarioIds.contains(hId)) return false;
-      return true;
-    }).map((h) => {
-          ...h,
-          '_kind': 'fixed',
-          '_sort_time': h['hora_inicio']?.toString() ?? '99:99',
-        });
+    final fixed = _horarios
+        .where((h) {
+          final dia = (h['dia_semana'] as num?)?.toInt() ?? 0;
+          if (dia != day.weekday) return false;
+          final hId = (h['id'] as num?)?.toInt();
+          // Suprimir si ya hay clase cargada con este horario_fijo_id
+          if (hId != null && loadedHorarioIds.contains(hId)) return false;
+          return true;
+        })
+        .map(
+          (h) => {
+            ...h,
+            '_kind': 'fixed',
+            '_sort_time': h['hora_inicio']?.toString() ?? '99:99',
+          },
+        );
 
     final merged = [...loaded, ...fixed];
     merged.sort(
-      (a, b) => (a['_sort_time'] as String).compareTo(b['_sort_time'] as String),
+      (a, b) =>
+          (a['_sort_time'] as String).compareTo(b['_sort_time'] as String),
     );
     return merged;
   }
 
-  DateTime _weekStart(DateTime d) => DateTime(d.year, d.month, d.day).subtract(Duration(days: d.weekday - 1));
+  DateTime _weekStart(DateTime d) =>
+      DateTime(d.year, d.month, d.day).subtract(Duration(days: d.weekday - 1));
+
   /// `null` = sin override, la clase hereda el default del estudio. Es el
   /// primer item a propósito: guardar 0 significaba "sin ventana" y pisaba
   /// la configuración del estudio.
   static const List<int?> _bookingCutoffOptions = [
-    null, 0, 30, 60, 120, 180, 360, 720, 1440,
+    null,
+    0,
+    30,
+    60,
+    120,
+    180,
+    360,
+    720,
+    1440,
   ];
   String _bookingCutoffLabel(int? minutes) {
     if (minutes == null) return 'Usar el default del estudio';
@@ -5229,16 +6079,45 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     }
     return 'Hasta $minutes min antes';
   }
-  String _shortDay(int d) => const {1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb', 7: 'Dom'}[d] ?? 'Lun';
-  String _dayName(int d) => const {1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 7: 'Domingo'}[d] ?? 'Lunes';
-  String _timeText(TimeOfDay t) => DateFormat('HH:mm').format(DateTime(2024, 1, 1, t.hour, t.minute));
+
+  String _shortDay(int d) =>
+      const {
+        1: 'Lun',
+        2: 'Mar',
+        3: 'Mié',
+        4: 'Jue',
+        5: 'Vie',
+        6: 'Sáb',
+        7: 'Dom',
+      }[d] ??
+      'Lun';
+  String _dayName(int d) =>
+      const {
+        1: 'Lunes',
+        2: 'Martes',
+        3: 'Miércoles',
+        4: 'Jueves',
+        5: 'Viernes',
+        6: 'Sábado',
+        7: 'Domingo',
+      }[d] ??
+      'Lunes';
+  String _timeText(TimeOfDay t) =>
+      DateFormat('HH:mm').format(DateTime(2024, 1, 1, t.hour, t.minute));
 }
 
 class _WeekHeader extends StatelessWidget {
   final String text;
   const _WeekHeader(this.text);
   @override
-  Widget build(BuildContext context) => Text(text, style: const TextStyle(color: Color(0xFF9A928B), fontSize: 12, fontWeight: FontWeight.w600));
+  Widget build(BuildContext context) => Text(
+    text,
+    style: const TextStyle(
+      color: Color(0xFF9A928B),
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+    ),
+  );
 }
 
 class _StudioClassCard extends StatelessWidget {
@@ -5264,87 +6143,182 @@ class _StudioClassCard extends StatelessWidget {
     final time = dt != null ? DateFormat('HH:mm').format(dt) : '07:00';
     final instructor = clase['instructor']?.toString() ?? 'Sin instructor';
     final total = (clase['lugares_total'] as num?)?.toInt() ?? 20;
-    final disp = (clase['_disponibles_real'] as num?)?.toInt() ??
+    final disp =
+        (clase['_disponibles_real'] as num?)?.toInt() ??
         (clase['lugares_disponibles'] as num?)?.toInt() ??
         0;
-    final ocupados = (clase['_ocupados_real'] as num?)?.toInt() ?? (total - disp);
+    final ocupados =
+        (clase['_ocupados_real'] as num?)?.toInt() ?? (total - disp);
     final progress = total <= 0 ? 0.0 : (ocupados / total).clamp(0.0, 1.0);
     final status = _status(clase);
     final statusColor = _statusColor(status);
-    final barColor = status == 'En curso' ? AppColors.primary : status == 'Confirmada' ? const Color(0xFF4CAF50) : const Color(0xFFB28CFF);
+    final barColor = status == 'En curso'
+        ? AppColors.primary
+        : status == 'Confirmada'
+        ? const Color(0xFF4CAF50)
+        : const Color(0xFFB28CFF);
     final codigoQr = clase['_user_reserva_qr']?.toString();
-    final userHasReserva = !studioMode && codigoQr != null && codigoQr.isNotEmpty;
+    final userHasReserva =
+        !studioMode && codigoQr != null && codigoQr.isNotEmpty;
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(22), boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 16, offset: Offset(0, 6))]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: AppColors.blackSoft, borderRadius: BorderRadius.circular(8)),
-            child: Text(time.toUpperCase(), style: const TextStyle(color: AppColors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 16,
+            offset: Offset(0, 6),
           ),
-          if (esMiClase) ...[
-            const SizedBox(width: 6),
-            const _TuClaseBadge(),
-          ],
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(999)),
-            child: Text(status, style: const TextStyle(color: Color(0xFF5F5953), fontSize: 12, fontWeight: FontWeight.w600)),
-          ),
-          if (studioMode && onMore != null) ...[
-            const SizedBox(width: 4),
-            IconButton(
-              onPressed: onMore,
-              icon: const Icon(Icons.more_vert_rounded,
-                  color: Color(0xFF8F877F), size: 22),
-              padding: EdgeInsets.zero,
-              // 44x44 = tap target estandar Apple HIG (importante para iPad).
-              constraints: const BoxConstraints(
-                  minWidth: 44, minHeight: 44),
-              tooltip: 'Más opciones',
-            ),
-          ],
-        ]),
-        const SizedBox(height: 14),
-        Text(clase['nombre']?.toString() ?? 'Clase', style: const TextStyle(color: AppColors.black, fontSize: 16, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 6),
-        Text('Instructora: $instructor', style: const TextStyle(color: Color(0xFF8F877F), fontSize: 14)),
-        const SizedBox(height: 12),
-        const Text('Ocupación', style: TextStyle(color: Color(0xFF8F877F), fontSize: 13)),
-        const SizedBox(height: 4),
-        Row(children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(value: progress, minHeight: 6, color: barColor, backgroundColor: const Color(0xFFEDE7E1)),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text('$ocupados/$total lugares', style: const TextStyle(color: Color(0xFF6A635D), fontSize: 13)),
-        ]),
-        const SizedBox(height: 14),
-        if (userHasReserva) ...[
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => context.push('/reserva-confirmada/${Uri.encodeComponent(codigoQr)}'),
-              child: const Text('Ver ticket QR'),
-            ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.blackSoft,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  time.toUpperCase(),
+                  style: const TextStyle(
+                    color: AppColors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (esMiClase) ...[
+                const SizedBox(width: 6),
+                const _TuClaseBadge(),
+              ],
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  status,
+                  style: const TextStyle(
+                    color: Color(0xFF5F5953),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (studioMode && onMore != null) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  onPressed: onMore,
+                  icon: const Icon(
+                    Icons.more_vert_rounded,
+                    color: Color(0xFF8F877F),
+                    size: 22,
+                  ),
+                  padding: EdgeInsets.zero,
+                  // 44x44 = tap target estandar Apple HIG (importante para iPad).
+                  constraints: const BoxConstraints(
+                    minWidth: 44,
+                    minHeight: 44,
+                  ),
+                  tooltip: 'Más opciones',
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 14),
+          Text(
+            clase['nombre']?.toString() ?? 'Clase',
+            style: const TextStyle(
+              color: AppColors.black,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Instructora: $instructor',
+            style: const TextStyle(color: Color(0xFF8F877F), fontSize: 14),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Ocupación',
+            style: TextStyle(color: Color(0xFF8F877F), fontSize: 13),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 6,
+                    color: barColor,
+                    backgroundColor: const Color(0xFFEDE7E1),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '$ocupados/$total lugares',
+                style: const TextStyle(color: Color(0xFF6A635D), fontSize: 13),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (userHasReserva) ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => context.push(
+                  '/reserva-confirmada/${Uri.encodeComponent(codigoQr)}',
+                ),
+                child: const Text('Ver ticket QR'),
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+          if (studioMode)
+            Row(
+              children: [
+                _ActionButton(
+                  label: 'Ver lista',
+                  background: AppColors.primary,
+                  foreground: AppColors.white,
+                  onTap: () => context.push('/estudio/asistencia'),
+                ),
+                const SizedBox(width: 8),
+                _ActionButton(
+                  label: 'Editar',
+                  background: const Color(0xFFF1F1F1),
+                  foreground: const Color(0xFF6A635D),
+                  onTap: onEdit ?? () {},
+                ),
+                const SizedBox(width: 8),
+                _ActionButton(
+                  label: 'Avisar',
+                  background: const Color(0xFFF1F1F1),
+                  foreground: const Color(0xFF6A635D),
+                  onTap: onAvisar ?? () {},
+                ),
+              ],
+            ),
         ],
-        if (studioMode)
-          Row(children: [
-            _ActionButton(label: 'Ver lista', background: AppColors.primary, foreground: AppColors.white, onTap: () => context.push('/estudio/asistencia')),
-            const SizedBox(width: 8),
-            _ActionButton(label: 'Editar', background: const Color(0xFFF1F1F1), foreground: const Color(0xFF6A635D), onTap: onEdit ?? () {}),
-            const SizedBox(width: 8),
-            _ActionButton(label: 'Avisar', background: const Color(0xFFF1F1F1), foreground: const Color(0xFF6A635D), onTap: onAvisar ?? () {}),
-          ]),
-      ]),
+      ),
     );
   }
 
@@ -5354,7 +6328,9 @@ class _StudioClassCard extends StatelessWidget {
     final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
     if (dt == null) return 'Programada';
     final now = DateTime.now();
-    if (dt.isBefore(now) && now.difference(dt).inMinutes < 90) return 'En curso';
+    if (dt.isBefore(now) && now.difference(dt).inMinutes < 90) {
+      return 'En curso';
+    }
     if (dt.difference(now).inHours < 8) return 'Confirmada';
     return 'Programada';
   }
@@ -5460,7 +6436,8 @@ class _AvisoSheetState extends State<_AvisoSheet> {
   }
 
   int get _restantes =>
-      (_cupo?['restantes'] as num?)?.toInt() ?? AvisoAlumnosService.maxClasesPorEnvio;
+      (_cupo?['restantes'] as num?)?.toInt() ??
+      AvisoAlumnosService.maxClasesPorEnvio;
 
   /// Un general más no entra si ya se usaron los del mes. Los urgentes
   /// nunca se bloquean: son operativos.
@@ -5544,9 +6521,7 @@ class _AvisoSheetState extends State<_AvisoSheet> {
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Llegaste al límite del mes'),
         content: Text(
           'Ya enviaste los $max avisos generales de este mes. Este límite '
@@ -5571,7 +6546,9 @@ class _AvisoSheetState extends State<_AvisoSheet> {
     final mensaje = _ctrl.text.trim();
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        20, 12, 20,
+        20,
+        12,
+        20,
         20 + MediaQuery.of(context).viewInsets.bottom,
       ),
       child: SingleChildScrollView(
@@ -5625,8 +6602,7 @@ class _AvisoSheetState extends State<_AvisoSheet> {
                   children: widget.clases.map((c) {
                     final id = (c['id'] as num).toInt();
                     final sel = _seleccionadas.contains(id);
-                    final f =
-                        DateTime.tryParse(c['fecha']?.toString() ?? '');
+                    final f = DateTime.tryParse(c['fecha']?.toString() ?? '');
                     final cuando = f == null
                         ? ''
                         : DateFormat("EEE d/M · HH:mm", 'es').format(f);
@@ -5691,8 +6667,10 @@ class _AvisoSheetState extends State<_AvisoSheet> {
               decoration: InputDecoration(
                 hintText:
                     'Ej: La clase de hoy se traslada al salón 2. ¡Los esperamos!',
-                hintStyle:
-                    const TextStyle(color: Color(0xFFB0A8A0), fontSize: 14),
+                hintStyle: const TextStyle(
+                  color: Color(0xFFB0A8A0),
+                  fontSize: 14,
+                ),
                 filled: true,
                 fillColor: const Color(0xFFF7F5F2),
                 border: OutlineInputBorder(
@@ -5726,10 +6704,10 @@ class _AvisoSheetState extends State<_AvisoSheet> {
               Text(
                 _restantes > 0
                     ? 'Te quedan $_restantes aviso'
-                    '${_restantes == 1 ? '' : 's'} general'
-                    '${_restantes == 1 ? '' : 'es'} este mes.'
+                          '${_restantes == 1 ? '' : 's'} general'
+                          '${_restantes == 1 ? '' : 'es'} este mes.'
                     : 'Ya usaste los avisos generales del mes. '
-                        'Los urgentes no tienen límite.',
+                          'Los urgentes no tienen límite.',
                 style: TextStyle(
                   color: _restantes > 0
                       ? const Color(0xFF8F877F)
@@ -5802,7 +6780,8 @@ class _AvisoSheetState extends State<_AvisoSheet> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: (_enviando ||
+                onPressed:
+                    (_enviando ||
                         mensaje.isEmpty ||
                         _seleccionadas.isEmpty ||
                         _bloqueadoPorCupo)
@@ -5833,7 +6812,7 @@ class _AvisoSheetState extends State<_AvisoSheet> {
                         _bloqueadoPorCupo
                             ? 'Sin avisos generales este mes'
                             : 'Enviar a $_alumnos alumna'
-                                '${_alumnos == 1 ? '' : 's'}',
+                                  '${_alumnos == 1 ? '' : 's'}',
                       ),
               ),
             ),
@@ -5868,57 +6847,83 @@ class _UrgenciaChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.blackSoft : const Color(0xFFF1F1F1),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? Colors.white : const Color(0xFF6A635D),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: BoxDecoration(
+        color: selected ? AppColors.blackSoft : const Color(0xFFF1F1F1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: selected ? Colors.white : const Color(0xFF6A635D),
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _ActionButton extends StatelessWidget {
   final String label;
   final Color background, foreground;
   final VoidCallback onTap;
-  const _ActionButton({required this.label, required this.background, required this.foreground, required this.onTap});
+  const _ActionButton({
+    required this.label,
+    required this.background,
+    required this.foreground,
+    required this.onTap,
+  });
   @override
   Widget build(BuildContext context) => Expanded(
-        child: SizedBox(
-          height: 38,
-          child: ElevatedButton(
-            onPressed: onTap,
-            style: ElevatedButton.styleFrom(backgroundColor: background, foregroundColor: foreground, elevation: 0, padding: EdgeInsets.zero, textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-            child: Text(label),
-          ),
+    child: SizedBox(
+      height: 38,
+      child: ElevatedButton(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: background,
+          foregroundColor: foreground,
+          elevation: 0,
+          padding: EdgeInsets.zero,
+          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
         ),
-      );
+        child: Text(label),
+      ),
+    ),
+  );
 }
 
 class _SegmentButton extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _SegmentButton({required this.label, required this.selected, required this.onTap});
+  const _SegmentButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(color: selected ? AppColors.blackSoft : Colors.transparent, borderRadius: BorderRadius.circular(12)),
-          child: Text(label, textAlign: TextAlign.center, style: TextStyle(color: selected ? AppColors.white : const Color(0xFF8F877F), fontWeight: FontWeight.w700, fontSize: 13)),
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: selected ? AppColors.blackSoft : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: selected ? AppColors.white : const Color(0xFF8F877F),
+          fontWeight: FontWeight.w700,
+          fontSize: 13,
         ),
-      );
+      ),
+    ),
+  );
 }
 
 /// Badge naranja "Tu clase" para las clases donde la profe logueada es la
@@ -5950,7 +6955,13 @@ class _HorarioFijoCard extends StatelessWidget {
   final VoidCallback onEdit, onDelete;
   final ValueChanged<bool> onToggle;
   final bool esMiClase;
-  const _HorarioFijoCard({required this.horario, required this.onEdit, required this.onDelete, required this.onToggle, this.esMiClase = false});
+  const _HorarioFijoCard({
+    required this.horario,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onToggle,
+    this.esMiClase = false,
+  });
   @override
   Widget build(BuildContext context) {
     final nombre = horario['nombre']?.toString() ?? 'Clase';
@@ -5965,45 +6976,95 @@ class _HorarioFijoCard extends StatelessWidget {
     final cat = cats.isEmpty
         ? null
         : (cats.length <= 2
-            ? cats.join(' · ')
-            : '${cats.take(2).join(' · ')} +${cats.length - 2}');
+              ? cats.join(' · ')
+              : '${cats.take(2).join(' · ')} +${cats.length - 2}');
     final activo = horario['activo'] != false;
-    final extras = <String>['$duracion min', '$cupos lugares', '$creditos créditos', if (instructor != null && instructor.isNotEmpty) instructor, if (sala != null && sala.isNotEmpty) sala, if (cat != null && cat.isNotEmpty) cat];
+    final extras = <String>[
+      '$duracion min',
+      '$cupos lugares',
+      '$creditos créditos',
+      if (instructor != null && instructor.isNotEmpty) instructor,
+      if (sala != null && sala.isNotEmpty) sala,
+      if (cat != null && cat.isNotEmpty) cat,
+    ];
     return Opacity(
       opacity: activo ? 1.0 : 0.5,
       child: Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: const Color(0xFFFBFAF8), borderRadius: BorderRadius.circular(16)),
-        child: Row(children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: activo ? AppColors.blackSoft : const Color(0xFFB0A8A0), borderRadius: BorderRadius.circular(8)),
-            child: Text(hora, style: const TextStyle(color: AppColors.white, fontWeight: FontWeight.w700)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Flexible(child: Text(nombre, style: const TextStyle(color: AppColors.black, fontSize: 15, fontWeight: FontWeight.w700))),
-                if (esMiClase) ...[
-                  const SizedBox(width: 8),
-                  const _TuClaseBadge(),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFBFAF8),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: activo ? AppColors.blackSoft : const Color(0xFFB0A8A0),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                hora,
+                style: const TextStyle(
+                  color: AppColors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          nombre,
+                          style: const TextStyle(
+                            color: AppColors.black,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      if (esMiClase) ...[
+                        const SizedBox(width: 8),
+                        const _TuClaseBadge(),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    extras.join(' · '),
+                    style: const TextStyle(
+                      color: Color(0xFF8F877F),
+                      fontSize: 13,
+                    ),
+                  ),
                 ],
-              ]),
-              const SizedBox(height: 4),
-              Text(extras.join(' · '), style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13)),
-            ]),
-          ),
-          Switch(
-            value: activo,
-            onChanged: onToggle,
-            activeThumbColor: AppColors.primary,
-            activeTrackColor: AppColors.primaryLight,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-          IconButton(onPressed: onEdit, icon: const Icon(Icons.edit_outlined, color: AppColors.primary)),
-          IconButton(onPressed: onDelete, icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error)),
-        ]),
+              ),
+            ),
+            Switch(
+              value: activo,
+              onChanged: onToggle,
+              activeThumbColor: AppColors.primary,
+              activeTrackColor: AppColors.primaryLight,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            IconButton(
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
+            ),
+            IconButton(
+              onPressed: onDelete,
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                color: AppColors.error,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -6025,27 +7086,55 @@ class _WeekClassChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFBFAF8),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: onTap != null ? AppColors.warmBorder : AppColors.warmBorder),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(hora, style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 4),
-        Text(clase['nombre']?.toString() ?? 'Clase', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.black, fontSize: 12, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          decoration: BoxDecoration(color: badgeBg, borderRadius: BorderRadius.circular(999)),
-          child: Text(
-            isFixed ? 'Horario fijo' : 'Clase cargada',
-            style: TextStyle(color: badgeFg, fontSize: 10, fontWeight: FontWeight.w700),
+        width: double.infinity,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFBFAF8),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: onTap != null ? AppColors.warmBorder : AppColors.warmBorder,
           ),
         ),
-      ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              hora,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              clase['nombre']?.toString() ?? 'Clase',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.black,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              decoration: BoxDecoration(
+                color: badgeBg,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                isFixed ? 'Horario fijo' : 'Clase cargada',
+                style: TextStyle(
+                  color: badgeFg,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -6055,19 +7144,31 @@ class _ClaseDetalleSheet extends StatelessWidget {
   final Map<String, dynamic> clase;
   final VoidCallback onEdit, onCancel;
   final VoidCallback? onAvisar;
+
   /// Solo se muestra si la clase está cancelada: la vuelve reservable.
   final VoidCallback? onReactivar;
   // false para la profe: solo edita, no puede cancelar (borrar) la clase.
   final bool puedeEditar;
+
   /// Cuántas esperan lugar en esta clase. 0 = no se muestra nada.
   final int enEspera;
-  const _ClaseDetalleSheet({required this.clase, required this.onEdit, required this.onCancel, this.onAvisar, this.onReactivar, this.puedeEditar = true, this.enEspera = 0});
+  const _ClaseDetalleSheet({
+    required this.clase,
+    required this.onEdit,
+    required this.onCancel,
+    this.onAvisar,
+    this.onReactivar,
+    this.puedeEditar = true,
+    this.enEspera = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
     final dt = DateTime.tryParse(clase['fecha']?.toString() ?? '');
     final hora = dt != null ? DateFormat('HH:mm').format(dt) : '--:--';
-    final fechaStr = dt != null ? DateFormat("EEE d 'de' MMM yyyy", 'es').format(dt) : '—';
+    final fechaStr = dt != null
+        ? DateFormat("EEE d 'de' MMM yyyy", 'es').format(dt)
+        : '—';
     final nombre = clase['nombre']?.toString() ?? 'Clase';
     final instructor = clase['instructor']?.toString();
     final total = (clase['lugares_total'] as num?)?.toInt() ?? 0;
@@ -6082,8 +7183,9 @@ class _ClaseDetalleSheet extends StatelessWidget {
     final sala = (clase['sala'] ?? '').toString().trim();
     final descripcion = (clase['descripcion'] ?? '').toString().trim();
     final incluye = (clase['incluye'] ?? '').toString().trim();
-    final instructorDesc =
-        (clase['instructor_descripcion'] ?? '').toString().trim();
+    final instructorDesc = (clase['instructor_descripcion'] ?? '')
+        .toString()
+        .trim();
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFFF7F5F2),
@@ -6097,98 +7199,172 @@ class _ClaseDetalleSheet extends StatelessWidget {
         maxHeight: MediaQuery.of(context).size.height * 0.85,
       ),
       child: SingleChildScrollView(
-      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Center(
-          child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16), decoration: BoxDecoration(color: const Color(0xFFCCC5BD), borderRadius: BorderRadius.circular(99))),
-        ),
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            decoration: BoxDecoration(color: AppColors.blackSoft, borderRadius: BorderRadius.circular(10)),
-            child: Text(hora, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Text(nombre, style: const TextStyle(color: AppColors.black, fontSize: 18, fontWeight: FontWeight.w700))),
-        ]),
-        const SizedBox(height: 12),
-        _DetailRow(icon: Icons.calendar_today_rounded, text: fechaStr),
-        if (instructor != null && instructor.isNotEmpty)
-          _DetailRow(icon: Icons.person_outline_rounded, text: instructor),
-        _DetailRow(icon: Icons.people_outline_rounded, text: '$ocupados/$total reservas · $disponibles disponibles'),
-        if (enEspera > 0)
-          _DetailRow(
-            icon: Icons.hourglass_bottom_rounded,
-            text: enEspera == 1
-                ? '1 persona esperando un lugar'
-                : '$enEspera personas esperando un lugar',
-          ),
-        _DetailRow(icon: Icons.timer_outlined, text: '$duracion min · $creditos créditos'),
-        if (sala.isNotEmpty)
-          _DetailRow(icon: Icons.meeting_room_outlined, text: sala),
-        if (instructorDesc.isNotEmpty)
-          _BloqueTexto(titulo: 'Sobre quien la da', texto: instructorDesc),
-        if (descripcion.isNotEmpty)
-          _BloqueTexto(titulo: 'Descripción', texto: descripcion),
-        if (incluye.isNotEmpty)
-          _BloqueTexto(titulo: 'Qué incluye', texto: incluye),
-        const SizedBox(height: 20),
-        if (onAvisar != null) ...[
-          SizedBox(
-            width: double.infinity,
-            child: TextButton.icon(
-              onPressed: onAvisar,
-              icon: const Icon(Icons.notifications_outlined, size: 16, color: Color(0xFF8F877F)),
-              label: const Text('Avisar a alumnos', style: TextStyle(color: Color(0xFF8F877F))),
-              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12)),
-            ),
-          ),
-          const SizedBox(height: 4),
-        ],
-        // Una clase cancelada no se edita: editarla la dejaba igual de
-        // cancelada e irreservable, y el estudio creía que la había
-        // "arreglado" (revisión del 25/8). Se reactiva explícitamente.
-        if (clase['cancelada'] == true) ...[
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: Text(
-              'Esta clase está cancelada: nadie puede reservarla. Si querés volver a ofrecerla, reactivala (las alumnas que ya recibieron sus créditos tienen que anotarse de nuevo).',
-              style: TextStyle(color: Color(0xFF8F877F), fontSize: 12, height: 1.35),
-            ),
-          ),
-          if (puedeEditar && onReactivar != null)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onReactivar,
-                icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                label: const Text('Reactivar clase'),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF43A047), foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 14)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFCCC5BD),
+                  borderRadius: BorderRadius.circular(99),
+                ),
               ),
             ),
-        ] else
-        Row(children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: onEdit,
-              icon: const Icon(Icons.edit_outlined, size: 16),
-              label: const Text('Editar'),
-              style: OutlinedButton.styleFrom(foregroundColor: AppColors.primary, side: const BorderSide(color: AppColors.primary), padding: const EdgeInsets.symmetric(vertical: 14)),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.blackSoft,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    hora,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    nombre,
+                    style: const TextStyle(
+                      color: AppColors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          // Cancelar (borrar) la clase es solo de admin/dueña.
-          if (puedeEditar) ...[
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: onCancel,
-                icon: const Icon(Icons.cancel_outlined, size: 16),
-                label: const Text('Cancelar clase'),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF44336), foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 14)),
+            const SizedBox(height: 12),
+            _DetailRow(icon: Icons.calendar_today_rounded, text: fechaStr),
+            if (instructor != null && instructor.isNotEmpty)
+              _DetailRow(icon: Icons.person_outline_rounded, text: instructor),
+            _DetailRow(
+              icon: Icons.people_outline_rounded,
+              text: '$ocupados/$total reservas · $disponibles disponibles',
+            ),
+            if (enEspera > 0)
+              _DetailRow(
+                icon: Icons.hourglass_bottom_rounded,
+                text: enEspera == 1
+                    ? '1 persona esperando un lugar'
+                    : '$enEspera personas esperando un lugar',
               ),
+            _DetailRow(
+              icon: Icons.timer_outlined,
+              text: '$duracion min · $creditos créditos',
             ),
+            if (sala.isNotEmpty)
+              _DetailRow(icon: Icons.meeting_room_outlined, text: sala),
+            if (instructorDesc.isNotEmpty)
+              _BloqueTexto(titulo: 'Sobre quien la da', texto: instructorDesc),
+            if (descripcion.isNotEmpty)
+              _BloqueTexto(titulo: 'Descripción', texto: descripcion),
+            if (incluye.isNotEmpty)
+              _BloqueTexto(titulo: 'Qué incluye', texto: incluye),
+            const SizedBox(height: 20),
+            if (onAvisar != null) ...[
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: onAvisar,
+                  icon: const Icon(
+                    Icons.notifications_outlined,
+                    size: 16,
+                    color: Color(0xFF8F877F),
+                  ),
+                  label: const Text(
+                    'Avisar a alumnos',
+                    style: TextStyle(color: Color(0xFF8F877F)),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 12,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+            ],
+            // Una clase cancelada no se edita: editarla la dejaba igual de
+            // cancelada e irreservable, y el estudio creía que la había
+            // "arreglado" (revisión del 25/8). Se reactiva explícitamente.
+            if (clase['cancelada'] == true) ...[
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Esta clase está cancelada: nadie puede reservarla. Si querés volver a ofrecerla, reactivala (las alumnas que ya recibieron sus créditos tienen que anotarse de nuevo).',
+                  style: TextStyle(
+                    color: Color(0xFF8F877F),
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              if (puedeEditar && onReactivar != null)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: onReactivar,
+                    icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                    label: const Text('Reactivar clase'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF43A047),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
+            ] else
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onEdit,
+                      icon: const Icon(Icons.edit_outlined, size: 16),
+                      label: const Text('Editar'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                  // Cancelar (borrar) la clase es solo de admin/dueña.
+                  if (puedeEditar) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: onCancel,
+                        icon: const Icon(Icons.cancel_outlined, size: 16),
+                        label: const Text('Cancelar clase'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF44336),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
           ],
-        ]),
-      ]),
+        ),
       ),
     );
   }
@@ -6202,11 +7378,29 @@ class _BloqueTexto extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 12),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(titulo.toUpperCase(), style: const TextStyle(color: Color(0xFF8F877F), fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-      const SizedBox(height: 4),
-      Text(texto, style: const TextStyle(color: Color(0xFF5F5953), fontSize: 14, height: 1.4)),
-    ]),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          titulo.toUpperCase(),
+          style: const TextStyle(
+            color: Color(0xFF8F877F),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          texto,
+          style: const TextStyle(
+            color: Color(0xFF5F5953),
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
+      ],
+    ),
   );
 }
 
@@ -6217,11 +7411,18 @@ class _DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
-    child: Row(children: [
-      Icon(icon, size: 16, color: const Color(0xFF8F877F)),
-      const SizedBox(width: 8),
-      Expanded(child: Text(text, style: const TextStyle(color: Color(0xFF5F5953), fontSize: 14))),
-    ]),
+    child: Row(
+      children: [
+        Icon(icon, size: 16, color: const Color(0xFF8F877F)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(color: Color(0xFF5F5953), fontSize: 14),
+          ),
+        ),
+      ],
+    ),
   );
 }
 
@@ -6241,7 +7442,9 @@ class _UpcomingReservaCard extends StatelessWidget {
       child: InkWell(
         onTap: () {
           if (codigoQr != null && codigoQr.isNotEmpty) {
-            context.push('/reserva-confirmada/${Uri.encodeComponent(codigoQr)}');
+            context.push(
+              '/reserva-confirmada/${Uri.encodeComponent(codigoQr)}',
+            );
           } else {
             context.go('/mis-reservas');
           }
@@ -6316,14 +7519,30 @@ class _InfoPanel extends StatelessWidget {
   const _InfoPanel({required this.title, required this.body});
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(20)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(color: AppColors.black, fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          Text(body, style: const TextStyle(color: Color(0xFF8F877F), fontSize: 14)),
-        ]),
-      );
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppColors.black,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          body,
+          style: const TextStyle(color: Color(0xFF8F877F), fontSize: 14),
+        ),
+      ],
+    ),
+  );
 }
 
 // ─── Form helpers (sistema de diseno Aura para forms del panel estudio) ───
@@ -6363,9 +7582,11 @@ class _TipoOption extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Icon(icon,
-                color: selected ? AppColors.primary : AppColors.grey,
-                size: 22),
+            Icon(
+              icon,
+              color: selected ? AppColors.primary : AppColors.grey,
+              size: 22,
+            ),
             const SizedBox(height: 6),
             Text(
               label,
@@ -6481,26 +7702,20 @@ class _CollapsibleSectionCard extends StatelessWidget {
               ),
             ),
           ),
-          if (expanded) ...[
-            const SizedBox(height: 14),
-            ...children,
-          ],
+          if (expanded) ...[const SizedBox(height: 14), ...children],
         ],
       ),
     );
   }
 }
 
-InputDecoration _formInputDecoration({
-  required String label,
-  String? hint,
-}) {
+InputDecoration _formInputDecoration({required String label, String? hint}) {
   OutlineInputBorder border([Color? color]) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: color == null
-            ? BorderSide.none
-            : BorderSide(color: color, width: 1.5),
-      );
+    borderRadius: BorderRadius.circular(12),
+    borderSide: color == null
+        ? BorderSide.none
+        : BorderSide(color: color, width: 1.5),
+  );
   return InputDecoration(
     labelText: label,
     hintText: hint,
@@ -6512,8 +7727,7 @@ InputDecoration _formInputDecoration({
     border: border(),
     enabledBorder: border(),
     focusedBorder: border(AppColors.primary),
-    contentPadding:
-        const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
   );
 }
 
@@ -6578,8 +7792,10 @@ class _InstructorField extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 4),
           child: PopupMenuButton<String>(
             tooltip: 'Elegir profe',
-            icon: const Icon(Icons.arrow_drop_down_circle_outlined,
-                color: AppColors.primary),
+            icon: const Icon(
+              Icons.arrow_drop_down_circle_outlined,
+              color: AppColors.primary,
+            ),
             onSelected: (v) => controller.text = v,
             itemBuilder: (_) => profes
                 .map((p) => PopupMenuItem<String>(value: p, child: Text(p)))
@@ -6639,11 +7855,10 @@ class _AuraTapField extends StatelessWidget {
           children: [
             Icon(icon, size: 18, color: AppColors.primary),
             const SizedBox(width: 10),
-            Text(value,
-                style: const TextStyle(
-                  color: Color(0xFF1A1A1A),
-                  fontSize: 15,
-                )),
+            Text(
+              value,
+              style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 15),
+            ),
           ],
         ),
       ),
@@ -6668,11 +7883,10 @@ class _AuraReadOnlyField extends StatelessWidget {
       children: [
         InputDecorator(
           decoration: _formInputDecoration(label: label),
-          child: Text(value,
-              style: const TextStyle(
-                color: Color(0xFF1A1A1A),
-                fontSize: 15,
-              )),
+          child: Text(
+            value,
+            style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 15),
+          ),
         ),
         if (caption != null) ...[
           const SizedBox(height: 6),
@@ -6705,7 +7919,10 @@ class _FilaResumenGrilla extends StatelessWidget {
             child: Text(
               texto,
               style: const TextStyle(
-                  color: AppColors.black, fontSize: 13, height: 1.35),
+                color: AppColors.black,
+                fontSize: 13,
+                height: 1.35,
+              ),
             ),
           ),
         ],
@@ -6757,14 +7974,16 @@ class _EstudioInactivoBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFFFF1E8),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: AppColors.primary.withValues(alpha: 0.35)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.visibility_off_outlined,
-              size: 20, color: AppColors.primary),
+          Icon(
+            Icons.visibility_off_outlined,
+            size: 20,
+            color: AppColors.primary,
+          ),
           SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -6785,7 +8004,10 @@ class _EstudioInactivoBanner extends StatelessWidget {
                   'aparece todo. Escribinos a aura.hola.app@gmail.com '
                   'para activarlo.',
                   style: TextStyle(
-                      color: Color(0xFF6E5140), fontSize: 13, height: 1.4),
+                    color: Color(0xFF6E5140),
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
@@ -6816,8 +8038,7 @@ class _ServicioPrecioBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final servicio =
-        PricingCalculator.servicioDe(estudio, categorias).servicio;
+    final servicio = PricingCalculator.servicioDe(estudio, categorias).servicio;
     if (servicio == null) return const SizedBox.shrink();
     final detalle = PricingResult(
       creditos: servicio.creditos,
@@ -6836,8 +8057,7 @@ class _ServicioPrecioBanner extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.sell_outlined,
-                size: 18, color: AppColors.primary),
+            const Icon(Icons.sell_outlined, size: 18, color: AppColors.primary),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -6855,8 +8075,7 @@ class _ServicioPrecioBanner extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     detalle,
-                    style: const TextStyle(
-                        color: AppColors.grey, fontSize: 12),
+                    style: const TextStyle(color: AppColors.grey, fontSize: 12),
                   ),
                 ],
               ),
@@ -6922,7 +8141,8 @@ class _PrecioCalculadoField extends StatelessWidget {
       return const _AuraReadOnlyField(
         label: 'Créditos por clase',
         value: 'Sin configurar',
-        caption: 'Aura todavía no definió el precio de este estudio. '
+        caption:
+            'Aura todavía no definió el precio de este estudio. '
             'Escribinos para activarlo.',
       );
     }
@@ -6973,7 +8193,9 @@ class _PrecioCalculadoField extends StatelessWidget {
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(99),
@@ -7003,7 +8225,9 @@ class _PrecioCalculadoField extends StatelessWidget {
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: badgeColor,
                         borderRadius: BorderRadius.circular(99),
@@ -7032,10 +8256,13 @@ class _PrecioCalculadoField extends StatelessWidget {
               Text(
                 variaPorHorario
                     ? 'Cada clase de la grilla toma el precio de su día y '
-                        'horario: valle en los flojos, pico en el resto.'
+                          'horario: valle en los flojos, pico en el resto.'
                     : res.detalle,
                 style: const TextStyle(
-                    color: AppColors.grey, fontSize: 12, height: 1.35),
+                  color: AppColors.grey,
+                  fontSize: 12,
+                  height: 1.35,
+                ),
               ),
               if (!variaPorHorario) ...[
                 const SizedBox(height: 8),
@@ -7063,8 +8290,11 @@ class _VosRecibis extends StatelessWidget {
     final enGracia = !Liquidacion.cobraComision(estudio);
     return Row(
       children: [
-        const Icon(Icons.account_balance_wallet_outlined,
-            size: 15, color: AppColors.primary),
+        const Icon(
+          Icons.account_balance_wallet_outlined,
+          size: 15,
+          color: AppColors.primary,
+        ),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
@@ -7072,9 +8302,10 @@ class _VosRecibis extends StatelessWidget {
                 ? 'Vos recibís: ${_fmtPesosCr(neto)} (sin comisión por ahora)'
                 : 'Vos recibís: ${_fmtPesosCr(neto)}',
             style: const TextStyle(
-                color: AppColors.primary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600),
+              color: AppColors.primary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
@@ -7168,14 +8399,11 @@ class _ClaseGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final dt = DateTime.tryParse(clase['fecha']?.toString() ?? '');
     final hora = dt != null ? DateFormat('HH:mm').format(dt) : '--:--';
-    final diaStr = dt != null
-        ? '${_weekday[dt.weekday - 1]} ${dt.day}'
-        : '—';
+    final diaStr = dt != null ? '${_weekday[dt.weekday - 1]} ${dt.day}' : '—';
     final nombre = clase['nombre']?.toString() ?? 'Clase';
     final total = (clase['lugares_total'] as num?)?.toInt() ?? 0;
     final disp = (clase['lugares_disponibles'] as num?)?.toInt() ?? 0;
-    final ocupados =
-        total > 0 ? (total - disp).clamp(0, total) : 0;
+    final ocupados = total > 0 ? (total - disp).clamp(0, total) : 0;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -7196,8 +8424,7 @@ class _ClaseGridCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.blackSoft,
                   borderRadius: BorderRadius.circular(6),
@@ -7252,15 +8479,15 @@ class _ClaseGridCard extends StatelessWidget {
               height: 1.2,
             ),
           ),
-          if (esMiClase) ...[
-            const SizedBox(height: 6),
-            const _TuClaseBadge(),
-          ],
+          if (esMiClase) ...[const SizedBox(height: 6), const _TuClaseBadge()],
           const Spacer(),
           Row(
             children: [
-              const Icon(Icons.people_outline_rounded,
-                  color: Color(0xFF8F877F), size: 14),
+              const Icon(
+                Icons.people_outline_rounded,
+                color: Color(0xFF8F877F),
+                size: 14,
+              ),
               const SizedBox(width: 4),
               Text(
                 '$ocupados / $total cupos',
@@ -7385,16 +8612,13 @@ class _PlantillaFila extends StatelessWidget {
                   child: Center(
                     child: Text(
                       // Recortado: el texto completo va al campo editable.
-                      texto.length > 38
-                          ? '${texto.substring(0, 36)}…'
-                          : texto,
+                      texto.length > 38 ? '${texto.substring(0, 36)}…' : texto,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: activa ? acento : const Color(0xFF6A635D),
                         fontSize: 12,
-                        fontWeight:
-                            activa ? FontWeight.w600 : FontWeight.w400,
+                        fontWeight: activa ? FontWeight.w600 : FontWeight.w400,
                       ),
                     ),
                   ),
@@ -7417,7 +8641,6 @@ const int kMaxCategoriasClase = 5;
 /// criterio que `Estudio.parseCategorias`.
 List<String> _parseCategorias(Map<String, dynamic> row) =>
     Estudio.parseCategorias(row);
-
 
 /// Precio de un workshop expresado en PESOS que recibe el estudio.
 ///
@@ -7469,7 +8692,7 @@ class _WorkshopPrecioField extends StatelessWidget {
             monto <= 0
                 ? 'Poné el monto que querés recibir y calculamos los créditos.'
                 : 'Recibís ${money.format(monto)} · '
-                    'Cuesta $creditos crédito${creditos == 1 ? '' : 's'}',
+                      'Cuesta $creditos crédito${creditos == 1 ? '' : 's'}',
             style: const TextStyle(
               color: AppColors.primary,
               fontSize: 13,
@@ -7482,11 +8705,16 @@ class _WorkshopPrecioField extends StatelessWidget {
   }
 }
 
-
 // ─── Grilla: horarios por día ────────────────────────────────────────────────
 
 const Map<int, String> _kDiaCorto = {
-  1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb', 7: 'Dom',
+  1: 'Lun',
+  2: 'Mar',
+  3: 'Mié',
+  4: 'Jue',
+  5: 'Vie',
+  6: 'Sáb',
+  7: 'Dom',
 };
 
 int _minutoDe(TimeOfDay t) => t.hour * 60 + t.minute;
@@ -7520,9 +8748,9 @@ int _totalHorarios(Set<int> dias, Map<int, List<TimeOfDay>> horarios) {
 /// Time picker SIEMPRE en 24 h, sin importar el locale del teléfono. En 12 h
 /// una clase de las 13:30 se lee "1:30" y ya confundió a un estudio (25/8).
 Widget _builder24h(BuildContext c, Widget? child) => MediaQuery(
-      data: MediaQuery.of(c).copyWith(alwaysUse24HourFormat: true),
-      child: child ?? const SizedBox.shrink(),
-    );
+  data: MediaQuery.of(c).copyWith(alwaysUse24HourFormat: true),
+  child: child ?? const SizedBox.shrink(),
+);
 
 Future<TimeOfDay?> _pickHora24(BuildContext ctx, TimeOfDay initial) {
   return showTimePicker(
@@ -7540,6 +8768,7 @@ class _HorariosPorDiaEditor extends StatelessWidget {
   final Map<int, List<TimeOfDay>> horarios;
   final int duracionMin;
   final VoidCallback onChanged;
+
   /// Texto del chip. Por defecto la hora; el formulario le pasa hora + precio
   /// por franja para que el estudio VEA el ajuste pico/valle antes de crear.
   final String Function(int dia, TimeOfDay t)? etiqueta;
@@ -7567,49 +8796,56 @@ class _HorariosPorDiaEditor extends StatelessWidget {
     final elegidos = <int>{...destinos};
     final ok = await showDialog<bool>(
       context: ctx,
-      builder: (dctx) => StatefulBuilder(builder: (dctx, setS) {
-        return AlertDialog(
-          title: Text('Copiar ${_kDiaCorto[origen]} a…'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final d in destinos)
-                CheckboxListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  activeColor: AppColors.primary,
-                  value: elegidos.contains(d),
-                  title: Text(_kDiaCorto[d] ?? ''),
-                  subtitle: (horarios[d] ?? const []).isEmpty
-                      ? null
-                      : const Text('reemplaza lo que tiene',
-                          style: TextStyle(fontSize: 11)),
-                  onChanged: (v) => setS(() {
-                    if (v == true) {
-                      elegidos.add(d);
-                    } else {
-                      elegidos.remove(d);
-                    }
-                  }),
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(dctx, false),
-                child: const Text('Volver')),
-            ElevatedButton(
-              onPressed:
-                  elegidos.isEmpty ? null : () => Navigator.pop(dctx, true),
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white),
-              child: const Text('Copiar'),
+      builder: (dctx) => StatefulBuilder(
+        builder: (dctx, setS) {
+          return AlertDialog(
+            title: Text('Copiar ${_kDiaCorto[origen]} a…'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final d in destinos)
+                  CheckboxListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    activeColor: AppColors.primary,
+                    value: elegidos.contains(d),
+                    title: Text(_kDiaCorto[d] ?? ''),
+                    subtitle: (horarios[d] ?? const []).isEmpty
+                        ? null
+                        : const Text(
+                            'reemplaza lo que tiene',
+                            style: TextStyle(fontSize: 11),
+                          ),
+                    onChanged: (v) => setS(() {
+                      if (v == true) {
+                        elegidos.add(d);
+                      } else {
+                        elegidos.remove(d);
+                      }
+                    }),
+                  ),
+              ],
             ),
-          ],
-        );
-      }),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dctx, false),
+                child: const Text('Volver'),
+              ),
+              ElevatedButton(
+                onPressed: elegidos.isEmpty
+                    ? null
+                    : () => Navigator.pop(dctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Copiar'),
+              ),
+            ],
+          );
+        },
+      ),
     );
     if (ok != true) return;
     final src = List<TimeOfDay>.of(_lista(origen));
@@ -7637,117 +8873,126 @@ class _HorariosPorDiaEditor extends StatelessWidget {
 
     final ok = await showDialog<bool>(
       context: ctx,
-      builder: (dctx) => StatefulBuilder(builder: (dctx, setS) {
-        final n = franjas();
-        return AlertDialog(
-          title: const Text('Completar un rango'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Agrega una clase cada X minutos entre dos horas. Después podés sacar las que no quieras.',
-                  style: TextStyle(color: AppColors.grey, fontSize: 12),
-                ),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(
-                    child: _AuraTapField(
-                      label: 'Desde',
-                      value: _hhmmTop(desde),
-                      icon: Icons.schedule_rounded,
-                      onTap: () async {
-                        final p = await _pickHora24(dctx, desde);
-                        if (p != null) setS(() => desde = p);
-                      },
-                    ),
+      builder: (dctx) => StatefulBuilder(
+        builder: (dctx, setS) {
+          final n = franjas();
+          return AlertDialog(
+            title: const Text('Completar un rango'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Agrega una clase cada X minutos entre dos horas. Después podés sacar las que no quieras.',
+                    style: TextStyle(color: AppColors.grey, fontSize: 12),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _AuraTapField(
-                      label: 'Hasta',
-                      value: _hhmmTop(hasta),
-                      icon: Icons.schedule_rounded,
-                      onTap: () async {
-                        final p = await _pickHora24(dctx, hasta);
-                        if (p != null) setS(() => hasta = p);
-                      },
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 10),
-                _AuraDropdown<int>(
-                  label: 'Una clase cada',
-                  value: cada,
-                  items: const [
-                    DropdownMenuItem(value: 30, child: Text('30 min')),
-                    DropdownMenuItem(value: 45, child: Text('45 min')),
-                    DropdownMenuItem(value: 60, child: Text('60 min')),
-                    DropdownMenuItem(value: 75, child: Text('75 min')),
-                    DropdownMenuItem(value: 90, child: Text('90 min')),
-                    DropdownMenuItem(value: 120, child: Text('2 h')),
-                  ],
-                  onChanged: (v) => setS(() => cada = v ?? cada),
-                ),
-                const SizedBox(height: 10),
-                const Text('Para',
-                    style: TextStyle(
-                        color: Color(0xFF6E6761),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final d in dias)
-                      FilterChip(
-                        label: Text(_kDiaCorto[d] ?? ''),
-                        selected: elegidos.contains(d),
-                        selectedColor: const Color(0xFFFFF1E8),
-                        checkmarkColor: AppColors.primary,
-                        onSelected: (v) => setS(() {
-                          if (v) {
-                            elegidos.add(d);
-                          } else {
-                            elegidos.remove(d);
-                          }
-                        }),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _AuraTapField(
+                          label: 'Desde',
+                          value: _hhmmTop(desde),
+                          icon: Icons.schedule_rounded,
+                          onTap: () async {
+                            final p = await _pickHora24(dctx, desde);
+                            if (p != null) setS(() => desde = p);
+                          },
+                        ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  n == 0
-                      ? 'Con esos valores no entra ninguna clase.'
-                      : '$n clase${n != 1 ? 's' : ''} por día: ${_hhmmTop(desde)}'
-                          '${n > 1 ? ' … ${_hhmmTop(TimeOfDay(hour: (_minutoDe(desde) + cada * (n - 1)) ~/ 60, minute: (_minutoDe(desde) + cada * (n - 1)) % 60))}' : ''}',
-                  style: TextStyle(
-                    color: n == 0 ? Colors.red : AppColors.primary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _AuraTapField(
+                          label: 'Hasta',
+                          value: _hhmmTop(hasta),
+                          icon: Icons.schedule_rounded,
+                          onTap: () async {
+                            final p = await _pickHora24(dctx, hasta);
+                            if (p != null) setS(() => hasta = p);
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  _AuraDropdown<int>(
+                    label: 'Una clase cada',
+                    value: cada,
+                    items: const [
+                      DropdownMenuItem(value: 30, child: Text('30 min')),
+                      DropdownMenuItem(value: 45, child: Text('45 min')),
+                      DropdownMenuItem(value: 60, child: Text('60 min')),
+                      DropdownMenuItem(value: 75, child: Text('75 min')),
+                      DropdownMenuItem(value: 90, child: Text('90 min')),
+                      DropdownMenuItem(value: 120, child: Text('2 h')),
+                    ],
+                    onChanged: (v) => setS(() => cada = v ?? cada),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Para',
+                    style: TextStyle(
+                      color: Color(0xFF6E6761),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final d in dias)
+                        FilterChip(
+                          label: Text(_kDiaCorto[d] ?? ''),
+                          selected: elegidos.contains(d),
+                          selectedColor: const Color(0xFFFFF1E8),
+                          checkmarkColor: AppColors.primary,
+                          onSelected: (v) => setS(() {
+                            if (v) {
+                              elegidos.add(d);
+                            } else {
+                              elegidos.remove(d);
+                            }
+                          }),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    n == 0
+                        ? 'Con esos valores no entra ninguna clase.'
+                        : '$n clase${n != 1 ? 's' : ''} por día: ${_hhmmTop(desde)}'
+                              '${n > 1 ? ' … ${_hhmmTop(TimeOfDay(hour: (_minutoDe(desde) + cada * (n - 1)) ~/ 60, minute: (_minutoDe(desde) + cada * (n - 1)) % 60))}' : ''}',
+                    style: TextStyle(
+                      color: n == 0 ? Colors.red : AppColors.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
+            actions: [
+              TextButton(
                 onPressed: () => Navigator.pop(dctx, false),
-                child: const Text('Volver')),
-            ElevatedButton(
-              onPressed: (n == 0 || elegidos.isEmpty)
-                  ? null
-                  : () => Navigator.pop(dctx, true),
-              style: ElevatedButton.styleFrom(
+                child: const Text('Volver'),
+              ),
+              ElevatedButton(
+                onPressed: (n == 0 || elegidos.isEmpty)
+                    ? null
+                    : () => Navigator.pop(dctx, true),
+                style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white),
-              child: Text(n == 0 ? 'Completar' : 'Agregar $n por día'),
-            ),
-          ],
-        );
-      }),
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(n == 0 ? 'Completar' : 'Agregar $n por día'),
+              ),
+            ],
+          );
+        },
+      ),
     );
     if (ok != true) return;
     final a = _minutoDe(desde), b = _minutoDe(hasta);
@@ -7792,8 +9037,10 @@ class _HorariosPorDiaEditor extends StatelessWidget {
         if (dias.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 6),
-            child: Text('Marcá al menos un día.',
-                style: TextStyle(color: Color(0xFF9A928B), fontSize: 13)),
+            child: Text(
+              'Marcá al menos un día.',
+              style: TextStyle(color: Color(0xFF9A928B), fontSize: 13),
+            ),
           ),
         for (final d in dias) ...[
           const SizedBox(height: 8),
@@ -7805,10 +9052,9 @@ class _HorariosPorDiaEditor extends StatelessWidget {
             onAgregar: () async {
               final l = _lista(d);
               final p = await _pickHora24(
-                  context,
-                  l.isEmpty
-                      ? const TimeOfDay(hour: 8, minute: 0)
-                      : l.last);
+                context,
+                l.isEmpty ? const TimeOfDay(hour: 8, minute: 0) : l.last,
+              );
               if (p != null) _agregar(d, p);
             },
             onQuitar: (t) {
@@ -7851,7 +9097,8 @@ class _FilaDia extends StatelessWidget {
         color: _kFieldFill,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-            color: vacio ? const Color(0xFFF2B8A5) : const Color(0xFFE5E0DA)),
+          color: vacio ? const Color(0xFFF2B8A5) : const Color(0xFFE5E0DA),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -7874,9 +9121,10 @@ class _FilaDia extends StatelessWidget {
             child: vacio
                 ? const Padding(
                     padding: EdgeInsets.only(top: 8),
-                    child: Text('sin horarios',
-                        style: TextStyle(
-                            color: Color(0xFFC0392B), fontSize: 13)),
+                    child: Text(
+                      'sin horarios',
+                      style: TextStyle(color: Color(0xFFC0392B), fontSize: 13),
+                    ),
                   )
                 : Wrap(
                     spacing: 6,
@@ -7886,9 +9134,10 @@ class _FilaDia extends StatelessWidget {
                         InputChip(
                           label: Text(etiqueta(t)),
                           labelStyle: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.black),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.black,
+                          ),
                           backgroundColor: AppColors.white,
                           side: const BorderSide(color: Color(0xFFE5E0DA)),
                           visualDensity: VisualDensity.compact,
@@ -7901,8 +9150,10 @@ class _FilaDia extends StatelessWidget {
           IconButton(
             tooltip: 'Agregar horario',
             onPressed: onAgregar,
-            icon: const Icon(Icons.add_circle_outline_rounded,
-                color: AppColors.primary),
+            icon: const Icon(
+              Icons.add_circle_outline_rounded,
+              color: AppColors.primary,
+            ),
             visualDensity: VisualDensity.compact,
           ),
           if (puedeCopiar)
@@ -7927,10 +9178,9 @@ Widget debugHorariosPorDiaEditor({
   required Map<int, List<TimeOfDay>> horarios,
   int duracionMin = 60,
   VoidCallback? onChanged,
-}) =>
-    _HorariosPorDiaEditor(
-      dias: dias,
-      horarios: horarios,
-      duracionMin: duracionMin,
-      onChanged: onChanged ?? () {},
-    );
+}) => _HorariosPorDiaEditor(
+  dias: dias,
+  horarios: horarios,
+  duracionMin: duracionMin,
+  onChanged: onChanged ?? () {},
+);

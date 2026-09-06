@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 /// Pantalla a la que se llega desde el mail de "olvidé mi contraseña".
 ///
@@ -55,7 +56,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   Future<void> _canjearTokenSiHay() async {
     final auth = Supabase.instance.client.auth;
 
-    String? tokenHash = GoRouterState.of(context).uri.queryParameters['token_hash'];
+    String? tokenHash = GoRouterState.of(
+      context,
+    ).uri.queryParameters['token_hash'];
     tokenHash ??= Uri.base.queryParameters['token_hash'];
 
     if (tokenHash == null || tokenHash.isEmpty) {
@@ -106,8 +109,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Este link ya no sirve: vence a las 24 horas y se usa una sola '
-              'vez. Pedí uno nuevo desde "Olvidé mi contraseña".'),
+            'Este link ya no sirve: vence a las 24 horas y se usa una sola '
+            'vez. Pedí uno nuevo desde "Olvidé mi contraseña".',
+          ),
           duration: Duration(seconds: 6),
           backgroundColor: AppColors.error,
         ),
@@ -164,7 +168,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     if (_verificando) {
       return const Scaffold(
         backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        body: AnchoMaximo.formulario(
+          child: Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
+        ),
       );
     }
     if (_errorLink != null) {
@@ -176,7 +184,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.link_off_rounded, size: 48, color: AppColors.grey),
+              const Icon(
+                Icons.link_off_rounded,
+                size: 48,
+                color: AppColors.grey,
+              ),
               const SizedBox(height: 16),
               Text(
                 _errorLink!,
@@ -226,8 +238,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             TextFormField(
               controller: _confirmCtrl,
               obscureText: true,
-              decoration:
-                  const InputDecoration(labelText: 'Repetir contraseña'),
+              decoration: const InputDecoration(
+                labelText: 'Repetir contraseña',
+              ),
               validator: (value) {
                 if (value != _passwordCtrl.text) {
                   return 'Las contraseñas no coinciden.';

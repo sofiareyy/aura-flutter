@@ -9,6 +9,7 @@ import '../../utils/liquidacion.dart';
 import '../../utils/mes_argentino.dart';
 import '../../utils/datos_cobro.dart';
 import '../../services/admin_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class AdminLiquidacionesScreen extends StatefulWidget {
   const AdminLiquidacionesScreen({super.key});
@@ -64,7 +65,6 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
     final parts = mes.split('-');
     return DateTime(int.parse(parts[0]), int.parse(parts[1]), 1);
   }
-
 
   String _labelMes(String mes) {
     final d = _inicioMes(mes);
@@ -122,7 +122,8 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
     final reservas = await _client
         .from('reservas')
         .select(
-            'estado, creditos_usados, clases!reservas_clase_id_fkey(estudio_id, tipo)')
+          'estado, creditos_usados, clases!reservas_clase_id_fkey(estudio_id, tipo)',
+        )
         .inFilter('estado', AppConstants.estadosLiquidables)
         .gte('created_at', inicio)
         .lt('created_at', finExclusivo);
@@ -133,15 +134,19 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
     // Se aplanan para que Liquidacion.* reciba la misma forma de mapa.
     final estudiosRaw = await _client
         .from('estudios')
-        .select('id, nombre, fecha_inicio_cobro, '
-            'estudios_datos_cobro(comision_aura, comision_workshop, valor_credito)')
+        .select(
+          'id, nombre, fecha_inicio_cobro, '
+          'estudios_datos_cobro(comision_aura, comision_workshop, valor_credito)',
+        )
         .eq('activo', true)
         .order('nombre');
     final estudiosData = DatosCobro.aplanarLista(estudiosRaw as List);
 
     // 3. Traer liquidaciones ya registradas para este mes
-    final liquidaciones =
-        await _client.from('liquidaciones').select().eq('mes', mes);
+    final liquidaciones = await _client
+        .from('liquidaciones')
+        .select()
+        .eq('mes', mes);
 
     // 4. Índice de estudios (trae comisión, valor_credito, fecha_inicio_cobro)
     final Map<int, Map<String, dynamic>> estudioPorId = {
@@ -170,9 +175,11 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       };
       final cred = (r['creditos_usados'] as num?)?.toInt() ?? 0;
 
-      montoPagarPorEstudio[esId] = (montoPagarPorEstudio[esId] ?? 0) +
+      montoPagarPorEstudio[esId] =
+          (montoPagarPorEstudio[esId] ?? 0) +
           Liquidacion.netoReserva(reservaPlana, estudio);
-      montoBrutoPorEstudio[esId] = (montoBrutoPorEstudio[esId] ?? 0) +
+      montoBrutoPorEstudio[esId] =
+          (montoBrutoPorEstudio[esId] ?? 0) +
           cred * ValorCredito.deEstudio(estudio);
       reservasPorEstudio[esId] = (reservasPorEstudio[esId] ?? 0) + 1;
     }
@@ -267,8 +274,9 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
           (acc, l) => acc + ((l['monto_a_pagar'] as num?)?.toInt() ?? 0),
         );
         final cantEstudios = lista.length;
-        final completado =
-            lista.every((l) => l['estado']?.toString() == 'pagado');
+        final completado = lista.every(
+          (l) => l['estado']?.toString() == 'pagado',
+        );
         resumen.add({
           'mes': mes,
           'total_pagado': totalPagado,
@@ -298,11 +306,14 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
 
     try {
       if (liqId != null) {
-        await _client.from('liquidaciones').update({
-          'estado': 'pagado',
-          'fecha_pago': DateTime.now().toIso8601String(),
-          'comprobante_nota': nota.trim().isEmpty ? null : nota.trim(),
-        }).eq('id', liqId);
+        await _client
+            .from('liquidaciones')
+            .update({
+              'estado': 'pagado',
+              'fecha_pago': DateTime.now().toIso8601String(),
+              'comprobante_nota': nota.trim().isEmpty ? null : nota.trim(),
+            })
+            .eq('id', liqId);
       } else {
         await _client.from('liquidaciones').insert({
           'estudio_id': esId,
@@ -371,7 +382,10 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Enviar', style: TextStyle(color: AppColors.primary)),
+            child: const Text(
+              'Enviar',
+              style: TextStyle(color: AppColors.primary),
+            ),
           ),
         ],
       ),
@@ -391,16 +405,22 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg),
-          backgroundColor: errores == 0 ? const Color(0xFF1A1A1A) : AppColors.error,
+          backgroundColor: errores == 0
+              ? const Color(0xFF1A1A1A)
+              : AppColors.error,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+          content: Text(
+            'Error: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -424,7 +444,10 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Enviar', style: TextStyle(color: AppColors.primary)),
+            child: const Text(
+              'Enviar',
+              style: TextStyle(color: AppColors.primary),
+            ),
           ),
         ],
       ),
@@ -444,16 +467,22 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg),
-          backgroundColor: errores == 0 ? const Color(0xFF1A1A1A) : AppColors.error,
+          backgroundColor: errores == 0
+              ? const Color(0xFF1A1A1A)
+              : AppColors.error,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+          content: Text(
+            'Error: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -537,29 +566,31 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : _error != null
-              ? _buildError()
-              : RefreshIndicator(
-                  onRefresh: _cargar,
-                  child: ListView(
-                    children: [
-                      const SizedBox(height: 16),
-                      // Lo que se debe, SIEMPRE arriba y sin depender del
-                      // selector de mes. Ver `_cargarPendientes`.
-                      _buildPendientesSection(),
-                      _buildResumenCard(),
-                      const SizedBox(height: 20),
-                      ..._estudios.map(_buildEstudioCard),
-                      const SizedBox(height: 24),
-                      _buildHistorialSection(),
-                      const SizedBox(height: 32),
-                    ],
-                  ),
+      body: AnchoMaximo(
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : _error != null
+            ? _buildError()
+            : RefreshIndicator(
+                onRefresh: _cargar,
+                child: ListView(
+                  children: [
+                    const SizedBox(height: 16),
+                    // Lo que se debe, SIEMPRE arriba y sin depender del
+                    // selector de mes. Ver `_cargarPendientes`.
+                    _buildPendientesSection(),
+                    _buildResumenCard(),
+                    const SizedBox(height: 20),
+                    ..._estudios.map(_buildEstudioCard),
+                    const SizedBox(height: 24),
+                    _buildHistorialSection(),
+                    const SizedBox(height: 32),
+                  ],
                 ),
+              ),
+      ),
     );
   }
 
@@ -641,8 +672,11 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                size: 48, color: AppColors.grey),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 48,
+              color: AppColors.grey,
+            ),
             const SizedBox(height: 12),
             Text(
               _error!,
@@ -658,8 +692,9 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
   }
 
   Widget _buildResumenCard() {
-    final pendientes =
-        _estudios.where((e) => e['estado'] == 'pendiente').toList();
+    final pendientes = _estudios
+        .where((e) => e['estado'] == 'pendiente')
+        .toList();
     final totalPendiente = pendientes.fold<int>(
       0,
       (acc, e) => acc + (e['monto_pagar'] as int),
@@ -714,7 +749,9 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
                     )
                   : const Icon(Icons.send_rounded, size: 16),
               label: Text(
-                _enviandoAviso ? 'Enviando...' : 'Enviar aviso de cobro manualmente',
+                _enviandoAviso
+                    ? 'Enviando...'
+                    : 'Enviar aviso de cobro manualmente',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               style: ElevatedButton.styleFrom(
@@ -744,7 +781,9 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
                     )
                   : const Icon(Icons.bar_chart_rounded, size: 16),
               label: Text(
-                _enviandoReporte ? 'Enviando...' : 'Enviar reporte mensual manualmente',
+                _enviandoReporte
+                    ? 'Enviando...'
+                    : 'Enviar reporte mensual manualmente',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               style: ElevatedButton.styleFrom(
@@ -914,9 +953,7 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _historialExpanded
-                        ? 'Ocultar historial'
-                        : 'Ver historial',
+                    _historialExpanded ? 'Ocultar historial' : 'Ver historial',
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,
@@ -1160,8 +1197,7 @@ class _PagoSheetState extends State<_PagoSheet> {
               maxLines: 3,
               style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A1A)),
               decoration: InputDecoration(
-                hintText:
-                    'Ej: Transferencia CBU 1234, comprobante MP #XXXXX',
+                hintText: 'Ej: Transferencia CBU 1234, comprobante MP #XXXXX',
                 hintStyle: const TextStyle(
                   color: Color(0xFF9A928B),
                   fontSize: 14,

@@ -10,6 +10,7 @@ import '../../services/admin_service.dart';
 import '../../services/media_upload_service.dart';
 import '../../widgets/categorias_checklist.dart';
 import 'admin_pricing_screen.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class AdminEstudiosScreen extends StatefulWidget {
   const AdminEstudiosScreen({super.key});
@@ -83,11 +84,11 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
         content: Text(
           activo
               ? 'Desactivar lo oculta de la app y se puede volver a activar '
-                  'cuando quieras. Eliminar lo borra para siempre, con sus '
-                  'clases, reservas y liquidaciones.'
+                    'cuando quieras. Eliminar lo borra para siempre, con sus '
+                    'clases, reservas y liquidaciones.'
               : 'Este estudio ya está desactivado: no aparece en la app. '
-                  'Eliminar lo borra para siempre, con sus clases, reservas '
-                  'y liquidaciones.',
+                    'Eliminar lo borra para siempre, con sus clases, reservas '
+                    'y liquidaciones.',
           style: const TextStyle(height: 1.45),
         ),
         actions: [
@@ -116,7 +117,9 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
         ],
       ),
     );
-    if (!mounted || paso1 == null || paso1 == DecisionEliminarEstudio.cancelar) {
+    if (!mounted ||
+        paso1 == null ||
+        paso1 == DecisionEliminarEstudio.cancelar) {
       return;
     }
     if (paso1 == DecisionEliminarEstudio.desactivar) {
@@ -196,34 +199,45 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
   }
 
   Future<void> _openForm([Map<String, dynamic>? estudio]) async {
-    final nombreCtrl =
-        TextEditingController(text: estudio?['nombre']?.toString() ?? '');
-    final barrioCtrl =
-        TextEditingController(text: estudio?['barrio']?.toString() ?? '');
-    final direccionCtrl =
-        TextEditingController(text: estudio?['direccion']?.toString() ?? '');
-    final descripcionCtrl =
-        TextEditingController(text: estudio?['descripcion']?.toString() ?? '');
-    final fotoCtrl =
-        TextEditingController(text: estudio?['foto_url']?.toString() ?? '');
-    final instagramCtrl =
-        TextEditingController(text: estudio?['instagram']?.toString() ?? '');
-    final whatsappCtrl =
-        TextEditingController(text: estudio?['whatsapp']?.toString() ?? '');
-    final webCtrl =
-        TextEditingController(text: estudio?['web']?.toString() ?? '');
-    final latCtrl =
-        TextEditingController(text: estudio?['lat']?.toString() ?? '');
-    final lngCtrl =
-        TextEditingController(text: estudio?['lng']?.toString() ?? '');
+    final nombreCtrl = TextEditingController(
+      text: estudio?['nombre']?.toString() ?? '',
+    );
+    final barrioCtrl = TextEditingController(
+      text: estudio?['barrio']?.toString() ?? '',
+    );
+    final direccionCtrl = TextEditingController(
+      text: estudio?['direccion']?.toString() ?? '',
+    );
+    final descripcionCtrl = TextEditingController(
+      text: estudio?['descripcion']?.toString() ?? '',
+    );
+    final fotoCtrl = TextEditingController(
+      text: estudio?['foto_url']?.toString() ?? '',
+    );
+    final instagramCtrl = TextEditingController(
+      text: estudio?['instagram']?.toString() ?? '',
+    );
+    final whatsappCtrl = TextEditingController(
+      text: estudio?['whatsapp']?.toString() ?? '',
+    );
+    final webCtrl = TextEditingController(
+      text: estudio?['web']?.toString() ?? '',
+    );
+    final latCtrl = TextEditingController(
+      text: estudio?['lat']?.toString() ?? '',
+    );
+    final lngCtrl = TextEditingController(
+      text: estudio?['lng']?.toString() ?? '',
+    );
     final comisionCtrl = TextEditingController(
       text: (estudio?['comision_aura'] as num?)?.toInt().toString() ?? '30',
     );
     final comisionWorkshopCtrl = TextEditingController(
       text: (estudio?['comision_workshop'] as num?)?.toInt().toString() ?? '15',
     );
-    final cbuCtrl =
-        TextEditingController(text: estudio?['cbu']?.toString() ?? '');
+    final cbuCtrl = TextEditingController(
+      text: estudio?['cbu']?.toString() ?? '',
+    );
 
     // Tipo de precio por estudio (fijo / rango). Editable solo desde acá.
     String tipoPrecio = estudio?['tipo_precio']?.toString() ?? 'rango';
@@ -295,8 +309,9 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                   const _FormSectionHeader('UBICACIÓN Y CONTACTO'),
                   TextField(
                     controller: direccionCtrl,
-                    decoration:
-                        const InputDecoration(labelText: 'Dirección exacta'),
+                    decoration: const InputDecoration(
+                      labelText: 'Dirección exacta',
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Row(
@@ -308,8 +323,9 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                             decimal: true,
                             signed: true,
                           ),
-                          decoration:
-                              const InputDecoration(labelText: 'Latitud'),
+                          decoration: const InputDecoration(
+                            labelText: 'Latitud',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -320,8 +336,9 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                             decimal: true,
                             signed: true,
                           ),
-                          decoration:
-                              const InputDecoration(labelText: 'Longitud'),
+                          decoration: const InputDecoration(
+                            labelText: 'Longitud',
+                          ),
                         ),
                       ),
                     ],
@@ -376,8 +393,9 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                   const _FormSectionHeader('FOTO'),
                   TextField(
                     controller: fotoCtrl,
-                    decoration:
-                        const InputDecoration(labelText: 'URL de imagen'),
+                    decoration: const InputDecoration(
+                      labelText: 'URL de imagen',
+                    ),
                     onChanged: (_) => setLocal(() {}),
                   ),
                   const SizedBox(height: 10),
@@ -418,7 +436,7 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                       onPressed: () async {
                         final currentUserId =
                             Supabase.instance.client.auth.currentUser?.id ??
-                                'admin';
+                            'admin';
                         final url = await _mediaUploadService.pickAndUpload(
                           bucket: 'study-media',
                           folder: 'logos',
@@ -506,8 +524,8 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                         fechaInicioCobro == null
                             ? 'Sin fecha (cobra desde siempre)'
                             : '${fechaInicioCobro!.day.toString().padLeft(2, '0')}/'
-                                '${fechaInicioCobro!.month.toString().padLeft(2, '0')}/'
-                                '${fechaInicioCobro!.year}',
+                                  '${fechaInicioCobro!.month.toString().padLeft(2, '0')}/'
+                                  '${fechaInicioCobro!.year}',
                         style: TextStyle(
                           color: fechaInicioCobro == null
                               ? AppColors.grey
@@ -568,8 +586,7 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                       ],
                       decoration: const InputDecoration(
                         labelText: 'Créditos por clase',
-                        helperText:
-                            'Todas las clases del estudio valen esto.',
+                        helperText: 'Todas las clases del estudio valen esto.',
                         suffixText: 'cr',
                       ),
                     )
@@ -688,8 +705,8 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
       fechaInicioCobro: fechaInicioCobro == null
           ? null
           : '${fechaInicioCobro!.year}-'
-              '${fechaInicioCobro!.month.toString().padLeft(2, '0')}-'
-              '${fechaInicioCobro!.day.toString().padLeft(2, '0')}',
+                '${fechaInicioCobro!.month.toString().padLeft(2, '0')}-'
+                '${fechaInicioCobro!.day.toString().padLeft(2, '0')}',
     );
 
     // Si cambió el precio de un estudio existente, ofrecer propagarlo a las
@@ -699,7 +716,8 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     final nuevoMax = tipoPrecio == 'fijo'
         ? nuevoMin
         : int.tryParse(creditosMaxCtrl.text.trim());
-    final precioCambio = tipoPrecio != origTipoPrecio ||
+    final precioCambio =
+        tipoPrecio != origTipoPrecio ||
         nuevoMin != origMin ||
         nuevoMax != origMax;
     if (estudioId != null && precioCambio && nuevoMin != null) {
@@ -749,14 +767,14 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
     if (actualizar != true) return;
 
     try {
-      final n = await _service.recalcularPreciosEstudio(
-        estudioId: estudioId,
-      );
+      final n = await _service.recalcularPreciosEstudio(estudioId: estudioId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$n clase${n == 1 ? '' : 's'} '
-              'actualizada${n == 1 ? '' : 's'} con el nuevo precio.'),
+          content: Text(
+            '$n clase${n == 1 ? '' : 's'} '
+            'actualizada${n == 1 ? '' : 's'} con el nuevo precio.',
+          ),
           backgroundColor: AppColors.success,
         ),
       );
@@ -819,7 +837,8 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                     controller: emailCtrl,
                     decoration: const InputDecoration(
                       labelText: 'Email del estudio',
-                      helperText: 'Usá el REAL: sin él no puede recuperar la '
+                      helperText:
+                          'Usá el REAL: sin él no puede recuperar la '
                           'contraseña si la pierde. No se le manda mail de '
                           'verificación.',
                       helperMaxLines: 3,
@@ -841,11 +860,13 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                       labelText: 'Contraseña inicial',
                       helperText: 'Mínimo 6 caracteres',
                       suffixIcon: IconButton(
-                        icon: Icon(obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined),
-                        onPressed: () => setLocal(
-                            () => obscurePassword = !obscurePassword),
+                        icon: Icon(
+                          obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
+                        onPressed: () =>
+                            setLocal(() => obscurePassword = !obscurePassword),
                       ),
                     ),
                     validator: (v) => (v == null || v.length < 6)
@@ -905,8 +926,7 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                       }
                       setLocal(() => saving = true);
                       try {
-                        final res =
-                            await _service.crearEstudioConCuenta(
+                        final res = await _service.crearEstudioConCuenta(
                           estudioNombre: nombreCtrl.text,
                           email: emailCtrl.text.trim(),
                           password: passwordCtrl.text,
@@ -927,9 +947,9 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                         setLocal(() => saving = false);
                         ScaffoldMessenger.of(ctx).showSnackBar(
                           SnackBar(
-                            content: Text(e
-                                .toString()
-                                .replaceFirst('Exception: ', '')),
+                            content: Text(
+                              e.toString().replaceFirst('Exception: ', ''),
+                            ),
                             backgroundColor: AppColors.error,
                           ),
                         );
@@ -963,10 +983,7 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
       if (mounted && creado != null) {
         final estudioId = (creado!['estudio_id'] as num?)?.toInt();
         if (estudioId != null) {
-          await _mostrarPasoPricing(
-            estudioId: estudioId,
-            nombre: nombreFinal,
-          );
+          await _mostrarPasoPricing(estudioId: estudioId, nombre: nombreFinal);
         }
       }
       await _load();
@@ -988,10 +1005,7 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
           children: [
             Text(
               nombre,
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
             ),
             const SizedBox(height: 10),
             const Text(
@@ -1005,10 +1019,7 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
             const SizedBox(height: 16),
             const Text(
               'Lo que vas a configurar:',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
             ),
             const SizedBox(height: 6),
             const Text(
@@ -1059,8 +1070,11 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
       builder: (ctx) => AlertDialog(
         title: Row(
           children: const [
-            Icon(Icons.check_circle_rounded,
-                color: AppColors.success, size: 22),
+            Icon(
+              Icons.check_circle_rounded,
+              color: AppColors.success,
+              size: 22,
+            ),
             SizedBox(width: 8),
             Text('Estudio creado'),
           ],
@@ -1085,7 +1099,11 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
             const SizedBox(height: 12),
             const Text(
               'Una vez cerrado este diálogo no vamos a volver a mostrarte la contraseña en claro.',
-              style: TextStyle(color: AppColors.grey, fontSize: 11, height: 1.4),
+              style: TextStyle(
+                color: AppColors.grey,
+                fontSize: 11,
+                height: 1.4,
+              ),
             ),
           ],
         ),
@@ -1156,8 +1174,11 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                   value: 'con_cuenta',
                   child: Row(
                     children: [
-                      Icon(Icons.person_add_alt_1_rounded,
-                          size: 20, color: AppColors.black),
+                      Icon(
+                        Icons.person_add_alt_1_rounded,
+                        size: 20,
+                        color: AppColors.black,
+                      ),
                       SizedBox(width: 10),
                       Text('Crear con cuenta'),
                     ],
@@ -1167,8 +1188,11 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                   value: 'solo',
                   child: Row(
                     children: [
-                      Icon(Icons.add_business_rounded,
-                          size: 20, color: AppColors.primary),
+                      Icon(
+                        Icons.add_business_rounded,
+                        size: 20,
+                        color: AppColors.primary,
+                      ),
                       SizedBox(width: 10),
                       Text('Solo estudio'),
                     ],
@@ -1179,214 +1203,221 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-              children: [
-                const Text(
-                  'Alta, edición y estado general de los estudios publicados.',
-                  style: TextStyle(color: AppColors.grey),
-                ),
-                const SizedBox(height: 12),
-                const _InfoBanner(
-                  message:
-                      'Cada estudio puede tener una o varias cuentas operativas. Primero creás el estudio y después sumás accesos por email.',
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _searchCtrl,
-                  decoration: InputDecoration(
-                    hintText: 'Buscar estudios',
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.search),
-                      onPressed: _load,
-                    ),
+      body: AnchoMaximo(
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                children: [
+                  const Text(
+                    'Alta, edición y estado general de los estudios publicados.',
+                    style: TextStyle(color: AppColors.grey),
                   ),
-                  onSubmitted: (_) => _load(),
-                ),
-                const SizedBox(height: 16),
-                if (_error != null)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(18),
+                  const SizedBox(height: 12),
+                  const _InfoBanner(
+                    message:
+                        'Cada estudio puede tener una o varias cuentas operativas. Primero creás el estudio y después sumás accesos por email.',
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _searchCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'Buscar estudios',
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.search),
+                        onPressed: _load,
+                      ),
                     ),
-                    child: Text(
-                      'No se pudieron cargar los estudios.\n$_error',
-                      style: const TextStyle(color: AppColors.error),
-                    ),
-                  )
-                else if (_studios.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: const Text(
-                      'No hay estudios para mostrar todavía.',
-                      style: TextStyle(color: AppColors.grey),
-                    ),
-                  )
-                else
-                  ..._studios.map(
-                    (studio) => Container(
-                      margin: const EdgeInsets.only(bottom: 12),
+                    onSubmitted: (_) => _load(),
+                  ),
+                  const SizedBox(height: 16),
+                  if (_error != null)
+                    Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: AppColors.white,
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  studio['nombre']?.toString() ?? 'Sin nombre',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: (studio['activo'] == true
-                                          ? AppColors.success
-                                          : AppColors.grey)
-                                      .withValues(alpha: 0.14),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Text(
-                                  studio['activo'] == true
-                                      ? 'Activo'
-                                      : 'Inactivo',
-                                  style: TextStyle(
-                                    color: studio['activo'] == true
-                                        ? AppColors.success
-                                        : AppColors.grey,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              PopupMenuButton<String>(
-                                icon: const Icon(
-                                  Icons.more_vert,
-                                  color: AppColors.grey,
-                                ),
-                                onSelected: (value) {
-                                  if (value == 'eliminar') {
-                                    _confirmarEliminarEstudio(studio);
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  const PopupMenuItem<String>(
-                                    value: 'eliminar',
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.delete_outline,
-                                          color: AppColors.error,
-                                          size: 20,
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'Eliminar estudio',
-                                          style:
-                                              TextStyle(color: AppColors.error),
-                                        ),
-                                      ],
+                      child: Text(
+                        'No se pudieron cargar los estudios.\n$_error',
+                        style: const TextStyle(color: AppColors.error),
+                      ),
+                    )
+                  else if (_studios.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Text(
+                        'No hay estudios para mostrar todavía.',
+                        style: TextStyle(color: AppColors.grey),
+                      ),
+                    )
+                  else
+                    ..._studios.map(
+                      (studio) => Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    studio['nombre']?.toString() ??
+                                        'Sin nombre',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            [
-                              Estudio.parseCategorias(studio).join(', '),
-                              studio['barrio']?.toString() ?? '',
-                            ].where((e) => e.isNotEmpty).join(' · '),
-                            style: const TextStyle(color: AppColors.grey),
-                          ),
-                          const SizedBox(height: 12),
-                          if ((studio['admin_count'] as num?) != null)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: Text(
-                                '${(studio['admin_count'] as num).toInt()} acceso(s) vinculados',
-                                style: const TextStyle(
-                                  color: AppColors.grey,
-                                  fontSize: 13,
                                 ),
-                              ),
-                            ),
-                          if ((studio['admin_emails']?.toString() ?? '').isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: Text(
-                                'Accesos: ${studio['admin_emails']}',
-                                style: const TextStyle(
-                                  color: AppColors.grey,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            )
-                          else
-                            const Padding(
-                              padding: EdgeInsets.only(bottom: 10),
-                              child: Text(
-                                'Todavía no tiene una cuenta operativa vinculada.',
-                                style: TextStyle(
-                                  color: AppColors.grey,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: () => _openForm(studio),
-                                  child: const Text('Editar'),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: () => _abrirPricing(studio),
-                                  child: const Text('Precios'),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: () => _openLinkAccessDialog(studio),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: AppColors.black,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
                                   ),
-                                  child: const Text('Acceso'),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        (studio['activo'] == true
+                                                ? AppColors.success
+                                                : AppColors.grey)
+                                            .withValues(alpha: 0.14),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    studio['activo'] == true
+                                        ? 'Activo'
+                                        : 'Inactivo',
+                                    style: TextStyle(
+                                      color: studio['activo'] == true
+                                          ? AppColors.success
+                                          : AppColors.grey,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                PopupMenuButton<String>(
+                                  icon: const Icon(
+                                    Icons.more_vert,
+                                    color: AppColors.grey,
+                                  ),
+                                  onSelected: (value) {
+                                    if (value == 'eliminar') {
+                                      _confirmarEliminarEstudio(studio);
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    const PopupMenuItem<String>(
+                                      value: 'eliminar',
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.delete_outline,
+                                            color: AppColors.error,
+                                            size: 20,
+                                          ),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Eliminar estudio',
+                                            style: TextStyle(
+                                              color: AppColors.error,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              [
+                                Estudio.parseCategorias(studio).join(', '),
+                                studio['barrio']?.toString() ?? '',
+                              ].where((e) => e.isNotEmpty).join(' · '),
+                              style: const TextStyle(color: AppColors.grey),
+                            ),
+                            const SizedBox(height: 12),
+                            if ((studio['admin_count'] as num?) != null)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Text(
+                                  '${(studio['admin_count'] as num).toInt()} acceso(s) vinculados',
+                                  style: const TextStyle(
+                                    color: AppColors.grey,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
-                            ],
-                          ),
-                        ],
+                            if ((studio['admin_emails']?.toString() ?? '')
+                                .isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: Text(
+                                  'Accesos: ${studio['admin_emails']}',
+                                  style: const TextStyle(
+                                    color: AppColors.grey,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              )
+                            else
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 10),
+                                child: Text(
+                                  'Todavía no tiene una cuenta operativa vinculada.',
+                                  style: TextStyle(
+                                    color: AppColors.grey,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () => _openForm(studio),
+                                    child: const Text('Editar'),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () => _abrirPricing(studio),
+                                    child: const Text('Precios'),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () =>
+                                        _openLinkAccessDialog(studio),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.primary,
+                                      foregroundColor: AppColors.black,
+                                    ),
+                                    child: const Text('Acceso'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 }
@@ -1470,10 +1501,7 @@ class _InfoBanner extends StatelessWidget {
       ),
       child: Text(
         message,
-        style: const TextStyle(
-          color: AppColors.black,
-          height: 1.4,
-        ),
+        style: const TextStyle(color: AppColors.black, height: 1.4),
       ),
     );
   }
@@ -1523,8 +1551,9 @@ class _StudioAccessDialogState extends State<_StudioAccessDialog> {
       _error = null;
     });
     try {
-      final members =
-          await widget.service.listEstudioMembers(estudioId: widget.estudioId);
+      final members = await widget.service.listEstudioMembers(
+        estudioId: widget.estudioId,
+      );
       if (!mounted) return;
       setState(() {
         _members = members;
@@ -1532,8 +1561,10 @@ class _StudioAccessDialogState extends State<_StudioAccessDialog> {
       });
     } catch (e, st) {
       // Error exacto en consola para diagnóstico.
-      debugPrint('[accesos] error listando miembros del estudio '
-          '${widget.estudioId}: $e');
+      debugPrint(
+        '[accesos] error listando miembros del estudio '
+        '${widget.estudioId}: $e',
+      );
       debugPrintStack(stackTrace: st);
       if (!mounted) return;
       setState(() {
@@ -1608,8 +1639,10 @@ class _StudioAccessDialogState extends State<_StudioAccessDialog> {
     if (email == null) return;
     setState(() => _saving = true);
     try {
-      await widget.service
-          .linkEstudioAccess(estudioId: widget.estudioId, email: email);
+      await widget.service.linkEstudioAccess(
+        estudioId: widget.estudioId,
+        email: email,
+      );
       await _loadMembers();
       await widget.onChanged();
       _snack('Admin agregado correctamente.');
@@ -1630,8 +1663,10 @@ class _StudioAccessDialogState extends State<_StudioAccessDialog> {
     if (email == null) return;
     setState(() => _saving = true);
     try {
-      await widget.service
-          .addEstudioProfe(estudioId: widget.estudioId, email: email);
+      await widget.service.addEstudioProfe(
+        estudioId: widget.estudioId,
+        email: email,
+      );
       await _loadMembers();
       await widget.onChanged();
       _snack('Profe agregada correctamente.');
@@ -1675,7 +1710,10 @@ class _StudioAccessDialogState extends State<_StudioAccessDialog> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Quitar', style: TextStyle(color: AppColors.error)),
+            child: const Text(
+              'Quitar',
+              style: TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),
@@ -1712,44 +1750,43 @@ class _StudioAccessDialogState extends State<_StudioAccessDialog> {
                 ),
               )
             : _error != null
-                ? Text(_error!, style: const TextStyle(color: AppColors.error))
-                : SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _AccessSection(
-                          title: 'ADMINISTRADORES DEL ESTUDIO',
-                          subtitle:
-                              'Acceso completo: clases, cobros y configuración.',
-                          members: _admins,
-                          emptyLabel: 'Todavía no hay administradores.',
-                          addLabel: 'Agregar admin',
-                          onAdd: _saving ? null : _addAdmin,
-                          saving: _saving,
-                          // A un admin se lo puede convertir en profe.
-                          otherRoleLabel: 'Convertir en profe',
-                          onChangeRole: (m) => _cambiarRol(m, 'profe'),
-                          onRemove: _removeMember,
-                        ),
-                        const SizedBox(height: 20),
-                        _AccessSection(
-                          title: 'PROFES DEL ESTUDIO',
-                          subtitle:
-                              'Vista limitada: solo Mis Clases y Asistencia.',
-                          members: _profes,
-                          emptyLabel: 'Todavía no hay profes.',
-                          addLabel: 'Agregar profe',
-                          onAdd: _saving ? null : _addProfe,
-                          saving: _saving,
-                          // A una profe se la puede promover a admin.
-                          otherRoleLabel: 'Convertir en admin',
-                          onChangeRole: (m) => _cambiarRol(m, 'admin_estudio'),
-                          onRemove: _removeMember,
-                        ),
-                      ],
+            ? Text(_error!, style: const TextStyle(color: AppColors.error))
+            : SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _AccessSection(
+                      title: 'ADMINISTRADORES DEL ESTUDIO',
+                      subtitle:
+                          'Acceso completo: clases, cobros y configuración.',
+                      members: _admins,
+                      emptyLabel: 'Todavía no hay administradores.',
+                      addLabel: 'Agregar admin',
+                      onAdd: _saving ? null : _addAdmin,
+                      saving: _saving,
+                      // A un admin se lo puede convertir en profe.
+                      otherRoleLabel: 'Convertir en profe',
+                      onChangeRole: (m) => _cambiarRol(m, 'profe'),
+                      onRemove: _removeMember,
                     ),
-                  ),
+                    const SizedBox(height: 20),
+                    _AccessSection(
+                      title: 'PROFES DEL ESTUDIO',
+                      subtitle: 'Vista limitada: solo Mis Clases y Asistencia.',
+                      members: _profes,
+                      emptyLabel: 'Todavía no hay profes.',
+                      addLabel: 'Agregar profe',
+                      onAdd: _saving ? null : _addProfe,
+                      saving: _saving,
+                      // A una profe se la puede promover a admin.
+                      otherRoleLabel: 'Convertir en admin',
+                      onChangeRole: (m) => _cambiarRol(m, 'admin_estudio'),
+                      onRemove: _removeMember,
+                    ),
+                  ],
+                ),
+              ),
       ),
       actions: [
         TextButton(
@@ -1861,8 +1898,11 @@ class _AccessSection extends StatelessWidget {
                         value: 'rol',
                         child: Row(
                           children: [
-                            const Icon(Icons.swap_horiz_rounded,
-                                size: 20, color: AppColors.grey),
+                            const Icon(
+                              Icons.swap_horiz_rounded,
+                              size: 20,
+                              color: AppColors.grey,
+                            ),
                             const SizedBox(width: 8),
                             Text(otherRoleLabel),
                           ],
@@ -1872,11 +1912,16 @@ class _AccessSection extends StatelessWidget {
                         value: 'eliminar',
                         child: Row(
                           children: [
-                            Icon(Icons.delete_outline,
-                                size: 20, color: AppColors.error),
+                            Icon(
+                              Icons.delete_outline,
+                              size: 20,
+                              color: AppColors.error,
+                            ),
                             SizedBox(width: 8),
-                            Text('Eliminar acceso',
-                                style: TextStyle(color: AppColors.error)),
+                            Text(
+                              'Eliminar acceso',
+                              style: TextStyle(color: AppColors.error),
+                            ),
                           ],
                         ),
                       ),

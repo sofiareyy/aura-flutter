@@ -12,6 +12,7 @@ import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/auth_service.dart';
 import '../../utils/destino_post_login.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -41,7 +42,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final uri = Uri.base;
     final query = uri.queryParameters['confirmed'];
     final fragment = uri.fragment;
-    final cameFromConfirmation = query == '1' ||
+    final cameFromConfirmation =
+        query == '1' ||
         query == 'true' ||
         fragment.contains('type=signup') ||
         fragment.contains('type=email_change');
@@ -98,13 +100,17 @@ class _LoginScreenState extends State<LoginScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar',
-                style: TextStyle(color: AppColors.grey)),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: AppColors.grey),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()),
-            child: const Text('Enviar',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            child: const Text(
+              'Enviar',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -113,9 +119,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (email == null || email.isEmpty) return;
     if (!email.contains('@') || !email.contains('.')) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ingresá un email válido.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Ingresá un email válido.')));
       return;
     }
     try {
@@ -135,8 +141,9 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Te enviamos un mail a $email para recuperar tu contraseña. '
-              'Revisá tu casilla o spam.'),
+            'Te enviamos un mail a $email para recuperar tu contraseña. '
+            'Revisá tu casilla o spam.',
+          ),
           backgroundColor: AppColors.success,
         ),
       );
@@ -146,8 +153,9 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Si ese email tiene una cuenta, te va a llegar el enlace de '
-              'recuperación.'),
+            'Si ese email tiene una cuenta, te va a llegar el enlace de '
+            'recuperación.',
+          ),
         ),
       );
     }
@@ -169,9 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await DestinoPostLogin.recordar(_volver);
       final launched = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: kIsWeb
-            ? AppConstants.auraWebUrl
-            : 'aura://login-callback',
+        redirectTo: kIsWeb ? AppConstants.auraWebUrl : 'aura://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
             : LaunchMode.externalApplication,
@@ -195,7 +201,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+          content: Text(
+            'Error: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -222,9 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await DestinoPostLogin.recordar(_volver);
       final launched = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.apple,
-        redirectTo: kIsWeb
-            ? AppConstants.auraWebUrl
-            : 'aura://login-callback',
+        redirectTo: kIsWeb ? AppConstants.auraWebUrl : 'aura://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
             : LaunchMode.externalApplication,
@@ -256,7 +262,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+          content: Text(
+            'Error: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -322,20 +330,28 @@ class _LoginScreenState extends State<LoginScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text('Validá tu cuenta'),
           content: const Text(
             'Todavía no validaste tu cuenta. Te mandamos un mail para '
             'confirmarla — puede figurar como remitente "Supabase" y estar en '
             'spam. Buscalo, abrilo y hacé clic en el link.\n\n'
             'Si no lo encontrás, reenvialo acá abajo.',
-            style: TextStyle(color: AppColors.black, fontSize: 14, height: 1.45),
+            style: TextStyle(
+              color: AppColors.black,
+              fontSize: 14,
+              height: 1.45,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: reenviando ? null : () => Navigator.of(ctx).pop(),
-              child: const Text('Cerrar',
-                  style: TextStyle(color: AppColors.grey)),
+              child: const Text(
+                'Cerrar',
+                style: TextStyle(color: AppColors.grey),
+              ),
             ),
             TextButton(
               onPressed: reenviando
@@ -352,7 +368,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                                'Te reenviamos el mail a $email. Revisá tu casilla y spam.'),
+                              'Te reenviamos el mail a $email. Revisá tu casilla y spam.',
+                            ),
                             backgroundColor: AppColors.success,
                           ),
                         );
@@ -361,17 +378,21 @@ class _LoginScreenState extends State<LoginScreen> {
                         if (ctx.mounted) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             SnackBar(
-                              content: Text(err.toString().contains('rate')
-                                  ? 'Esperá un momento antes de reenviar de nuevo.'
-                                  : 'No pudimos reenviar el mail. Probá en un momento.'),
+                              content: Text(
+                                err.toString().contains('rate')
+                                    ? 'Esperá un momento antes de reenviar de nuevo.'
+                                    : 'No pudimos reenviar el mail. Probá en un momento.',
+                              ),
                               backgroundColor: AppColors.error,
                             ),
                           );
                         }
                       }
                     },
-              child: Text(reenviando ? 'Reenviando…' : 'Reenviar mail',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              child: Text(
+                reenviando ? 'Reenviando…' : 'Reenviar mail',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),
@@ -383,264 +404,274 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.blackDeep,
-      body: SafeArea(
-        child: GestureDetector(
-          onTap: () => FocusScope.of(context).unfocus(),
-          behavior: HitTestBehavior.opaque,
-          child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              IconButton(
-                onPressed: () => context.go(kIsWeb ? '/landing' : '/onboarding'),
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: Color(0xFF5F5A56),
-                ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              const SizedBox(height: 28),
-              Row(
+      body: AnchoMaximo.formulario(
+        child: SafeArea(
+          child: GestureDetector(
+            onTap: () => FocusScope.of(context).unfocus(),
+            behavior: HitTestBehavior.opaque,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(10),
+                  IconButton(
+                    onPressed: () =>
+                        context.go(kIsWeb ? '/landing' : '/onboarding'),
+                    icon: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: Color(0xFF5F5A56),
                     ),
-                    child: Center(
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Container(
-                            width: 18,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: AppColors.blackDeep,
-                                width: 2,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(height: 28),
+                  Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Center(
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Container(
+                                width: 18,
+                                height: 18,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.blackDeep,
+                                    width: 2,
+                                  ),
+                                ),
                               ),
-                            ),
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.blackDeep,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ],
                           ),
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: AppColors.blackDeep,
-                              shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'AURA.',
+                        style: TextStyle(
+                          color: Color(0xFFF5F0E8),
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'Bienvenida de nuevo',
+                    style: TextStyle(
+                      color: Color(0xFFF2ECE5),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Ingresá a tu cuenta para seguir reservando',
+                    style: TextStyle(color: Color(0xFF6E6761), fontSize: 14),
+                  ),
+                  if (_emailConfirmedBanner) ...[
+                    const SizedBox(height: 18),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF153D2A),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: const Color(0xFF2EAA63),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: const [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            color: Color(0xFF6BD498),
+                            size: 18,
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Email confirmado. Ya podés ingresar.',
+                              style: TextStyle(
+                                color: Color(0xFFD2F3DE),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'AURA.',
-                    style: TextStyle(
-                      color: Color(0xFFF5F0E8),
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 28),
-              const Text(
-                'Bienvenida de nuevo',
-                style: TextStyle(
-                  color: Color(0xFFF2ECE5),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Ingresá a tu cuenta para seguir reservando',
-                style: TextStyle(
-                  color: Color(0xFF6E6761),
-                  fontSize: 14,
-                ),
-              ),
-              if (_emailConfirmedBanner) ...[
-                const SizedBox(height: 18),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF153D2A),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                        color: const Color(0xFF2EAA63), width: 1),
-                  ),
-                  child: Row(
-                    children: const [
-                      Icon(Icons.check_circle_rounded,
-                          color: Color(0xFF6BD498), size: 18),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Email confirmado. Ya podés ingresar.',
-                          style: TextStyle(
-                            color: Color(0xFFD2F3DE),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 28),
-              Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _AuthLabel('Email'),
-                    const SizedBox(height: 8),
-                    _DarkField(
-                      controller: _emailCtrl,
-                      hintText: 'valentina@gmail.com',
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value?.trim().isEmpty ?? true) {
-                          return 'Ingresá tu email';
-                        }
-                        return null;
-                      },
-                      focused: true,
-                    ),
-                    const SizedBox(height: 16),
-                    _AuthLabel('Contraseña'),
-                    const SizedBox(height: 8),
-                    _DarkField(
-                      controller: _passwordCtrl,
-                      hintText: '********',
-                      obscureText: _obscure,
-                      suffix: IconButton(
-                        onPressed: () => setState(() => _obscure = !_obscure),
-                        icon: Icon(
-                          _obscure
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                          color: const Color(0xFF6B655F),
-                          size: 18,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value?.isEmpty ?? true) {
-                          return 'Ingresá tu contraseña';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: GestureDetector(
-                        onTap: _recuperarContrasena,
-                        child: const Text(
-                          '¿Olvidaste tu contraseña?',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _loading ? null : _login,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.blackDeep,
-                          minimumSize: const Size.fromHeight(48),
-                        ),
-                        child: _loading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.blackDeep,
-                                ),
-                              )
-                            : const Text('Ingresar'),
-                      ),
-                    ),
                   ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: const [
-                  Expanded(child: Divider(color: Color(0xFF242424))),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 10),
-                    child: Text(
-                      'o ingresá con',
-                      style: TextStyle(
-                        color: Color(0xFF5F5953),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  Expanded(child: Divider(color: Color(0xFF242424))),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _SocialButton(
-                label: _loadingGoogle ? 'Conectando...' : 'Continuar con Google',
-                onTap: _loadingGoogle ? null : _loginWithGoogle,
-                loading: _loadingGoogle,
-              ),
-              const SizedBox(height: 10),
-              _AppleSignInButton(
-                onPressed: _loadingApple ? null : _loginWithApple,
-                loading: _loadingApple,
-                text: 'Continuar con Apple',
-              ),
-              const SizedBox(height: 22),
-              Center(
-                child: GestureDetector(
-                  onTap: () => context.go('/register'),
-                  child: RichText(
-                    text: const TextSpan(
+                  const SizedBox(height: 28),
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        TextSpan(
-                          text: '¿No tenés cuenta? ',
-                          style: TextStyle(
-                            color: Color(0xFF8A8179),
-                            fontSize: 14,
+                        _AuthLabel('Email'),
+                        const SizedBox(height: 8),
+                        _DarkField(
+                          controller: _emailCtrl,
+                          hintText: 'valentina@gmail.com',
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (value) {
+                            if (value?.trim().isEmpty ?? true) {
+                              return 'Ingresá tu email';
+                            }
+                            return null;
+                          },
+                          focused: true,
+                        ),
+                        const SizedBox(height: 16),
+                        _AuthLabel('Contraseña'),
+                        const SizedBox(height: 8),
+                        _DarkField(
+                          controller: _passwordCtrl,
+                          hintText: '********',
+                          obscureText: _obscure,
+                          suffix: IconButton(
+                            onPressed: () =>
+                                setState(() => _obscure = !_obscure),
+                            icon: Icon(
+                              _obscure
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: const Color(0xFF6B655F),
+                              size: 18,
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) {
+                              return 'Ingresá tu contraseña';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: GestureDetector(
+                            onTap: _recuperarContrasena,
+                            child: const Text(
+                              '¿Olvidaste tu contraseña?',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ),
                         ),
-                        TextSpan(
-                          text: 'Registrate',
-                          style: TextStyle(
-                            color: Color(0xFFF5F0E8),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _loading ? null : _login,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.blackDeep,
+                              minimumSize: const Size.fromHeight(48),
+                            ),
+                            child: _loading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.blackDeep,
+                                    ),
+                                  )
+                                : const Text('Ingresar'),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: const [
+                      Expanded(child: Divider(color: Color(0xFF242424))),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                          'o ingresá con',
+                          style: TextStyle(
+                            color: Color(0xFF5F5953),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: Color(0xFF242424))),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _SocialButton(
+                    label: _loadingGoogle
+                        ? 'Conectando...'
+                        : 'Continuar con Google',
+                    onTap: _loadingGoogle ? null : _loginWithGoogle,
+                    loading: _loadingGoogle,
+                  ),
+                  const SizedBox(height: 10),
+                  _AppleSignInButton(
+                    onPressed: _loadingApple ? null : _loginWithApple,
+                    loading: _loadingApple,
+                    text: 'Continuar con Apple',
+                  ),
+                  const SizedBox(height: 22),
+                  Center(
+                    child: GestureDetector(
+                      onTap: () => context.go('/register'),
+                      child: RichText(
+                        text: const TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '¿No tenés cuenta? ',
+                              style: TextStyle(
+                                color: Color(0xFF8A8179),
+                                fontSize: 14,
+                              ),
+                            ),
+                            TextSpan(
+                              text: 'Registrate',
+                              style: TextStyle(
+                                color: Color(0xFFF5F0E8),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
         ),
       ),
     );
@@ -699,15 +730,14 @@ class _DarkField extends StatelessWidget {
       ),
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: const TextStyle(
-          color: Color(0xFF8D857D),
-          fontSize: 15,
-        ),
+        hintStyle: const TextStyle(color: Color(0xFF8D857D), fontSize: 15),
         suffixIcon: suffix,
         filled: true,
         fillColor: const Color(0xFF171717),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
@@ -717,10 +747,7 @@ class _DarkField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: AppColors.primary,
-            width: 1.2,
-          ),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -783,11 +810,7 @@ class _SocialButton extends StatelessWidget {
   final VoidCallback? onTap;
   final bool loading;
 
-  const _SocialButton({
-    required this.label,
-    this.onTap,
-    this.loading = false,
-  });
+  const _SocialButton({required this.label, this.onTap, this.loading = false});
 
   @override
   Widget build(BuildContext context) {

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/reviews_service.dart';
 import '../../utils/resenas.dart';
+import '../../widgets/ancho_maximo.dart';
 
 /// Todas las reseñas de un estudio. UNA pantalla para las DOS puntas:
 ///
@@ -41,6 +42,7 @@ class _ResenasScreenState extends State<ResenasScreen> {
 
   Map<int, int> _desglose = const {};
   List<Map<String, dynamic>> _resenas = [];
+
   /// {usuario_id: nombre a mostrar}. El formato depende de quién mira: el
   /// estudio ve "Juana Sosa", la alumna "Juana S.".
   Map<String, String> _nombres = {};
@@ -136,87 +138,99 @@ class _ResenasScreenState extends State<ResenasScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(widget.esDueno
-            ? 'Tus reseñas'
-            : (widget.estudioNombre?.isNotEmpty == true
-                ? 'Reseñas de ${widget.estudioNombre}'
-                : 'Reseñas')),
+        title: Text(
+          widget.esDueno
+              ? 'Tus reseñas'
+              : (widget.estudioNombre?.isNotEmpty == true
+                    ? 'Reseñas de ${widget.estudioNombre}'
+                    : 'Reseñas'),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.pop(),
         ),
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary))
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(_error!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppColors.grey)),
-                  ),
-                )
-              : RefreshIndicator(
-                  color: AppColors.primary,
-                  onRefresh: _cargar,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-                    children: [
-                      _Resumen(
-                          promedio: promedio, total: total, desglose: _desglose),
-                      const SizedBox(height: 18),
-                      if (total > 0)
-                        _Filtros(
-                          desglose: _desglose,
-                          seleccionado: _filtro,
-                          onSeleccionar: _aplicarFiltro,
-                        ),
-                      const SizedBox(height: 16),
-                      if (_resenas.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 40),
-                          child: Center(
-                            child: Text(
-                              _filtro == null
-                                  ? 'Todavía no hay reseñas.'
-                                  : 'No hay reseñas de $_filtro estrella${_filtro == 1 ? '' : 's'}.',
-                              style: const TextStyle(color: AppColors.grey),
-                            ),
-                          ),
-                        )
-                      else ...[
-                        ..._resenas.map((r) => Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: ResenaCard(
-                                resena: r,
-                                nombre:
-                                    _nombres[r['usuario_id']?.toString()],
-                              ),
-                            )),
-                        if (_hayMas)
-                          Center(
-                            child: _loadingMore
-                                ? const Padding(
-                                    padding: EdgeInsets.all(12),
-                                    child: SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: AppColors.primary),
-                                    ),
-                                  )
-                                : TextButton(
-                                    onPressed: _cargarMas,
-                                    child: const Text('Cargar más'),
-                                  ),
-                          ),
-                      ],
-                    ],
+      body: AnchoMaximo(
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : _error != null
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    _error!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppColors.grey),
                   ),
                 ),
+              )
+            : RefreshIndicator(
+                color: AppColors.primary,
+                onRefresh: _cargar,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                  children: [
+                    _Resumen(
+                      promedio: promedio,
+                      total: total,
+                      desglose: _desglose,
+                    ),
+                    const SizedBox(height: 18),
+                    if (total > 0)
+                      _Filtros(
+                        desglose: _desglose,
+                        seleccionado: _filtro,
+                        onSeleccionar: _aplicarFiltro,
+                      ),
+                    const SizedBox(height: 16),
+                    if (_resenas.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: Text(
+                            _filtro == null
+                                ? 'Todavía no hay reseñas.'
+                                : 'No hay reseñas de $_filtro estrella${_filtro == 1 ? '' : 's'}.',
+                            style: const TextStyle(color: AppColors.grey),
+                          ),
+                        ),
+                      )
+                    else ...[
+                      ..._resenas.map(
+                        (r) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: ResenaCard(
+                            resena: r,
+                            nombre: _nombres[r['usuario_id']?.toString()],
+                          ),
+                        ),
+                      ),
+                      if (_hayMas)
+                        Center(
+                          child: _loadingMore
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                )
+                              : TextButton(
+                                  onPressed: _cargarMas,
+                                  child: const Text('Cargar más'),
+                                ),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+      ),
     );
   }
 }
@@ -228,8 +242,11 @@ class _Resumen extends StatelessWidget {
   final int total;
   final Map<int, int> desglose;
 
-  const _Resumen(
-      {required this.promedio, required this.total, required this.desglose});
+  const _Resumen({
+    required this.promedio,
+    required this.total,
+    required this.desglose,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -267,9 +284,13 @@ class _Resumen extends StatelessWidget {
                   children: [
                     SizedBox(
                       width: 26,
-                      child: Text('$estrella★',
-                          style: const TextStyle(
-                              color: AppColors.grey, fontSize: 12)),
+                      child: Text(
+                        '$estrella★',
+                        style: const TextStyle(
+                          color: AppColors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                     Expanded(
                       child: ClipRRect(
@@ -279,16 +300,21 @@ class _Resumen extends StatelessWidget {
                           minHeight: 7,
                           backgroundColor: const Color(0xFFF0EDE9),
                           valueColor: const AlwaysStoppedAnimation(
-                              AppColors.warning),
+                            AppColors.warning,
+                          ),
                         ),
                       ),
                     ),
                     SizedBox(
                       width: 26,
-                      child: Text('${desglose[estrella] ?? 0}',
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(
-                              color: AppColors.grey, fontSize: 12)),
+                      child: Text(
+                        '${desglose[estrella] ?? 0}',
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          color: AppColors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -322,13 +348,13 @@ class _Filtros extends StatelessWidget {
         child: GestureDetector(
           onTap: habilitado ? () => onSeleccionar(valor) : null,
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               color: activo ? AppColors.black : AppColors.white,
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
-                  color: activo ? AppColors.black : AppColors.warmBorder),
+                color: activo ? AppColors.black : AppColors.warmBorder,
+              ),
             ),
             child: Text(
               label,
@@ -386,11 +412,14 @@ class ResenaCard extends StatelessWidget {
     final editada = () {
       final c = DateTime.tryParse(resena['created_at']?.toString() ?? '');
       final u = DateTime.tryParse(resena['updated_at']?.toString() ?? '');
-      return c != null && u != null && u.isAfter(c.add(const Duration(minutes: 1)));
+      return c != null &&
+          u != null &&
+          u.isAfter(c.add(const Duration(minutes: 1)));
     }();
 
-    final fecha =
-        creada == null ? '' : DateFormat('d MMM', 'es').format(creada);
+    final fecha = creada == null
+        ? ''
+        : DateFormat('d MMM', 'es').format(creada);
     final subtitulo = [
       if (claseNombre != null && claseNombre.isNotEmpty)
         profe != null && profe.isNotEmpty

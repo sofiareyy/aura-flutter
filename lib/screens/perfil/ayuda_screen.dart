@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/aura_tokens.dart';
 import '../../widgets/soporte_card.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class AyudaScreen extends StatelessWidget {
   const AyudaScreen({super.key});
@@ -12,27 +13,29 @@ class AyudaScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Ayuda')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: const [
-          SoporteCard(),
-          SizedBox(height: 18),
-          _InfoCard(
-            title: 'Cómo reservar',
-            body:
-                'Explorá estudios, elegí una clase y confirmá tu reserva desde la ficha. Si no tenés créditos suficientes, Aura te va a mostrar opciones para cargar más o cambiar tu plan.',
-          ),
-          _InfoCard(
-            title: 'Cambios y cancelaciones',
-            body:
-                'Desde Mis reservas podés revisar tus próximas experiencias y abrir cada ticket. Si un estudio modifica su disponibilidad, vas a verlo reflejado ahí.',
-          ),
-          _InfoCard(
-            title: 'Planes y créditos',
-            body:
-                'Tus créditos y tu plan activo aparecen tanto en Home como en Perfil. Las compras de prueba pueden seguir marcadas como simuladas hasta cerrar la integración final de pagos.',
-          ),
-        ],
+      body: AnchoMaximo.formulario(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: const [
+            SoporteCard(),
+            SizedBox(height: 18),
+            _InfoCard(
+              title: 'Cómo reservar',
+              body:
+                  'Explorá estudios, elegí una clase y confirmá tu reserva desde la ficha. Si no tenés créditos suficientes, Aura te va a mostrar opciones para cargar más o cambiar tu plan.',
+            ),
+            _InfoCard(
+              title: 'Cambios y cancelaciones',
+              body:
+                  'Desde Mis reservas podés revisar tus próximas experiencias y abrir cada ticket. Si un estudio modifica su disponibilidad, vas a verlo reflejado ahí.',
+            ),
+            _InfoCard(
+              title: 'Planes y créditos',
+              body:
+                  'Tus créditos y tu plan activo aparecen tanto en Home como en Perfil. Las compras de prueba pueden seguir marcadas como simuladas hasta cerrar la integración final de pagos.',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -58,15 +61,15 @@ class _InfoCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: AuraTipo.cuerpo),
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: AuraTipo.cuerpo,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             body,
-            style: const TextStyle(
-              color: AppColors.grey,
-              height: 1.5,
-            ),
+            style: const TextStyle(color: AppColors.grey, height: 1.5),
           ),
         ],
       ),

@@ -8,6 +8,7 @@ import '../../utils/destino_post_login.dart';
 import '../../providers/app_provider.dart';
 import '../../services/usuarios_service.dart';
 import '../../widgets/soporte_card.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class PaymentResultScreen extends StatefulWidget {
   final String? pagoId;
@@ -104,13 +105,13 @@ class _PaymentResultScreenState extends State<PaymentResultScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: _loading
-                ? const _LoadingView()
-                : _buildResult(),
+      body: AnchoMaximo.formulario(
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: _loading ? const _LoadingView() : _buildResult(),
+            ),
           ),
         ),
       ),
@@ -222,10 +223,7 @@ class _FailureView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        TextButton(
-          onPressed: onHome,
-          child: const Text('Volver al inicio'),
-        ),
+        TextButton(onPressed: onHome, child: const Text('Volver al inicio')),
         const SizedBox(height: 16),
         const SoporteInlineHint(),
       ],
@@ -344,10 +342,7 @@ class _ConfirmErrorView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        TextButton(
-          onPressed: onHome,
-          child: const Text('Volver al inicio'),
-        ),
+        TextButton(onPressed: onHome, child: const Text('Volver al inicio')),
         const SizedBox(height: 16),
         const SoporteInlineHint(),
       ],

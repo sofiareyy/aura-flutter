@@ -13,6 +13,7 @@ import '../../providers/app_provider.dart';
 import '../../services/referidos_service.dart';
 import '../../utils/destino_post_login.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -63,9 +64,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await DestinoPostLogin.recordar(_volver);
       final launched = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: kIsWeb
-            ? AppConstants.auraWebUrl
-            : 'aura://login-callback',
+        redirectTo: kIsWeb ? AppConstants.auraWebUrl : 'aura://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
             : LaunchMode.externalApplication,
@@ -87,7 +86,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+          content: Text(
+            'Error: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -115,9 +116,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await DestinoPostLogin.recordar(_volver);
       final launched = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.apple,
-        redirectTo: kIsWeb
-            ? AppConstants.auraWebUrl
-            : 'aura://login-callback',
+        redirectTo: kIsWeb ? AppConstants.auraWebUrl : 'aura://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
             : LaunchMode.externalApplication,
@@ -147,7 +146,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+          content: Text(
+            'Error: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -173,21 +174,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
         await showDialog<void>(
           context: context,
           builder: (ctx) => AlertDialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: const Text('Revisá tu mail 🧡'),
             content: const Text(
               'Te enviamos un mail para validar tu cuenta. Puede figurar como '
               'remitente "Supabase" y estar en spam: buscalo, abrilo y tocá el '
               'link. Después iniciá sesión.',
-              style:
-                  TextStyle(color: AppColors.black, fontSize: 14, height: 1.45),
+              style: TextStyle(
+                color: AppColors.black,
+                fontSize: 14,
+                height: 1.45,
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Entendido',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
+                child: const Text(
+                  'Entendido',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ],
           ),
@@ -220,8 +227,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final uidNuevo = response.user?.id ?? '';
       if (refRaw.isNotEmpty && uidNuevo.isNotEmpty) {
         try {
-          await ReferidosService()
-              .aplicarCodigo(usuarioId: uidNuevo, codigo: refRaw);
+          await ReferidosService().aplicarCodigo(
+            usuarioId: uidNuevo,
+            codigo: refRaw,
+          );
         } catch (e) {
           // No frena el registro si el código es inválido/ya usado.
           debugPrint('[register] aplicarCodigo referido: $e');
@@ -234,7 +243,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-                'No pudimos canjear tu regalo. Probá desde Mis Créditos.'),
+              'No pudimos canjear tu regalo. Probá desde Mis Créditos.',
+            ),
           ),
         );
       }
@@ -262,10 +272,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   /// Abre una URL externa en Safari View Controller / in-app web view.
   Future<void> _abrirUrl(String url) async {
     try {
-      final ok = await launchUrl(
-        Uri.parse(url),
-        mode: LaunchMode.inAppWebView,
-      );
+      final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.inAppWebView);
       if (!ok && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -304,277 +311,285 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.blackDeep,
-      body: SafeArea(
-        child: GestureDetector(
-          onTap: () => FocusScope.of(context).unfocus(),
-          behavior: HitTestBehavior.opaque,
-          child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              IconButton(
-                onPressed: () => context.go(kIsWeb ? '/landing' : '/onboarding'),
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: Color(0xFF5F5A56),
-                ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              const SizedBox(height: 26),
-              const Text(
-                'Crear cuenta',
-                style: TextStyle(
-                  color: Color(0xFFF2ECE5),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Empezá a reservar con packs de créditos',
-                style: TextStyle(
-                  color: Color(0xFF6E6761),
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 28),
-              Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _AuthLabel('Nombre'),
-                    const SizedBox(height: 8),
-                    _DarkField(
-                      controller: _nombreCtrl,
-                      hintText: 'Valentina',
-                      validator: (value) {
-                        if (value?.trim().isEmpty ?? true) {
-                          return 'Ingresá tu nombre';
-                        }
-                        return null;
-                      },
+      body: AnchoMaximo.formulario(
+        child: SafeArea(
+          child: GestureDetector(
+            onTap: () => FocusScope.of(context).unfocus(),
+            behavior: HitTestBehavior.opaque,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  IconButton(
+                    onPressed: () =>
+                        context.go(kIsWeb ? '/landing' : '/onboarding'),
+                    icon: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: Color(0xFF5F5A56),
                     ),
-                    const SizedBox(height: 16),
-                    const _AuthLabel('Email'),
-                    const SizedBox(height: 8),
-                    _DarkField(
-                      controller: _emailCtrl,
-                      hintText: 'valentina@gmail.com',
-                      keyboardType: TextInputType.emailAddress,
-                      focused: true,
-                      validator: (value) {
-                        final email = value?.trim() ?? '';
-                        if (email.isEmpty) {
-                          return 'Ingresá tu email';
-                        }
-                        if (!_isValidEmail(email)) {
-                          return 'Email inválido';
-                        }
-                        return null;
-                      },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(height: 26),
+                  const Text(
+                    'Crear cuenta',
+                    style: TextStyle(
+                      color: Color(0xFFF2ECE5),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(height: 16),
-                    const _AuthLabel('Contraseña'),
-                    const SizedBox(height: 8),
-                    _DarkField(
-                      controller: _passwordCtrl,
-                      hintText: '********',
-                      obscureText: _obscure,
-                      suffix: IconButton(
-                        onPressed: () => setState(() => _obscure = !_obscure),
-                        icon: Icon(
-                          _obscure
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                          color: const Color(0xFF6B655F),
-                          size: 18,
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Empezá a reservar con packs de créditos',
+                    style: TextStyle(color: Color(0xFF6E6761), fontSize: 14),
+                  ),
+                  const SizedBox(height: 28),
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const _AuthLabel('Nombre'),
+                        const SizedBox(height: 8),
+                        _DarkField(
+                          controller: _nombreCtrl,
+                          hintText: 'Valentina',
+                          validator: (value) {
+                            if (value?.trim().isEmpty ?? true) {
+                              return 'Ingresá tu nombre';
+                            }
+                            return null;
+                          },
                         ),
-                      ),
-                      validator: (value) {
-                        if (value?.isEmpty ?? true) {
-                          return 'Ingresá una contraseña';
-                        }
-                        if ((value?.length ?? 0) < 6) {
-                          return 'Mínimo 6 caracteres';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    GestureDetector(
-                      onTap: () =>
-                          setState(() => _showCodigoRegalo = !_showCodigoRegalo),
-                      child: const Text(
-                        '¿Tenés un código de regalo?',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                        const SizedBox(height: 16),
+                        const _AuthLabel('Email'),
+                        const SizedBox(height: 8),
+                        _DarkField(
+                          controller: _emailCtrl,
+                          hintText: 'valentina@gmail.com',
+                          keyboardType: TextInputType.emailAddress,
+                          focused: true,
+                          validator: (value) {
+                            final email = value?.trim() ?? '';
+                            if (email.isEmpty) {
+                              return 'Ingresá tu email';
+                            }
+                            if (!_isValidEmail(email)) {
+                              return 'Email inválido';
+                            }
+                            return null;
+                          },
                         ),
-                      ),
-                    ),
-                    if (_showCodigoRegalo) ...[
-                      const SizedBox(height: 8),
-                      _DarkField(
-                        controller: _codigoRegaloCtrl,
-                        hintText: 'GIFT-XXXXXXXX',
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    GestureDetector(
-                      onTap: () => setState(
-                          () => _showCodigoReferido = !_showCodigoReferido),
-                      child: const Text(
-                        '¿Te invitó una amiga? Código de referido',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                        const SizedBox(height: 16),
+                        const _AuthLabel('Contraseña'),
+                        const SizedBox(height: 8),
+                        _DarkField(
+                          controller: _passwordCtrl,
+                          hintText: '********',
+                          obscureText: _obscure,
+                          suffix: IconButton(
+                            onPressed: () =>
+                                setState(() => _obscure = !_obscure),
+                            icon: Icon(
+                              _obscure
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: const Color(0xFF6B655F),
+                              size: 18,
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) {
+                              return 'Ingresá una contraseña';
+                            }
+                            if ((value?.length ?? 0) < 6) {
+                              return 'Mínimo 6 caracteres';
+                            }
+                            return null;
+                          },
                         ),
-                      ),
-                    ),
-                    if (_showCodigoReferido) ...[
-                      const SizedBox(height: 8),
-                      _DarkField(
-                        controller: _codigoReferidoCtrl,
-                        hintText: 'Código de tu amiga',
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Sumás 15 créditos con tu primera compra.',
-                        style: TextStyle(
-                            color: Color(0xFF5F5953), fontSize: 12),
-                      ),
-                    ],
-                    const SizedBox(height: 20),
-                    Row(
-                      children: const [
-                        Expanded(child: Divider(color: Color(0xFF242424))),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10),
-                          child: Text(
-                            'o registrate con',
+                        const SizedBox(height: 16),
+                        GestureDetector(
+                          onTap: () => setState(
+                            () => _showCodigoRegalo = !_showCodigoRegalo,
+                          ),
+                          child: const Text(
+                            '¿Tenés un código de regalo?',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (_showCodigoRegalo) ...[
+                          const SizedBox(height: 8),
+                          _DarkField(
+                            controller: _codigoRegaloCtrl,
+                            hintText: 'GIFT-XXXXXXXX',
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () => setState(
+                            () => _showCodigoReferido = !_showCodigoReferido,
+                          ),
+                          child: const Text(
+                            '¿Te invitó una amiga? Código de referido',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (_showCodigoReferido) ...[
+                          const SizedBox(height: 8),
+                          _DarkField(
+                            controller: _codigoReferidoCtrl,
+                            hintText: 'Código de tu amiga',
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Sumás 15 créditos con tu primera compra.',
                             style: TextStyle(
                               color: Color(0xFF5F5953),
                               fontSize: 12,
                             ),
                           ),
-                        ),
-                        Expanded(child: Divider(color: Color(0xFF242424))),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    _SocialButton(
-                      label: _loadingGoogle ? 'Conectando...' : 'Continuar con Google',
-                      onTap: _loadingGoogle ? null : _loginWithGoogle,
-                      loading: _loadingGoogle,
-                    ),
-                    const SizedBox(height: 10),
-                    _AppleSignInButton(
-                      onPressed: _loadingApple ? null : _loginWithApple,
-                      loading: _loadingApple,
-                      text: 'Registrarse con Apple',
-                    ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _loading ? null : _register,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.blackDeep,
-                          minimumSize: const Size.fromHeight(48),
-                        ),
-                        child: _loading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.blackDeep,
+                        ],
+                        const SizedBox(height: 20),
+                        Row(
+                          children: const [
+                            Expanded(child: Divider(color: Color(0xFF242424))),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10),
+                              child: Text(
+                                'o registrate con',
+                                style: TextStyle(
+                                  color: Color(0xFF5F5953),
+                                  fontSize: 12,
                                 ),
-                              )
-                            : const Text('Crear cuenta'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Center(
-                child: GestureDetector(
-                  onTap: () => context.go('/login'),
-                  child: RichText(
-                    text: const TextSpan(
-                      children: [
-                        TextSpan(
-                          text: '¿Ya tenés cuenta? ',
-                          style: TextStyle(
-                            color: Color(0xFF938A82),
-                            fontSize: 13,
-                          ),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: Color(0xFF242424))),
+                          ],
                         ),
-                        TextSpan(
-                          text: 'Ingresar',
-                          style: TextStyle(
-                            color: Color(0xFFF2ECE5),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                        const SizedBox(height: 14),
+                        _SocialButton(
+                          label: _loadingGoogle
+                              ? 'Conectando...'
+                              : 'Continuar con Google',
+                          onTap: _loadingGoogle ? null : _loginWithGoogle,
+                          loading: _loadingGoogle,
+                        ),
+                        const SizedBox(height: 10),
+                        _AppleSignInButton(
+                          onPressed: _loadingApple ? null : _loginWithApple,
+                          loading: _loadingApple,
+                          text: 'Registrarse con Apple',
+                        ),
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _loading ? null : _register,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.blackDeep,
+                              minimumSize: const Size.fromHeight(48),
+                            ),
+                            child: _loading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.blackDeep,
+                                    ),
+                                  )
+                                : const Text('Crear cuenta'),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Center(
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    GestureDetector(
-                      onTap: () => _abrirUrl(
-                          '${AppConstants.auraWebUrl}terms.html'),
-                      child: const Text(
-                        'Términos y condiciones',
-                        style: TextStyle(
-                          color: Color(0xFFE8763A),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          decoration: TextDecoration.underline,
+                  const SizedBox(height: 16),
+                  Center(
+                    child: GestureDetector(
+                      onTap: () => context.go('/login'),
+                      child: RichText(
+                        text: const TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '¿Ya tenés cuenta? ',
+                              style: TextStyle(
+                                color: Color(0xFF938A82),
+                                fontSize: 13,
+                              ),
+                            ),
+                            TextSpan(
+                              text: 'Ingresar',
+                              style: TextStyle(
+                                color: Color(0xFFF2ECE5),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    const Text(
-                      '   ·   ',
-                      style: TextStyle(
-                        color: Color(0xFF938A82),
-                        fontSize: 13,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => _abrirUrl(
-                          '${AppConstants.auraWebUrl}privacy.html'),
-                      child: const Text(
-                        'Política de privacidad',
-                        style: TextStyle(
-                          color: Color(0xFFE8763A),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          decoration: TextDecoration.underline,
+                  ),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: () =>
+                              _abrirUrl('${AppConstants.auraWebUrl}terms.html'),
+                          child: const Text(
+                            'Términos y condiciones',
+                            style: TextStyle(
+                              color: Color(0xFFE8763A),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
                         ),
-                      ),
+                        const Text(
+                          '   ·   ',
+                          style: TextStyle(
+                            color: Color(0xFF938A82),
+                            fontSize: 13,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => _abrirUrl(
+                            '${AppConstants.auraWebUrl}privacy.html',
+                          ),
+                          child: const Text(
+                            'Política de privacidad',
+                            style: TextStyle(
+                              color: Color(0xFFE8763A),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
         ),
       ),
     );
@@ -633,15 +648,14 @@ class _DarkField extends StatelessWidget {
       ),
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: const TextStyle(
-          color: Color(0xFF8D857D),
-          fontSize: 15,
-        ),
+        hintStyle: const TextStyle(color: Color(0xFF8D857D), fontSize: 15),
         suffixIcon: suffix,
         filled: true,
         fillColor: const Color(0xFF171717),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
@@ -651,10 +665,7 @@ class _DarkField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: AppColors.primary,
-            width: 1.2,
-          ),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -717,11 +728,7 @@ class _SocialButton extends StatelessWidget {
   final VoidCallback? onTap;
   final bool loading;
 
-  const _SocialButton({
-    required this.label,
-    this.onTap,
-    this.loading = false,
-  });
+  const _SocialButton({required this.label, this.onTap, this.loading = false});
 
   @override
   Widget build(BuildContext context) {

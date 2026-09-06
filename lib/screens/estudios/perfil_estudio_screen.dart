@@ -12,6 +12,7 @@ import '../../services/media_upload_service.dart';
 import '../../utils/datos_cobro.dart';
 import '../../widgets/categorias_checklist.dart';
 import '../../widgets/eliminar_cuenta_helper.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class PerfilEstudioScreen extends StatefulWidget {
   const PerfilEstudioScreen({super.key});
@@ -32,6 +33,7 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
   bool _uploadingGaleria = false;
   bool _guardandoCierres = false;
   bool _guardandoDescripcion = false;
+
   /// Las acciones destructivas arrancan colapsadas (FIX 4).
   bool _avanzadasAbiertas = false;
   String? _error;
@@ -128,8 +130,7 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
         _estudio = estudio;
         // La sección "Administradores" no debe listar profes (van en su
         // propia sección "Mis Profes").
-        _admins =
-            admins.where((a) => a['rol']?.toString() != 'profe').toList();
+        _admins = admins.where((a) => a['rol']?.toString() != 'profe').toList();
         _profes = profes;
         _loading = false;
         _error = estudio == null ? 'No encontramos datos del estudio.' : null;
@@ -321,9 +322,7 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
           controller: emailCtrl,
           autofocus: true,
           keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            hintText: 'Email del usuario',
-          ),
+          decoration: const InputDecoration(hintText: 'Email del usuario'),
         ),
         actions: [
           TextButton(
@@ -354,12 +353,11 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
     try {
       final res = await Supabase.instance.client.rpc(
         'studio_promote_user_to_admin',
-        params: {
-          'p_estudio_id': estudioId,
-          'p_email': email,
-        },
+        params: {'p_estudio_id': estudioId, 'p_email': email},
       );
-      final map = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+      final map = res is Map
+          ? Map<String, dynamic>.from(res)
+          : <String, dynamic>{};
       if (map['ok'] != true) {
         switch (map['error']?.toString()) {
           case 'user_not_found':
@@ -383,9 +381,9 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
     if (!mounted) return;
 
     if (errorMsg != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMsg)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorMsg)));
       return;
     }
 
@@ -418,9 +416,7 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
               controller: emailCtrl,
               autofocus: true,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                hintText: 'Email de la profe',
-              ),
+              decoration: const InputDecoration(hintText: 'Email de la profe'),
             ),
           ],
         ),
@@ -458,7 +454,8 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
       if (res['ok'] != true) {
         switch (res['error']?.toString()) {
           case 'user_not_found':
-            errorMsg = 'No existe una cuenta Aura con ese email. '
+            errorMsg =
+                'No existe una cuenta Aura con ese email. '
                 'Pedile que se registre primero.';
             break;
           case 'forbidden':
@@ -478,15 +475,15 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
     if (!mounted) return;
 
     if (errorMsg != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMsg)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorMsg)));
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profe agregada.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Profe agregada.')));
     await _cargar();
   }
 
@@ -627,11 +624,14 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
     if (guardar != true || !mounted) return;
 
     try {
-      await Supabase.instance.client.from('estudios').update({
-        'categorias': seleccion,
-        // Escalar sincronizado con la primera, para queries legacy.
-        'categoria': seleccion.first,
-      }).eq('id', _estudio!['id']);
+      await Supabase.instance.client
+          .from('estudios')
+          .update({
+            'categorias': seleccion,
+            // Escalar sincronizado con la primera, para queries legacy.
+            'categoria': seleccion.first,
+          })
+          .eq('id', _estudio!['id']);
       await _cargar();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -718,8 +718,9 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                 ),
               ),
               TextButton(
-                onPressed:
-                    habilitado ? () => Navigator.of(ctx).pop(true) : null,
+                onPressed: habilitado
+                    ? () => Navigator.of(ctx).pop(true)
+                    : null,
                 child: Text(
                   'Continuar',
                   style: TextStyle(
@@ -747,8 +748,9 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
   Future<void> _editarDescripcion() async {
     final estudioId = (_estudio?['id'] as num?)?.toInt();
     if (estudioId == null) return;
-    final ctrl =
-        TextEditingController(text: _estudio?['descripcion']?.toString() ?? '');
+    final ctrl = TextEditingController(
+      text: _estudio?['descripcion']?.toString() ?? '',
+    );
 
     final guardar = await showModalBottomSheet<bool>(
       context: context,
@@ -762,7 +764,11 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: EdgeInsets.fromLTRB(
-              20, 20, 20, MediaQuery.of(ctx).padding.bottom + 24),
+            20,
+            20,
+            20,
+            MediaQuery.of(ctx).padding.bottom + 24,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -770,9 +776,10 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
               const Text(
                 'Descripción del estudio',
                 style: TextStyle(
-                    color: AppColors.black,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700),
+                  color: AppColors.black,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 6),
               const Text(
@@ -816,9 +823,10 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
 
     setState(() => _guardandoDescripcion = true);
     try {
-      await Supabase.instance.client.from('estudios').update({
-        'descripcion': texto.isEmpty ? null : texto,
-      }).eq('id', estudioId);
+      await Supabase.instance.client
+          .from('estudios')
+          .update({'descripcion': texto.isEmpty ? null : texto})
+          .eq('id', estudioId);
       await _cargar();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -850,8 +858,10 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
     // Clamp al tope: si en la base quedó un valor viejo por encima de 12 hs,
     // el stepper lo baja al máximo en vez de mostrar algo que ya no se puede
     // guardar (el RPC y la constraint también lo rechazan).
-    int cancelacionHoras =
-        _horasDe('cancelacion_cierre_minutos', 12).clamp(0, _maxCancelacionHoras);
+    int cancelacionHoras = _horasDe(
+      'cancelacion_cierre_minutos',
+      12,
+    ).clamp(0, _maxCancelacionHoras);
 
     final guardar = await showModalBottomSheet<bool>(
       context: context,
@@ -892,7 +902,7 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                 helper: reservaHoras == 0
                     ? 'Se puede reservar hasta que la clase arranca.'
                     : 'Nadie puede reservar en las últimas '
-                        '$reservaHoras h antes de la clase.',
+                          '$reservaHoras h antes de la clase.',
                 value: reservaHoras,
                 maxHoras: 48,
                 onChanged: (v) => setSheet(() => reservaHoras = v),
@@ -903,10 +913,10 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                 helper: cancelacionHoras == 0
                     ? 'Se puede cancelar hasta que la clase arranca.'
                     : cancelacionHoras >= _maxCancelacionHoras
-                        ? 'Cancelar con menos de $cancelacionHoras h consume '
-                            'los créditos. Es el máximo permitido.'
-                        : 'Cancelar con menos de $cancelacionHoras h consume '
-                            'los créditos.',
+                    ? 'Cancelar con menos de $cancelacionHoras h consume '
+                          'los créditos. Es el máximo permitido.'
+                    : 'Cancelar con menos de $cancelacionHoras h consume '
+                          'los créditos.',
                 value: cancelacionHoras,
                 // Tope duro: el estudio puede BAJARLO, nunca subirlo de 12 hs.
                 maxHoras: _maxCancelacionHoras,
@@ -958,9 +968,11 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(ok
-            ? 'Configuración guardada.'
-            : 'No pudimos guardar la configuración.'),
+        content: Text(
+          ok
+              ? 'Configuración guardada.'
+              : 'No pudimos guardar la configuración.',
+        ),
         backgroundColor: ok ? null : AppColors.error,
       ),
     );
@@ -976,14 +988,18 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
   Future<void> _editarDatosBancarios() async {
     if (_estudio == null) return;
 
-    final titularCtrl =
-        TextEditingController(text: _estudio?['titular']?.toString() ?? '');
-    final bancoCtrl =
-        TextEditingController(text: _estudio?['banco']?.toString() ?? '');
-    final aliasCtrl =
-        TextEditingController(text: _estudio?['alias']?.toString() ?? '');
-    final cbuCtrl =
-        TextEditingController(text: _estudio?['cbu']?.toString() ?? '');
+    final titularCtrl = TextEditingController(
+      text: _estudio?['titular']?.toString() ?? '',
+    );
+    final bancoCtrl = TextEditingController(
+      text: _estudio?['banco']?.toString() ?? '',
+    );
+    final aliasCtrl = TextEditingController(
+      text: _estudio?['alias']?.toString() ?? '',
+    );
+    final cbuCtrl = TextEditingController(
+      text: _estudio?['cbu']?.toString() ?? '',
+    );
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
@@ -1076,10 +1092,10 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
       };
       // Los datos bancarios viven solo en estudios_datos_cobro: `estudios` es
       // el catálogo público y ya no tiene esas columnas.
-      await Supabase.instance.client
-          .from('estudios_datos_cobro')
-          .upsert({'estudio_id': _estudio!['id'], ...datos},
-              onConflict: 'estudio_id');
+      await Supabase.instance.client.from('estudios_datos_cobro').upsert({
+        'estudio_id': _estudio!['id'],
+        ...datos,
+      }, onConflict: 'estudio_id');
 
       await _cargar();
       if (mounted) {
@@ -1107,7 +1123,8 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (estudioId == null || userId == null) return;
 
-    final esUnicoAdmin = _admins.length == 1 &&
+    final esUnicoAdmin =
+        _admins.length == 1 &&
         (_admins.first['id']?.toString() ?? '') == userId;
 
     final confirm = await showDialog<bool>(
@@ -1201,253 +1218,64 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : SafeArea(
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => context.go('/estudio/dashboard'),
-                        icon: const Icon(Icons.arrow_back_rounded),
-                      ),
-                      const SizedBox(width: 4),
-                      const Text(
-                        'Perfil del estudio',
-                        style: TextStyle(
-                          color: AppColors.black,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
+      body: AnchoMaximo(
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : SafeArea(
+                child: ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => context.go('/estudio/dashboard'),
+                          icon: const Icon(Icons.arrow_back_rounded),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  if (_error != null) _ErrorCard(message: _error!),
-                  if (_error == null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Column(
-                        children: [
-                          if ((_estudio?['foto_url']?.toString() ?? '').isNotEmpty)
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: Image.network(
-                                _estudio!['foto_url'].toString(),
-                                width: 80,
-                                height: 80,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => _avatarFallback(),
-                              ),
-                            )
-                          else
-                            _avatarFallback(),
-                          const SizedBox(height: 12),
-                          OutlinedButton.icon(
-                            onPressed: _uploadingPhoto ? null : _subirFotoEstudio,
-                            icon: _uploadingPhoto
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: AppColors.primary,
-                                    ),
-                                  )
-                                : const Icon(Icons.photo_camera_outlined),
-                            label: const Text('Cambiar foto principal'),
+                        const SizedBox(width: 4),
+                        const Text(
+                          'Perfil del estudio',
+                          style: TextStyle(
+                            color: AppColors.black,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
                           ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _estudio?['nombre']?.toString() ?? 'Estudio',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.black,
-                            ),
-                          ),
-                          // Un estudio puede tener varias categorías: un pill
-                          // por cada una.
-                          if (_categoriasEstudio.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Wrap(
-                              spacing: 6,
-                              runSpacing: 6,
-                              alignment: WrapAlignment.center,
-                              children: _categoriasEstudio
-                                  .map(
-                                    (cat) => Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primaryLight,
-                                        borderRadius:
-                                            BorderRadius.circular(9999),
-                                      ),
-                                      child: Text(
-                                        cat,
-                                        style: const TextStyle(
-                                          color: AppColors.primary,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
-                          ],
-                          const SizedBox(height: 6),
-                          TextButton.icon(
-                            onPressed: _editarCategorias,
-                            icon: const Icon(Icons.edit_outlined, size: 16),
-                            label: Text(
-                              _categoriasEstudio.isEmpty
-                                  ? 'Elegir categorías'
-                                  : 'Editar categorías',
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                          ),
-                          if ((_estudio?['direccion']?.toString() ?? '').isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.location_on_rounded,
-                                  color: AppColors.grey,
-                                  size: 14,
-                                ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    _estudio?['direccion']?.toString() ?? '',
-                                    style: const TextStyle(
-                                      color: AppColors.grey,
-                                      fontSize: 13,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 20),
-                    const Padding(
-                      padding: EdgeInsets.only(left: 4, bottom: 10),
-                      child: Text(
-                        'GALERÍA DEL LUGAR',
-                        style: TextStyle(
-                          color: AppColors.grey,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1,
+                    if (_error != null) _ErrorCard(message: _error!),
+                    if (_error == null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Mostrale al usuario cómo es tu estudio. Estas fotos NO son las de las clases.',
-                            style: TextStyle(
-                              color: AppColors.grey,
-                              fontSize: 13,
-                              height: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          if (_galeriaUrls.isEmpty)
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 22),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF7F3EE),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              alignment: Alignment.center,
-                              child: const Text(
-                                'Todavía no hay fotos.',
-                                style: TextStyle(
-                                  color: AppColors.grey,
-                                  fontSize: 13,
+                        child: Column(
+                          children: [
+                            if ((_estudio?['foto_url']?.toString() ?? '')
+                                .isNotEmpty)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: Image.network(
+                                  _estudio!['foto_url'].toString(),
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      _avatarFallback(),
                                 ),
-                              ),
-                            )
-                          else
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: _galeriaUrls.map((url) {
-                                return Stack(
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Image.network(
-                                        url,
-                                        width: 96,
-                                        height: 96,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => Container(
-                                          width: 96,
-                                          height: 96,
-                                          color: const Color(0xFFEDE7E1),
-                                          child: const Icon(
-                                            Icons.image_not_supported_outlined,
-                                            color: AppColors.grey,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    Positioned(
-                                      top: 2,
-                                      right: 2,
-                                      child: GestureDetector(
-                                        onTap: () => _eliminarFotoGaleria(url),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: const BoxDecoration(
-                                            color: Colors.black54,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.close_rounded,
-                                            color: Colors.white,
-                                            size: 14,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              }).toList(),
-                            ),
-                          const SizedBox(height: 14),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: _uploadingGaleria
+                              )
+                            else
+                              _avatarFallback(),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              onPressed: _uploadingPhoto
                                   ? null
-                                  : _subirFotoGaleria,
-                              icon: _uploadingGaleria
+                                  : _subirFotoEstudio,
+                              icon: _uploadingPhoto
                                   ? const SizedBox(
                                       width: 16,
                                       height: 16,
@@ -1456,380 +1284,585 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                                         color: AppColors.primary,
                                       ),
                                     )
-                                  : const Icon(Icons.add_photo_alternate_outlined),
-                              label: Text(
-                                _uploadingGaleria
-                                    ? 'Subiendo…'
-                                    : 'Agregar foto a la galería',
+                                  : const Icon(Icons.photo_camera_outlined),
+                              label: const Text('Cambiar foto principal'),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _estudio?['nombre']?.toString() ?? 'Estudio',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.black,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Padding(
-                      padding: EdgeInsets.only(left: 4, bottom: 10),
-                      child: Text(
-                        'ADMINISTRADORES',
-                        style: TextStyle(
-                          color: AppColors.grey,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        children: [
-                          if (_admins.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.all(20),
-                              child: Text(
-                                'Todavía no hay otros administradores asociados.',
-                                style: TextStyle(
-                                  color: AppColors.grey,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ..._admins.asMap().entries.map((entry) {
-                            final admin = entry.value;
-                            final nombre =
-                                admin['nombre']?.toString() ?? 'Sin nombre';
-                            final isLast = entry.key == _admins.length - 1;
-                            return Column(
-                              children: [
-                                ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: AppColors.primaryLight,
-                                    child: Text(
-                                      nombre.isNotEmpty
-                                          ? nombre[0].toUpperCase()
-                                          : 'A',
-                                      style: const TextStyle(
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.w700,
+                            // Un estudio puede tener varias categorías: un pill
+                            // por cada una.
+                            if (_categoriasEstudio.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                alignment: WrapAlignment.center,
+                                children: _categoriasEstudio
+                                    .map(
+                                      (cat) => Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primaryLight,
+                                          borderRadius: BorderRadius.circular(
+                                            9999,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          cat,
+                                          style: const TextStyle(
+                                            color: AppColors.primary,
+                                            fontSize: 12,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                  title: Text(
-                                    nombre,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    admin['email']?.toString() ?? '',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.grey,
-                                    ),
-                                  ),
-                                  trailing: IconButton(
-                                    icon: const Icon(
-                                      Icons.delete_outline_rounded,
-                                      color: AppColors.error,
-                                    ),
-                                    onPressed: () =>
-                                        _eliminarAdmin(admin['id'].toString()),
-                                  ),
-                                ),
-                                if (!isLast)
-                                  const Divider(height: 1, indent: 56),
-                              ],
-                            );
-                          }),
-                          ListTile(
-                            leading: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryLight,
-                                borderRadius: BorderRadius.circular(12),
+                                    )
+                                    .toList(),
                               ),
-                              child: const Icon(
-                                Icons.add_rounded,
-                                color: AppColors.primary,
+                            ],
+                            const SizedBox(height: 6),
+                            TextButton.icon(
+                              onPressed: _editarCategorias,
+                              icon: const Icon(Icons.edit_outlined, size: 16),
+                              label: Text(
+                                _categoriasEstudio.isEmpty
+                                    ? 'Elegir categorías'
+                                    : 'Editar categorías',
+                                style: const TextStyle(fontSize: 13),
                               ),
                             ),
-                            title: const Text(
-                              'Agregar administrador',
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
+                            if ((_estudio?['direccion']?.toString() ?? '')
+                                .isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.location_on_rounded,
+                                    color: AppColors.grey,
+                                    size: 14,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      _estudio?['direccion']?.toString() ?? '',
+                                      style: const TextStyle(
+                                        color: AppColors.grey,
+                                        fontSize: 13,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            onTap: _agregarAdmin,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    const Padding(
-                      padding: EdgeInsets.only(left: 4, bottom: 10),
-                      child: Text(
-                        'MIS PROFES',
-                        style: TextStyle(
-                          color: AppColors.grey,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1,
+                            ],
+                          ],
                         ),
                       ),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(16),
+                      const SizedBox(height: 20),
+                      const Padding(
+                        padding: EdgeInsets.only(left: 4, bottom: 10),
+                        child: Text(
+                          'GALERÍA DEL LUGAR',
+                          style: TextStyle(
+                            color: AppColors.grey,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
+                          ),
+                        ),
                       ),
-                      child: Column(
-                        children: [
-                          const Padding(
-                            padding: EdgeInsets.fromLTRB(16, 14, 16, 4),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                'Las profes ven solo Mis Clases y Asistencia. '
-                                'No acceden a Cobros, Configuración ni datos '
-                                'bancarios.',
-                                style: TextStyle(
-                                  color: AppColors.grey,
-                                  fontSize: 13,
-                                  height: 1.4,
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Mostrale al usuario cómo es tu estudio. Estas fotos NO son las de las clases.',
+                              style: TextStyle(
+                                color: AppColors.grey,
+                                fontSize: 13,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            if (_galeriaUrls.isEmpty)
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 22,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF7F3EE),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                alignment: Alignment.center,
+                                child: const Text(
+                                  'Todavía no hay fotos.',
+                                  style: TextStyle(
+                                    color: AppColors.grey,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              )
+                            else
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: _galeriaUrls.map((url) {
+                                  return Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Image.network(
+                                          url,
+                                          width: 96,
+                                          height: 96,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => Container(
+                                            width: 96,
+                                            height: 96,
+                                            color: const Color(0xFFEDE7E1),
+                                            child: const Icon(
+                                              Icons
+                                                  .image_not_supported_outlined,
+                                              color: AppColors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 2,
+                                        right: 2,
+                                        child: GestureDetector(
+                                          onTap: () =>
+                                              _eliminarFotoGaleria(url),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: const BoxDecoration(
+                                              color: Colors.black54,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.close_rounded,
+                                              color: Colors.white,
+                                              size: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }).toList(),
+                              ),
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _uploadingGaleria
+                                    ? null
+                                    : _subirFotoGaleria,
+                                icon: _uploadingGaleria
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.primary,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.add_photo_alternate_outlined,
+                                      ),
+                                label: Text(
+                                  _uploadingGaleria
+                                      ? 'Subiendo…'
+                                      : 'Agregar foto a la galería',
                                 ),
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Padding(
+                        padding: EdgeInsets.only(left: 4, bottom: 10),
+                        child: Text(
+                          'ADMINISTRADORES',
+                          style: TextStyle(
+                            color: AppColors.grey,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
                           ),
-                          if (_profes.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Align(
-                                alignment: Alignment.centerLeft,
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          children: [
+                            if (_admins.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.all(20),
                                 child: Text(
-                                  'Todavía no agregaste profes.',
+                                  'Todavía no hay otros administradores asociados.',
                                   style: TextStyle(
                                     color: AppColors.grey,
                                     fontSize: 14,
                                   ),
                                 ),
                               ),
-                            ),
-                          ..._profes.asMap().entries.map((entry) {
-                            final profe = entry.value;
-                            final nombre =
-                                profe['nombre']?.toString() ?? 'Sin nombre';
-                            final isLast = entry.key == _profes.length - 1;
-                            return Column(
-                              children: [
-                                ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: AppColors.primaryLight,
-                                    child: Text(
-                                      nombre.isNotEmpty
-                                          ? nombre[0].toUpperCase()
-                                          : 'P',
+                            ..._admins.asMap().entries.map((entry) {
+                              final admin = entry.value;
+                              final nombre =
+                                  admin['nombre']?.toString() ?? 'Sin nombre';
+                              final isLast = entry.key == _admins.length - 1;
+                              return Column(
+                                children: [
+                                  ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundColor: AppColors.primaryLight,
+                                      child: Text(
+                                        nombre.isNotEmpty
+                                            ? nombre[0].toUpperCase()
+                                            : 'A',
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    title: Text(
+                                      nombre,
                                       style: const TextStyle(
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.w700,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      admin['email']?.toString() ?? '',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.grey,
+                                      ),
+                                    ),
+                                    trailing: IconButton(
+                                      icon: const Icon(
+                                        Icons.delete_outline_rounded,
+                                        color: AppColors.error,
+                                      ),
+                                      onPressed: () => _eliminarAdmin(
+                                        admin['id'].toString(),
                                       ),
                                     ),
                                   ),
-                                  title: Text(
-                                    nombre,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                  if (!isLast)
+                                    const Divider(height: 1, indent: 56),
+                                ],
+                              );
+                            }),
+                            ListTile(
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryLight,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.add_rounded,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              title: const Text(
+                                'Agregar administrador',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              onTap: _agregarAdmin,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Padding(
+                        padding: EdgeInsets.only(left: 4, bottom: 10),
+                        child: Text(
+                          'MIS PROFES',
+                          style: TextStyle(
+                            color: AppColors.grey,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.fromLTRB(16, 14, 16, 4),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Las profes ven solo Mis Clases y Asistencia. '
+                                  'No acceden a Cobros, Configuración ni datos '
+                                  'bancarios.',
+                                  style: TextStyle(
+                                    color: AppColors.grey,
+                                    fontSize: 13,
+                                    height: 1.4,
                                   ),
-                                  subtitle: Text(
-                                    profe['email']?.toString() ?? '',
-                                    style: const TextStyle(
-                                      fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            if (_profes.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.all(16),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Todavía no agregaste profes.',
+                                    style: TextStyle(
                                       color: AppColors.grey,
-                                    ),
-                                  ),
-                                  trailing: IconButton(
-                                    icon: const Icon(
-                                      Icons.delete_outline_rounded,
-                                      color: AppColors.error,
-                                    ),
-                                    onPressed: () => _eliminarProfe(
-                                      profe['id'].toString(),
-                                      nombre,
+                                      fontSize: 14,
                                     ),
                                   ),
                                 ),
-                                if (!isLast)
-                                  const Divider(height: 1, indent: 56),
-                              ],
-                            );
-                          }),
-                          ListTile(
-                            leading: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryLight,
-                                borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Icon(
-                                Icons.add_rounded,
-                                color: AppColors.primary,
+                            ..._profes.asMap().entries.map((entry) {
+                              final profe = entry.value;
+                              final nombre =
+                                  profe['nombre']?.toString() ?? 'Sin nombre';
+                              final isLast = entry.key == _profes.length - 1;
+                              return Column(
+                                children: [
+                                  ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundColor: AppColors.primaryLight,
+                                      child: Text(
+                                        nombre.isNotEmpty
+                                            ? nombre[0].toUpperCase()
+                                            : 'P',
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    title: Text(
+                                      nombre,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      profe['email']?.toString() ?? '',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.grey,
+                                      ),
+                                    ),
+                                    trailing: IconButton(
+                                      icon: const Icon(
+                                        Icons.delete_outline_rounded,
+                                        color: AppColors.error,
+                                      ),
+                                      onPressed: () => _eliminarProfe(
+                                        profe['id'].toString(),
+                                        nombre,
+                                      ),
+                                    ),
+                                  ),
+                                  if (!isLast)
+                                    const Divider(height: 1, indent: 56),
+                                ],
+                              );
+                            }),
+                            ListTile(
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryLight,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.add_rounded,
+                                  color: AppColors.primary,
+                                ),
                               ),
+                              title: const Text(
+                                'Agregar profe',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              onTap: _agregarProfe,
                             ),
-                            title: const Text(
-                              'Agregar profe',
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
-                              ),
-                            ),
-                            onTap: _agregarProfe,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    const Padding(
-                      padding: EdgeInsets.only(left: 4, bottom: 10),
-                      child: Text(
-                        'DATOS BANCARIOS',
-                        style: TextStyle(
-                          color: AppColors.grey,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1,
+                          ],
                         ),
                       ),
-                    ),
-                    _BankDataCard(
-                      estudio: _estudio,
-                      onEdit: _editarDatosBancarios,
-                    ),
-                    const SizedBox(height: 24),
-                    const Padding(
-                      padding: EdgeInsets.only(left: 4, bottom: 10),
-                      child: Text(
-                        'CONFIGURACIÓN',
-                        style: TextStyle(
-                          color: AppColors.grey,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ),
-                    _CierresCard(
-                      reservaMinutos: _estudio?['reserva_cierre_minutos'],
-                      cancelacionMinutos:
-                          _estudio?['cancelacion_cierre_minutos'],
-                      guardando: _guardandoCierres,
-                      onEdit: _editarCierres,
-                    ),
-                    const SizedBox(height: 16),
-                    _DescripcionCard(
-                      descripcion: _estudio?['descripcion']?.toString(),
-                      guardando: _guardandoDescripcion,
-                      onEdit: _editarDescripcion,
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => context.go('/home'),
-                        icon: const Icon(Icons.home_outlined),
-                        label: const Text('Cambiar al lado usuario'),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-                  // La pantalla existía desde siempre, pero SOLO se llegaba
-                  // desde Configuración del lado alumna: un estudio no tenía
-                  // por dónde cambiarla (4/9/2026). Importa ahora que el alta
-                  // la hace Aura: el estudio entra con una contraseña temporal
-                  // que le pasan por WhatsApp y necesita poder cambiarla.
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () =>
-                          context.push('/perfil/cambiar-contrasena'),
-                      icon: const Icon(Icons.lock_outline_rounded),
-                      label: const Text('Cambiar contraseña'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _cerrarSesion,
-                      icon: const Icon(Icons.logout_rounded),
-                      label: const Text('Cerrar sesión'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.error,
-                        foregroundColor: AppColors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  // FIX 4 — Acciones irreversibles: colapsadas, al final, y
-                  // detrás de una confirmación escribiendo CONFIRMAR.
-                  _OpcionesAvanzadas(
-                    expanded: _avanzadasAbiertas,
-                    onToggle: () => setState(
-                        () => _avanzadasAbiertas = !_avanzadasAbiertas),
-                    children: [
-                      if (_error == null)
-                        _AccionPeligrosa(
-                          icon: Icons.exit_to_app_rounded,
-                          label: 'Dejar de administrar el estudio',
-                          detalle:
-                              'Perdés el acceso al panel. El estudio y sus '
-                              'clases siguen existiendo.',
-                          onTap: () => _confirmarYEjecutar(
-                            titulo: 'Dejar de administrar',
-                            mensaje:
-                                'Vas a perder el acceso al panel de este '
-                                'estudio.',
-                            accion: _dejarDeAdministrar,
+                      const SizedBox(height: 24),
+                      const Padding(
+                        padding: EdgeInsets.only(left: 4, bottom: 10),
+                        child: Text(
+                          'DATOS BANCARIOS',
+                          style: TextStyle(
+                            color: AppColors.grey,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
                           ),
                         ),
-                      // Eliminar cuenta — requisito Apple App Store 5.1.1.
-                      // contextoEstudio=true: desde el panel sabemos que el
-                      // usuario administra al menos un estudio.
-                      _AccionPeligrosa(
-                        icon: Icons.delete_forever_rounded,
-                        label: 'Eliminar mi cuenta',
-                        detalle:
-                            'Se borra tu cuenta y todas las clases de tu '
-                            'estudio. No se puede deshacer.',
-                        onTap: () => _confirmarYEjecutar(
-                          titulo: 'Eliminar mi cuenta',
-                          mensaje:
-                              'Esta acción es permanente. Se eliminan tu '
-                              'cuenta y todas las clases de tu estudio.',
-                          accion: () async => EliminarCuentaFlow.ejecutar(
-                            context,
-                            contextoEstudio: true,
+                      ),
+                      _BankDataCard(
+                        estudio: _estudio,
+                        onEdit: _editarDatosBancarios,
+                      ),
+                      const SizedBox(height: 24),
+                      const Padding(
+                        padding: EdgeInsets.only(left: 4, bottom: 10),
+                        child: Text(
+                          'CONFIGURACIÓN',
+                          style: TextStyle(
+                            color: AppColors.grey,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
                           ),
+                        ),
+                      ),
+                      _CierresCard(
+                        reservaMinutos: _estudio?['reserva_cierre_minutos'],
+                        cancelacionMinutos:
+                            _estudio?['cancelacion_cierre_minutos'],
+                        guardando: _guardandoCierres,
+                        onEdit: _editarCierres,
+                      ),
+                      const SizedBox(height: 16),
+                      _DescripcionCard(
+                        descripcion: _estudio?['descripcion']?.toString(),
+                        guardando: _guardandoDescripcion,
+                        onEdit: _editarDescripcion,
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => context.go('/home'),
+                          icon: const Icon(Icons.home_outlined),
+                          label: const Text('Cambiar al lado usuario'),
                         ),
                       ),
                     ],
-                  ),
-                ],
+                    const SizedBox(height: 24),
+                    // La pantalla existía desde siempre, pero SOLO se llegaba
+                    // desde Configuración del lado alumna: un estudio no tenía
+                    // por dónde cambiarla (4/9/2026). Importa ahora que el alta
+                    // la hace Aura: el estudio entra con una contraseña temporal
+                    // que le pasan por WhatsApp y necesita poder cambiarla.
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () =>
+                            context.push('/perfil/cambiar-contrasena'),
+                        icon: const Icon(Icons.lock_outline_rounded),
+                        label: const Text('Cambiar contraseña'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _cerrarSesion,
+                        icon: const Icon(Icons.logout_rounded),
+                        label: const Text('Cerrar sesión'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          foregroundColor: AppColors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // FIX 4 — Acciones irreversibles: colapsadas, al final, y
+                    // detrás de una confirmación escribiendo CONFIRMAR.
+                    _OpcionesAvanzadas(
+                      expanded: _avanzadasAbiertas,
+                      onToggle: () => setState(
+                        () => _avanzadasAbiertas = !_avanzadasAbiertas,
+                      ),
+                      children: [
+                        if (_error == null)
+                          _AccionPeligrosa(
+                            icon: Icons.exit_to_app_rounded,
+                            label: 'Dejar de administrar el estudio',
+                            detalle:
+                                'Perdés el acceso al panel. El estudio y sus '
+                                'clases siguen existiendo.',
+                            onTap: () => _confirmarYEjecutar(
+                              titulo: 'Dejar de administrar',
+                              mensaje:
+                                  'Vas a perder el acceso al panel de este '
+                                  'estudio.',
+                              accion: _dejarDeAdministrar,
+                            ),
+                          ),
+                        // Eliminar cuenta — requisito Apple App Store 5.1.1.
+                        // contextoEstudio=true: desde el panel sabemos que el
+                        // usuario administra al menos un estudio.
+                        _AccionPeligrosa(
+                          icon: Icons.delete_forever_rounded,
+                          label: 'Eliminar mi cuenta',
+                          detalle:
+                              'Se borra tu cuenta y todas las clases de tu '
+                              'estudio. No se puede deshacer.',
+                          onTap: () => _confirmarYEjecutar(
+                            titulo: 'Eliminar mi cuenta',
+                            mensaje:
+                                'Esta acción es permanente. Se eliminan tu '
+                                'cuenta y todas las clases de tu estudio.',
+                            accion: () async => EliminarCuentaFlow.ejecutar(
+                              context,
+                              contextoEstudio: true,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 
@@ -2001,10 +2034,7 @@ class _BankInfoRow extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             '$label:  ',
-            style: const TextStyle(
-              color: Color(0xFF8F877F),
-              fontSize: 13,
-            ),
+            style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
           ),
           Expanded(
             child: Text(
@@ -2059,16 +2089,20 @@ class _BankField extends StatelessWidget {
             hintStyle: const TextStyle(color: Color(0xFFB0A8A0), fontSize: 14),
             filled: true,
             fillColor: AppColors.background,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 13,
+            ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFDDD7D0)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: AppColors.primary, width: 1.4),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.4,
+              ),
             ),
           ),
         ),
@@ -2093,10 +2127,7 @@ class _ErrorCard extends StatelessWidget {
       ),
       child: Text(
         message,
-        style: const TextStyle(
-          color: AppColors.black,
-          fontSize: 15,
-        ),
+        style: const TextStyle(color: AppColors.black, fontSize: 15),
       ),
     );
   }
@@ -2208,16 +2239,17 @@ class _DescripcionCard extends StatelessWidget {
           const Text(
             'Descripción del estudio',
             style: TextStyle(
-                color: AppColors.black,
-                fontSize: 15,
-                fontWeight: FontWeight.w700),
+              color: AppColors.black,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             tiene
                 ? descripcion!.trim()
                 : 'Todavía no cargaste una descripción. Es lo que ven tus '
-                    'alumnos en el perfil del estudio.',
+                      'alumnos en el perfil del estudio.',
             style: TextStyle(
               color: tiene ? const Color(0xFF4A4A4A) : const Color(0xFF8F877F),
               fontSize: 13,
@@ -2236,11 +2268,13 @@ class _DescripcionCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(guardando
-                  ? 'Guardando…'
-                  : tiene
-                      ? 'Editar descripción'
-                      : 'Agregar descripción'),
+              child: Text(
+                guardando
+                    ? 'Guardando…'
+                    : tiene
+                    ? 'Editar descripción'
+                    : 'Agregar descripción',
+              ),
             ),
           ),
         ],
@@ -2257,28 +2291,28 @@ class _CierreRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
-            ),
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(
+        child: Text(
+          label,
+          style: const TextStyle(color: Color(0xFF8F877F), fontSize: 13),
+        ),
+      ),
+      const SizedBox(width: 12),
+      Flexible(
+        child: Text(
+          value,
+          textAlign: TextAlign.end,
+          style: const TextStyle(
+            color: AppColors.black,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
           ),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: const TextStyle(
-                color: AppColors.black,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      );
+        ),
+      ),
+    ],
+  );
 }
 
 /// Stepper en horas. Va de 0 a 48 hs: cubre desde "sin restricción" hasta
@@ -2335,8 +2369,7 @@ class _HorasStepper extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed:
-                  value < maxHoras ? () => onChanged(value + 1) : null,
+              onPressed: value < maxHoras ? () => onChanged(value + 1) : null,
               icon: const Icon(Icons.add_circle_outline_rounded),
               color: AppColors.primary,
             ),
@@ -2377,10 +2410,7 @@ class _OpcionesAvanzadas extends StatelessWidget {
             onTap: onToggle,
             borderRadius: BorderRadius.circular(16),
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 18,
-                vertical: 16,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
               child: Row(
                 children: [
                   const Expanded(
@@ -2430,23 +2460,20 @@ class _AccionPeligrosa extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 6,
-        ),
-        leading: Icon(icon, color: AppColors.error),
-        title: Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.error,
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Text(
-          detalle,
-          style: const TextStyle(color: Color(0xFF8F877F), fontSize: 12),
-        ),
-      );
+    onTap: onTap,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+    leading: Icon(icon, color: AppColors.error),
+    title: Text(
+      label,
+      style: const TextStyle(
+        color: AppColors.error,
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    subtitle: Text(
+      detalle,
+      style: const TextStyle(color: Color(0xFF8F877F), fontSize: 12),
+    ),
+  );
 }

@@ -12,6 +12,7 @@ import '../../services/reviews_service.dart';
 import '../../utils/resenas.dart';
 import '../../services/notificaciones_estudio_service.dart';
 import '../../widgets/notificaciones_estudio_sheet.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class DashboardEstudiosScreen extends StatefulWidget {
   const DashboardEstudiosScreen({super.key});
@@ -207,8 +208,9 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
           // El estudio no veía sus reseñas en ningún lado: le llegaban por
           // campanita y mail y ahí morían.
           try {
-            desgloseResenas =
-                await ReviewsService().getRatingBreakdown(estudioId);
+            desgloseResenas = await ReviewsService().getRatingBreakdown(
+              estudioId,
+            );
           } catch (_) {}
         }
       }
@@ -611,18 +613,20 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
     if (isDesktop) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        body: _loading
-            ? const Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              )
-            : RefreshIndicator(
-                onRefresh: _cargar,
-                color: AppColors.primary,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: _buildDesktopContent(clasesHoy),
+        body: AnchoMaximo(
+          child: _loading
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                )
+              : RefreshIndicator(
+                  onRefresh: _cargar,
+                  color: AppColors.primary,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: _buildDesktopContent(clasesHoy),
+                  ),
                 ),
-              ),
+        ),
       );
     }
 
@@ -2260,7 +2264,6 @@ class _DesgloseFila extends StatelessWidget {
   }
 }
 
-
 /// Las reseñas del estudio en su Dashboard. Antes le llegaban por campanita y
 /// mail y no tenía dónde verlas: para leerlas tenía que entrar como usuaria a
 /// su propio perfil público. Abre la pantalla completa (la misma que ve la
@@ -2288,8 +2291,11 @@ class _TarjetaResenas extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const Icon(Icons.star_rounded,
-                  color: AppColors.warning, size: 22),
+              const Icon(
+                Icons.star_rounded,
+                color: AppColors.warning,
+                size: 22,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -2311,14 +2317,18 @@ class _TarjetaResenas extends StatelessWidget {
                           ? 'Cuando tus alumnas dejen su opinión, aparece acá'
                           : 'Ver lo que dicen tus alumnas',
                       style: const TextStyle(
-                          color: Color(0xFF8F877F), fontSize: 12),
+                        color: Color(0xFF8F877F),
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
               ),
               if (total > 0)
-                const Icon(Icons.chevron_right_rounded,
-                    color: Color(0xFFC7C0B9)),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFFC7C0B9),
+                ),
             ],
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/admin_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 /// Backoffice — Empresas (usuarios corporativos).
 ///
@@ -61,13 +62,15 @@ class _AdminEmpresasScreenState extends State<AdminEmpresasScreen> {
   }
 
   Future<void> _openForm([Map<String, dynamic>? empresa]) async {
-    final nombreCtrl =
-        TextEditingController(text: empresa?['nombre']?.toString() ?? '');
-    final dominioCtrl =
-        TextEditingController(text: empresa?['dominio_mail']?.toString() ?? '');
+    final nombreCtrl = TextEditingController(
+      text: empresa?['nombre']?.toString() ?? '',
+    );
+    final dominioCtrl = TextEditingController(
+      text: empresa?['dominio_mail']?.toString() ?? '',
+    );
     final creditosCtrl = TextEditingController(
-      text: (empresa?['creditos_por_empleado'] as num?)?.toInt().toString() ??
-          '',
+      text:
+          (empresa?['creditos_por_empleado'] as num?)?.toInt().toString() ?? '',
     );
     bool activa = empresa?['activa'] as bool? ?? true;
     final formKey = GlobalKey<FormState>();
@@ -169,8 +172,9 @@ class _AdminEmpresasScreenState extends State<AdminEmpresasScreen> {
                           empresaId: (empresa?['id'] as num?)?.toInt(),
                           nombre: nombreCtrl.text,
                           dominioMail: dominioCtrl.text,
-                          creditosPorEmpleado:
-                              int.parse(creditosCtrl.text.trim()),
+                          creditosPorEmpleado: int.parse(
+                            creditosCtrl.text.trim(),
+                          ),
                           activa: activa,
                         );
                         if (!ctx.mounted) return;
@@ -180,8 +184,9 @@ class _AdminEmpresasScreenState extends State<AdminEmpresasScreen> {
                         if (!ctx.mounted) return;
                         ScaffoldMessenger.of(ctx).showSnackBar(
                           SnackBar(
-                            content:
-                                Text(e.toString().replaceFirst('Exception: ', '')),
+                            content: Text(
+                              e.toString().replaceFirst('Exception: ', ''),
+                            ),
                             backgroundColor: AppColors.error,
                           ),
                         );
@@ -263,52 +268,54 @@ class _AdminEmpresasScreenState extends State<AdminEmpresasScreen> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : RefreshIndicator(
-              onRefresh: _load,
-              color: AppColors.primary,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-                children: [
-                  const Text(
-                    'Empresas que ofrecen Aura como beneficio. Los empleados que '
-                    'se registran con el dominio de la empresa reciben créditos '
-                    'automáticamente cada mes.',
-                    style: TextStyle(color: AppColors.grey, height: 1.4),
-                  ),
-                  const SizedBox(height: 16),
-                  if (_error != null)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Text(
-                        'No se pudieron cargar las empresas.\n$_error',
-                        style: const TextStyle(color: AppColors.error),
-                      ),
-                    )
-                  else if (_empresas.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: const Text(
-                        'Todavía no hay empresas cargadas.',
-                        style: TextStyle(color: AppColors.grey),
-                      ),
-                    )
-                  else
-                    ..._empresas.map(_buildEmpresaCard),
-                ],
+      body: AnchoMaximo(
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : RefreshIndicator(
+                onRefresh: _load,
+                color: AppColors.primary,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                  children: [
+                    const Text(
+                      'Empresas que ofrecen Aura como beneficio. Los empleados que '
+                      'se registran con el dominio de la empresa reciben créditos '
+                      'automáticamente cada mes.',
+                      style: TextStyle(color: AppColors.grey, height: 1.4),
+                    ),
+                    const SizedBox(height: 16),
+                    if (_error != null)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Text(
+                          'No se pudieron cargar las empresas.\n$_error',
+                          style: const TextStyle(color: AppColors.error),
+                        ),
+                      )
+                    else if (_empresas.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: const Text(
+                          'Todavía no hay empresas cargadas.',
+                          style: TextStyle(color: AppColors.grey),
+                        ),
+                      )
+                    else
+                      ..._empresas.map(_buildEmpresaCard),
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 
@@ -337,8 +344,10 @@ class _AdminEmpresasScreenState extends State<AdminEmpresasScreen> {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: (activa ? AppColors.success : AppColors.grey)
                       .withValues(alpha: 0.14),
@@ -515,77 +524,76 @@ class _EmpleadosDialogState extends State<_EmpleadosDialog> {
                 ),
               )
             : _error != null
-                ? Text(_error!, style: const TextStyle(color: AppColors.error))
-                : _empleados.isEmpty
-                    ? const Text(
-                        'Todavía no hay empleados registrados con este dominio.',
-                        style: TextStyle(color: AppColors.grey),
-                      )
-                    : SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: _empleados.map((e) {
-                            final saldo =
-                                (e['creditos'] as num?)?.toInt() ?? 0;
-                            final usados =
-                                (e['creditos_usados_mes'] as num?)?.toInt() ??
-                                    0;
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: AppColors.background,
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          e['nombre']?.toString() ?? 'Sin nombre',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        Text(
-                                          e['email']?.toString() ?? '',
-                                          style: const TextStyle(
-                                            color: AppColors.grey,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        '$saldo cr',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
-                                      Text(
-                                        '$usados usados este mes',
-                                        style: const TextStyle(
-                                          color: AppColors.grey,
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
+            ? Text(_error!, style: const TextStyle(color: AppColors.error))
+            : _empleados.isEmpty
+            ? const Text(
+                'Todavía no hay empleados registrados con este dominio.',
+                style: TextStyle(color: AppColors.grey),
+              )
+            : SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _empleados.map((e) {
+                    final saldo = (e['creditos'] as num?)?.toInt() ?? 0;
+                    final usados =
+                        (e['creditos_usados_mes'] as num?)?.toInt() ?? 0;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
                       ),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  e['nombre']?.toString() ?? 'Sin nombre',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  e['email']?.toString() ?? '',
+                                  style: const TextStyle(
+                                    color: AppColors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '$saldo cr',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              Text(
+                                '$usados usados este mes',
+                                style: const TextStyle(
+                                  color: AppColors.grey,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
       ),
       actions: [
         TextButton(

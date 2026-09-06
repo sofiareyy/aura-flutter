@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/estudio_admin_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class AsistenciaScreen extends StatefulWidget {
   const AsistenciaScreen({super.key});
@@ -286,8 +287,10 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
           .toList();
       final nombres = <String, Map<String, dynamic>>{};
       if (ids.isNotEmpty) {
-        final res = await Supabase.instance.client
-            .rpc('estudio_nombres_alumnas', params: {'p_ids': ids});
+        final res = await Supabase.instance.client.rpc(
+          'estudio_nombres_alumnas',
+          params: {'p_ids': ids},
+        );
         for (final u in (res as List)) {
           final m = Map<String, dynamic>.from(u as Map);
           nombres[m['id'].toString()] = m;
@@ -573,7 +576,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       final usuarioRows = await Supabase.instance.client.rpc(
         'estudio_nombres_alumnas',
         params: {
-          'p_ids': [reserva['usuario_id'].toString()]
+          'p_ids': [reserva['usuario_id'].toString()],
         },
       );
       final usuario = (usuarioRows as List).isEmpty
@@ -1358,18 +1361,20 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
         },
         child: Scaffold(
           backgroundColor: AppColors.background,
-          body: _loading
-              ? const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                )
-              : RefreshIndicator(
-                  onRefresh: _cargar,
-                  color: AppColors.primary,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: _buildDesktopContent(),
+          body: AnchoMaximo(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _cargar,
+                    color: AppColors.primary,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: _buildDesktopContent(),
+                    ),
                   ),
-                ),
+          ),
         ),
       );
     }
@@ -1714,8 +1719,8 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                                 final nombre =
                                     user?['nombre']?.toString() ?? 'Sin nombre';
                                 final email = user?['email']?.toString();
-                                final avatarUrl =
-                                    user?['avatar_url']?.toString();
+                                final avatarUrl = user?['avatar_url']
+                                    ?.toString();
                                 final estado =
                                     a['estado']?.toString() ?? 'confirmada';
                                 final esPresente = estado == 'presente';
@@ -2609,8 +2614,8 @@ class _AttendeeRow extends StatelessWidget {
               // La foto de la alumna si la tiene; si no, sus iniciales.
               backgroundImage:
                   (avatarUrl != null && avatarUrl!.trim().isNotEmpty)
-                      ? NetworkImage(avatarUrl!)
-                      : null,
+                  ? NetworkImage(avatarUrl!)
+                  : null,
               child: (avatarUrl != null && avatarUrl!.trim().isNotEmpty)
                   ? null
                   : Text(

@@ -10,6 +10,7 @@ import '../../core/theme/aura_tokens.dart';
 import '../../services/admin_service.dart';
 import '../../widgets/eliminar_cuenta_helper.dart';
 import '../../widgets/soporte_card.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class ConfiguracionScreen extends StatefulWidget {
   const ConfiguracionScreen({super.key});
@@ -63,122 +64,121 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           onPressed: () => context.pop(),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          // "Editar perfil" NO va acá: vive en Mi Perfil, pegado al header,
-          // que es donde se lo busca. Antes estaba en las dos pantallas.
-          _Section(
-            title: 'Cuenta',
-            items: [
-              _Item(
-                icon: Icons.lock_outline,
-                label: 'Cambiar contraseña',
-                onTap: () => context.push('/perfil/cambiar-contrasena'),
-              ),
-              _Item(
-                icon: Icons.notifications_outlined,
-                label: 'Notificaciones',
-                onTap: () => context.push('/perfil/notificaciones'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          FutureBuilder<bool>(
-            future: AdminService().isCurrentUserAdmin(),
-            builder: (context, snapshot) {
-              if (snapshot.data == true) {
-                return Column(
-                  children: [
-                    _Section(
-                      title: 'Admin Aura',
-                      items: [
-                        _Item(
-                          icon: Icons.admin_panel_settings_outlined,
-                          label: 'Abrir backoffice',
-                          onTap: () => context.push('/admin/dashboard'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              'Ayuda',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleSmall
-                  ?.copyWith(color: AppColors.grey),
+      body: AnchoMaximo.formulario(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            // "Editar perfil" NO va acá: vive en Mi Perfil, pegado al header,
+            // que es donde se lo busca. Antes estaba en las dos pantallas.
+            _Section(
+              title: 'Cuenta',
+              items: [
+                _Item(
+                  icon: Icons.lock_outline,
+                  label: 'Cambiar contraseña',
+                  onTap: () => context.push('/perfil/cambiar-contrasena'),
+                ),
+                _Item(
+                  icon: Icons.notifications_outlined,
+                  label: 'Notificaciones',
+                  onTap: () => context.push('/perfil/notificaciones'),
+                ),
+              ],
             ),
-          ),
-          const SoporteCard(),
-          const SizedBox(height: 16),
-          // "Preguntas frecuentes" (antes "Ayuda") sale de acá: no es legal.
-          _Section(
-            items: [
-              _Item(
-                icon: Icons.help_outline_rounded,
-                label: 'Preguntas frecuentes',
-                onTap: () => context.push('/perfil/ayuda'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _Section(
-            title: 'Legal',
-            items: [
-              _Item(
-                icon: Icons.article_outlined,
-                label: 'Términos y condiciones',
-                onTap: () => _abrirWeb('terms.html'),
-              ),
-              _Item(
-                icon: Icons.privacy_tip_outlined,
-                label: 'Política de privacidad',
-                onTap: () => _abrirWeb('privacy.html'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 28),
-          // Cerrar sesión vive en Mi Perfil, como cierre de esa pantalla.
-          if (_version != null)
-            Center(
+            const SizedBox(height: 16),
+            FutureBuilder<bool>(
+              future: AdminService().isCurrentUserAdmin(),
+              builder: (context, snapshot) {
+                if (snapshot.data == true) {
+                  return Column(
+                    children: [
+                      _Section(
+                        title: 'Admin Aura',
+                        items: [
+                          _Item(
+                            icon: Icons.admin_panel_settings_outlined,
+                            label: 'Abrir backoffice',
+                            onTap: () => context.push('/admin/dashboard'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 8),
               child: Text(
-                _version!,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: AppColors.grey),
+                'Ayuda',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(color: AppColors.grey),
               ),
             ),
-          // ── ZONA DE PELIGRO ────────────────────────────────────────────
-          // Requisito Apple App Store (5.1.1(v)): el usuario tiene que poder
-          // eliminar su cuenta y datos desde dentro de la app.
-          //
-          // Va al final de todo y con MUCHO aire por encima, para que no
-          // quede al alcance del pulgar de alguien que venía a cerrar sesión.
-          // Además pide escribir ELIMINAR para habilitar el botón.
-          const SizedBox(height: 64),
-          _DangerSection(
-            child: _DangerItem(
-              icon: Icons.delete_forever_rounded,
-              label: 'Eliminar mi cuenta',
-              loading: _eliminando,
-              onTap: _eliminando ? null : _abrirDialogoEliminar,
+            const SoporteCard(),
+            const SizedBox(height: 16),
+            // "Preguntas frecuentes" (antes "Ayuda") sale de acá: no es legal.
+            _Section(
+              items: [
+                _Item(
+                  icon: Icons.help_outline_rounded,
+                  label: 'Preguntas frecuentes',
+                  onTap: () => context.push('/perfil/ayuda'),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 40),
-        ],
+            const SizedBox(height: 16),
+            _Section(
+              title: 'Legal',
+              items: [
+                _Item(
+                  icon: Icons.article_outlined,
+                  label: 'Términos y condiciones',
+                  onTap: () => _abrirWeb('terms.html'),
+                ),
+                _Item(
+                  icon: Icons.privacy_tip_outlined,
+                  label: 'Política de privacidad',
+                  onTap: () => _abrirWeb('privacy.html'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 28),
+            // Cerrar sesión vive en Mi Perfil, como cierre de esa pantalla.
+            if (_version != null)
+              Center(
+                child: Text(
+                  _version!,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.grey),
+                ),
+              ),
+            // ── ZONA DE PELIGRO ────────────────────────────────────────────
+            // Requisito Apple App Store (5.1.1(v)): el usuario tiene que poder
+            // eliminar su cuenta y datos desde dentro de la app.
+            //
+            // Va al final de todo y con MUCHO aire por encima, para que no
+            // quede al alcance del pulgar de alguien que venía a cerrar sesión.
+            // Además pide escribir ELIMINAR para habilitar el botón.
+            const SizedBox(height: 64),
+            _DangerSection(
+              child: _DangerItem(
+                icon: Icons.delete_forever_rounded,
+                label: 'Eliminar mi cuenta',
+                loading: _eliminando,
+                onTap: _eliminando ? null : _abrirDialogoEliminar,
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
       ),
     );
   }
-
 
   Future<void> _abrirDialogoEliminar() async {
     setState(() => _eliminando = true);
@@ -204,10 +204,9 @@ class _Section extends StatelessWidget {
             padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
               title!,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleSmall
-                  ?.copyWith(color: AppColors.grey),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(color: AppColors.grey),
             ),
           ),
         Container(
@@ -237,11 +236,7 @@ class _Item extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _Item({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _Item({required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -258,7 +253,10 @@ class _Item extends StatelessWidget {
       ),
       title: Text(
         label,
-        style: const TextStyle(fontSize: AuraTipo.cuerpo, fontWeight: FontWeight.w500),
+        style: const TextStyle(
+          fontSize: AuraTipo.cuerpo,
+          fontWeight: FontWeight.w500,
+        ),
       ),
       trailing: const Icon(
         Icons.chevron_right_rounded,

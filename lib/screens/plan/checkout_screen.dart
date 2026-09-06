@@ -11,23 +11,14 @@ import '../../core/theme/aura_tokens.dart';
 import '../../utils/destino_post_login.dart';
 import '../../providers/app_provider.dart';
 import '../../services/usuarios_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
-enum _PaymentState {
-  idle,
-  creating,
-  waiting,
-  approved,
-  rejected,
-  error,
-}
+enum _PaymentState { idle, creating, waiting, approved, rejected, error }
 
 class CheckoutScreen extends StatefulWidget {
   final Map<String, dynamic> purchase;
 
-  const CheckoutScreen({
-    super.key,
-    required this.purchase,
-  });
+  const CheckoutScreen({super.key, required this.purchase});
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -57,8 +48,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
   @override
   void initState() {
     super.initState();
-    _volver = DestinoPostLogin.sanear(
-        widget.purchase['volver'] as String?);
+    _volver = DestinoPostLogin.sanear(widget.purchase['volver'] as String?);
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -144,17 +134,16 @@ class _CheckoutScreenState extends State<CheckoutScreen>
   void _startPolling(AppProvider provider) {
     _pollSeconds = 0;
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: _pollIntervalSeconds),
-      (_) async {
-        _pollSeconds += _pollIntervalSeconds;
-        if (_pollSeconds >= _pollMaxSeconds) {
-          _pollTimer?.cancel();
-          return;
-        }
-        await _checkPagoStatus(provider: provider);
-      },
-    );
+    _pollTimer = Timer.periodic(const Duration(seconds: _pollIntervalSeconds), (
+      _,
+    ) async {
+      _pollSeconds += _pollIntervalSeconds;
+      if (_pollSeconds >= _pollMaxSeconds) {
+        _pollTimer?.cancel();
+        return;
+      }
+      await _checkPagoStatus(provider: provider);
+    });
   }
 
   Future<void> _checkPagoStatus({AppProvider? provider}) async {
@@ -163,9 +152,11 @@ class _CheckoutScreenState extends State<CheckoutScreen>
     try {
       final p = provider ?? context.read<AppProvider>();
       final pagoIdFromUrl = Uri.base.queryParameters['pago_id'];
-      final paymentId = Uri.base.queryParameters['payment_id'] ??
+      final paymentId =
+          Uri.base.queryParameters['payment_id'] ??
           Uri.base.queryParameters['collection_id'];
-      final status = (paymentId != null && paymentId.isNotEmpty) ||
+      final status =
+          (paymentId != null && paymentId.isNotEmpty) ||
               (pagoIdFromUrl != null && pagoIdFromUrl.isNotEmpty)
           ? await _usuariosService.confirmarPagoManual(
               pagoId: pagoIdFromUrl ?? _pagoId!,
@@ -196,10 +187,13 @@ class _CheckoutScreenState extends State<CheckoutScreen>
       if (!mounted) return;
 
       final isPlan = widget.purchase['type'] == 'plan';
-      final expectedCreditos = (widget.purchase['creditos'] as num?)?.toInt() ?? 0;
+      final expectedCreditos =
+          (widget.purchase['creditos'] as num?)?.toInt() ?? 0;
       final packAcreditado =
-          !isPlan && (p.usuario?.creditos ?? 0) >= (_creditosIniciales + expectedCreditos);
-      final planActivado = isPlan &&
+          !isPlan &&
+          (p.usuario?.creditos ?? 0) >= (_creditosIniciales + expectedCreditos);
+      final planActivado =
+          isPlan &&
           p.usuario?.subscriptionStatus == 'active' &&
           (p.usuario?.plan ?? '').isNotEmpty &&
           ((p.usuario?.plan ?? '') != _planInicial ||
@@ -235,11 +229,13 @@ class _CheckoutScreenState extends State<CheckoutScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(isPlan
-            ? 'Suscripción'
-            : isGift
-                ? 'Regalar créditos'
-                : 'Comprar créditos'),
+        title: Text(
+          isPlan
+              ? 'Suscripción'
+              : isGift
+              ? 'Regalar créditos'
+              : 'Comprar créditos',
+        ),
         leading: _state == _PaymentState.waiting
             ? null
             : IconButton(
@@ -248,42 +244,43 @@ class _CheckoutScreenState extends State<CheckoutScreen>
               ),
         automaticallyImplyLeading: false,
       ),
-      body: switch (_state) {
-        _PaymentState.approved => _ApprovedView(
+      body: AnchoMaximo.formulario(
+        child: switch (_state) {
+          _PaymentState.approved => _ApprovedView(
             isPlan: isPlan,
             isGift: isGift,
             giftEmail: widget.purchase['gift_email'] as String?,
             volver: _volver,
             onContinue: () => context.go(_volver ?? '/home'),
           ),
-        _PaymentState.rejected => _RejectedView(
+          _PaymentState.rejected => _RejectedView(
             onRetry: _reintentar,
             onBack: () => context.pop(),
           ),
-        _PaymentState.waiting => _WaitingView(
+          _PaymentState.waiting => _WaitingView(
             pollSeconds: _pollSeconds,
             maxSeconds: _pollMaxSeconds,
-            onManualCheck: () => _checkPagoStatus(
-              provider: context.read<AppProvider>(),
-            ),
+            onManualCheck: () =>
+                _checkPagoStatus(provider: context.read<AppProvider>()),
             onBack: () {
               _pollTimer?.cancel();
               context.pop();
             },
           ),
-        _PaymentState.error => _ErrorView(
+          _PaymentState.error => _ErrorView(
             message: _errorMsg ?? 'Ocurrió un error inesperado.',
             onRetry: _reintentar,
             onBack: () => context.pop(),
           ),
-        _ => _IdleView(
+          _ => _IdleView(
             purchase: widget.purchase,
             isPlan: isPlan,
             loading: _state == _PaymentState.creating,
             provider: provider,
             onPay: () => _iniciarPago(provider),
           ),
-      },
+        },
+      ),
     );
   }
 }
@@ -309,7 +306,8 @@ class _IdleView extends StatelessWidget {
     final nombre = (purchase['nombre'] ?? '').toString();
     final creditos = (purchase['creditos'] as num?)?.toInt() ?? 0;
     final precio = (purchase['precio'] as num?)?.toInt() ?? 0;
-    final vigenciaDias = (purchase['vigencia_dias'] as num?)?.toInt() ??
+    final vigenciaDias =
+        (purchase['vigencia_dias'] as num?)?.toInt() ??
         (creditos <= 20 ? 30 : 60);
     final descripcion = (purchase['descripcion'] ?? '').toString();
 
@@ -332,9 +330,12 @@ class _IdleView extends StatelessWidget {
                       isPlan
                           ? 'Suscripción mensual'
                           : isGift
-                              ? 'Gift card para regalar'
-                              : 'Pack de créditos',
-                      style: const TextStyle(color: Colors.white60, fontSize: AuraTipo.secundario),
+                          ? 'Gift card para regalar'
+                          : 'Pack de créditos',
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: AuraTipo.secundario,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Text(
@@ -348,16 +349,24 @@ class _IdleView extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       descripcion,
-                      style: const TextStyle(color: Colors.white70, fontSize: AuraTipo.cuerpo),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: AuraTipo.cuerpo,
+                      ),
                     ),
                     const SizedBox(height: 18),
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(AuraRadio.pastilla),
+                            borderRadius: BorderRadius.circular(
+                              AuraRadio.pastilla,
+                            ),
                           ),
                           child: Text(
                             '$creditos créditos',
@@ -369,7 +378,9 @@ class _IdleView extends StatelessWidget {
                         ),
                         const Spacer(),
                         Text(
-                          isPlan ? '\$${_fmt(precio)}/mes' : '\$${_fmt(precio)}',
+                          isPlan
+                              ? '\$${_fmt(precio)}/mes'
+                              : '\$${_fmt(precio)}',
                           style: const TextStyle(
                             color: AppColors.white,
                             fontSize: 28,
@@ -407,11 +418,17 @@ class _IdleView extends StatelessWidget {
                         children: [
                           Text(
                             'Mercado Pago',
-                            style: TextStyle(fontSize: AuraTipo.cuerpo, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              fontSize: AuraTipo.cuerpo,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           Text(
                             'Tarjeta, débito, efectivo o saldo MP',
-                            style: TextStyle(fontSize: AuraTipo.secundario, color: AppColors.grey),
+                            style: TextStyle(
+                              fontSize: AuraTipo.secundario,
+                              color: AppColors.grey,
+                            ),
                           ),
                         ],
                       ),
@@ -431,15 +448,19 @@ class _IdleView extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.lock_outline_rounded, size: 16, color: AppColors.grey),
+                    const Icon(
+                      Icons.lock_outline_rounded,
+                      size: 16,
+                      color: AppColors.grey,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Tu pago se procesa de forma segura en Mercado Pago. Aura nunca accede a los datos de tu tarjeta.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.grey,
-                              height: 1.5,
-                            ),
+                          color: AppColors.grey,
+                          height: 1.5,
+                        ),
                       ),
                     ),
                   ],
@@ -457,7 +478,9 @@ class _IdleView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
-                      isPlan ? Icons.autorenew_rounded : Icons.event_busy_outlined,
+                      isPlan
+                          ? Icons.autorenew_rounded
+                          : Icons.event_busy_outlined,
                       size: 16,
                       color: AppColors.primary,
                     ),
@@ -467,8 +490,11 @@ class _IdleView extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isPlan ? 'Renovación del plan' : 'Vigencia del pack',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            isPlan
+                                ? 'Renovación del plan'
+                                : 'Vigencia del pack',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
                                   color: AppColors.black,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -478,10 +504,8 @@ class _IdleView extends StatelessWidget {
                             isPlan
                                 ? 'Si lo activás, Mercado Pago renueva el cobro automáticamente cada mes hasta que lo canceles.'
                                 : 'Este pack vence a los $vigenciaDias días desde la compra.',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppColors.grey,
-                                  height: 1.45,
-                                ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppColors.grey, height: 1.45),
                           ),
                         ],
                       ),
@@ -492,13 +516,20 @@ class _IdleView extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 'Tu saldo actual: ${provider.usuario?.creditos ?? 0} créditos',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.grey),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.grey),
               ),
             ],
           ),
         ),
         Container(
-          padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).padding.bottom + 16),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            16,
+            20,
+            MediaQuery.of(context).padding.bottom + 16,
+          ),
           color: AppColors.white,
           child: SizedBox(
             width: double.infinity,
@@ -509,7 +540,10 @@ class _IdleView extends StatelessWidget {
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(color: AppColors.white, strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        color: AppColors.white,
+                        strokeWidth: 2,
+                      ),
                     )
                   : Text(
                       isPlan
@@ -524,9 +558,9 @@ class _IdleView extends StatelessWidget {
   }
 
   String _fmt(int n) => n.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (m) => '${m[1]}.',
-      );
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    (m) => '${m[1]}.',
+  );
 }
 
 class _WaitingView extends StatelessWidget {
@@ -555,13 +589,19 @@ class _WaitingView extends StatelessWidget {
             if (!timedOut)
               const CircularProgressIndicator(color: AppColors.primary)
             else
-              const Icon(Icons.hourglass_empty_rounded, size: 48, color: AppColors.grey),
+              const Icon(
+                Icons.hourglass_empty_rounded,
+                size: 48,
+                color: AppColors.grey,
+              ),
             const SizedBox(height: 24),
             Text(
-              timedOut ? 'Tu pago todavía está pendiente' : 'Verificando tu pago...',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              timedOut
+                  ? 'Tu pago todavía está pendiente'
+                  : 'Verificando tu pago...',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
@@ -570,9 +610,9 @@ class _WaitingView extends StatelessWidget {
                   ? 'Completá el pago en Mercado Pago y volvé aquí. Cuando se confirme, tus créditos se acreditarán solos.'
                   : 'Completá el pago en Mercado Pago y volvé a la app. Confirmamos automáticamente cuando el pago se apruebe.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.grey,
-                    height: 1.55,
-                  ),
+                color: AppColors.grey,
+                height: 1.55,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -631,33 +671,37 @@ class _ApprovedView extends StatelessWidget {
                 color: AppColors.success,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check_rounded, color: AppColors.white, size: 36),
+              child: const Icon(
+                Icons.check_rounded,
+                color: AppColors.white,
+                size: 36,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               isGift
                   ? '¡Regalo enviado!'
                   : isPlan
-                      ? '¡Suscripción activada!'
-                      : '¡Créditos acreditados!',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  ? '¡Suscripción activada!'
+                  : '¡Créditos acreditados!',
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
               isGift
                   ? (giftEmail != null && giftEmail!.isNotEmpty
-                      ? 'Le enviamos el código por mail a $giftEmail para que canjee sus créditos.'
-                      : 'Le enviamos el código por mail al destinatario para que canjee sus créditos.')
+                        ? 'Le enviamos el código por mail a $giftEmail para que canjee sus créditos.'
+                        : 'Le enviamos el código por mail al destinatario para que canjee sus créditos.')
                   : isPlan
-                      ? 'Tu plan quedó activo. La acreditación automática puede tardar unos instantes en reflejarse por completo.'
-                      : 'Tus créditos ya están disponibles en tu saldo.',
+                  ? 'Tu plan quedó activo. La acreditación automática puede tardar unos instantes en reflejarse por completo.'
+                  : 'Tus créditos ya están disponibles en tu saldo.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.grey,
-                    height: 1.55,
-                  ),
+                color: AppColors.grey,
+                height: 1.55,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -701,22 +745,26 @@ class _RejectedView extends StatelessWidget {
                 color: AppColors.error.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.close_rounded, color: AppColors.error, size: 36),
+              child: const Icon(
+                Icons.close_rounded,
+                color: AppColors.error,
+                size: 36,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               'Pago no aprobado',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 12),
             Text(
               'El pago fue rechazado o cancelado. Podés intentarlo de nuevo con otro medio de pago desde Mercado Pago.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.grey,
-                    height: 1.55,
-                  ),
+                color: AppColors.grey,
+                height: 1.55,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -762,22 +810,26 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 48,
+              color: AppColors.error,
+            ),
             const SizedBox(height: 24),
             Text(
               'No se pudo iniciar el pago',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
               message,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.grey,
-                    height: 1.55,
-                  ),
+                color: AppColors.grey,
+                height: 1.55,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),

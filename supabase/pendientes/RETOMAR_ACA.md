@@ -1445,7 +1445,7 @@ acompaña, pero hoy acompaña en la mitad de los casos.
 **Si sale la A**, antes hay que o cambiar esas 4 fotos, o que el hero saltee a
 los estudios sin foto horizontal.
 
-## ⬜ Liquidar CUANDO QUIERA (sin esperar el cierre de mes) — relevado el 6/9, NO construido
+## ❌ Liquidar CUANDO QUIERA — DESCARTADO por Sofía el 6/9 (queda el relevamiento abajo)
 
 Sofía mantiene el pago manual (transferir no le molesta). Lo que quiere es no
 estar obligada a esperar a fin de mes: pagarle al creador de una experiencia
@@ -1510,6 +1510,41 @@ liquidar" es simple: **sólo reservas en `completada`**, nunca `presente` ni
 cobra igual si la alumna no fue). Si un día se decide devolver a una ausente,
 ya liquidada, esa plata ya salió. Recomendación: **`ausente` se liquida y no
 se devuelve**, que es la regla de hoy, y dejarla escrita.
+
+## ✅ RESPONSIVE: 36 pantallas que se estiraban en desktop — 6/9 (Dart, sin desplegar)
+
+Inicio, Explorar y los dos detalles ya topaban su ancho. **El resto no**: en un
+monitor de 1920, Reservas, Perfil, el backoffice y el lado del estudio se
+estiraban de lado a lado, con renglones de 1900 px que el ojo no puede seguir.
+
+Nuevo `lib/widgets/ancho_maximo.dart`, aplicado a **36 pantallas**:
+
+- `AnchoMaximo` → tope 1100, el mismo que ya usaban Explorar y los detalles.
+- `AnchoMaximo.formulario` → tope 640, para pantallas de un paso (login,
+  registro, configuración, checkout, cambiar contraseña).
+
+**Va DENTRO del `body` del Scaffold**, no envolviendo al Scaffold: así la
+AppBar y el color de fondo siguen ocupando la pantalla entera y sólo se centra
+el contenido. Hay un test que lo comprueba (AppBar 1920, contenido 1100).
+
+**En teléfono no cambia nada**: medido a 320, 390, 430 y 800 px, el contenido
+sigue ocupando el 100%.
+
+`ancho_maximo_test.dart` recorre las **41 pantallas con scroll de página** y
+falla si alguna queda sin tope, así que no se puede agregar una nueva estirada.
+
+### ⚠️ Dos cosas que aparecieron al hacerlo
+
+1. **Los detalles de clase y estudio YA estaban topados** desde antes. Si Sofía
+   los ve estirados, es la app del teléfono (1.0.6+26), no la web.
+2. **`dart format` desalineó dos `// ignore:`** en `aura_gestion_screen`: la
+   llamada que cubrían pasó de una línea a cuatro y el `context` quedó fuera
+   de su alcance. Reubicados. Un tercer aviso salió de una línea que el
+   formateo partió; se le pusieron llaves. `analyze` volvió a **97**, la línea
+   base. El formateo se revirtió en los 13 archivos que no se tocaron, para
+   que el diff no tenga ruido.
+
+351 tests (8 nuevos), `analyze` en 97, web compila.
 
 ## 🔴 PLATA: la primera facturación real (Citra) — 6/9, diagnosticado y con 2 arreglos
 

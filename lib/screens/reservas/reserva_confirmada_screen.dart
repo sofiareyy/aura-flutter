@@ -10,6 +10,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 import '../../services/reservas_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class ReservaConfirmadaScreen extends StatefulWidget {
   final String codigoQr;
@@ -22,7 +23,8 @@ class ReservaConfirmadaScreen extends StatefulWidget {
   });
 
   @override
-  State<ReservaConfirmadaScreen> createState() => _ReservaConfirmadaScreenState();
+  State<ReservaConfirmadaScreen> createState() =>
+      _ReservaConfirmadaScreenState();
 }
 
 /// El identificador corto que ve la alumna, sacado del código QR.
@@ -106,7 +108,7 @@ class _ReservaConfirmadaScreenState extends State<ReservaConfirmadaScreen> {
     );
   }
 
-Future<void> _abrirShareSheet({
+  Future<void> _abrirShareSheet({
     required String className,
     required String studioName,
     required DateTime? fecha,
@@ -116,7 +118,8 @@ Future<void> _abrirShareSheet({
         ? "${DateFormat("EEEE d 'de' MMMM, HH:mm", 'es').format(fecha)}hs"
         : 'Próximamente';
 
-    final mensaje = '¡Me anoté en $className en $studioName! 🧡\n'
+    final mensaje =
+        '¡Me anoté en $className en $studioName! 🧡\n'
         '📅 $fechaStr\n'
         '📍 ${direccion?.isNotEmpty == true ? direccion : studioName}\n'
         'Reservá en Aura: somosaurapass.com';
@@ -127,7 +130,9 @@ Future<void> _abrirShareSheet({
       backgroundColor: Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AuraRadio.tarjeta)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AuraRadio.tarjeta),
+        ),
       ),
       builder: (_) => _ShareSheet(
         mensaje: mensaje,
@@ -185,9 +190,13 @@ Future<void> _abrirShareSheet({
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : _checkClaseFinalizada() ?? _buildContent(),
+      body: AnchoMaximo(
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : _checkClaseFinalizada() ?? _buildContent(),
+      ),
     );
   }
 
@@ -257,7 +266,9 @@ Future<void> _abrirShareSheet({
     final codigoQr = reserva?['codigo_qr']?.toString();
     final creditosUsadosRaw = _readInt(reserva?['creditos_usados']);
     final creditosClase = _readInt(clase?['creditos']);
-    final creditosUsados = creditosUsadosRaw > 0 ? creditosUsadosRaw : creditosClase;
+    final creditosUsados = creditosUsadosRaw > 0
+        ? creditosUsadosRaw
+        : creditosClase;
     final className = clase?['nombre']?.toString() ?? 'Clase';
     final studioName = estudio?['nombre']?.toString() ?? 'Estudio';
     final studioArea = estudio?['barrio']?.toString() ?? '';
@@ -366,7 +377,10 @@ Future<void> _abrirShareSheet({
                           ),
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 16),
-                            child: Divider(color: AppColors.warmBorder, height: 1),
+                            child: Divider(
+                              color: AppColors.warmBorder,
+                              height: 1,
+                            ),
                           ),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,60 +389,66 @@ Future<void> _abrirShareSheet({
                                 onTap: codigoQr == null || codigoQr.isEmpty
                                     ? null
                                     : () => showDialog<void>(
-                                          context: context,
-                                          builder: (ctx) => Dialog(
-                                            backgroundColor: Colors.white,
-                                            insetPadding: const EdgeInsets.all(24),
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(20),
-                                              child: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  const Text(
-                                                    'QR de asistencia',
-                                                    style: TextStyle(
-                                                      color: AppColors.black,
-                                                      fontSize: AuraTipo.titulo,
-                                                      fontWeight: FontWeight.w700,
-                                                    ),
+                                        context: context,
+                                        builder: (ctx) => Dialog(
+                                          backgroundColor: Colors.white,
+                                          insetPadding: const EdgeInsets.all(
+                                            24,
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(20),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Text(
+                                                  'QR de asistencia',
+                                                  style: TextStyle(
+                                                    color: AppColors.black,
+                                                    fontSize: AuraTipo.titulo,
+                                                    fontWeight: FontWeight.w700,
                                                   ),
-                                                  const SizedBox(height: 16),
-                                                  SizedBox(
-                                                    width: 220,
-                                                    height: 220,
-                                                    child: QrImageView(
-                                                      data: codigoQr,
-                                                      version: QrVersions.auto,
-                                                      backgroundColor: Colors.white,
-                                                    ),
+                                                ),
+                                                const SizedBox(height: 16),
+                                                SizedBox(
+                                                  width: 220,
+                                                  height: 220,
+                                                  child: QrImageView(
+                                                    data: codigoQr,
+                                                    version: QrVersions.auto,
+                                                    backgroundColor:
+                                                        Colors.white,
                                                   ),
-                                                ],
-                                              ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ),
-                                child: Container(
-                                width: 120,
-                                height: 120,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF1F1EF),
-                                  borderRadius: BorderRadius.circular(AuraRadio.boton),
-                                ),
-                                child: codigoQr == null || codigoQr.isEmpty
-                                    ? const Icon(
-                                        Icons.qr_code_2_rounded,
-                                        color: Color(0xFFC5C0BC),
-                                        size: 42,
-                                      )
-                                    : Padding(
-                                        padding: const EdgeInsets.all(10),
-                                        child: QrImageView(
-                                          data: codigoQr,
-                                          version: QrVersions.auto,
-                                          backgroundColor: Colors.white,
-                                        ),
                                       ),
-                              )),
+                                child: Container(
+                                  width: 120,
+                                  height: 120,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F1EF),
+                                    borderRadius: BorderRadius.circular(
+                                      AuraRadio.boton,
+                                    ),
+                                  ),
+                                  child: codigoQr == null || codigoQr.isEmpty
+                                      ? const Icon(
+                                          Icons.qr_code_2_rounded,
+                                          color: Color(0xFFC5C0BC),
+                                          size: 42,
+                                        )
+                                      : Padding(
+                                          padding: const EdgeInsets.all(10),
+                                          child: QrImageView(
+                                            data: codigoQr,
+                                            version: QrVersions.auto,
+                                            backgroundColor: Colors.white,
+                                          ),
+                                        ),
+                                ),
+                              ),
                               const SizedBox(width: 14),
                               Expanded(
                                 child: Column(
@@ -492,10 +512,7 @@ Future<void> _abrirShareSheet({
                     const SizedBox(height: 18),
                     // ── Cómo llegar ──────────────────────────────────────
                     if (estudio != null) ...[
-                      _ComoLlegarCard(
-                        estudio: estudio,
-                        abrirUrl: _abrirUrl,
-                      ),
+                      _ComoLlegarCard(estudio: estudio, abrirUrl: _abrirUrl),
                       const SizedBox(height: 18),
                     ],
                     Row(
@@ -711,7 +728,11 @@ class _ShareSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          20, 16, 20, 24 + MediaQuery.of(context).viewInsets.bottom),
+        20,
+        16,
+        20,
+        24 + MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -762,8 +783,10 @@ class _ShareSheet extends StatelessWidget {
               final uri = Uri.parse('whatsapp://send?text=$encoded');
               bool launched = false;
               try {
-                launched = await launchUrl(uri,
-                    mode: LaunchMode.externalApplication);
+                launched = await launchUrl(
+                  uri,
+                  mode: LaunchMode.externalApplication,
+                );
               } catch (_) {}
               if (!launched) {
                 await launchUrl(
@@ -808,8 +831,7 @@ class _ShareSheet extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: const Center(
-                child:
-                    Icon(Icons.share_rounded, color: Colors.white, size: 20),
+                child: Icon(Icons.share_rounded, color: Colors.white, size: 20),
               ),
             ),
             label: 'Otras apps',
@@ -824,7 +846,10 @@ class _ShareSheet extends StatelessWidget {
             onPressed: () => Navigator.pop(context),
             child: const Text(
               'Cancelar',
-              style: TextStyle(color: Color(0xFF8F877F), fontSize: AuraTipo.titulo),
+              style: TextStyle(
+                color: Color(0xFF8F877F),
+                fontSize: AuraTipo.titulo,
+              ),
             ),
           ),
         ],

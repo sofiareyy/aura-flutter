@@ -20,6 +20,7 @@ import '../../services/favoritos_service.dart';
 import '../../services/referidos_service.dart';
 import '../../services/reservas_service.dart';
 import '../../services/usuarios_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class MiPerfilScreen extends StatefulWidget {
   const MiPerfilScreen({super.key});
@@ -69,7 +70,9 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AuraRadio.tarjeta)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+          ),
           title: const Text('Canjear regalo'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -77,7 +80,10 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
             children: [
               const Text(
                 'Ingresá el código de tu gift card.',
-                style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.cuerpo),
+                style: TextStyle(
+                  color: AppColors.grey,
+                  fontSize: AuraTipo.cuerpo,
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -96,8 +102,10 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
           actions: [
             TextButton(
               onPressed: enviando ? null : () => Navigator.of(ctx).pop(),
-              child: const Text('Cancelar',
-                  style: TextStyle(color: AppColors.grey)),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: AppColors.grey),
+              ),
             ),
             TextButton(
               onPressed: enviando
@@ -107,8 +115,9 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                       if (code.isEmpty) return;
                       setD(() => enviando = true);
                       try {
-                        final creditos =
-                            await ReferidosService().canjearRegalo(code);
+                        final creditos = await ReferidosService().canjearRegalo(
+                          code,
+                        );
                         if (!ctx.mounted) return;
                         Navigator.of(ctx).pop();
                         if (!mounted) return;
@@ -116,8 +125,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content:
-                                Text('🎁 ¡Canjeaste $creditos créditos!'),
+                            content: Text('🎁 ¡Canjeaste $creditos créditos!'),
                             backgroundColor: AppColors.success,
                           ),
                         );
@@ -126,17 +134,19 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                         if (ctx.mounted) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             SnackBar(
-                              content: Text(e
-                                  .toString()
-                                  .replaceFirst('Exception: ', '')),
+                              content: Text(
+                                e.toString().replaceFirst('Exception: ', ''),
+                              ),
                               backgroundColor: AppColors.error,
                             ),
                           );
                         }
                       }
                     },
-              child: const Text('Canjear',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              child: const Text(
+                'Canjear',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),
@@ -162,14 +172,17 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
       _misEstudios = const [];
     }
     await _cargarFavoritos();
-    _clasesTomadas =
-        await _reservasService.contarClasesTomadas(uid.isEmpty ? null : uid);
+    _clasesTomadas = await _reservasService.contarClasesTomadas(
+      uid.isEmpty ? null : uid,
+    );
     if (mounted) setState(() {});
   }
 
   Future<void> _entrarAEstudio(int estudioId) async {
     final activo = _misEstudios.any(
-      (e) => e['is_active'] == true && (e['estudio_id'] as num?)?.toInt() == estudioId,
+      (e) =>
+          e['is_active'] == true &&
+          (e['estudio_id'] as num?)?.toInt() == estudioId,
     );
     if (!activo) {
       final ok = await _estudioAdminService.setActiveEstudio(estudioId);
@@ -205,284 +218,301 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Consumer<AppProvider>(
-        builder: (context, provider, _) {
-          final usuario = provider.usuario;
-          return SafeArea(
-            child: RefreshIndicator(
-              onRefresh: _cargarTodo,
-              color: AppColors.primary,
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Mi perfil',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.settings_outlined),
-                        onPressed: () => context.push('/configuracion'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  _buildProfileHeader(usuario),
-                  const SizedBox(height: 16),
-                  // El progreso va ARRIBA (2/9/2026): es lo motivador, lo
-                  // primero que se quiere ver al entrar. Antes estaba
-                  // enterrado abajo, después de siete filas de menú.
-                  _ProgresoCard(clasesTomadas: _clasesTomadas),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      _StatBox(
-                        value: '${usuario?.creditos ?? 0}',
-                        label: 'Créditos',
-                        icon: Icons.bolt_rounded,
-                      ),
-                      const SizedBox(width: 10),
-                      _StatBox(
-                        value: (usuario?.plan?.isNotEmpty == true)
-                            ? usuario!.plan!
-                            : 'Sin plan',
-                        valueColor: (usuario?.plan?.isNotEmpty == true)
-                            ? AppColors.primary
-                            : AppColors.grey,
-                        label: 'Plan',
-                        icon: Icons.workspace_premium_rounded,
-                      ),
-                      const SizedBox(width: 10),
-                      _StatBox(
-                        value: usuario?.creditosVencimiento != null
-                            ? DateFormat('d MMM', 'es')
-                                .format(usuario!.creditosVencimiento!)
-                            : '—',
-                        valueColor: usuario?.creditosVencimiento != null
-                            ? AppColors.black
-                            : AppColors.grey,
-                        label: 'Vence',
-                        icon: Icons.hourglass_bottom_rounded,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  if (_misEstudios.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _misEstudios.length == 1
-                                ? 'Esta cuenta también administra un estudio.'
-                                : 'Esta cuenta administra ${_misEstudios.length} estudios.',
-                            style: const TextStyle(
-                              color: AppColors.black,
-                              fontSize: AuraTipo.cuerpo,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ..._misEstudios.map((e) {
-                            final id = (e['estudio_id'] as num?)?.toInt();
-                            final nombre = e['nombre']?.toString() ?? 'Sin nombre';
-                            final esActivo = e['is_active'] == true;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: InkWell(
-                                onTap: id == null ? null : () => _entrarAEstudio(id),
-                                borderRadius: BorderRadius.circular(AuraRadio.boton),
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: esActivo
-                                        ? AppColors.primaryLight
-                                        : const Color(0xFFF7F3EE),
-                                    borderRadius: BorderRadius.circular(AuraRadio.boton),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 36,
-                                        height: 36,
-                                        decoration: BoxDecoration(
-                                          color: AppColors.white,
-                                          borderRadius: BorderRadius.circular(AuraRadio.chip),
-                                        ),
-                                        child: const Icon(
-                                          Icons.storefront_outlined,
-                                          color: AppColors.primary,
-                                          size: 18,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              nombre,
-                                              style: const TextStyle(
-                                                color: AppColors.black,
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: AuraTipo.cuerpo,
-                                              ),
-                                            ),
-                                            if (esActivo)
-                                              const Text(
-                                                'Activo',
-                                                style: TextStyle(
-                                                  color: AppColors.primary,
-                                                  fontSize: AuraTipo.etiqueta,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                      const Icon(
-                                        Icons.chevron_right_rounded,
-                                        color: AppColors.primary,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-                        ],
-                      ),
+      body: AnchoMaximo(
+        child: Consumer<AppProvider>(
+          builder: (context, provider, _) {
+            final usuario = provider.usuario;
+            return SafeArea(
+              child: RefreshIndicator(
+                onRefresh: _cargarTodo,
+                color: AppColors.primary,
+                child: ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Mi perfil',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.settings_outlined),
+                          onPressed: () => context.push('/configuracion'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    _buildProfileHeader(usuario),
+                    const SizedBox(height: 16),
+                    // El progreso va ARRIBA (2/9/2026): es lo motivador, lo
+                    // primero que se quiere ver al entrar. Antes estaba
+                    // enterrado abajo, después de siete filas de menú.
+                    _ProgresoCard(clasesTomadas: _clasesTomadas),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        _StatBox(
+                          value: '${usuario?.creditos ?? 0}',
+                          label: 'Créditos',
+                          icon: Icons.bolt_rounded,
+                        ),
+                        const SizedBox(width: 10),
+                        _StatBox(
+                          value: (usuario?.plan?.isNotEmpty == true)
+                              ? usuario!.plan!
+                              : 'Sin plan',
+                          valueColor: (usuario?.plan?.isNotEmpty == true)
+                              ? AppColors.primary
+                              : AppColors.grey,
+                          label: 'Plan',
+                          icon: Icons.workspace_premium_rounded,
+                        ),
+                        const SizedBox(width: 10),
+                        _StatBox(
+                          value: usuario?.creditosVencimiento != null
+                              ? DateFormat(
+                                  'd MMM',
+                                  'es',
+                                ).format(usuario!.creditosVencimiento!)
+                              : '—',
+                          valueColor: usuario?.creditosVencimiento != null
+                              ? AppColors.black
+                              : AppColors.grey,
+                          label: 'Vence',
+                          icon: Icons.hourglass_bottom_rounded,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
-                  ],
-                  // Editar perfil vive SOLO acá, pegado a la identidad, que
-                  // es donde se lo busca. Salió de Configuración (estaba en
-                  // las dos pantallas).
-                  _MenuSection(
-                    items: [
-                      _MenuItem(
-                        icon: Icons.edit_outlined,
-                        label: 'Editar perfil',
-                        subtitle: 'Nombre, foto y datos básicos',
-                        onTap: () => context.push('/perfil/editar'),
+                    if (_misEstudios.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(
+                            AuraRadio.tarjeta,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _misEstudios.length == 1
+                                  ? 'Esta cuenta también administra un estudio.'
+                                  : 'Esta cuenta administra ${_misEstudios.length} estudios.',
+                              style: const TextStyle(
+                                color: AppColors.black,
+                                fontSize: AuraTipo.cuerpo,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            ..._misEstudios.map((e) {
+                              final id = (e['estudio_id'] as num?)?.toInt();
+                              final nombre =
+                                  e['nombre']?.toString() ?? 'Sin nombre';
+                              final esActivo = e['is_active'] == true;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: InkWell(
+                                  onTap: id == null
+                                      ? null
+                                      : () => _entrarAEstudio(id),
+                                  borderRadius: BorderRadius.circular(
+                                    AuraRadio.boton,
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: esActivo
+                                          ? AppColors.primaryLight
+                                          : const Color(0xFFF7F3EE),
+                                      borderRadius: BorderRadius.circular(
+                                        AuraRadio.boton,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 36,
+                                          height: 36,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.white,
+                                            borderRadius: BorderRadius.circular(
+                                              AuraRadio.chip,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.storefront_outlined,
+                                            color: AppColors.primary,
+                                            size: 18,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                nombre,
+                                                style: const TextStyle(
+                                                  color: AppColors.black,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: AuraTipo.cuerpo,
+                                                ),
+                                              ),
+                                              if (esActivo)
+                                                const Text(
+                                                  'Activo',
+                                                  style: TextStyle(
+                                                    color: AppColors.primary,
+                                                    fontSize: AuraTipo.etiqueta,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        const Icon(
+                                          Icons.chevron_right_rounded,
+                                          color: AppColors.primary,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
                       ),
+                      const SizedBox(height: 16),
                     ],
-                  ),
-                  const SizedBox(height: 16),
-                  // Toda la plata en un solo bloque: antes estaba repartida
-                  // entre los recuadros de arriba, este menú y un botón de
-                  // "Cancelar suscripción" que colgaba suelto abajo.
-                  _MenuSection(
-                    title: 'Créditos y plan',
-                    items: [
-                      _MenuItem(
-                        icon: Icons.bolt_rounded,
-                        label: 'Mis créditos',
-                        subtitle: '${usuario?.creditos ?? 0} disponibles',
-                        onTap: () => context.push('/mis-creditos'),
-                      ),
-                      _MenuItem(
-                        icon: Icons.add_circle_outline_rounded,
-                        label: 'Comprar créditos',
-                        subtitle: 'Cargá packs cuando quieras',
-                        onTap: () => context.push('/comprar-creditos'),
-                      ),
-                      _MenuItem(
-                        icon: Icons.card_giftcard_rounded,
-                        label: 'Regalar créditos',
-                        subtitle: 'Enviá una gift card a quien quieras',
-                        onTap: () =>
-                            context.push('/comprar-creditos?tab=gift'),
-                      ),
-                      _MenuItem(
-                        icon: Icons.redeem_rounded,
-                        label: 'Canjear regalo',
-                        subtitle: 'Tenés un código de gift card',
-                        onTap: _canjearRegalo,
-                      ),
-                      _MenuItem(
-                        icon: Icons.workspace_premium_rounded,
-                        label: 'Plan mensual',
-                        subtitle: usuario?.subscriptionStatus == 'active' && (usuario?.plan ?? '').isNotEmpty
-                            ? 'Activo: ${usuario!.plan}'
-                            : 'Opcional: suscripción automática',
-                        onTap: () => context.push('/cambiar-plan'),
-                      ),
-                      if (usuario?.subscriptionStatus == 'active' &&
-                          (usuario?.plan ?? '').isNotEmpty)
+                    // Editar perfil vive SOLO acá, pegado a la identidad, que
+                    // es donde se lo busca. Salió de Configuración (estaba en
+                    // las dos pantallas).
+                    _MenuSection(
+                      items: [
                         _MenuItem(
-                          icon: Icons.cancel_outlined,
-                          label: 'Cancelar suscripción',
-                          color: AppColors.error,
-                          onTap: _cancelarSuscripcion,
+                          icon: Icons.edit_outlined,
+                          label: 'Editar perfil',
+                          subtitle: 'Nombre, foto y datos básicos',
+                          onTap: () => context.push('/perfil/editar'),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  // Mis reservas NO es plata: es tu actividad. Va con
-                  // Referidos, que tampoco tenía dónde caer y terminaba en el
-                  // cajón "Más" junto a Configuración y Cerrar sesión.
-                  _MenuSection(
-                    title: 'Mi actividad',
-                    items: [
-                      _MenuItem(
-                        icon: Icons.calendar_today_rounded,
-                        label: 'Mis reservas',
-                        onTap: () => context.push('/mis-reservas'),
-                      ),
-                      _MenuItem(
-                        icon: Icons.people_outline_rounded,
-                        label: 'Referidos',
-                        subtitle: 'Compartí tu código y acreditá beneficios',
-                        onTap: () => context.push('/referidos'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _FavoritosSection(
-                    estudios: _favoritos,
-                    loading: _loadingFavoritos,
-                  ),
-                  // Cerrar sesión cierra la pantalla: separada por aire, en su
-                  // propio bloque y en rojo suave. Es reversible, así que NO
-                  // va con lo destructivo — eliminar la cuenta sigue en
-                  // Configuración, lejos y con su campo de confirmación.
-                  const SizedBox(height: 32),
-                  _MenuSection(
-                    items: [
-                      _MenuItem(
-                        icon: Icons.logout_rounded,
-                        label: 'Cerrar sesión',
-                        color: AppColors.error,
-                        onTap: () => _cerrarSesion(context),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  if (_appVersion != null)
-                    Center(
-                      child: Text(
-                        'Aura ${_appVersion!}',
-                        style: const TextStyle(
-                          color: Color(0xFFB0A8A0),
-                          fontSize: AuraTipo.etiqueta,
-                        ),
-                      ),
+                      ],
                     ),
-                  const SizedBox(height: 24),
-                ],
+                    const SizedBox(height: 16),
+                    // Toda la plata en un solo bloque: antes estaba repartida
+                    // entre los recuadros de arriba, este menú y un botón de
+                    // "Cancelar suscripción" que colgaba suelto abajo.
+                    _MenuSection(
+                      title: 'Créditos y plan',
+                      items: [
+                        _MenuItem(
+                          icon: Icons.bolt_rounded,
+                          label: 'Mis créditos',
+                          subtitle: '${usuario?.creditos ?? 0} disponibles',
+                          onTap: () => context.push('/mis-creditos'),
+                        ),
+                        _MenuItem(
+                          icon: Icons.add_circle_outline_rounded,
+                          label: 'Comprar créditos',
+                          subtitle: 'Cargá packs cuando quieras',
+                          onTap: () => context.push('/comprar-creditos'),
+                        ),
+                        _MenuItem(
+                          icon: Icons.card_giftcard_rounded,
+                          label: 'Regalar créditos',
+                          subtitle: 'Enviá una gift card a quien quieras',
+                          onTap: () =>
+                              context.push('/comprar-creditos?tab=gift'),
+                        ),
+                        _MenuItem(
+                          icon: Icons.redeem_rounded,
+                          label: 'Canjear regalo',
+                          subtitle: 'Tenés un código de gift card',
+                          onTap: _canjearRegalo,
+                        ),
+                        _MenuItem(
+                          icon: Icons.workspace_premium_rounded,
+                          label: 'Plan mensual',
+                          subtitle:
+                              usuario?.subscriptionStatus == 'active' &&
+                                  (usuario?.plan ?? '').isNotEmpty
+                              ? 'Activo: ${usuario!.plan}'
+                              : 'Opcional: suscripción automática',
+                          onTap: () => context.push('/cambiar-plan'),
+                        ),
+                        if (usuario?.subscriptionStatus == 'active' &&
+                            (usuario?.plan ?? '').isNotEmpty)
+                          _MenuItem(
+                            icon: Icons.cancel_outlined,
+                            label: 'Cancelar suscripción',
+                            color: AppColors.error,
+                            onTap: _cancelarSuscripcion,
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Mis reservas NO es plata: es tu actividad. Va con
+                    // Referidos, que tampoco tenía dónde caer y terminaba en el
+                    // cajón "Más" junto a Configuración y Cerrar sesión.
+                    _MenuSection(
+                      title: 'Mi actividad',
+                      items: [
+                        _MenuItem(
+                          icon: Icons.calendar_today_rounded,
+                          label: 'Mis reservas',
+                          onTap: () => context.push('/mis-reservas'),
+                        ),
+                        _MenuItem(
+                          icon: Icons.people_outline_rounded,
+                          label: 'Referidos',
+                          subtitle: 'Compartí tu código y acreditá beneficios',
+                          onTap: () => context.push('/referidos'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _FavoritosSection(
+                      estudios: _favoritos,
+                      loading: _loadingFavoritos,
+                    ),
+                    // Cerrar sesión cierra la pantalla: separada por aire, en su
+                    // propio bloque y en rojo suave. Es reversible, así que NO
+                    // va con lo destructivo — eliminar la cuenta sigue en
+                    // Configuración, lejos y con su campo de confirmación.
+                    const SizedBox(height: 32),
+                    _MenuSection(
+                      items: [
+                        _MenuItem(
+                          icon: Icons.logout_rounded,
+                          label: 'Cerrar sesión',
+                          color: AppColors.error,
+                          onTap: () => _cerrarSesion(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    if (_appVersion != null)
+                      Center(
+                        child: Text(
+                          'Aura ${_appVersion!}',
+                          style: const TextStyle(
+                            color: Color(0xFFB0A8A0),
+                            fontSize: AuraTipo.etiqueta,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -518,17 +548,17 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                           ),
                         )
                       : (avatarUrl == null || avatarUrl.isEmpty)
-                          ? Text(
-                              usuario?.nombre.isNotEmpty == true
-                                  ? usuario!.nombre[0].toUpperCase()
-                                  : 'U',
-                              style: const TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
-                              ),
-                            )
-                          : null,
+                      ? Text(
+                          usuario?.nombre.isNotEmpty == true
+                              ? usuario!.nombre[0].toUpperCase()
+                              : 'U',
+                          style: const TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        )
+                      : null,
                 ),
                 Positioned(
                   bottom: 0,
@@ -585,7 +615,10 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
           const SizedBox(height: 4),
           Text(
             usuario?.email ?? '',
-            style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
+            style: const TextStyle(
+              color: AppColors.grey,
+              fontSize: AuraTipo.secundario,
+            ),
           ),
           if (usuario?.creditosVencimiento != null) ...[
             const SizedBox(height: 12),
@@ -624,8 +657,10 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
             hintText: 'Tu nombre',
             filled: true,
             fillColor: AppColors.background,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 10,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AuraRadio.boton),
               borderSide: BorderSide.none,
@@ -722,7 +757,8 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-              'No se pudo actualizar el nombre: ${e.toString().replaceFirst('Exception: ', '')}'),
+            'No se pudo actualizar el nombre: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -734,7 +770,9 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
       context: context,
       backgroundColor: AppColors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AuraRadio.tarjeta)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AuraRadio.tarjeta),
+        ),
       ),
       builder: (ctx) => SafeArea(
         child: Column(
@@ -751,15 +789,19 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined,
-                  color: AppColors.primary),
+              leading: const Icon(
+                Icons.photo_library_outlined,
+                color: AppColors.primary,
+              ),
               title: const Text('Elegir de la galería'),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
             if (!kIsWeb)
               ListTile(
-                leading: const Icon(Icons.camera_alt_outlined,
-                    color: AppColors.primary),
+                leading: const Icon(
+                  Icons.camera_alt_outlined,
+                  color: AppColors.primary,
+                ),
                 title: const Text('Sacar una foto'),
                 onTap: () => Navigator.pop(ctx, ImageSource.camera),
               ),
@@ -802,7 +844,8 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
 
       await Supabase.instance.client
           .from('usuarios')
-          .update({'avatar_url': publicUrl}).eq('id', userId);
+          .update({'avatar_url': publicUrl})
+          .eq('id', userId);
 
       await provider.refrescarUsuario();
       if (!mounted) return;
@@ -817,7 +860,8 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-              'Error subiendo la foto: ${e.toString().replaceFirst('Exception: ', '')}'),
+            'Error subiendo la foto: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -860,7 +904,9 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
       await provider.refrescarUsuario();
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Suscripción cancelada. Tus créditos actuales siguen disponibles.'),
+          content: Text(
+            'Suscripción cancelada. Tus créditos actuales siguen disponibles.',
+          ),
           backgroundColor: AppColors.blackSoft,
         ),
       );
@@ -909,10 +955,7 @@ class _FavoritosSection extends StatelessWidget {
   final List<Estudio> estudios;
   final bool loading;
 
-  const _FavoritosSection({
-    required this.estudios,
-    required this.loading,
-  });
+  const _FavoritosSection({required this.estudios, required this.loading});
 
   @override
   Widget build(BuildContext context) {
@@ -923,10 +966,9 @@ class _FavoritosSection extends StatelessWidget {
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
             'Estudios favoritos',
-            style: Theme.of(context)
-                .textTheme
-                .titleSmall
-                ?.copyWith(color: AppColors.grey),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(color: AppColors.grey),
           ),
         ),
         Container(
@@ -948,49 +990,49 @@ class _FavoritosSection extends StatelessWidget {
                   ),
                 )
               : estudios.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(18),
-                      child: Text(
-                        'Todavía no guardaste estudios favoritos. Podés hacerlo desde el detalle de cada estudio.',
-                        style: TextStyle(color: AppColors.grey, height: 1.5),
-                      ),
-                    )
-                  : Column(
-                      children: estudios.asMap().entries.map((entry) {
-                        final estudio = entry.value;
-                        final isLast = entry.key == estudios.length - 1;
-                        return Column(
-                          children: [
-                            ListTile(
-                              onTap: () => context.push('/estudio/${estudio.id}'),
-                              leading: CircleAvatar(
-                                backgroundColor: AppColors.primaryLight,
-                                child: Text(
-                                  estudio.nombre.isEmpty
-                                      ? 'E'
-                                      : estudio.nombre[0].toUpperCase(),
-                                  style: const TextStyle(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              title: Text(estudio.nombre),
-                              subtitle: Text(
-                                estudio.barrio?.isNotEmpty == true
-                                    ? '${estudio.categoria} · ${estudio.barrio}'
-                                    : estudio.categoria,
-                              ),
-                              trailing: const Icon(
-                                Icons.chevron_right_rounded,
-                                color: AppColors.grey,
+              ? const Padding(
+                  padding: EdgeInsets.all(18),
+                  child: Text(
+                    'Todavía no guardaste estudios favoritos. Podés hacerlo desde el detalle de cada estudio.',
+                    style: TextStyle(color: AppColors.grey, height: 1.5),
+                  ),
+                )
+              : Column(
+                  children: estudios.asMap().entries.map((entry) {
+                    final estudio = entry.value;
+                    final isLast = entry.key == estudios.length - 1;
+                    return Column(
+                      children: [
+                        ListTile(
+                          onTap: () => context.push('/estudio/${estudio.id}'),
+                          leading: CircleAvatar(
+                            backgroundColor: AppColors.primaryLight,
+                            child: Text(
+                              estudio.nombre.isEmpty
+                                  ? 'E'
+                                  : estudio.nombre[0].toUpperCase(),
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                            if (!isLast) const Divider(height: 1, indent: 72),
-                          ],
-                        );
-                      }).toList(),
-                    ),
+                          ),
+                          title: Text(estudio.nombre),
+                          subtitle: Text(
+                            estudio.barrio?.isNotEmpty == true
+                                ? '${estudio.categoria} · ${estudio.barrio}'
+                                : estudio.categoria,
+                          ),
+                          trailing: const Icon(
+                            Icons.chevron_right_rounded,
+                            color: AppColors.grey,
+                          ),
+                        ),
+                        if (!isLast) const Divider(height: 1, indent: 72),
+                      ],
+                    );
+                  }).toList(),
+                ),
         ),
       ],
     );
@@ -1035,7 +1077,10 @@ class _StatBox extends StatelessWidget {
             ),
             Text(
               label,
-              style: const TextStyle(fontSize: AuraTipo.etiqueta, color: AppColors.grey),
+              style: const TextStyle(
+                fontSize: AuraTipo.etiqueta,
+                color: AppColors.grey,
+              ),
             ),
           ],
         ),
@@ -1076,10 +1121,9 @@ class _ProgresoCard extends StatelessWidget {
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
             'Tu progreso en Aura',
-            style: Theme.of(context)
-                .textTheme
-                .titleSmall
-                ?.copyWith(color: AppColors.grey),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(color: AppColors.grey),
           ),
         ),
         Container(
@@ -1096,20 +1140,26 @@ class _ProgresoCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text('$n',
-                      style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w700,
-                          height: 1)),
+                  Text(
+                    '$n',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w700,
+                      height: 1,
+                    ),
+                  ),
                   const SizedBox(width: 6),
                   const Padding(
                     padding: EdgeInsets.only(bottom: 3),
-                    child: Text('de $_meta clases',
-                        style: TextStyle(
-                            color: AppColors.black,
-                            fontSize: AuraTipo.cuerpo,
-                            fontWeight: FontWeight.w600)),
+                    child: Text(
+                      'de $_meta clases',
+                      style: TextStyle(
+                        color: AppColors.black,
+                        fontSize: AuraTipo.cuerpo,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -1120,14 +1170,18 @@ class _ProgresoCard extends StatelessWidget {
                   value: progreso,
                   minHeight: 12,
                   backgroundColor: AppColors.lightGrey,
-                  valueColor:
-                      const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    AppColors.primary,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
               Text(
                 mensaje,
-                style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
+                style: const TextStyle(
+                  color: AppColors.grey,
+                  fontSize: AuraTipo.secundario,
+                ),
               ),
             ],
           ),
@@ -1151,15 +1205,14 @@ class _MenuSection extends StatelessWidget {
       children: [
         if (title != null)
           Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            title!,
-            style: Theme.of(context)
-                .textTheme
-                .titleSmall
-                ?.copyWith(color: AppColors.grey),
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              title!,
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(color: AppColors.grey),
+            ),
           ),
-        ),
         Container(
           decoration: BoxDecoration(
             color: AppColors.white,
@@ -1222,7 +1275,10 @@ class _MenuItem extends StatelessWidget {
           ? null
           : Text(
               subtitle!,
-              style: const TextStyle(fontSize: AuraTipo.secundario, color: AppColors.grey),
+              style: const TextStyle(
+                fontSize: AuraTipo.secundario,
+                color: AppColors.grey,
+              ),
             ),
       trailing: const Icon(
         Icons.chevron_right_rounded,

@@ -7,12 +7,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class HistorialCreditosScreen extends StatefulWidget {
   const HistorialCreditosScreen({super.key});
 
   @override
-  State<HistorialCreditosScreen> createState() => _HistorialCreditosScreenState();
+  State<HistorialCreditosScreen> createState() =>
+      _HistorialCreditosScreenState();
 }
 
 class _HistorialCreditosScreenState extends State<HistorialCreditosScreen> {
@@ -42,7 +44,9 @@ class _HistorialCreditosScreenState extends State<HistorialCreditosScreen> {
       final results = await Future.wait([
         _supabase
             .from('pagos')
-            .select('id, type, status, amount, creditos, pack_nombre, plan_nombre, created_at')
+            .select(
+              'id, type, status, amount, creditos, pack_nombre, plan_nombre, created_at',
+            )
             .eq('user_id', userId)
             .eq('status', 'approved')
             .order('created_at', ascending: false),
@@ -60,18 +64,14 @@ class _HistorialCreditosScreenState extends State<HistorialCreditosScreen> {
       final reservasAll = (results[1] as List).cast<Map<String, dynamic>>();
 
       // Separar reservas activas (egresos) de canceladas con devolución (ingresos).
-      final reservasActivas = reservasAll
-          .where((r) {
-            final estado = r['estado']?.toString() ?? '';
-            return estado != 'cancelada' && estado != 'cancelada_por_estudio';
-          })
-          .toList();
-      final reservasCanceladas = reservasAll
-          .where((r) {
-            final estado = r['estado']?.toString() ?? '';
-            return estado == 'cancelada' || estado == 'cancelada_por_estudio';
-          })
-          .toList();
+      final reservasActivas = reservasAll.where((r) {
+        final estado = r['estado']?.toString() ?? '';
+        return estado != 'cancelada' && estado != 'cancelada_por_estudio';
+      }).toList();
+      final reservasCanceladas = reservasAll.where((r) {
+        final estado = r['estado']?.toString() ?? '';
+        return estado == 'cancelada' || estado == 'cancelada_por_estudio';
+      }).toList();
 
       // Enriquecer ambos grupos con nombre de clase
       final clasesIds = reservasAll
@@ -98,16 +98,19 @@ class _HistorialCreditosScreenState extends State<HistorialCreditosScreen> {
         if (fecha == null) continue;
         final creditos = (p['creditos'] as num?)?.toInt() ?? 0;
         final tipo = p['type']?.toString() ?? 'pack';
-        final nombre = (tipo == 'plan'
+        final nombre =
+            (tipo == 'plan'
                 ? p['plan_nombre']?.toString()
                 : p['pack_nombre']?.toString()) ??
             (tipo == 'plan' ? 'Plan mensual' : 'Pack de créditos');
-        movs.add(_Movimiento(
-          fecha: fecha,
-          tipo: _TipoMovimiento.ingreso,
-          descripcion: nombre,
-          creditos: creditos,
-        ));
+        movs.add(
+          _Movimiento(
+            fecha: fecha,
+            tipo: _TipoMovimiento.ingreso,
+            descripcion: nombre,
+            creditos: creditos,
+          ),
+        );
       }
 
       for (final r in reservasActivas) {
@@ -115,13 +118,17 @@ class _HistorialCreditosScreenState extends State<HistorialCreditosScreen> {
         if (fecha == null) continue;
         final creditos = (r['creditos_usados'] as num?)?.toInt() ?? 0;
         final claseId = (r['clase_id'] as num?)?.toInt();
-        final nombreClase = (claseId != null ? claseNombres[claseId] : null) ?? 'Clase reservada';
-        movs.add(_Movimiento(
-          fecha: fecha,
-          tipo: _TipoMovimiento.egreso,
-          descripcion: nombreClase,
-          creditos: creditos,
-        ));
+        final nombreClase =
+            (claseId != null ? claseNombres[claseId] : null) ??
+            'Clase reservada';
+        movs.add(
+          _Movimiento(
+            fecha: fecha,
+            tipo: _TipoMovimiento.egreso,
+            descripcion: nombreClase,
+            creditos: creditos,
+          ),
+        );
       }
 
       // Devoluciones por reservas canceladas (con o sin créditos en plazo).
@@ -133,13 +140,16 @@ class _HistorialCreditosScreenState extends State<HistorialCreditosScreen> {
         final creditos = (r['creditos_usados'] as num?)?.toInt() ?? 0;
         final claseId = (r['clase_id'] as num?)?.toInt();
         final nombreClase =
-            (claseId != null ? claseNombres[claseId] : null) ?? 'clase cancelada';
-        movs.add(_Movimiento(
-          fecha: fecha,
-          tipo: _TipoMovimiento.ingreso,
-          descripcion: 'Devolución — $nombreClase',
-          creditos: creditos,
-        ));
+            (claseId != null ? claseNombres[claseId] : null) ??
+            'clase cancelada';
+        movs.add(
+          _Movimiento(
+            fecha: fecha,
+            tipo: _TipoMovimiento.ingreso,
+            descripcion: 'Devolución — $nombreClase',
+            creditos: creditos,
+          ),
+        );
       }
 
       movs.sort((a, b) => b.fecha.compareTo(a.fecha));
@@ -154,7 +164,8 @@ class _HistorialCreditosScreenState extends State<HistorialCreditosScreen> {
       if (!mounted) return;
       final msg = e.toString().toLowerCase();
       setState(() {
-        _error = (msg.contains('socket') ||
+        _error =
+            (msg.contains('socket') ||
                 msg.contains('connection') ||
                 msg.contains('failed host') ||
                 msg.contains('timeout') ||
@@ -177,71 +188,89 @@ class _HistorialCreditosScreenState extends State<HistorialCreditosScreen> {
           onPressed: () => context.pop(),
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : RefreshIndicator(
-              onRefresh: _cargar,
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  _SaldoHeader(saldo: _saldoActual),
-                  const SizedBox(height: 20),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 40),
-                      child: Column(
-                        children: [
-                          const Icon(Icons.cloud_off_rounded,
-                              size: 44, color: AppColors.grey),
-                          const SizedBox(height: 14),
-                          Text(
-                            _error!,
-                            style: const TextStyle(color: AppColors.grey),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 18),
-                          ElevatedButton(
-                            onPressed: _cargar,
-                            child: const Text('Reintentar'),
-                          ),
-                        ],
-                      ),
-                    )
-                  else if (_movimientos.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 48),
-                      child: Column(
-                        children: [
-                          const Icon(Icons.receipt_long_outlined, size: 48, color: AppColors.grey),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Todavía no hay movimientos',
-                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: AuraTipo.titulo),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Comprá un pack o plan para sumar créditos.',
-                            style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.cuerpo),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 20),
-                          ElevatedButton(
-                            onPressed: () => context.push('/comprar-creditos'),
-                            child: const Text('Comprar créditos'),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    for (final mov in _movimientos)
+      body: AnchoMaximo(
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : RefreshIndicator(
+                onRefresh: _cargar,
+                child: ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    _SaldoHeader(saldo: _saldoActual),
+                    const SizedBox(height: 20),
+                    if (_error != null)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _MovimientoRow(movimiento: mov),
-                      ),
-                ],
+                        padding: const EdgeInsets.only(top: 40),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.cloud_off_rounded,
+                              size: 44,
+                              color: AppColors.grey,
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              _error!,
+                              style: const TextStyle(color: AppColors.grey),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 18),
+                            ElevatedButton(
+                              onPressed: _cargar,
+                              child: const Text('Reintentar'),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (_movimientos.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 48),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.receipt_long_outlined,
+                              size: 48,
+                              color: AppColors.grey,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Todavía no hay movimientos',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: AuraTipo.titulo,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Comprá un pack o plan para sumar créditos.',
+                              style: TextStyle(
+                                color: AppColors.grey,
+                                fontSize: AuraTipo.cuerpo,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 20),
+                            ElevatedButton(
+                              onPressed: () =>
+                                  context.push('/comprar-creditos'),
+                              child: const Text('Comprar créditos'),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      for (final mov in _movimientos)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _MovimientoRow(movimiento: mov),
+                        ),
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 }
@@ -284,7 +313,10 @@ class _SaldoHeader extends StatelessWidget {
             children: [
               const Text(
                 'Saldo actual',
-                style: TextStyle(color: Colors.white70, fontSize: AuraTipo.secundario),
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: AuraTipo.secundario,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
@@ -312,9 +344,14 @@ class _MovimientoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final esIngreso = movimiento.tipo == _TipoMovimiento.ingreso;
     final color = esIngreso ? const Color(0xFF2E7D32) : const Color(0xFFE65100);
-    final bgColor = esIngreso ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0);
+    final bgColor = esIngreso
+        ? const Color(0xFFE8F5E9)
+        : const Color(0xFFFFF3E0);
     final signo = esIngreso ? '+' : '−';
-    final fecha = DateFormat('d MMM yyyy · HH:mm', 'es').format(movimiento.fecha.toLocal());
+    final fecha = DateFormat(
+      'd MMM yyyy · HH:mm',
+      'es',
+    ).format(movimiento.fecha.toLocal());
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -351,7 +388,10 @@ class _MovimientoRow extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   fecha,
-                  style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
+                  style: const TextStyle(
+                    color: AppColors.grey,
+                    fontSize: AuraTipo.secundario,
+                  ),
                 ),
               ],
             ),

@@ -10,14 +10,12 @@ import '../../providers/app_provider.dart';
 import '../../services/aura_gestion_service.dart';
 import '../../services/clases_service.dart';
 import '../../services/reservas_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class ReservaGestionScreen extends StatefulWidget {
   final int claseId;
 
-  const ReservaGestionScreen({
-    super.key,
-    required this.claseId,
-  });
+  const ReservaGestionScreen({super.key, required this.claseId});
 
   @override
   State<ReservaGestionScreen> createState() => _ReservaGestionScreenState();
@@ -44,7 +42,8 @@ class _ReservaGestionScreenState extends State<ReservaGestionScreen> {
       final clase = await _clasesService.getClase(widget.claseId);
       final estudio = clase?['estudios'] as Map<String, dynamic>?;
       final estudioId =
-          (estudio?['id'] as num?)?.toInt() ?? (clase?['estudio_id'] as num?)?.toInt();
+          (estudio?['id'] as num?)?.toInt() ??
+          (clase?['estudio_id'] as num?)?.toInt();
       final email = Supabase.instance.client.auth.currentUser?.email ?? '';
 
       final esAlumno = estudioId != null && email.isNotEmpty
@@ -88,12 +87,11 @@ class _ReservaGestionScreenState extends State<ReservaGestionScreen> {
         // Registrar check-in inmediato para alumnos directos
         await _reservasService.confirmarReserva(reserva!.codigoQr!);
         if (!mounted) return;
-        context.go('/reserva-confirmada/${Uri.encodeComponent(reserva.codigoQr!)}');
-      } else {
-        AuraGestionDesign.showSuccessSnackBar(
-          context,
-          'Reserva confirmada.',
+        context.go(
+          '/reserva-confirmada/${Uri.encodeComponent(reserva.codigoQr!)}',
         );
+      } else {
+        AuraGestionDesign.showSuccessSnackBar(context, 'Reserva confirmada.');
       }
     } catch (e) {
       if (!mounted) return;
@@ -119,25 +117,24 @@ class _ReservaGestionScreenState extends State<ReservaGestionScreen> {
           icon: const Icon(Icons.arrow_back_rounded),
           color: AuraGestionDesign.textPrimary,
         ),
-        title: Text(
-          'Confirmar reserva',
-          style: AuraGestionDesign.titleStyle(),
-        ),
+        title: Text('Confirmar reserva', style: AuraGestionDesign.titleStyle()),
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(
-                color: AuraGestionDesign.accent,
-              ),
-            )
-          : _clase == null
-              ? Center(
-                  child: Text(
-                    'No encontramos esta clase.',
-                    style: AuraGestionDesign.bodyStyle(),
-                  ),
-                )
-              : _buildContent(),
+      body: AnchoMaximo(
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  color: AuraGestionDesign.accent,
+                ),
+              )
+            : _clase == null
+            ? Center(
+                child: Text(
+                  'No encontramos esta clase.',
+                  style: AuraGestionDesign.bodyStyle(),
+                ),
+              )
+            : _buildContent(),
+      ),
     );
   }
 
@@ -149,11 +146,12 @@ class _ReservaGestionScreenState extends State<ReservaGestionScreen> {
         : null;
     final imageUrl =
         clase['imagen_url']?.toString() ?? estudio?['foto_url']?.toString();
-    final categoria =
-        (clase['categoria'] ?? estudio?['categoria'] ?? 'Clase').toString();
+    final categoria = (clase['categoria'] ?? estudio?['categoria'] ?? 'Clase')
+        .toString();
     final nombreClase = clase['nombre']?.toString() ?? 'Clase';
     final nombreEstudio = estudio?['nombre']?.toString() ?? 'Estudio';
-    final ubicacion = estudio?['barrio']?.toString() ??
+    final ubicacion =
+        estudio?['barrio']?.toString() ??
         clase['sala']?.toString() ??
         'Sin ubicación';
 
@@ -190,8 +188,10 @@ class _ReservaGestionScreenState extends State<ReservaGestionScreen> {
               ),
               const SizedBox(height: 14),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AuraGestionDesign.softBadge,
                   borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
@@ -235,12 +235,10 @@ class _ReservaGestionScreenState extends State<ReservaGestionScreen> {
                   ),
                   _InfoPill(
                     icon: Icons.schedule_rounded,
-                    text: '${(clase['duracion_min'] as num?)?.toInt() ?? 60} min',
+                    text:
+                        '${(clase['duracion_min'] as num?)?.toInt() ?? 60} min',
                   ),
-                  _InfoPill(
-                    icon: Icons.place_outlined,
-                    text: ubicacion,
-                  ),
+                  _InfoPill(icon: Icons.place_outlined, text: ubicacion),
                 ],
               ),
             ],
@@ -286,8 +284,10 @@ class _ReservaGestionScreenState extends State<ReservaGestionScreen> {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AuraGestionDesign.accent,
                   borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
@@ -350,10 +350,7 @@ class _InfoPill extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const _InfoPill({
-    required this.icon,
-    required this.text,
-  });
+  const _InfoPill({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -366,11 +363,7 @@ class _InfoPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 14,
-            color: AuraGestionDesign.accent,
-          ),
+          Icon(icon, size: 14, color: AuraGestionDesign.accent),
           const SizedBox(width: 6),
           Flexible(
             child: Text(

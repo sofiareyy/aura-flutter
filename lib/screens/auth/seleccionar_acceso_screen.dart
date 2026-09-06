@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/estudio_admin_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 /// Selector "¿Con qué querés entrar?" para usuarios con roles múltiples
 /// (admin de un estudio + profe de otro, etc.). Solo se muestra cuando el
@@ -83,51 +84,53 @@ class _SeleccionarAccesoScreenState extends State<SeleccionarAccesoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: _loading
-            ? const Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              )
-            : ListView(
-                padding: const EdgeInsets.all(24),
-                children: [
-                  const SizedBox(height: 12),
-                  const Text(
-                    '¿Con qué querés entrar?',
-                    style: TextStyle(
-                      color: AppColors.black,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Tenés acceso a varios lugares. Elegí con cuál seguir.',
-                    style: TextStyle(color: AppColors.grey, fontSize: 14),
-                  ),
-                  const SizedBox(height: 24),
-                  ..._estudios.map((e) {
-                    final nombre = e['nombre']?.toString() ?? 'Estudio';
-                    final rol = e['rol']?.toString();
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _AccesoCard(
-                        icon: Icons.storefront_rounded,
-                        titulo: nombre,
-                        subtitulo: _rolLabel(rol),
-                        onTap: _entrando ? null : () => _entrarEstudio(e),
+      body: AnchoMaximo.formulario(
+        child: SafeArea(
+          child: _loading
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(24),
+                  children: [
+                    const SizedBox(height: 12),
+                    const Text(
+                      '¿Con qué querés entrar?',
+                      style: TextStyle(
+                        color: AppColors.black,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
                       ),
-                    );
-                  }),
-                  const SizedBox(height: 4),
-                  _AccesoCard(
-                    icon: Icons.explore_outlined,
-                    titulo: 'Modo usuario',
-                    subtitulo: 'Explorar clases',
-                    onTap: _entrando ? null : _entrarComoUsuario,
-                  ),
-                ],
-              ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Tenés acceso a varios lugares. Elegí con cuál seguir.',
+                      style: TextStyle(color: AppColors.grey, fontSize: 14),
+                    ),
+                    const SizedBox(height: 24),
+                    ..._estudios.map((e) {
+                      final nombre = e['nombre']?.toString() ?? 'Estudio';
+                      final rol = e['rol']?.toString();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _AccesoCard(
+                          icon: Icons.storefront_rounded,
+                          titulo: nombre,
+                          subtitulo: _rolLabel(rol),
+                          onTap: _entrando ? null : () => _entrarEstudio(e),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 4),
+                    _AccesoCard(
+                      icon: Icons.explore_outlined,
+                      titulo: 'Modo usuario',
+                      subtitulo: 'Explorar clases',
+                      onTap: _entrando ? null : _entrarComoUsuario,
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }

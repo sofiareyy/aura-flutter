@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/aura_gestion_design.dart';
 import '../../services/aura_gestion_service.dart';
 import '../../services/estudio_admin_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class AuraGestionScreen extends StatefulWidget {
   const AuraGestionScreen({super.key});
@@ -138,8 +139,11 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
                 );
               } catch (e) {
                 setModalState(() => saving = false);
-                // ignore: use_build_context_synchronously
-                AuraGestionDesign.showErrorSnackBar(context, 'No pudimos agregar este alumno.');
+                AuraGestionDesign.showErrorSnackBar(
+                  // ignore: use_build_context_synchronously
+                  context,
+                  'No pudimos agregar este alumno.',
+                );
               }
             }
 
@@ -196,7 +200,9 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
                   const SizedBox(height: 8),
                   Center(
                     child: TextButton(
-                      onPressed: saving ? null : () => Navigator.of(context).pop(),
+                      onPressed: saving
+                          ? null
+                          : () => Navigator.of(context).pop(),
                       child: Text(
                         'Cancelar',
                         style: AuraGestionDesign.bodyStyle(
@@ -248,8 +254,11 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
                 );
               } catch (_) {
                 setModalState(() => saving = false);
-                // ignore: use_build_context_synchronously
-                AuraGestionDesign.showErrorSnackBar(context, 'No pudimos cambiar el modo.');
+                AuraGestionDesign.showErrorSnackBar(
+                  // ignore: use_build_context_synchronously
+                  context,
+                  'No pudimos cambiar el modo.',
+                );
               }
             }
 
@@ -348,7 +357,9 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
               ),
               const SizedBox(height: 16),
               _SheetActionTile(
-                icon: activo ? Icons.pause_circle_outline : Icons.check_circle_outline,
+                icon: activo
+                    ? Icons.pause_circle_outline
+                    : Icons.check_circle_outline,
                 label: activo ? 'Marcar como inactivo' : 'Marcar como activo',
                 onTap: () async {
                   Navigator.of(context).pop();
@@ -417,11 +428,19 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AuraGestionDesign.accent,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AuraGestionDesign.buttonRadius),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
                 ),
-                textStyle: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w600),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    AuraGestionDesign.buttonRadius,
+                  ),
+                ),
+                textStyle: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -453,131 +472,165 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
         // ── Table rows ────────────────────────────────────────────────────
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator(color: AuraGestionDesign.accent))
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    color: AuraGestionDesign.accent,
+                  ),
+                )
               : _filtrados.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: AuraGestionDesign.softBadge,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: const Icon(Icons.groups_rounded, color: AuraGestionDesign.accent, size: 32),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _alumnos.isEmpty ? 'Todavía no agregaste alumnos' : 'Sin resultados para tu búsqueda',
-                            style: AuraGestionDesign.bodyStyle(weight: FontWeight.w600),
-                          ),
-                        ],
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: AuraGestionDesign.softBadge,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Icon(
+                          Icons.groups_rounded,
+                          color: AuraGestionDesign.accent,
+                          size: 32,
+                        ),
                       ),
-                    )
-                  : Container(
-                      decoration: BoxDecoration(
-                        color: AuraGestionDesign.card,
-                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                      const SizedBox(height: 16),
+                      Text(
+                        _alumnos.isEmpty
+                            ? 'Todavía no agregaste alumnos'
+                            : 'Sin resultados para tu búsqueda',
+                        style: AuraGestionDesign.bodyStyle(
+                          weight: FontWeight.w600,
+                        ),
                       ),
-                      child: ListView.separated(
-                        itemCount: _filtrados.length,
-                        separatorBuilder: (_, __) => Divider(height: 1, color: AuraGestionDesign.border),
-                        itemBuilder: (context, index) {
-                          final alumno = _filtrados[index];
-                          final nombre = alumno['nombre']?.toString().trim().isNotEmpty == true
-                              ? alumno['nombre'].toString().trim()
-                              : 'Alumno';
-                          final email = alumno['email']?.toString() ?? '';
-                          final activo = alumno['activo'] == true;
-                          return InkWell(
-                            onTap: () => _mostrarAlumnoActionsSheet(alumno),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              child: Row(
-                                children: [
-                                  // Avatar + nombre
-                                  Expanded(
-                                    flex: 3,
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 32,
-                                          height: 32,
-                                          decoration: BoxDecoration(
-                                            color: AuraGestionDesign.softBadge,
-                                            borderRadius: BorderRadius.circular(999),
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              nombre.substring(0, 1).toUpperCase(),
-                                              style: AuraGestionDesign.bodyStyle(
-                                                color: AuraGestionDesign.accent,
-                                                weight: FontWeight.w700,
-                                                size: 13,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            nombre,
-                                            style: AuraGestionDesign.bodyStyle(weight: FontWeight.w600),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  // Email
-                                  Expanded(
-                                    flex: 4,
-                                    child: Text(
-                                      email,
-                                      style: AuraGestionDesign.bodyStyle(
-                                        color: AuraGestionDesign.textSecondary,
-                                        size: 13,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  // Estado pill
-                                  SizedBox(
-                                    width: 96,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    ],
+                  ),
+                )
+              : Container(
+                  decoration: BoxDecoration(
+                    color: AuraGestionDesign.card,
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(12),
+                    ),
+                  ),
+                  child: ListView.separated(
+                    itemCount: _filtrados.length,
+                    separatorBuilder: (_, __) =>
+                        Divider(height: 1, color: AuraGestionDesign.border),
+                    itemBuilder: (context, index) {
+                      final alumno = _filtrados[index];
+                      final nombre =
+                          alumno['nombre']?.toString().trim().isNotEmpty == true
+                          ? alumno['nombre'].toString().trim()
+                          : 'Alumno';
+                      final email = alumno['email']?.toString() ?? '';
+                      final activo = alumno['activo'] == true;
+                      return InkWell(
+                        onTap: () => _mostrarAlumnoActionsSheet(alumno),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              // Avatar + nombre
+                              Expanded(
+                                flex: 3,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 32,
+                                      height: 32,
                                       decoration: BoxDecoration(
-                                        color: activo ? const Color(0xFFE9F7EF) : const Color(0xFFF1F0EE),
-                                        borderRadius: BorderRadius.circular(20),
+                                        color: AuraGestionDesign.softBadge,
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
                                       ),
+                                      child: Center(
+                                        child: Text(
+                                          nombre.substring(0, 1).toUpperCase(),
+                                          style: AuraGestionDesign.bodyStyle(
+                                            color: AuraGestionDesign.accent,
+                                            weight: FontWeight.w700,
+                                            size: 13,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
                                       child: Text(
-                                        activo ? 'Activo' : 'Inactivo',
+                                        nombre,
                                         style: AuraGestionDesign.bodyStyle(
-                                          color: activo ? const Color(0xFF2E7D32) : AuraGestionDesign.textSecondary,
-                                          size: 12,
                                           weight: FontWeight.w600,
                                         ),
-                                        textAlign: TextAlign.center,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                  ),
-                                  // Acciones
-                                  SizedBox(
-                                    width: 60,
-                                    child: IconButton(
-                                      onPressed: () => _mostrarAlumnoActionsSheet(alumno),
-                                      icon: const Icon(Icons.more_vert_rounded, color: AuraGestionDesign.textSecondary),
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                              // Email
+                              Expanded(
+                                flex: 4,
+                                child: Text(
+                                  email,
+                                  style: AuraGestionDesign.bodyStyle(
+                                    color: AuraGestionDesign.textSecondary,
+                                    size: 13,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              // Estado pill
+                              SizedBox(
+                                width: 96,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: activo
+                                        ? const Color(0xFFE9F7EF)
+                                        : const Color(0xFFF1F0EE),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    activo ? 'Activo' : 'Inactivo',
+                                    style: AuraGestionDesign.bodyStyle(
+                                      color: activo
+                                          ? const Color(0xFF2E7D32)
+                                          : AuraGestionDesign.textSecondary,
+                                      size: 12,
+                                      weight: FontWeight.w600,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                              // Acciones
+                              SizedBox(
+                                width: 60,
+                                child: IconButton(
+                                  onPressed: () =>
+                                      _mostrarAlumnoActionsSheet(alumno),
+                                  icon: const Icon(
+                                    Icons.more_vert_rounded,
+                                    color: AuraGestionDesign.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
         ),
       ],
     );
@@ -599,13 +652,19 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
               children: [
                 Text(
                   'Modo actual',
-                  style: AuraGestionDesign.titleStyle(size: 14, color: Colors.white70),
+                  style: AuraGestionDesign.titleStyle(
+                    size: 14,
+                    color: Colors.white70,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: AuraGestionDesign.softBadge,
                         borderRadius: BorderRadius.circular(20),
@@ -643,9 +702,14 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
               side: const BorderSide(color: Colors.white24),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AuraGestionDesign.buttonRadius),
+                borderRadius: BorderRadius.circular(
+                  AuraGestionDesign.buttonRadius,
+                ),
               ),
-              textStyle: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600),
+              textStyle: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             child: const Text('Cambiar modo'),
           ),
@@ -661,9 +725,11 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
     if (isDesktop) {
       return Scaffold(
         backgroundColor: AuraGestionDesign.background,
-        body: Padding(
-          padding: const EdgeInsets.all(32),
-          child: _buildDesktopContent(),
+        body: AnchoMaximo(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: _buildDesktopContent(),
+          ),
         ),
       );
     }
@@ -679,10 +745,7 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
           icon: const Icon(Icons.arrow_back_rounded),
           color: AuraGestionDesign.textPrimary,
         ),
-        title: Text(
-          'Mis Alumnos',
-          style: AuraGestionDesign.titleStyle(),
-        ),
+        title: Text('Mis Alumnos', style: AuraGestionDesign.titleStyle()),
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AuraGestionDesign.accent,
@@ -702,10 +765,7 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
           children: [
             _buildModoCard(),
             const SizedBox(height: AuraGestionDesign.sectionSpacing),
-            Text(
-              'MIS ALUMNOS',
-              style: AuraGestionDesign.sectionLabelStyle(),
-            ),
+            Text('MIS ALUMNOS', style: AuraGestionDesign.sectionLabelStyle()),
             const SizedBox(height: 12),
             TextField(
               controller: _searchController,
@@ -740,10 +800,7 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
         children: [
           Text(
             'Modo actual',
-            style: AuraGestionDesign.titleStyle(
-              size: 18,
-              color: Colors.white,
-            ),
+            style: AuraGestionDesign.titleStyle(size: 18, color: Colors.white),
           ),
           const SizedBox(height: 12),
           Container(
@@ -779,8 +836,9 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
               side: const BorderSide(color: Colors.white24),
               minimumSize: const Size(150, 44),
               shape: RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(AuraGestionDesign.buttonRadius),
+                borderRadius: BorderRadius.circular(
+                  AuraGestionDesign.buttonRadius,
+                ),
               ),
               textStyle: GoogleFonts.dmSans(
                 fontSize: 14,
@@ -868,9 +926,7 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
               const SizedBox(height: 16),
               Text(
                 'Todavía no agregaste alumnos',
-                style: AuraGestionDesign.bodyStyle(
-                  weight: FontWeight.w600,
-                ),
+                style: AuraGestionDesign.bodyStyle(weight: FontWeight.w600),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -906,10 +962,7 @@ class _AlumnoItem extends StatelessWidget {
   final Map<String, dynamic> alumno;
   final VoidCallback onOptionsTap;
 
-  const _AlumnoItem({
-    required this.alumno,
-    required this.onOptionsTap,
-  });
+  const _AlumnoItem({required this.alumno, required this.onOptionsTap});
 
   @override
   Widget build(BuildContext context) {
@@ -952,9 +1005,7 @@ class _AlumnoItem extends StatelessWidget {
               children: [
                 Text(
                   nombre,
-                  style: AuraGestionDesign.bodyStyle(
-                    weight: FontWeight.w700,
-                  ),
+                  style: AuraGestionDesign.bodyStyle(weight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -970,9 +1021,7 @@ class _AlumnoItem extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: activo
-                  ? const Color(0xFFE9F7EF)
-                  : const Color(0xFFF1F0EE),
+              color: activo ? const Color(0xFFE9F7EF) : const Color(0xFFF1F0EE),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -1050,9 +1099,7 @@ class _ModoOptionCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: AuraGestionDesign.bodyStyle(
-                      weight: FontWeight.w700,
-                    ),
+                    style: AuraGestionDesign.bodyStyle(weight: FontWeight.w700),
                   ),
                   const SizedBox(height: 4),
                   Text(

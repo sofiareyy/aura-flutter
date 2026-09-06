@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../services/admin_service.dart';
 import '../../services/pricing_service.dart';
 import 'admin_export_helper.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class AdminUsuariosScreen extends StatefulWidget {
   const AdminUsuariosScreen({super.key});
@@ -78,9 +79,7 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
     } catch (_) {
       // Cae al fallback de abajo.
     }
-    return AppConstants.planes
-        .map((p) => p['nombre'].toString())
-        .toList();
+    return AppConstants.planes.map((p) => p['nombre'].toString()).toList();
   }
 
   Future<void> _confirmarEliminarUsuario(Map<String, dynamic> user) async {
@@ -94,9 +93,7 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           '¿Eliminar la cuenta?',
           style: TextStyle(
@@ -133,8 +130,7 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
             child: const Text(
               'Sí, eliminar',
@@ -164,9 +160,7 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
       // Sacar de la lista en memoria + refrescar desde server para
       // sumar el cleanup colateral.
       setState(() {
-        _users = _users
-            .where((u) => u['id']?.toString() != uid)
-            .toList();
+        _users = _users.where((u) => u['id']?.toString() != uid).toList();
       });
       messenger.showSnackBar(
         SnackBar(
@@ -226,8 +220,9 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
   }
 
   Future<void> _editarUsuario(Map<String, dynamic> user) async {
-    final nombreCtrl =
-        TextEditingController(text: user['nombre']?.toString() ?? '');
+    final nombreCtrl = TextEditingController(
+      text: user['nombre']?.toString() ?? '',
+    );
 
     // Normaliza el plan actual contra las opciones (case-insensitive).
     final planActual = user['plan']?.toString().trim() ?? '';
@@ -307,7 +302,9 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          downloaded ? 'Usuarios exportados.' : 'Usuarios copiados para compartir.',
+          downloaded
+              ? 'Usuarios exportados.'
+              : 'Usuarios copiados para compartir.',
         ),
         backgroundColor: AppColors.success,
       ),
@@ -325,150 +322,152 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
         scrolledUnderElevation: 0,
         automaticallyImplyLeading: false,
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Usuarios',
-                        style: Theme.of(context).textTheme.headlineSmall,
+      body: AnchoMaximo(
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Usuarios',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
                       ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _users.isEmpty ? null : _exportarUsuarios,
-                      icon: const Icon(Icons.download_rounded),
-                      label: const Text('Exportar'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Buscá usuarios y resolvé rápido créditos o plan cuando haga falta.',
-                  style: TextStyle(color: AppColors.grey),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _searchCtrl,
-                  decoration: InputDecoration(
-                    hintText: 'Buscar por nombre o email',
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.search),
-                      onPressed: _load,
-                    ),
+                      OutlinedButton.icon(
+                        onPressed: _users.isEmpty ? null : _exportarUsuarios,
+                        icon: const Icon(Icons.download_rounded),
+                        label: const Text('Exportar'),
+                      ),
+                    ],
                   ),
-                  onSubmitted: (_) => _load(),
-                ),
-                const SizedBox(height: 16),
-                if (_error != null)
-                  _ErrorCard(message: _error!)
-                else if (_users.isEmpty)
-                  const _EmptyCard(message: 'No hay usuarios para mostrar.')
-                else
-                  ..._users.map(
-                    (user) => Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(18),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Buscá usuarios y resolvé rápido créditos o plan cuando haga falta.',
+                    style: TextStyle(color: AppColors.grey),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _searchCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por nombre o email',
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.search),
+                        onPressed: _load,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  user['nombre']?.toString() ?? 'Sin nombre',
+                    ),
+                    onSubmitted: (_) => _load(),
+                  ),
+                  const SizedBox(height: 16),
+                  if (_error != null)
+                    _ErrorCard(message: _error!)
+                  else if (_users.isEmpty)
+                    const _EmptyCard(message: 'No hay usuarios para mostrar.')
+                  else
+                    ..._users.map(
+                      (user) => Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    user['nombre']?.toString() ?? 'Sin nombre',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '${user['creditos'] ?? 0} cr',
                                   style: const TextStyle(
+                                    color: AppColors.primary,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                              ),
-                              Text(
-                                '${user['creditos'] ?? 0} cr',
-                                style: const TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              PopupMenuButton<String>(
-                                icon: const Icon(
-                                  Icons.more_vert_rounded,
-                                  color: AppColors.grey,
-                                  size: 20,
-                                ),
-                                tooltip: 'Más opciones',
-                                onSelected: (value) async {
-                                  if (value == 'eliminar') {
-                                    await _confirmarEliminarUsuario(user);
-                                  }
-                                },
-                                itemBuilder: (ctx) => [
-                                  const PopupMenuItem(
-                                    value: 'eliminar',
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.delete_forever_rounded,
-                                          color: AppColors.error,
-                                          size: 18,
-                                        ),
-                                        SizedBox(width: 10),
-                                        Text(
-                                          'Eliminar cuenta',
-                                          style: TextStyle(
-                                            color: AppColors.error,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                const SizedBox(width: 4),
+                                PopupMenuButton<String>(
+                                  icon: const Icon(
+                                    Icons.more_vert_rounded,
+                                    color: AppColors.grey,
+                                    size: 20,
                                   ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            user['email']?.toString() ?? '',
-                            style: const TextStyle(color: AppColors.grey),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Plan actual: ${(user['plan']?.toString().isNotEmpty == true) ? user['plan'] : 'Sin plan'}',
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: () => _editarUsuario(user),
-                                  child: const Text('Editar'),
+                                  tooltip: 'Más opciones',
+                                  onSelected: (value) async {
+                                    if (value == 'eliminar') {
+                                      await _confirmarEliminarUsuario(user);
+                                    }
+                                  },
+                                  itemBuilder: (ctx) => [
+                                    const PopupMenuItem(
+                                      value: 'eliminar',
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.delete_forever_rounded,
+                                            color: AppColors.error,
+                                            size: 18,
+                                          ),
+                                          SizedBox(width: 10),
+                                          Text(
+                                            'Eliminar cuenta',
+                                            style: TextStyle(
+                                              color: AppColors.error,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: () => _ajustarCreditos(user),
-                                  child: const Text('Ajustar créditos'),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              user['email']?.toString() ?? '',
+                              style: const TextStyle(color: AppColors.grey),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Plan actual: ${(user['plan']?.toString().isNotEmpty == true) ? user['plan'] : 'Sin plan'}',
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () => _editarUsuario(user),
+                                    child: const Text('Editar'),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () => _ajustarCreditos(user),
+                                    child: const Text('Ajustar créditos'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 }

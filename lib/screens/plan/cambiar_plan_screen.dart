@@ -6,6 +6,7 @@ import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 import '../../services/pricing_service.dart';
 import '../../services/usuarios_service.dart';
+import '../../widgets/ancho_maximo.dart';
 // ignore_for_file: use_build_context_synchronously
 
 class CambiarPlanScreen extends StatefulWidget {
@@ -65,8 +66,9 @@ class _CambiarPlanScreenState extends State<CambiarPlanScreen> {
         actions: fromRegistro
             ? [
                 TextButton(
-                  onPressed:
-                      _loading ? null : () => _omitir(context.read<AppProvider>()),
+                  onPressed: _loading
+                      ? null
+                      : () => _omitir(context.read<AppProvider>()),
                   child: const Text(
                     'Omitir',
                     style: TextStyle(
@@ -78,219 +80,240 @@ class _CambiarPlanScreenState extends State<CambiarPlanScreen> {
               ]
             : null,
       ),
-      body: Consumer<AppProvider>(
-        builder: (context, provider, _) {
-          final planActual = provider.usuario?.plan ?? '';
-          return Column(
-            children: [
-              Expanded(
-                child: _loadingPlanes
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
-                        ),
-                      )
-                    : ListView(
-                        padding: const EdgeInsets.all(20),
-                        children: [
-                          Text(
-                            'Elegí tu plan',
-                            style: Theme.of(context).textTheme.titleMedium,
+      body: AnchoMaximo.formulario(
+        child: Consumer<AppProvider>(
+          builder: (context, provider, _) {
+            final planActual = provider.usuario?.plan ?? '';
+            return Column(
+              children: [
+                Expanded(
+                  child: _loadingPlanes
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Los créditos se renuevan mensualmente',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: AppColors.grey),
-                          ),
-                          const SizedBox(height: 20),
-                          ..._planes.asMap().entries.map((entry) {
-                            final i = entry.key;
-                            final plan = entry.value;
-                            final selected = _selectedPlan == i;
-                            final esCurrent = plan['nombre'] == planActual;
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.all(20),
+                          children: [
+                            Text(
+                              'Elegí tu plan',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Los créditos se renuevan mensualmente',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppColors.grey),
+                            ),
+                            const SizedBox(height: 20),
+                            ..._planes.asMap().entries.map((entry) {
+                              final i = entry.key;
+                              final plan = entry.value;
+                              final selected = _selectedPlan == i;
+                              final esCurrent = plan['nombre'] == planActual;
 
-                            return GestureDetector(
-                              onTap: esCurrent
-                                  ? null
-                                  : () => setState(() => _selectedPlan = i),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                margin: const EdgeInsets.only(bottom: 12),
-                                padding: const EdgeInsets.all(20),
-                                decoration: BoxDecoration(
-                                  color: selected
-                                      ? AppColors.primary
-                                      : esCurrent
-                                          ? AppColors.primaryLight
-                                          : AppColors.white,
-                                  borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
-                                  border: Border.all(
+                              return GestureDetector(
+                                onTap: esCurrent
+                                    ? null
+                                    : () => setState(() => _selectedPlan = i),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
                                     color: selected
                                         ? AppColors.primary
                                         : esCurrent
-                                            ? AppColors.primary
-                                            : AppColors.lightGrey,
-                                    width: 2,
+                                        ? AppColors.primaryLight
+                                        : AppColors.white,
+                                    borderRadius: BorderRadius.circular(
+                                      AuraRadio.tarjeta,
+                                    ),
+                                    border: Border.all(
+                                      color: selected
+                                          ? AppColors.primary
+                                          : esCurrent
+                                          ? AppColors.primary
+                                          : AppColors.lightGrey,
+                                      width: 2,
+                                    ),
                                   ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            plan['nombre']?.toString() ?? '',
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              plan['nombre']?.toString() ?? '',
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w700,
+                                                color: selected
+                                                    ? AppColors.white
+                                                    : AppColors.black,
+                                              ),
+                                            ),
+                                          ),
+                                          if (plan['destacado'] == true)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: selected
+                                                    ? AppColors.white
+                                                    : AppColors.primary,
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                      AuraRadio.pastilla,
+                                                    ),
+                                              ),
+                                              child: Text(
+                                                'Más popular',
+                                                style: TextStyle(
+                                                  color: selected
+                                                      ? AppColors.primary
+                                                      : AppColors.white,
+                                                  fontSize: AuraTipo.etiqueta,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                          if (esCurrent)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.primary
+                                                    .withValues(alpha: 0.2),
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                      AuraRadio.pastilla,
+                                                    ),
+                                              ),
+                                              child: const Text(
+                                                'Actual',
+                                                style: TextStyle(
+                                                  color: AppColors.primary,
+                                                  fontSize: AuraTipo.etiqueta,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        plan['descripcion']?.toString() ?? '',
+                                        style: TextStyle(
+                                          color: selected
+                                              ? Colors.white70
+                                              : AppColors.grey,
+                                          fontSize: AuraTipo.secundario,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            '${plan['creditos']}',
                                             style: TextStyle(
-                                              fontSize: 20,
+                                              fontSize: 32,
                                               fontWeight: FontWeight.w700,
                                               color: selected
                                                   ? AppColors.white
                                                   : AppColors.black,
                                             ),
                                           ),
-                                        ),
-                                        if (plan['destacado'] == true)
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 10, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: selected
-                                                  ? AppColors.white
-                                                  : AppColors.primary,
-                                              borderRadius:
-                                                  BorderRadius.circular(AuraRadio.pastilla),
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 6,
+                                              left: 4,
                                             ),
                                             child: Text(
-                                              'Más popular',
+                                              'cr/mes',
                                               style: TextStyle(
                                                 color: selected
-                                                    ? AppColors.primary
-                                                    : AppColors.white,
-                                                fontSize: AuraTipo.etiqueta,
-                                                fontWeight: FontWeight.w700,
+                                                    ? Colors.white60
+                                                    : AppColors.grey,
+                                                fontSize: AuraTipo.cuerpo,
                                               ),
                                             ),
                                           ),
-                                        if (esCurrent)
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 10, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.primary
-                                                  .withValues(alpha: 0.2),
-                                              borderRadius:
-                                                  BorderRadius.circular(AuraRadio.pastilla),
-                                            ),
-                                            child: const Text(
-                                              'Actual',
-                                              style: TextStyle(
-                                                color: AppColors.primary,
-                                                fontSize: AuraTipo.etiqueta,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      plan['descripcion']?.toString() ?? '',
-                                      style: TextStyle(
-                                        color: selected
-                                            ? Colors.white70
-                                            : AppColors.grey,
-                                        fontSize: AuraTipo.secundario,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          '${plan['creditos']}',
-                                          style: TextStyle(
-                                            fontSize: 32,
-                                            fontWeight: FontWeight.w700,
-                                            color: selected
-                                                ? AppColors.white
-                                                : AppColors.black,
-                                          ),
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                              bottom: 6, left: 4),
-                                          child: Text(
-                                            'cr/mes',
+                                          const Spacer(),
+                                          Text(
+                                            '\$${_fmt((plan['precio'] as num).toInt())}',
                                             style: TextStyle(
+                                              fontSize: AuraTipo.titulo,
+                                              fontWeight: FontWeight.w600,
                                               color: selected
-                                                  ? Colors.white60
-                                                  : AppColors.grey,
-                                              fontSize: AuraTipo.cuerpo,
+                                                  ? AppColors.white
+                                                  : AppColors.black,
                                             ),
                                           ),
-                                        ),
-                                        const Spacer(),
-                                        Text(
-                                          '\$${_fmt((plan['precio'] as num).toInt())}',
-                                          style: TextStyle(
-                                            fontSize: AuraTipo.titulo,
-                                            fontWeight: FontWeight.w600,
-                                            color: selected
-                                                ? AppColors.white
-                                                : AppColors.black,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      _ejemploPlan(plan),
-                                      style: TextStyle(
-                                        color: selected
-                                            ? Colors.white70
-                                            : AppColors.primary,
-                                        fontSize: AuraTipo.secundario,
-                                        fontWeight: FontWeight.w600,
+                                        ],
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        _ejemploPlan(plan),
+                                        style: TextStyle(
+                                          color: selected
+                                              ? Colors.white70
+                                              : AppColors.primary,
+                                          fontSize: AuraTipo.secundario,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
+                              );
+                            }),
+                          ],
+                        ),
+                ),
+                Container(
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    16,
+                    20,
+                    MediaQuery.of(context).padding.bottom + 16,
+                  ),
+                  color: AppColors.white,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: (_selectedPlan == null || _loadingPlanes)
+                          ? null
+                          : () => _cambiar(fromRegistro: fromRegistro),
+                      child: _loading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: AppColors.white,
+                                strokeWidth: 2,
                               ),
-                            );
-                          }),
-                        ],
-                      ),
-              ),
-              Container(
-                padding: EdgeInsets.fromLTRB(
-                    20, 16, 20, MediaQuery.of(context).padding.bottom + 16),
-                color: AppColors.white,
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: (_selectedPlan == null || _loadingPlanes)
-                        ? null
-                        : () => _cambiar(fromRegistro: fromRegistro),
-                    child: _loading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                color: AppColors.white, strokeWidth: 2),
-                          )
-                        : const Text('Confirmar plan'),
+                            )
+                          : const Text('Confirmar plan'),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -351,5 +374,7 @@ class _CambiarPlanScreenState extends State<CambiarPlanScreen> {
   }
 
   String _fmt(int n) => n.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    (m) => '${m[1]}.',
+  );
 }

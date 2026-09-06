@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/admin_service.dart';
 import 'admin_export_helper.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -80,7 +81,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Future<void> _exportarResumen() async {
     final m = _metrics;
     if (m == null) return;
-    final text = '''
+    final text =
+        '''
 Admin Aura
 Período: ${_date(_from)} al ${_date(_to)}
 Usuarios: ${m['usuarios_total'] ?? 0}
@@ -128,163 +130,173 @@ Top categoría: ${m['top_categoria'] ?? 'Sin datos'}
         scrolledUnderElevation: 0,
         automaticallyImplyLeading: false,
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Admin Aura',
-                              style: Theme.of(context).textTheme.headlineSmall,
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Resumen del negocio con foco operativo.',
-                              style: TextStyle(color: AppColors.grey),
-                            ),
-                            const SizedBox(height: 10),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                OutlinedButton.icon(
-                                  onPressed: _pickRange,
-                                  icon: const Icon(Icons.date_range_rounded),
-                                  label:
-                                      Text('${_date(_from)} - ${_date(_to)}'),
-                                ),
-                                TextButton(
-                                  onPressed: _setCurrentMonth,
-                                  child: const Text('Mes actual'),
-                                ),
-                              ],
-                            ),
-                          ],
+      body: AnchoMaximo(
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : RefreshIndicator(
+                onRefresh: _load,
+                child: ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Admin Aura',
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.headlineSmall,
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Resumen del negocio con foco operativo.',
+                                style: TextStyle(color: AppColors.grey),
+                              ),
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  OutlinedButton.icon(
+                                    onPressed: _pickRange,
+                                    icon: const Icon(Icons.date_range_rounded),
+                                    label: Text(
+                                      '${_date(_from)} - ${_date(_to)}',
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: _setCurrentMonth,
+                                    child: const Text('Mes actual'),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: m == null ? null : _exportarResumen,
-                        icon: const Icon(Icons.download_rounded),
-                        label: const Text('Exportar'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  if (_error != null)
-                    _InfoCard(
-                      title: 'No se pudo cargar el dashboard',
-                      body: _error!,
-                    )
-                  else ...[
-                    _HeroPanel(
-                      reservasHoy: '${m?['reservas_hoy'] ?? 0}',
-                      ingresos: _money(m?['ingresos_estimados'] ?? 0),
-                      ocupacion: '${m?['ocupacion_promedio'] ?? 0}%',
+                        OutlinedButton.icon(
+                          onPressed: m == null ? null : _exportarResumen,
+                          icon: const Icon(Icons.download_rounded),
+                          label: const Text('Exportar'),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
-                    const _SectionLabel('Base del producto'),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _CompactCard(
-                            title: 'Usuarios',
-                            value: '${m?['usuarios_total'] ?? 0}',
-                            subtitle: '${m?['usuarios_activos'] ?? 0} activos',
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _CompactCard(
-                            title: 'Estudios',
-                            value: '${m?['estudios_total'] ?? 0}',
-                            subtitle: '${m?['estudios_activos'] ?? 0} activos',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _CompactCard(
-                            title: 'Reservas totales',
-                            value: '${m?['reservas_total'] ?? 0}',
-                            subtitle: '${m?['reservas_mes'] ?? 0} en el período',
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _CompactCard(
-                            title: 'Créditos usados',
-                            value: '${m?['creditos_consumidos'] ?? 0}',
-                            subtitle: 'Consumo del período',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _CompactCard(
-                            title: 'Créditos en circulación',
-                            value: '${m?['creditos_circulacion'] ?? 0}',
-                            subtitle: 'Total en cuentas activas',
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _CompactCard(
-                            title: 'Tasa de conversión',
-                            value: '${m?['tasa_conversion'] ?? 0}%',
-                            subtitle: 'Usuarios que reservaron',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    const _SectionLabel('Qué está funcionando mejor'),
-                    const SizedBox(height: 10),
-                    _InfoCard(
-                      title: 'Top del negocio',
-                      body:
-                          'Estudio con más reservas: ${m?['top_estudio'] ?? 'Sin datos'}\n'
-                          'Clase más reservada: ${m?['top_clase'] ?? 'Sin datos'}\n'
-                          'Categoría más activa: ${m?['top_categoria'] ?? 'Sin datos'}\n'
-                          'Instructor más activo: ${m?['top_instructor'] ?? 'Sin datos'}\n'
-                          'Hora pico de reservas: ${m?['hora_pico'] ?? 'Sin datos'}',
-                    ),
-                    const SizedBox(height: 12),
-                    _InfoCard(
-                      title: 'Actividad reciente',
-                      body: (m?['actividad_reciente'] as String?) ??
-                          'Todavía no hay suficiente actividad reciente para mostrar.',
-                    ),
-                    if ((m?['alertas'] as List?)?.isNotEmpty == true) ...[
-                      const SizedBox(height: 18),
-                      const _SectionLabel('Alertas'),
+                    if (_error != null)
+                      _InfoCard(
+                        title: 'No se pudo cargar el dashboard',
+                        body: _error!,
+                      )
+                    else ...[
+                      _HeroPanel(
+                        reservasHoy: '${m?['reservas_hoy'] ?? 0}',
+                        ingresos: _money(m?['ingresos_estimados'] ?? 0),
+                        ocupacion: '${m?['ocupacion_promedio'] ?? 0}%',
+                      ),
+                      const SizedBox(height: 16),
+                      const _SectionLabel('Base del producto'),
                       const SizedBox(height: 10),
-                      for (final alerta in (m!['alertas'] as List).cast<String>())
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _AlertCard(text: alerta),
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _CompactCard(
+                              title: 'Usuarios',
+                              value: '${m?['usuarios_total'] ?? 0}',
+                              subtitle:
+                                  '${m?['usuarios_activos'] ?? 0} activos',
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _CompactCard(
+                              title: 'Estudios',
+                              value: '${m?['estudios_total'] ?? 0}',
+                              subtitle:
+                                  '${m?['estudios_activos'] ?? 0} activos',
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _CompactCard(
+                              title: 'Reservas totales',
+                              value: '${m?['reservas_total'] ?? 0}',
+                              subtitle:
+                                  '${m?['reservas_mes'] ?? 0} en el período',
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _CompactCard(
+                              title: 'Créditos usados',
+                              value: '${m?['creditos_consumidos'] ?? 0}',
+                              subtitle: 'Consumo del período',
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _CompactCard(
+                              title: 'Créditos en circulación',
+                              value: '${m?['creditos_circulacion'] ?? 0}',
+                              subtitle: 'Total en cuentas activas',
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _CompactCard(
+                              title: 'Tasa de conversión',
+                              value: '${m?['tasa_conversion'] ?? 0}%',
+                              subtitle: 'Usuarios que reservaron',
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      const _SectionLabel('Qué está funcionando mejor'),
+                      const SizedBox(height: 10),
+                      _InfoCard(
+                        title: 'Top del negocio',
+                        body:
+                            'Estudio con más reservas: ${m?['top_estudio'] ?? 'Sin datos'}\n'
+                            'Clase más reservada: ${m?['top_clase'] ?? 'Sin datos'}\n'
+                            'Categoría más activa: ${m?['top_categoria'] ?? 'Sin datos'}\n'
+                            'Instructor más activo: ${m?['top_instructor'] ?? 'Sin datos'}\n'
+                            'Hora pico de reservas: ${m?['hora_pico'] ?? 'Sin datos'}',
+                      ),
+                      const SizedBox(height: 12),
+                      _InfoCard(
+                        title: 'Actividad reciente',
+                        body:
+                            (m?['actividad_reciente'] as String?) ??
+                            'Todavía no hay suficiente actividad reciente para mostrar.',
+                      ),
+                      if ((m?['alertas'] as List?)?.isNotEmpty == true) ...[
+                        const SizedBox(height: 18),
+                        const _SectionLabel('Alertas'),
+                        const SizedBox(height: 10),
+                        for (final alerta
+                            in (m!['alertas'] as List).cast<String>())
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _AlertCard(text: alerta),
+                          ),
+                      ],
                     ],
                   ],
-                ],
+                ),
               ),
-            ),
+      ),
     );
   }
 
@@ -325,9 +337,15 @@ class _HeroPanel extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _HeroStat(label: 'Reservas', value: reservasHoy)),
-              Expanded(child: _HeroStat(label: 'Ingresos', value: ingresos)),
-              Expanded(child: _HeroStat(label: 'Ocupación', value: ocupacion)),
+              Expanded(
+                child: _HeroStat(label: 'Reservas', value: reservasHoy),
+              ),
+              Expanded(
+                child: _HeroStat(label: 'Ingresos', value: ingresos),
+              ),
+              Expanded(
+                child: _HeroStat(label: 'Ocupación', value: ocupacion),
+              ),
             ],
           ),
         ],
@@ -384,7 +402,12 @@ class _CompactCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.grey)),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: AppColors.grey),
+          ),
           const SizedBox(height: 8),
           Text(
             value,
@@ -438,7 +461,10 @@ class _InfoCard extends StatelessWidget {
         children: [
           Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Text(body, style: const TextStyle(color: AppColors.grey, height: 1.5)),
+          Text(
+            body,
+            style: const TextStyle(color: AppColors.grey, height: 1.5),
+          ),
         ],
       ),
     );
@@ -461,7 +487,11 @@ class _AlertCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFFE6A817)),
+          const Icon(
+            Icons.warning_amber_rounded,
+            size: 18,
+            color: Color(0xFFE6A817),
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

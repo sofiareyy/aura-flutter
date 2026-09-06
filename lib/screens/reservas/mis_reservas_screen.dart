@@ -14,6 +14,7 @@ import '../../services/reservas_service.dart';
 import '../../services/reviews_service.dart';
 import '../../widgets/study_review_sheet.dart';
 import '../../utils/cierre_minutos.dart';
+import '../../widgets/ancho_maximo.dart';
 
 const _darkAppBar = Color(0xFF1A1A1A);
 const _cream = Color(0xFFF5F0E8);
@@ -37,6 +38,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
   List<Map<String, dynamic>> _proximas = [];
   List<Map<String, dynamic>> _historial = [];
   final _reviewsService = ReviewsService();
+
   /// {reserva_id: reseña} — una sola consulta para toda la lista.
   Map<int, Map<String, dynamic>> _misResenas = {};
   List<Map<String, dynamic>> _clases = [];
@@ -139,11 +141,17 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
       results = await Future.wait([
         guard(_reservasService.getReservasUsuario(uid), 'reservas'),
         guard(
-            _reservasService.getHistorialReservas(uid,
-                limit: _historialPageSize, offset: 0),
-            'historial'),
-        guard(_clasesService.getProximasClases(limit: 200, offset: 0),
-            'proximas'),
+          _reservasService.getHistorialReservas(
+            uid,
+            limit: _historialPageSize,
+            offset: 0,
+          ),
+          'historial',
+        ),
+        guard(
+          _clasesService.getProximasClases(limit: 200, offset: 0),
+          'proximas',
+        ),
         guard(_reservasService.getListaEsperaUsuario(uid), 'espera'),
         guard(_reservasService.getPreReservasUsuario(uid), 'preReservas'),
       ]);
@@ -181,9 +189,9 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
       final estudio = c['estudios'] as Map?;
       if (estudio == null) continue;
       cats.addAll(
-        Estudio.parseCategorias(Map<String, dynamic>.from(estudio))
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty),
+        Estudio.parseCategorias(
+          Map<String, dynamic>.from(estudio),
+        ).map((e) => e.trim()).where((e) => e.isNotEmpty),
       );
     }
     final categorias = ['Todos', ...cats.toList()..sort()];
@@ -299,8 +307,9 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
     if (estudio == null) return false;
     // Matchea si CUALQUIERA de las categorias del estudio coincide.
     final objetivo = _categoriaSeleccionada.toLowerCase();
-    return Estudio.parseCategorias(Map<String, dynamic>.from(estudio))
-        .any((c) => c.trim().toLowerCase() == objetivo);
+    return Estudio.parseCategorias(
+      Map<String, dynamic>.from(estudio),
+    ).any((c) => c.trim().toLowerCase() == objetivo);
   }
 
   List<DateTime> get _diasDisponibles {
@@ -330,8 +339,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
       final fecha = _parseFecha(c['fecha']);
       if (fecha == null) return false;
       return _dayKey(DateTime(fecha.year, fecha.month, fecha.day)) == key;
-    }).toList()
-      ..sort(_compareByFecha);
+    }).toList()..sort(_compareByFecha);
   }
 
   void _seleccionarCategoria(String categoria) {
@@ -357,8 +365,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
     final fecha = _parseFecha((reserva['clases'] as Map?)?['fecha']);
     if (fecha == null) return false;
     final cierreMin = _cierreMinutosDe(reserva);
-    return _ahoraAr()
-        .isBefore(fecha.subtract(Duration(minutes: cierreMin)));
+    return _ahoraAr().isBefore(fecha.subtract(Duration(minutes: cierreMin)));
   }
 
   /// Formato amigable de duracion para los mensajes.
@@ -376,9 +383,10 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
           title: const Text(
             'Ya no se puede cancelar',
             style: TextStyle(
-                color: AppColors.black,
-                fontSize: AuraTipo.titulo,
-                fontWeight: FontWeight.w700),
+              color: AppColors.black,
+              fontSize: AuraTipo.titulo,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           content: Text(
             'La ventana para cancelar cerró ${_formatDuracion(cierreMin)} antes '
@@ -386,14 +394,21 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
             'Si no asistís, se descuentan los créditos: el estudio ya te '
             'guardó el lugar y no puede ofrecérselo a otra persona.',
             style: const TextStyle(
-                color: AppColors.black, fontSize: AuraTipo.cuerpo, height: 1.4),
+              color: AppColors.black,
+              fontSize: AuraTipo.cuerpo,
+              height: 1.4,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Entendido',
-                  style: TextStyle(
-                      color: AppColors.primary, fontWeight: FontWeight.w700)),
+              child: const Text(
+                'Entendido',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),
@@ -442,8 +457,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AuraRadio.chip),
               ),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
             child: const Text(
               'Sí, cancelar',
@@ -482,7 +496,8 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-              'No se pudo cancelar: ${e.toString().replaceFirst('Exception: ', '')}'),
+            'No se pudo cancelar: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -540,97 +555,103 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        color: AppColors.primary,
-        onRefresh: _cargar,
-        child: _loading
-            ? const Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              )
-            : _error != null
-                ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
-                        child: Column(
-                          children: [
-                            const Icon(Icons.cloud_off_rounded,
-                                size: 48, color: AppColors.grey),
-                            const SizedBox(height: 16),
-                            Text(
-                              _error!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                  color: AppColors.grey, height: 1.4),
+      body: AnchoMaximo(
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: _cargar,
+          child: _loading
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                )
+              : _error != null
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
+                      child: Column(
+                        children: [
+                          const Icon(
+                            Icons.cloud_off_rounded,
+                            size: 48,
+                            color: AppColors.grey,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _error!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: AppColors.grey,
+                              height: 1.4,
                             ),
-                            const SizedBox(height: 20),
-                            ElevatedButton(
-                              onPressed: _cargar,
-                              child: const Text('Reintentar'),
-                            ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 20),
+                          ElevatedButton(
+                            onPressed: _cargar,
+                            child: const Text('Reintentar'),
+                          ),
+                        ],
                       ),
-                    ],
-                  )
-                : ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.only(top: 16, bottom: 32),
-                children: [
-                  // SECCIÓN EN ESPERA (pre_confirmadas + lista_espera).
-                  // Solo aparece si hay algo, sino la pantalla arranca en
-                  // PRÓXIMAS como antes.
-                  if (_preReservas.isNotEmpty || _enEspera.isNotEmpty) ...[
-                    const _SectionLabel('EN ESPERA'),
-                    const SizedBox(height: 10),
-                    ..._preReservas.map((pre) => Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                    ),
+                  ],
+                )
+              : ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(top: 16, bottom: 32),
+                  children: [
+                    // SECCIÓN EN ESPERA (pre_confirmadas + lista_espera).
+                    // Solo aparece si hay algo, sino la pantalla arranca en
+                    // PRÓXIMAS como antes.
+                    if (_preReservas.isNotEmpty || _enEspera.isNotEmpty) ...[
+                      const _SectionLabel('EN ESPERA'),
+                      const SizedBox(height: 10),
+                      ..._preReservas.map(
+                        (pre) => Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                           child: _PreReservaCard(
                             reserva: pre,
                             onConfirmar: () {
-                              final claseId =
-                                  (pre['clase_id'] as num?)?.toInt();
+                              final claseId = (pre['clase_id'] as num?)
+                                  ?.toInt();
                               if (claseId != null) {
                                 context.push('/clase/$claseId');
                               }
                             },
                           ),
-                        )),
-                    ..._enEspera.asMap().entries.map((entry) {
-                      final idx = entry.key;
-                      final item = entry.value;
-                      final claseId =
-                          (item['clase_id'] as num?)?.toInt();
-                      return Padding(
-                        padding:
-                            const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                        child: _EsperaCard(
-                          entry: item,
-                          posicion: (item['posicion'] as num?)?.toInt() ??
-                              idx + 1,
-                          onSalir: claseId == null
-                              ? null
-                              : () => _salirDeListaEspera(claseId),
                         ),
-                      );
-                    }),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // SECCIÓN PRÓXIMAS
-                  const _SectionLabel('PRÓXIMAS'),
-                  const SizedBox(height: 10),
-                  if (_proximas.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      child: _ProximasVacioCard(
-                        onExplorar: () => context.go('/explorar'),
                       ),
-                    )
-                  else ...[
-                    ..._proximas.map((reserva) => Padding(
+                      ..._enEspera.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final item = entry.value;
+                        final claseId = (item['clase_id'] as num?)?.toInt();
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                          child: _EsperaCard(
+                            entry: item,
+                            posicion:
+                                (item['posicion'] as num?)?.toInt() ?? idx + 1,
+                            onSalir: claseId == null
+                                ? null
+                                : () => _salirDeListaEspera(claseId),
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // SECCIÓN PRÓXIMAS
+                    const _SectionLabel('PRÓXIMAS'),
+                    const SizedBox(height: 10),
+                    if (_proximas.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                        child: _ProximasVacioCard(
+                          onExplorar: () => context.go('/explorar'),
+                        ),
+                      )
+                    else ...[
+                      ..._proximas.map(
+                        (reserva) => Padding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                           child: _ProximaCard(
                             reserva: reserva,
@@ -639,42 +660,44 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                             onQr: () => _verQr(reserva),
                             onCancelar: () => _cancelar(reserva),
                           ),
-                        )),
-                    const SizedBox(height: 12),
-                  ],
-
-                  // SECCIÓN DISPONIBLES
-                  const _SectionLabel('DISPONIBLES'),
-                  const SizedBox(height: 10),
-                  if (dias.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      child: _SinDisponiblesCard(
-                        onExplorar: () => context.go('/explorar'),
+                        ),
                       ),
-                    )
-                  else ...[
-                    _DaySelector(
-                      dias: dias,
-                      seleccionadoKey: _diaSeleccionadoKey,
-                      hoy: hoy,
-                      dayKeyOf: _dayKey,
-                      onTap: (key) =>
-                          setState(() => _diaSeleccionadoKey = key),
-                    ),
-                    const SizedBox(height: 10),
-                    if (_categorias.length > 1) ...[
-                      _CategorySelector(
-                        categorias: _categorias,
-                        seleccionada: _categoriaSeleccionada,
-                        onTap: _seleccionarCategoria,
-                      ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                     ],
-                    if (_clasesDelDia.isEmpty)
-                      const _EmptyDayState()
-                    else
-                      ..._clasesDelDia.map((clase) => Padding(
+
+                    // SECCIÓN DISPONIBLES
+                    const _SectionLabel('DISPONIBLES'),
+                    const SizedBox(height: 10),
+                    if (dias.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                        child: _SinDisponiblesCard(
+                          onExplorar: () => context.go('/explorar'),
+                        ),
+                      )
+                    else ...[
+                      _DaySelector(
+                        dias: dias,
+                        seleccionadoKey: _diaSeleccionadoKey,
+                        hoy: hoy,
+                        dayKeyOf: _dayKey,
+                        onTap: (key) =>
+                            setState(() => _diaSeleccionadoKey = key),
+                      ),
+                      const SizedBox(height: 10),
+                      if (_categorias.length > 1) ...[
+                        _CategorySelector(
+                          categorias: _categorias,
+                          seleccionada: _categoriaSeleccionada,
+                          onTap: _seleccionarCategoria,
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+                      if (_clasesDelDia.isEmpty)
+                        const _EmptyDayState()
+                      else
+                        ..._clasesDelDia.map(
+                          (clase) => Padding(
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                             child: _ClaseDisponibleCard(
                               clase: clase,
@@ -682,68 +705,74 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                               onTap: () =>
                                   context.push('/clase/${clase['id']}'),
                             ),
-                          )),
-                    const SizedBox(height: 12),
-                  ],
-
-                  // SECCIÓN HISTORIAL
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _HistorialToggle(
-                      expanded: _historialExpanded,
-                      onTap: () => setState(
-                          () => _historialExpanded = !_historialExpanded),
-                    ),
-                  ),
-                  if (_historialExpanded) ...[
-                    const SizedBox(height: 12),
-                    if (_historial.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        child: Text(
-                          'Tu historial está vacío.',
-                          style: TextStyle(
-                            color: AppColors.grey,
-                            fontSize: AuraTipo.secundario,
                           ),
                         ),
-                      )
-                    else
-                      ..._historial.map((reserva) => Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // SECCIÓN HISTORIAL
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _HistorialToggle(
+                        expanded: _historialExpanded,
+                        onTap: () => setState(
+                          () => _historialExpanded = !_historialExpanded,
+                        ),
+                      ),
+                    ),
+                    if (_historialExpanded) ...[
+                      const SizedBox(height: 12),
+                      if (_historial.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          child: Text(
+                            'Tu historial está vacío.',
+                            style: TextStyle(
+                              color: AppColors.grey,
+                              fontSize: AuraTipo.secundario,
+                            ),
+                          ),
+                        )
+                      else
+                        ..._historial.map(
+                          (reserva) => Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                             child: _HistorialCompactCard(
                               reserva: reserva,
-                              resena: _misResenas[
-                                  (reserva['id'] as num?)?.toInt()],
+                              resena:
+                                  _misResenas[(reserva['id'] as num?)?.toInt()],
                               onResenar: _puedeResenar(reserva)
                                   ? () => _resenarReserva(reserva)
                                   : null,
                             ),
-                          )),
-                    if (_hasMoreHistorial || _loadingMoreHistorial)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4, bottom: 8),
-                        child: Center(
-                          child: _loadingMoreHistorial
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.primary,
-                                  ),
-                                )
-                              : TextButton(
-                                  onPressed: _cargarMasHistorial,
-                                  child: const Text('Cargar más'),
-                                ),
+                          ),
                         ),
-                      ),
+                      if (_hasMoreHistorial || _loadingMoreHistorial)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4, bottom: 8),
+                          child: Center(
+                            child: _loadingMoreHistorial
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.primary,
+                                    ),
+                                  )
+                                : TextButton(
+                                    onPressed: _cargarMasHistorial,
+                                    child: const Text('Cargar más'),
+                                  ),
+                          ),
+                        ),
+                    ],
                   ],
-                ],
-              ),
+                ),
+        ),
       ),
     );
   }
@@ -840,10 +869,9 @@ class _ProximaCard extends StatelessWidget {
     final fecha = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
     final hora = fecha != null
         ? '${fecha.hour.toString().padLeft(2, '0')}:'
-            '${fecha.minute.toString().padLeft(2, '0')}'
+              '${fecha.minute.toString().padLeft(2, '0')}'
         : '--:--';
-    final fotoUrl =
-        (clase?['imagen_url'] ?? estudio?['foto_url'])?.toString();
+    final fotoUrl = (clase?['imagen_url'] ?? estudio?['foto_url'])?.toString();
 
     return _WhiteCard(
       child: Column(
@@ -897,17 +925,9 @@ class _ProximaCard extends StatelessWidget {
             children: [
               if (fecha != null) _FechaBadge(fecha: fecha, hoy: hoy),
               const SizedBox(width: 6),
-              const _Badge(
-                text: 'Confirmada',
-                bg: _successBg,
-                fg: _successFg,
-              ),
+              const _Badge(text: 'Confirmada', bg: _successBg, fg: _successFg),
               const Spacer(),
-              _SmallButton(
-                label: 'QR',
-                onTap: onQr,
-                primary: true,
-              ),
+              _SmallButton(label: 'QR', onTap: onQr, primary: true),
               const SizedBox(width: 6),
               _SmallButton(
                 label: 'Cancelar',
@@ -942,13 +962,12 @@ class _ClaseDisponibleCard extends StatelessWidget {
     final fecha = DateTime.tryParse(clase['fecha']?.toString() ?? '');
     final hora = fecha != null
         ? '${fecha.hour.toString().padLeft(2, '0')}:'
-            '${fecha.minute.toString().padLeft(2, '0')}'
+              '${fecha.minute.toString().padLeft(2, '0')}'
         : '--:--';
     final categoria = (estudio?['categoria'] ?? '').toString();
     final lugares = (clase['lugares_disponibles'] as num?)?.toInt() ?? 0;
     final creditos = (clase['creditos'] as num?)?.toInt() ?? 0;
-    final fotoUrl =
-        (clase['imagen_url'] ?? estudio?['foto_url'])?.toString();
+    final fotoUrl = (clase['imagen_url'] ?? estudio?['foto_url'])?.toString();
 
     return _WhiteCard(
       onTap: onTap,
@@ -1053,8 +1072,7 @@ class _HistorialToggle extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.history_rounded,
-                color: AppColors.grey, size: 18),
+            const Icon(Icons.history_rounded, color: AppColors.grey, size: 18),
             const SizedBox(width: 10),
             const Expanded(
               child: Text(
@@ -1099,8 +1117,7 @@ class _HistorialCompactCard extends StatelessWidget {
     final estudio = clase?['estudios'] as Map<String, dynamic>?;
     final fecha = DateTime.tryParse(clase?['fecha']?.toString() ?? '');
     final estado = (reserva['estado'] as String?) ?? '';
-    final fotoUrl =
-        (clase?['imagen_url'] ?? estudio?['foto_url'])?.toString();
+    final fotoUrl = (clase?['imagen_url'] ?? estudio?['foto_url'])?.toString();
 
     Color estadoFg;
     Color estadoBg;
@@ -1248,8 +1265,11 @@ class _HistorialCompactCard extends StatelessWidget {
   Widget _smallFallback() {
     return Container(
       color: AppColors.lightGrey,
-      child: const Icon(Icons.fitness_center_rounded,
-          color: AppColors.grey, size: 18),
+      child: const Icon(
+        Icons.fitness_center_rounded,
+        color: AppColors.grey,
+        size: 18,
+      ),
     );
   }
 }
@@ -1304,8 +1324,11 @@ class _StudioImage extends StatelessWidget {
         color: AppColors.lightGrey,
         borderRadius: BorderRadius.circular(AuraRadio.chip),
       ),
-      child: const Icon(Icons.fitness_center_rounded,
-          color: AppColors.grey, size: 26),
+      child: const Icon(
+        Icons.fitness_center_rounded,
+        color: AppColors.grey,
+        size: 26,
+      ),
     );
     if (url == null || url!.isEmpty) return fallback;
     return ClipRRect(
@@ -1353,15 +1376,7 @@ class _FechaBadge extends StatelessWidget {
   final DateTime hoy;
   const _FechaBadge({required this.fecha, required this.hoy});
 
-  static const _weekdayAbbr = [
-    'LUN',
-    'MAR',
-    'MIÉ',
-    'JUE',
-    'VIE',
-    'SÁB',
-    'DOM'
-  ];
+  static const _weekdayAbbr = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
 
   @override
   Widget build(BuildContext context) {
@@ -1397,8 +1412,11 @@ class _TiempoBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final diffMin = claseFecha.difference(hoy).inMinutes;
     final hoyDia = DateTime(hoy.year, hoy.month, hoy.day);
-    final claseDia =
-        DateTime(claseFecha.year, claseFecha.month, claseFecha.day);
+    final claseDia = DateTime(
+      claseFecha.year,
+      claseFecha.month,
+      claseFecha.day,
+    );
     final diffDias = claseDia.difference(hoyDia).inDays;
 
     String text;
@@ -1525,15 +1543,7 @@ class _DaySelector extends StatelessWidget {
     required this.onTap,
   });
 
-  static const _weekdayAbbr = [
-    'LUN',
-    'MAR',
-    'MIÉ',
-    'JUE',
-    'VIE',
-    'SÁB',
-    'DOM'
-  ];
+  static const _weekdayAbbr = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
 
   String _label(DateTime dia) {
     final hoyDia = DateTime(hoy.year, hoy.month, hoy.day);
@@ -1559,8 +1569,7 @@ class _DaySelector extends StatelessWidget {
           return GestureDetector(
             onTap: () => onTap(key),
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color: active ? AppColors.primary : _chipDark,
                 borderRadius: BorderRadius.circular(AuraRadio.pastilla),
@@ -1608,8 +1617,7 @@ class _CategorySelector extends StatelessWidget {
           return GestureDetector(
             onTap: () => onTap(categoria),
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
                 color: active ? _darkAppBar : Colors.transparent,
                 borderRadius: BorderRadius.circular(AuraRadio.pastilla),
@@ -1621,8 +1629,7 @@ class _CategorySelector extends StatelessWidget {
               child: Text(
                 categoria,
                 style: TextStyle(
-                  color:
-                      active ? AppColors.primary : const Color(0xFF5A534D),
+                  color: active ? AppColors.primary : const Color(0xFF5A534D),
                   fontSize: AuraTipo.secundario,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1688,8 +1695,10 @@ class _ProximasVacioCard extends StatelessWidget {
               ),
               child: const Text(
                 'Explorar clases',
-                style:
-                    TextStyle(fontSize: AuraTipo.secundario, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  fontSize: AuraTipo.secundario,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -1717,13 +1726,13 @@ class _SinDisponiblesCard extends StatelessWidget {
           const Expanded(
             child: Text(
               'Por ahora no hay clases disponibles para reservar.',
-              style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
+              style: TextStyle(
+                color: AppColors.grey,
+                fontSize: AuraTipo.secundario,
+              ),
             ),
           ),
-          TextButton(
-            onPressed: onExplorar,
-            child: const Text('Explorar'),
-          ),
+          TextButton(onPressed: onExplorar, child: const Text('Explorar')),
         ],
       ),
     );
@@ -1775,10 +1784,7 @@ class _PreReservaCard extends StatelessWidget {
   final Map<String, dynamic> reserva;
   final VoidCallback onConfirmar;
 
-  const _PreReservaCard({
-    required this.reserva,
-    required this.onConfirmar,
-  });
+  const _PreReservaCard({required this.reserva, required this.onConfirmar});
 
   @override
   Widget build(BuildContext context) {
@@ -1788,8 +1794,9 @@ class _PreReservaCard extends StatelessWidget {
     final fechaStr = fecha != null
         ? DateFormat("EEE d 'de' MMM · HH:mm", 'es').format(fecha)
         : '—';
-    final expiresAt =
-        DateTime.tryParse(reserva['expires_at']?.toString() ?? '');
+    final expiresAt = DateTime.tryParse(
+      reserva['expires_at']?.toString() ?? '',
+    );
     final remaining = expiresAt != null
         ? expiresAt.toLocal().difference(DateTime.now())
         : Duration.zero;
@@ -1805,8 +1812,11 @@ class _PreReservaCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.timer_rounded,
-                  color: AppColors.primary, size: 18),
+              const Icon(
+                Icons.timer_rounded,
+                color: AppColors.primary,
+                size: 18,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -1834,7 +1844,10 @@ class _PreReservaCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             (estudio?['nombre'] ?? '').toString(),
-            style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
+            style: const TextStyle(
+              color: AppColors.grey,
+              fontSize: AuraTipo.secundario,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -1897,8 +1910,7 @@ class _EsperaCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: _categoryBadgeBg,
                   borderRadius: BorderRadius.circular(AuraRadio.pastilla),
@@ -1928,7 +1940,10 @@ class _EsperaCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             (estudio?['nombre'] ?? '').toString(),
-            style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
+            style: const TextStyle(
+              color: AppColors.grey,
+              fontSize: AuraTipo.secundario,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -1957,7 +1972,9 @@ class _EsperaCard extends StatelessWidget {
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.grey,
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 6),
+                  horizontal: 12,
+                  vertical: 6,
+                ),
               ),
               child: const Text(
                 'Salir de la lista',

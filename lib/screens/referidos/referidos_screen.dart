@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 import '../../services/referidos_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class ReferidosScreen extends StatefulWidget {
   const ReferidosScreen({super.key});
@@ -82,10 +83,7 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
       if (!mounted) return;
       setState(() => _codigoUsado = code);
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(mensaje),
-          backgroundColor: AppColors.success,
-        ),
+        SnackBar(content: Text(mensaje), backgroundColor: AppColors.success),
       );
     } catch (e) {
       if (!mounted) return;
@@ -111,59 +109,61 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
           onPressed: () => context.pop(),
         ),
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(28),
-                    decoration: BoxDecoration(
-                      color: AppColors.black,
-                      borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
-                    ),
-                    child: const Column(
-                      children: [
-                        Icon(
-                          Icons.card_giftcard_rounded,
-                          color: AppColors.primary,
-                          size: 48,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Invitá hasta 2 amigos y ganá créditos',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: AppColors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
+      body: AnchoMaximo(
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        color: AppColors.black,
+                        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+                      ),
+                      child: const Column(
+                        children: [
+                          Icon(
+                            Icons.card_giftcard_rounded,
+                            color: AppColors.primary,
+                            size: 48,
                           ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Quien refiere gana 20 créditos y el nuevo usuario gana 15. Se acreditan cuando el referido hace su primera compra (pack o plan).',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: AuraTipo.cuerpo,
+                          SizedBox(height: 16),
+                          Text(
+                            'Invitá hasta 2 amigos y ganá créditos',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AppColors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                      ],
+                          SizedBox(height: 8),
+                          Text(
+                            'Quien refiere gana 20 créditos y el nuevo usuario gana 15. Se acreditan cuando el referido hace su primera compra (pack o plan).',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: AuraTipo.cuerpo,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  _codigoPropioCard(),
-                  const SizedBox(height: 16),
-                  _aplicarCodigoCard(),
-                  const SizedBox(height: 28),
-                  _pasosCard(),
-                ],
+                    const SizedBox(height: 24),
+                    _codigoPropioCard(),
+                    const SizedBox(height: 16),
+                    _aplicarCodigoCard(),
+                    const SizedBox(height: 28),
+                    _pasosCard(),
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 
@@ -273,22 +273,24 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
               color: const Color(0xFFFFF4EC),
               borderRadius: BorderRadius.circular(AuraRadio.boton),
             ),
-            child: Builder(builder: (_) {
-              final restantes = _maxReferidos - _referidosCount;
-              final msg = restantes > 0
-                  ? 'Podés invitar hasta $_maxReferidos amigos. '
-                      '${restantes == 1 ? 'Te queda 1 invitación disponible' : 'Te quedan $restantes invitaciones disponibles'} '
-                      '($_referidosCount/$_maxReferidos usadas).'
-                  : '¡Ya invitaste a tus $_maxReferidos amigos! Gracias por compartir Aura.';
-              return Text(
-                msg,
-                style: const TextStyle(
-                  fontSize: AuraTipo.secundario,
-                  color: AppColors.black,
-                  height: 1.35,
-                ),
-              );
-            }),
+            child: Builder(
+              builder: (_) {
+                final restantes = _maxReferidos - _referidosCount;
+                final msg = restantes > 0
+                    ? 'Podés invitar hasta $_maxReferidos amigos. '
+                          '${restantes == 1 ? 'Te queda 1 invitación disponible' : 'Te quedan $restantes invitaciones disponibles'} '
+                          '($_referidosCount/$_maxReferidos usadas).'
+                    : '¡Ya invitaste a tus $_maxReferidos amigos! Gracias por compartir Aura.';
+                return Text(
+                  msg,
+                  style: const TextStyle(
+                    fontSize: AuraTipo.secundario,
+                    color: AppColors.black,
+                    height: 1.35,
+                  ),
+                );
+              },
+            ),
           ),
           const SizedBox(height: 14),
           SizedBox(
@@ -404,11 +406,7 @@ class _Step extends StatelessWidget {
   final String title;
   final String desc;
 
-  const _Step({
-    required this.num,
-    required this.title,
-    required this.desc,
-  });
+  const _Step({required this.num, required this.title, required this.desc});
 
   @override
   Widget build(BuildContext context) {

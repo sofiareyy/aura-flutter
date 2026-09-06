@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/admin_service.dart';
 import '../../services/pricing_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 /// Paleta de la pantalla de config (cards oscuras).
 const _kCardBg = Color(0xFF1A1A1A);
@@ -28,6 +29,7 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
   bool _savingCredit = false;
   bool _savingCategory = false;
   String? _error;
+
   /// {nombre, activa, en_uso} por categoría. El backoffice ve también
   /// las desactivadas; los selectores del estudio no.
   List<Map<String, dynamic>> _categories = [];
@@ -199,10 +201,7 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
     if (ok != true) return;
 
     try {
-      await _service.renameStudyCategory(
-        oldName: current,
-        newName: ctrl.text,
-      );
+      await _service.renameStudyCategory(oldName: current, newName: ctrl.text);
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -252,16 +251,18 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
   }
 
   Future<void> _editPlan([Map<String, dynamic>? plan]) async {
-    final nombreCtrl =
-        TextEditingController(text: plan?['nombre']?.toString() ?? '');
+    final nombreCtrl = TextEditingController(
+      text: plan?['nombre']?.toString() ?? '',
+    );
     final creditosCtrl = TextEditingController(
       text: '${(plan?['creditos'] as num?)?.toInt() ?? 0}',
     );
     final precioCtrl = TextEditingController(
       text: '${(plan?['precio'] as num?)?.toInt() ?? 0}',
     );
-    final descripcionCtrl =
-        TextEditingController(text: plan?['descripcion']?.toString() ?? '');
+    final descripcionCtrl = TextEditingController(
+      text: plan?['descripcion']?.toString() ?? '',
+    );
     final ordenCtrl = TextEditingController(
       text: '${(plan?['orden'] as num?)?.toInt() ?? (_plans.length + 1)}',
     );
@@ -359,76 +360,78 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
         scrolledUnderElevation: 0,
         automaticallyImplyLeading: false,
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Config global',
-                        style: Theme.of(context).textTheme.headlineSmall,
+      body: AnchoMaximo(
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Config global',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
                       ),
+                      OutlinedButton(
+                        onPressed: () => context.go('/home'),
+                        child: const Text('Volver a usuario'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Ajustes globales rápidos para operar Aura sin entrar a Supabase.',
+                    style: TextStyle(color: AppColors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  if (_error != null)
+                    _Block(
+                      title: 'No se pudo cargar configuración',
+                      body: _error!,
+                    )
+                  else ...[
+                    // 1. VALOR DEL CRÉDITO
+                    _ValorCreditoCard(
+                      controller: _creditValueCtrl,
+                      valorActual: _valorCreditoActual,
+                      saving: _savingCredit,
+                      onGuardar: _guardarValorCredito,
                     ),
-                    OutlinedButton(
-                      onPressed: () => context.go('/home'),
-                      child: const Text('Volver a usuario'),
+                    const SizedBox(height: 14),
+                    // 2. PACKS DE CRÉDITOS (auto-calculados)
+                    _PacksCard(
+                      valorCredito: _valorCreditoPreview,
+                      pricingService: _pricingService,
+                      cambiado: _valorCreditoPreview != _valorCreditoActual,
                     ),
+                    const SizedBox(height: 14),
+                    // 3. PLANES (suscripciones)
+                    _PlanesCard(
+                      plans: _plans,
+                      onAdd: () => _editPlan(),
+                      onEdit: _editPlan,
+                    ),
+                    const SizedBox(height: 14),
+                    // 4. CATEGORÍAS DE ESTUDIOS
+                    _CategoriasCard(
+                      categories: _categories,
+                      controller: _newCategoryCtrl,
+                      saving: _savingCategory,
+                      onAdd: _agregarCategoria,
+                      onRename: _renameCategory,
+                      onDelete: _deleteCategory,
+                      onToggle: _toggleCategory,
+                    ),
+                    const SizedBox(height: 14),
+                    // 5. CRÉDITOS DE BIENVENIDA
                   ],
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Ajustes globales rápidos para operar Aura sin entrar a Supabase.',
-                  style: TextStyle(color: AppColors.grey),
-                ),
-                const SizedBox(height: 16),
-                if (_error != null)
-                  _Block(
-                    title: 'No se pudo cargar configuración',
-                    body: _error!,
-                  )
-                else ...[
-                  // 1. VALOR DEL CRÉDITO
-                  _ValorCreditoCard(
-                    controller: _creditValueCtrl,
-                    valorActual: _valorCreditoActual,
-                    saving: _savingCredit,
-                    onGuardar: _guardarValorCredito,
-                  ),
-                  const SizedBox(height: 14),
-                  // 2. PACKS DE CRÉDITOS (auto-calculados)
-                  _PacksCard(
-                    valorCredito: _valorCreditoPreview,
-                    pricingService: _pricingService,
-                    cambiado: _valorCreditoPreview != _valorCreditoActual,
-                  ),
-                  const SizedBox(height: 14),
-                  // 3. PLANES (suscripciones)
-                  _PlanesCard(
-                    plans: _plans,
-                    onAdd: () => _editPlan(),
-                    onEdit: _editPlan,
-                  ),
-                  const SizedBox(height: 14),
-                  // 4. CATEGORÍAS DE ESTUDIOS
-                  _CategoriasCard(
-                    categories: _categories,
-                    controller: _newCategoryCtrl,
-                    saving: _savingCategory,
-                    onAdd: _agregarCategoria,
-                    onRename: _renameCategory,
-                    onDelete: _deleteCategory,
-                    onToggle: _toggleCategory,
-                  ),
-                  const SizedBox(height: 14),
-                  // 5. CRÉDITOS DE BIENVENIDA
                 ],
-              ],
-            ),
+              ),
+      ),
     );
   }
 }
@@ -436,16 +439,16 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
 // ───────────────────────── helpers de estilo oscuro ─────────────────────
 
 ButtonStyle _darkOutlinedStyle() => OutlinedButton.styleFrom(
-      foregroundColor: Colors.white,
-      side: const BorderSide(color: _kInputBorder),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-    );
+  foregroundColor: Colors.white,
+  side: const BorderSide(color: _kInputBorder),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+);
 
 String _fmtPesos(int n) => n.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]}.',
-    );
+  RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+  (m) => '${m[1]}.',
+);
 
 /// Card oscura reutilizable con título.
 class _DarkCard extends StatelessWidget {
@@ -491,7 +494,11 @@ class _DarkCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               subtitle!,
-              style: const TextStyle(color: _kSubtle, fontSize: 12, height: 1.4),
+              style: const TextStyle(
+                color: _kSubtle,
+                fontSize: 12,
+                height: 1.4,
+              ),
             ),
           ],
           const SizedBox(height: 14),
@@ -585,8 +592,10 @@ class _ValorCreditoCard extends StatelessWidget {
                         strokeWidth: 2,
                       ),
                     )
-                  : const Text('Actualizar',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  : const Text(
+                      'Actualizar',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
             ),
           ),
           const SizedBox(height: 10),
@@ -829,7 +838,7 @@ class _CategoriasCard extends StatelessWidget {
                         enUso == 0
                             ? 'Sin estudios asignados'
                             : 'En uso por $enUso '
-                                'estudio${enUso == 1 ? '' : 's'}',
+                                  'estudio${enUso == 1 ? '' : 's'}',
                         style: const TextStyle(color: _kSubtle, fontSize: 11),
                       ),
                     ],
@@ -850,8 +859,9 @@ class _CategoriasCard extends StatelessWidget {
                 OutlinedButton(
                   onPressed: () => onDelete(nombre),
                   style: _darkOutlinedStyle().copyWith(
-                    foregroundColor:
-                        const WidgetStatePropertyAll(Color(0xFFE8763A)),
+                    foregroundColor: const WidgetStatePropertyAll(
+                      Color(0xFFE8763A),
+                    ),
                   ),
                   child: const Text('Eliminar'),
                 ),
@@ -877,8 +887,10 @@ class _CategoriasCard extends StatelessWidget {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
-                    borderSide:
-                        BorderSide(color: AppColors.primary, width: 1.4),
+                    borderSide: BorderSide(
+                      color: AppColors.primary,
+                      width: 1.4,
+                    ),
                   ),
                 ),
               ),
@@ -944,4 +956,3 @@ class _Block extends StatelessWidget {
     );
   }
 }
-

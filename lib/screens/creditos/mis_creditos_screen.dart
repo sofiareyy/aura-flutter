@@ -8,6 +8,7 @@ import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 import '../../services/referidos_service.dart';
 import '../../services/reservas_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class MisCreditosScreen extends StatefulWidget {
   const MisCreditosScreen({super.key});
@@ -51,7 +52,10 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
             children: [
               const Text(
                 'Ingresá el código de tu gift card.',
-                style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.cuerpo),
+                style: TextStyle(
+                  color: AppColors.grey,
+                  fontSize: AuraTipo.cuerpo,
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -70,8 +74,10 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
           actions: [
             TextButton(
               onPressed: enviando ? null : () => Navigator.of(ctx).pop(),
-              child: const Text('Cancelar',
-                  style: TextStyle(color: AppColors.grey)),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: AppColors.grey),
+              ),
             ),
             TextButton(
               onPressed: enviando
@@ -81,22 +87,21 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                       if (code.isEmpty) return;
                       setD(() => enviando = true);
                       try {
-                        final creditos =
-                            await ReferidosService().canjearRegalo(code);
+                        final creditos = await ReferidosService().canjearRegalo(
+                          code,
+                        );
                         if (!ctx.mounted) return;
                         Navigator.of(ctx).pop();
                         if (mounted) {
-                          await context
-                              .read<AppProvider>()
-                              .refrescarUsuario();
-                          final uid =
-                              context.read<AppProvider>().usuario?.id;
+                          await context.read<AppProvider>().refrescarUsuario();
+                          final uid = context.read<AppProvider>().usuario?.id;
                           if (uid != null) _loadReservas(uid);
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                    '🎁 ¡Canjeaste $creditos créditos!'),
+                                  '🎁 ¡Canjeaste $creditos créditos!',
+                                ),
                                 backgroundColor: AppColors.success,
                               ),
                             );
@@ -107,17 +112,19 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                         if (ctx.mounted) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             SnackBar(
-                              content: Text(e
-                                  .toString()
-                                  .replaceFirst('Exception: ', '')),
+                              content: Text(
+                                e.toString().replaceFirst('Exception: ', ''),
+                              ),
                               backgroundColor: AppColors.error,
                             ),
                           );
                         }
                       }
                     },
-              child: const Text('Canjear',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              child: const Text(
+                'Canjear',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),
@@ -164,8 +171,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
     return diff > 0 ? diff : 0;
   }
 
-  int get _totalAhorro =>
-      _reservasMes.fold(0, (acc, r) => acc + _ahorroPor(r));
+  int get _totalAhorro => _reservasMes.fold(0, (acc, r) => acc + _ahorroPor(r));
 
   static String _fmt(int amount) {
     final s = amount.toString();
@@ -190,179 +196,181 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
           onPressed: () => context.pop(),
         ),
       ),
-      body: Consumer<AppProvider>(
-        builder: (context, provider, _) {
-          final usuario = provider.usuario;
-          return ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              // ── Credits card ──────────────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary, Color(0xFFD4612A)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+      body: AnchoMaximo(
+        child: Consumer<AppProvider>(
+          builder: (context, provider, _) {
+            final usuario = provider.usuario;
+            return ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                // ── Credits card ──────────────────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.primary, Color(0xFFD4612A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                   ),
-                  borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Créditos disponibles',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '${usuario?.creditos ?? 0}',
-                          style: const TextStyle(
-                            color: AppColors.white,
-                            fontSize: 56,
-                            fontWeight: FontWeight.w700,
-                            height: 1,
-                          ),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 8, left: 6),
-                          child: Text(
-                            'créditos',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (usuario?.creditosVencimiento != null) ...[
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Créditos disponibles',
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
                       const SizedBox(height: 8),
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          const Icon(
-                            Icons.access_time_rounded,
-                            color: Colors.white54,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
                           Text(
-                            'Próximo vencimiento: ${DateFormat("d 'de' MMMM", 'es').format(usuario!.creditosVencimiento!)}',
+                            '${usuario?.creditos ?? 0}',
                             style: const TextStyle(
-                              color: Colors.white60,
-                              fontSize: 13,
+                              color: AppColors.white,
+                              fontSize: 56,
+                              fontWeight: FontWeight.w700,
+                              height: 1,
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 8, left: 6),
+                            child: Text(
+                              'créditos',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                              ),
                             ),
                           ),
                         ],
                       ),
+                      if (usuario?.creditosVencimiento != null) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.access_time_rounded,
+                              color: Colors.white54,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Próximo vencimiento: ${DateFormat("d 'de' MMMM", 'es').format(usuario!.creditosVencimiento!)}',
+                              style: const TextStyle(
+                                color: Colors.white60,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
-                  ],
-                ),
-              ),
-              // Badge de beneficio corporativo: solo para usuarios vinculados
-              // a una empresa. Es la única diferencia visible con un usuario
-              // normal.
-              if (usuario?.esCorporativo == true &&
-                  (usuario?.empresaNombre?.isNotEmpty ?? false)) ...[
-                const SizedBox(height: 12),
-                _BeneficioEmpresaBadge(empresa: usuario!.empresaNombre!),
-              ],
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
-                ),
-                child: const Text(
-                  'Tus packs vencen según su vigencia. El Pack Prueba dura 30 días. Los packs Esencial, Popular y Full duran 60 días. Siempre se descuentan primero los créditos que vencen antes.',
-                  style: TextStyle(
-                    color: AppColors.grey,
-                    fontSize: AuraTipo.secundario,
-                    height: 1.45,
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: _ActionCard(
-                      icon: Icons.add_circle_outline_rounded,
-                      label: 'Comprar\ncréditos',
-                      onTap: () => context.push('/comprar-creditos'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _ActionCard(
-                      icon: Icons.people_outline_rounded,
-                      label: 'Ganar\ncon referidos',
-                      onTap: () => context.push('/referidos'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _ActionCard(
-                      icon: Icons.card_giftcard_rounded,
-                      label: 'Canjear\nregalo',
-                      onTap: _abrirCanjeRegalo,
-                    ),
-                  ),
+                // Badge de beneficio corporativo: solo para usuarios vinculados
+                // a una empresa. Es la única diferencia visible con un usuario
+                // normal.
+                if (usuario?.esCorporativo == true &&
+                    (usuario?.empresaNombre?.isNotEmpty ?? false)) ...[
+                  const SizedBox(height: 12),
+                  _BeneficioEmpresaBadge(empresa: usuario!.empresaNombre!),
                 ],
-              ),
-              const SizedBox(height: 24),
-              Text(
-                '¿Cómo usar los créditos?',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+                  ),
+                  child: const Text(
+                    'Tus packs vencen según su vigencia. El Pack Prueba dura 30 días. Los packs Esencial, Popular y Full duran 60 días. Siempre se descuentan primero los créditos que vencen antes.',
+                    style: TextStyle(
+                      color: AppColors.grey,
+                      fontSize: AuraTipo.secundario,
+                      height: 1.45,
+                    ),
+                  ),
                 ),
-                child: const Column(
+                const SizedBox(height: 20),
+                Row(
                   children: [
-                    _HowItem(
-                      step: '1',
-                      text: 'Explorá los estudios y clases disponibles',
+                    Expanded(
+                      child: _ActionCard(
+                        icon: Icons.add_circle_outline_rounded,
+                        label: 'Comprar\ncréditos',
+                        onTap: () => context.push('/comprar-creditos'),
+                      ),
                     ),
-                    Divider(height: 20),
-                    _HowItem(
-                      step: '2',
-                      text: 'Elegí una clase y reservá tu lugar',
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ActionCard(
+                        icon: Icons.people_outline_rounded,
+                        label: 'Ganar\ncon referidos',
+                        onTap: () => context.push('/referidos'),
+                      ),
                     ),
-                    Divider(height: 20),
-                    _HowItem(
-                      step: '3',
-                      text: 'Presentá tu QR en el estudio y listo',
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ActionCard(
+                        icon: Icons.card_giftcard_rounded,
+                        label: 'Canjear\nregalo',
+                        onTap: _abrirCanjeRegalo,
+                      ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              Center(
-                child: TextButton.icon(
-                  onPressed: () => context.push('/historial-creditos'),
-                  icon: const Icon(Icons.history_rounded, size: 18),
-                  label: const Text('Ver historial de movimientos'),
+                const SizedBox(height: 24),
+                Text(
+                  '¿Cómo usar los créditos?',
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
-              ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+                  ),
+                  child: const Column(
+                    children: [
+                      _HowItem(
+                        step: '1',
+                        text: 'Explorá los estudios y clases disponibles',
+                      ),
+                      Divider(height: 20),
+                      _HowItem(
+                        step: '2',
+                        text: 'Elegí una clase y reservá tu lugar',
+                      ),
+                      Divider(height: 20),
+                      _HowItem(
+                        step: '3',
+                        text: 'Presentá tu QR en el estudio y listo',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () => context.push('/historial-creditos'),
+                    icon: const Icon(Icons.history_rounded, size: 18),
+                    label: const Text('Ver historial de movimientos'),
+                  ),
+                ),
 
-              // ── Savings section ───────────────────────────────────────────
-              const SizedBox(height: 24),
-              const _SectionLabel('TU AHORRO CON AURA'),
-              const SizedBox(height: 12),
-              _buildAhorroSection(),
-              const SizedBox(height: 8),
-            ],
-          );
-        },
+                // ── Savings section ───────────────────────────────────────────
+                const SizedBox(height: 24),
+                const _SectionLabel('TU AHORRO CON AURA'),
+                const SizedBox(height: 12),
+                _buildAhorroSection(),
+                const SizedBox(height: 8),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -403,7 +411,10 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
             SizedBox(height: 4),
             Text(
               'y empezá a ahorrar con Aura',
-              style: TextStyle(color: Color(0xFF8F877F), fontSize: AuraTipo.cuerpo),
+              style: TextStyle(
+                color: Color(0xFF8F877F),
+                fontSize: AuraTipo.cuerpo,
+              ),
             ),
           ],
         ),
@@ -459,7 +470,10 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
               const Text(
                 'vs pagar precio de mercado en Buenos Aires',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF8F877F), fontSize: AuraTipo.secundario),
+                style: TextStyle(
+                  color: Color(0xFF8F877F),
+                  fontSize: AuraTipo.secundario,
+                ),
               ),
             ],
           ),
@@ -535,8 +549,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
           if (ahorro > 0) ...[
             const SizedBox(height: 6),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: const Color(0xFFE8F5E9),
                 borderRadius: BorderRadius.circular(AuraRadio.pastilla),
@@ -577,7 +590,11 @@ class _BeneficioEmpresaBadge extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.business_rounded, color: AppColors.primary, size: 20),
+          const Icon(
+            Icons.business_rounded,
+            color: AppColors.primary,
+            size: 20,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: RichText(
@@ -665,10 +682,7 @@ class _HowItem extends StatelessWidget {
   final String step;
   final String text;
 
-  const _HowItem({
-    required this.step,
-    required this.text,
-  });
+  const _HowItem({required this.step, required this.text});
 
   @override
   Widget build(BuildContext context) {

@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/aura_tokens.dart';
 import '../../widgets/aura_skeleton.dart';
 import '../../providers/app_provider.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class NotificacionesScreen extends StatefulWidget {
   const NotificacionesScreen({super.key});
@@ -32,9 +33,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     try {
       final data = await Supabase.instance.client
           .from('usuarios')
-          .select(
-            'notifs_reservas, notifs_recordatorios, notifs_promos',
-          )
+          .select('notifs_reservas, notifs_recordatorios, notifs_promos')
           .eq('id', userId)
           .maybeSingle();
 
@@ -55,11 +54,14 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     final userId = context.read<AppProvider>().userId;
     setState(() => _saving = true);
     try {
-      await Supabase.instance.client.from('usuarios').update({
-        'notifs_reservas': _reservas,
-        'notifs_recordatorios': _recordatorios,
-        'notifs_promos': _promos,
-      }).eq('id', userId);
+      await Supabase.instance.client
+          .from('usuarios')
+          .update({
+            'notifs_reservas': _reservas,
+            'notifs_recordatorios': _recordatorios,
+            'notifs_promos': _promos,
+          })
+          .eq('id', userId);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -86,65 +88,70 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Notificaciones')),
-      body: _loading
-          // La silueta de la lista de interruptores que viene.
-          ? ListView(
-              padding: const EdgeInsets.all(AuraEspacio.margen),
-              children: [
-                AuraSkeleton.renglon(alto: 14),
-                const SizedBox(height: AuraEspacio.xl),
-                for (var i = 0; i < 4; i++) ...[
-                  AuraSkeleton.renglon(alto: 44),
-                  const SizedBox(height: AuraEspacio.m),
+      body: AnchoMaximo.formulario(
+        child: _loading
+            // La silueta de la lista de interruptores que viene.
+            ? ListView(
+                padding: const EdgeInsets.all(AuraEspacio.margen),
+                children: [
+                  AuraSkeleton.renglon(alto: 14),
+                  const SizedBox(height: AuraEspacio.xl),
+                  for (var i = 0; i < 4; i++) ...[
+                    AuraSkeleton.renglon(alto: 44),
+                    const SizedBox(height: AuraEspacio.m),
+                  ],
                 ],
-              ],
-            )
-          : ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                const Text(
-                  'Controlá qué notificaciones querés recibir. Los cambios se aplican la próxima vez que iniciás sesión.',
-                  style: TextStyle(color: AppColors.grey, height: 1.5),
-                ),
-                const SizedBox(height: 20),
-                _SwitchTile(
-                  title: 'Reservas confirmadas',
-                  subtitle: 'Avisos cuando una reserva queda confirmada o cambia.',
-                  value: _reservas,
-                  onChanged: (value) => setState(() => _reservas = value),
-                ),
-                _SwitchTile(
-                  title: 'Recordatorios',
-                  subtitle:
-                      'Aviso 1 hora antes de tus clases, 3 días antes de que venzan tus créditos, y 2 días antes de que se renueve tu plan.',
-                  value: _recordatorios,
-                  onChanged: (value) => setState(() => _recordatorios = value),
-                ),
-                _SwitchTile(
-                  title: 'Promociones y novedades',
-                  subtitle: 'Lanzamientos, beneficios y recomendaciones de Aura.',
-                  value: _promos,
-                  onChanged: (value) => setState(() => _promos = value),
-                ),
-                const SizedBox(height: 28),
-                SizedBox(
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _saving ? null : _guardar,
-                    child: _saving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: AppColors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text('Guardar preferencias'),
+              )
+            : ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  const Text(
+                    'Controlá qué notificaciones querés recibir. Los cambios se aplican la próxima vez que iniciás sesión.',
+                    style: TextStyle(color: AppColors.grey, height: 1.5),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(height: 20),
+                  _SwitchTile(
+                    title: 'Reservas confirmadas',
+                    subtitle:
+                        'Avisos cuando una reserva queda confirmada o cambia.',
+                    value: _reservas,
+                    onChanged: (value) => setState(() => _reservas = value),
+                  ),
+                  _SwitchTile(
+                    title: 'Recordatorios',
+                    subtitle:
+                        'Aviso 1 hora antes de tus clases, 3 días antes de que venzan tus créditos, y 2 días antes de que se renueve tu plan.',
+                    value: _recordatorios,
+                    onChanged: (value) =>
+                        setState(() => _recordatorios = value),
+                  ),
+                  _SwitchTile(
+                    title: 'Promociones y novedades',
+                    subtitle:
+                        'Lanzamientos, beneficios y recomendaciones de Aura.',
+                    value: _promos,
+                    onChanged: (value) => setState(() => _promos = value),
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _saving ? null : _guardar,
+                      child: _saving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: AppColors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text('Guardar preferencias'),
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 }
@@ -177,7 +184,10 @@ class _SwitchTile extends StatelessWidget {
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
+          style: const TextStyle(
+            color: AppColors.grey,
+            fontSize: AuraTipo.secundario,
+          ),
         ),
       ),
     );

@@ -7,6 +7,7 @@ import '../../services/pricing_service.dart';
 import '../../utils/pricing.dart';
 import '../../utils/datos_cobro.dart';
 import '../../utils/servicios_preview.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class AdminPricingScreen extends StatefulWidget {
   final int estudioId;
@@ -104,9 +105,10 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       final rowRaw = await _client
           .from('estudios')
           .select(
-              'id, nombre, tipo_estudio, tipo_precio, creditos_min, creditos_max, '
-              'precio_config, horarios_config, '
-              'estudios_datos_cobro(comision_workshop, comision_aura)')
+            'id, nombre, tipo_estudio, tipo_precio, creditos_min, creditos_max, '
+            'precio_config, horarios_config, '
+            'estudios_datos_cobro(comision_workshop, comision_aura)',
+          )
           .eq('id', widget.estudioId)
           .maybeSingle();
       final row = rowRaw == null
@@ -123,8 +125,8 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
         return;
       }
 
-      _tipoEstudio =
-          (row['tipo_estudio']?.toString() ?? 'fitness').toLowerCase();
+      _tipoEstudio = (row['tipo_estudio']?.toString() ?? 'fitness')
+          .toLowerCase();
       _comisionAura = (row['comision_aura'] as num?)?.toDouble() ?? 30;
 
       _modo = (row['tipo_precio']?.toString() ?? 'fijo');
@@ -143,8 +145,8 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       _maxCtrl.text = max?.toString() ?? '';
       // para experiencia el precio fijo se guarda en min
       _fijoCtrl.text = min?.toString() ?? '';
-      _comisionWorkshopCtrl.text =
-          (_asInt(row['comision_workshop']) ?? 15).toString();
+      _comisionWorkshopCtrl.text = (_asInt(row['comision_workshop']) ?? 15)
+          .toString();
 
       // horarios_config = {"valle": [{"dia":1,"hora":8}, ...]}
       // Solo valle: lo que no está marcado es pico.
@@ -187,16 +189,17 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       final comision = int.tryParse(_comisionWorkshopCtrl.text.trim()) ?? 15;
       setState(() => _saving = true);
       try {
-        await _client.from('estudios').update({
-          'tipo_estudio': 'experiencia',
-        }).eq('id', widget.estudioId);
+        await _client
+            .from('estudios')
+            .update({'tipo_estudio': 'experiencia'})
+            .eq('id', widget.estudioId);
         // comision_workshop vive ahora en estudios_datos_cobro y el trigger de
         // bloqueo no deja que un cliente la escriba directo: va por RPC
         // security definer, igual que admin_set_pricing_estudio.
-        await _client.rpc('admin_set_comision_workshop', params: {
-          'p_estudio_id': widget.estudioId,
-          'p_comision': comision,
-        });
+        await _client.rpc(
+          'admin_set_comision_workshop',
+          params: {'p_estudio_id': widget.estudioId, 'p_comision': comision},
+        );
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -214,9 +217,11 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
 
     final min = int.tryParse(_minCtrl.text.trim());
     if (min == null || min <= 0) {
-      _snack(_modo == 'fijo'
-          ? 'Completá los créditos por clase.'
-          : 'Completá el precio mínimo.');
+      _snack(
+        _modo == 'fijo'
+            ? 'Completá los créditos por clase.'
+            : 'Completá el precio mínimo.',
+      );
       return;
     }
 
@@ -252,17 +257,21 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       // tipo_estudio se puede escribir directo; el modo, los créditos y la
       // grilla NO (el trigger estudios_bloquear_columnas_aura los protege),
       // así que van por RPC security definer.
-      await _client.from('estudios').update({
-        'tipo_estudio': _tipoEstudio,
-      }).eq('id', widget.estudioId);
+      await _client
+          .from('estudios')
+          .update({'tipo_estudio': _tipoEstudio})
+          .eq('id', widget.estudioId);
 
-      await _client.rpc('admin_set_pricing_estudio', params: {
-        'p_estudio_id': widget.estudioId,
-        'p_tipo_precio': _modo,
-        'p_creditos_min': min,
-        'p_creditos_max': _modo == 'fijo' ? min : max,
-        'p_horarios_config': horariosConfig,
-      });
+      await _client.rpc(
+        'admin_set_pricing_estudio',
+        params: {
+          'p_estudio_id': widget.estudioId,
+          'p_tipo_precio': _modo,
+          'p_creditos_min': min,
+          'p_creditos_max': _modo == 'fijo' ? min : max,
+          'p_horarios_config': horariosConfig,
+        },
+      );
 
       // Recalcula TODAS las clases del estudio (pasadas incluidas) para que no
       // queden precios viejos mezclados.
@@ -270,10 +279,7 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       try {
         final res = await _client.rpc(
           'admin_recalcular_precios_estudio',
-          params: {
-            'p_estudio_id': widget.estudioId,
-            'p_incluir_pasadas': true,
-          },
+          params: {'p_estudio_id': widget.estudioId, 'p_incluir_pasadas': true},
         );
         recalculadas = (res as num?)?.toInt() ?? 0;
       } catch (_) {}
@@ -281,11 +287,13 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(recalculadas > 0
-              ? 'Configuración guardada. $recalculadas clase'
-                  '${recalculadas == 1 ? '' : 's'} actualizada'
-                  '${recalculadas == 1 ? '' : 's'}.'
-              : 'Configuración guardada.'),
+          content: Text(
+            recalculadas > 0
+                ? 'Configuración guardada. $recalculadas clase'
+                      '${recalculadas == 1 ? '' : 's'} actualizada'
+                      '${recalculadas == 1 ? '' : 's'}.'
+                : 'Configuración guardada.',
+          ),
           backgroundColor: AppColors.success,
         ),
       );
@@ -300,11 +308,13 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
     final rows = await _adminService.listServiciosPrecio(widget.estudioId);
     final catalogo = await _adminService.listStudyCategories();
     _servicios = rows
-        .map((r) => ServicioPrecio(
-              servicio: r['servicio']?.toString() ?? '',
-              creditos: (r['creditos'] as num?)?.toInt() ?? 0,
-              activo: r['activo'] != false,
-            ))
+        .map(
+          (r) => ServicioPrecio(
+            servicio: r['servicio']?.toString() ?? '',
+            creditos: (r['creditos'] as num?)?.toInt() ?? 0,
+            activo: r['activo'] != false,
+          ),
+        )
         .where((s) => s.servicio.isNotEmpty)
         .toList();
     _catalogo = catalogo;
@@ -318,16 +328,15 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
         ? [existente.servicio]
         : _catalogo.where((c) => !ya.contains(c)).toList();
     if (opciones.isEmpty) {
-      _snack('Todas las categorías del catálogo ya tienen precio en este estudio.');
+      _snack(
+        'Todas las categorías del catálogo ya tienen precio en este estudio.',
+      );
       return;
     }
 
     final pedido = await showDialog<_ServicioPedido>(
       context: context,
-      builder: (ctx) => _ServicioDialog(
-        opciones: opciones,
-        inicial: existente,
-      ),
+      builder: (ctx) => _ServicioDialog(opciones: opciones, inicial: existente),
     );
     if (pedido == null || !mounted) return;
 
@@ -346,8 +355,12 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(tituloConfirmacionServicio(
-              preview, widget.estudioNombre ?? 'el estudio')),
+          title: Text(
+            tituloConfirmacionServicio(
+              preview,
+              widget.estudioNombre ?? 'el estudio',
+            ),
+          ),
           content: Text(
             mensajeConfirmacionServicio(preview),
             style: const TextStyle(height: 1.45),
@@ -359,8 +372,10 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Aplicar',
-                  style: TextStyle(color: AppColors.primary)),
+              child: const Text(
+                'Aplicar',
+                style: TextStyle(color: AppColors.primary),
+              ),
             ),
           ],
         ),
@@ -476,57 +491,63 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(widget.estudioNombre != null
-            ? 'Precios — ${widget.estudioNombre}'
-            : 'Precios del estudio'),
+        title: Text(
+          widget.estudioNombre != null
+              ? 'Precios — ${widget.estudioNombre}'
+              : 'Precios del estudio',
+        ),
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary))
-          : _error != null
-              ? Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Center(child: Text(_error!)),
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildToggleTipo(),
+      body: AnchoMaximo(
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : _error != null
+            ? Padding(
+                padding: const EdgeInsets.all(20),
+                child: Center(child: Text(_error!)),
+              )
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildToggleTipo(),
+                    const SizedBox(height: 20),
+                    if (_tipoEstudio == 'fitness') ...[
+                      _buildToggleModo(),
                       const SizedBox(height: 20),
-                      if (_tipoEstudio == 'fitness') ...[
-                        _buildToggleModo(),
-                        const SizedBox(height: 20),
-                        _buildRangoFitness(),
-                        if (_modo == 'rango') ...[
-                          const SizedBox(height: 24),
-                          _buildHorarios(),
-                        ],
-                      ] else
-                        _buildPrecioExperiencia(),
-                      const SizedBox(height: 28),
-                      _buildServicios(),
-                      const SizedBox(height: 28),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _saving ? null : _guardar,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
+                      _buildRangoFitness(),
+                      if (_modo == 'rango') ...[
+                        const SizedBox(height: 24),
+                        _buildHorarios(),
+                      ],
+                    ] else
+                      _buildPrecioExperiencia(),
+                    const SizedBox(height: 28),
+                    _buildServicios(),
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _saving ? null : _guardar,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          child: Text(
-                              _saving ? 'Guardando…' : 'Guardar configuración'),
+                        ),
+                        child: Text(
+                          _saving ? 'Guardando…' : 'Guardar configuración',
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+              ),
+      ),
     );
   }
 
@@ -645,11 +666,14 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
         Text(
           _modo == 'fijo'
               ? 'Todas las clases del estudio valen lo mismo, sin importar el '
-                  'día ni la hora.'
+                    'día ni la hora.'
               : 'El precio sale del horario: marcás los flojos como valle '
-                  '(mínimo) y el resto es pico (máximo).',
+                    '(mínimo) y el resto es pico (máximo).',
           style: const TextStyle(
-              color: AppColors.grey, fontSize: 12, height: 1.35),
+            color: AppColors.grey,
+            fontSize: 12,
+            height: 1.35,
+          ),
         ),
       ],
     );
@@ -672,12 +696,15 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
         Text(
           esFijo
               ? 'Créditos que cuesta cada clase de este estudio. El estudio no '
-                  'lo puede editar.'
+                    'lo puede editar.'
               : 'Rango negociado en créditos. En los horarios que marques como '
-                  'valle la clase cuesta el mínimo; en todos los demás, el '
-                  'máximo.',
+                    'valle la clase cuesta el mínimo; en todos los demás, el '
+                    'máximo.',
           style: const TextStyle(
-              color: AppColors.grey, fontSize: 13, height: 1.4),
+            color: AppColors.grey,
+            fontSize: 13,
+            height: 1.4,
+          ),
         ),
         const SizedBox(height: 14),
         if (esFijo)
@@ -689,8 +716,11 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
               labelText: 'Créditos por clase',
               suffixText: 'cr',
               isDense: true,
-              prefixIcon:
-                  Icon(Icons.local_activity_outlined, color: AppColors.primary, size: 18),
+              prefixIcon: Icon(
+                Icons.local_activity_outlined,
+                color: AppColors.primary,
+                size: 18,
+              ),
             ),
           )
         else
@@ -743,14 +773,20 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
     } else {
       final lo = min ?? max!;
       final hi = max ?? min!;
-      final recibeLo =
-          _pricingService.montoEstudioPorClase(_valorCredito, lo, _comisionAura);
-      final recibeHi =
-          _pricingService.montoEstudioPorClase(_valorCredito, hi, _comisionAura);
+      final recibeLo = _pricingService.montoEstudioPorClase(
+        _valorCredito,
+        lo,
+        _comisionAura,
+      );
+      final recibeHi = _pricingService.montoEstudioPorClase(
+        _valorCredito,
+        hi,
+        _comisionAura,
+      );
       texto = recibeLo == recibeHi
           ? 'Estudio recibe ${_fmtPesos(recibeLo)} por clase'
           : 'Estudio recibe entre ${_fmtPesos(recibeLo)} y '
-              '${_fmtPesos(recibeHi)} por clase';
+                '${_fmtPesos(recibeHi)} por clase';
     }
     return Container(
       width: double.infinity,
@@ -761,7 +797,11 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.payments_outlined, color: AppColors.primary, size: 18),
+          const Icon(
+            Icons.payments_outlined,
+            color: AppColors.primary,
+            size: 18,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -804,9 +844,10 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
             _LeyendaFranja(color: _valleColor, texto: '🌙 Valle (mínimo)'),
             const SizedBox(width: 14),
             _LeyendaFranja(
-                color: AppColors.white,
-                texto: '⚡ Pico (máximo)',
-                borde: true),
+              color: AppColors.white,
+              texto: '⚡ Pico (máximo)',
+              borde: true,
+            ),
           ],
         ),
         const SizedBox(height: 14),
@@ -980,9 +1021,7 @@ class _LeyendaFranja extends StatelessWidget {
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(4),
-            border: borde
-                ? Border.all(color: const Color(0xFFEDE7E1))
-                : null,
+            border: borde ? Border.all(color: const Color(0xFFEDE7E1)) : null,
           ),
         ),
         const SizedBox(width: 6),
@@ -1129,7 +1168,9 @@ class _ServicioDialogState extends State<_ServicioDialog> {
   Widget build(BuildContext context) {
     final editando = widget.inicial != null;
     return AlertDialog(
-      title: Text(editando ? 'Editar servicio' : 'Nuevo servicio de precio fijo'),
+      title: Text(
+        editando ? 'Editar servicio' : 'Nuevo servicio de precio fijo',
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1185,8 +1226,10 @@ class _ServicioDialogState extends State<_ServicioDialog> {
         ),
         TextButton(
           onPressed: _confirmar,
-          child: const Text('Continuar',
-              style: TextStyle(color: AppColors.primary)),
+          child: const Text(
+            'Continuar',
+            style: TextStyle(color: AppColors.primary),
+          ),
         ),
       ],
     );

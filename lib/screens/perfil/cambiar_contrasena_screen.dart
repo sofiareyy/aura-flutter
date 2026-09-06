@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class CambiarContrasenaScreen extends StatefulWidget {
   const CambiarContrasenaScreen({super.key});
@@ -57,58 +58,63 @@ class _CambiarContrasenaScreenState extends State<CambiarContrasenaScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Cambiar contraseña')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            const Text(
-              'Elegí una contraseña nueva para tu cuenta. Este cambio impacta en tu próximo inicio de sesión.',
-              style: TextStyle(color: AppColors.grey, height: 1.5),
-            ),
-            const SizedBox(height: 20),
-            TextFormField(
-              controller: _passwordCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Nueva contraseña'),
-              validator: (value) {
-                if (value == null || value.trim().length < 6) {
-                  return 'Usá al menos 6 caracteres.';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _confirmCtrl,
-              obscureText: true,
-              decoration:
-                  const InputDecoration(labelText: 'Repetir contraseña'),
-              validator: (value) {
-                if (value != _passwordCtrl.text) {
-                  return 'Las contraseñas no coinciden.';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 28),
-            SizedBox(
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _saving ? null : _guardar,
-                child: _saving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: AppColors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text('Guardar contraseña'),
+      body: AnchoMaximo.formulario(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              const Text(
+                'Elegí una contraseña nueva para tu cuenta. Este cambio impacta en tu próximo inicio de sesión.',
+                style: TextStyle(color: AppColors.grey, height: 1.5),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _passwordCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Nueva contraseña',
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().length < 6) {
+                    return 'Usá al menos 6 caracteres.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _confirmCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Repetir contraseña',
+                ),
+                validator: (value) {
+                  if (value != _passwordCtrl.text) {
+                    return 'Las contraseñas no coinciden.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _guardar,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: AppColors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text('Guardar contraseña'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

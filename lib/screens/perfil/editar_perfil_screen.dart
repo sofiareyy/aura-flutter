@@ -6,6 +6,7 @@ import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 import '../../services/media_upload_service.dart';
 import '../../services/usuarios_service.dart';
+import '../../widgets/ancho_maximo.dart';
 
 class EditarPerfilScreen extends StatefulWidget {
   const EditarPerfilScreen({super.key});
@@ -76,14 +77,12 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
 
     setState(() => _saving = true);
     try {
-      await _usuariosService.updateUsuario(
-        provider.userId,
-        {
-          'nombre': _nombreCtrl.text.trim(),
-          'avatar_url':
-              _avatarCtrl.text.trim().isEmpty ? null : _avatarCtrl.text.trim(),
-        },
-      );
+      await _usuariosService.updateUsuario(provider.userId, {
+        'nombre': _nombreCtrl.text.trim(),
+        'avatar_url': _avatarCtrl.text.trim().isEmpty
+            ? null
+            : _avatarCtrl.text.trim(),
+      });
       await provider.refrescarUsuario();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -112,102 +111,108 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Editar perfil')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Center(
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 42,
-                    backgroundColor: AppColors.primaryLight,
-                    backgroundImage:
-                        avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
-                    child: avatarUrl.isEmpty
-                        ? Text(
-                            _nombreCtrl.text.trim().isEmpty
-                                ? 'A'
-                                : _nombreCtrl.text.trim()[0].toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Podés subir una foto o usar una URL.',
-                    style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
-                  ),
-                  const SizedBox(height: 10),
-                  OutlinedButton(
-                    onPressed: _uploading ? null : _subirFoto,
-                    child: _uploading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              color: AppColors.primary,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text('Subir foto'),
-                  ),
-                ],
+      body: AnchoMaximo.formulario(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              Center(
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 42,
+                      backgroundColor: AppColors.primaryLight,
+                      backgroundImage: avatarUrl.isNotEmpty
+                          ? NetworkImage(avatarUrl)
+                          : null,
+                      child: avatarUrl.isEmpty
+                          ? Text(
+                              _nombreCtrl.text.trim().isEmpty
+                                  ? 'A'
+                                  : _nombreCtrl.text.trim()[0].toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Podés subir una foto o usar una URL.',
+                      style: TextStyle(
+                        color: AppColors.grey,
+                        fontSize: AuraTipo.secundario,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton(
+                      onPressed: _uploading ? null : _subirFoto,
+                      child: _uploading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                color: AppColors.primary,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text('Subir foto'),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            TextFormField(
-              controller: _nombreCtrl,
-              decoration: const InputDecoration(labelText: 'Nombre'),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Ingresá tu nombre.';
-                }
-                return null;
-              },
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _avatarCtrl,
-              decoration: const InputDecoration(
-                labelText: 'URL de foto',
-                hintText: 'https://...',
+              const SizedBox(height: 24),
+              TextFormField(
+                controller: _nombreCtrl,
+                decoration: const InputDecoration(labelText: 'Nombre'),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Ingresá tu nombre.';
+                  }
+                  return null;
+                },
+                onChanged: (_) => setState(() {}),
               ),
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'La imagen queda guardada en Storage para que el perfil no dependa solo de URLs externas.',
-              style: TextStyle(
-                color: AppColors.grey,
-                fontSize: AuraTipo.secundario,
-                height: 1.5,
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _avatarCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'URL de foto',
+                  hintText: 'https://...',
+                ),
+                onChanged: (_) => setState(() {}),
               ),
-            ),
-            const SizedBox(height: 28),
-            SizedBox(
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _saving ? null : _guardar,
-                child: _saving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: AppColors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text('Guardar cambios'),
+              const SizedBox(height: 24),
+              const Text(
+                'La imagen queda guardada en Storage para que el perfil no dependa solo de URLs externas.',
+                style: TextStyle(
+                  color: AppColors.grey,
+                  fontSize: AuraTipo.secundario,
+                  height: 1.5,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 28),
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _guardar,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: AppColors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text('Guardar cambios'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
