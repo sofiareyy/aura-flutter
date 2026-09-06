@@ -1445,6 +1445,72 @@ acompaña, pero hoy acompaña en la mitad de los casos.
 **Si sale la A**, antes hay que o cambiar esas 4 fotos, o que el hero saltee a
 los estudios sin foto horizontal.
 
+## ⬜ Liquidar CUANDO QUIERA (sin esperar el cierre de mes) — relevado el 6/9, NO construido
+
+Sofía mantiene el pago manual (transferir no le molesta). Lo que quiere es no
+estar obligada a esperar a fin de mes: pagarle al creador de una experiencia
+**apenas pasó el evento**.
+
+### Hoy, ¿el sistema obliga a liquidar por mes? SÍ, y por tres motivos
+
+1. **La unidad es (estudio, mes).** `liquidaciones.mes` es un `'YYYY-MM'`, y
+   todo el cálculo agrupa por el mes calendario argentino de `created_at`.
+2. **La reserva no sabe si fue liquidada.** No hay columna `liquidacion_id`
+   ni nada parecido en `reservas`. La pertenencia es implícita: "las
+   reservas cuyo `created_at` cae en el mes de la fila".
+3. **Se agrupa por fecha de la RESERVA, no de la clase.** Una reserva hecha el
+   28/8 para un workshop del 12/9 se liquida en **agosto**, aunque el evento
+   sea de septiembre. Para "pagar apenas pasó el evento" esto es al revés de
+   lo que hace falta.
+
+Hoy sí se puede pagar **antes del 5** (el botón no mira la fecha), pero
+siempre **un mes entero cerrado**. Liquidar una clase o experiencia suelta
+**no se puede** sin cambiar el modelo.
+
+### ¿Qué cambia? Es un cambio de MODELO, mediano, no de UI
+
+La pieza que falta es una sola pero es estructural: **que la reserva sepa a
+qué liquidación pertenece** (`reservas.liquidacion_id`). Con eso:
+
+- una liquidación pasa a ser "un conjunto de reservas", no "un mes";
+- se puede armar una **por evento** (todas las reservas de esa clase/workshop)
+  o **por mes** (como hoy), y son la misma cosa;
+- lo ya liquidado no se vuelve a contar: el cálculo del mes excluye las
+  reservas con `liquidacion_id`. Hoy eso no existe: si se pagara un evento
+  suelto, **el mismo dinero volvería a aparecer** en el mes.
+
+**El sellado de comisión no cambia**: el trigger ya sella al pagar, por
+liquidación, y sirve igual para una de un evento. **Las devoluciones**, ver
+abajo. **La UI**: una lista "listo para liquidar" con los eventos ya ocurridos
+(fecha + duración + 3 h de gracia, que es cuando el cron los marca
+`completada`), con su botón de pago.
+
+Estimación: base (columna + índice + que el cálculo excluya lo liquidado + un
+guard para que una reserva no entre en dos liquidaciones) + Dart (la lista por
+evento + reusar `_registrarPago`). **Toca plata: con Fable y con plan previo.**
+
+### ⚠️ Devoluciones: mejor de lo que parecía, con UNA cosa a decidir
+
+Se midió en rollback contra la función real:
+
+- **Una reserva `completada` NO se puede devolver.** `estudio_cancelar_clase`
+  sólo toca `confirmada`, `presente` y `pre_confirmada`. Sobre una clase ya
+  pasada con reservas completadas devuelve `reservas_afectadas: 0`. Y no hay
+  ningún camino de devolución manual en el backoffice.
+- El cron `completar-reservas` mueve a `completada` **3 horas después** de que
+  termina la clase.
+
+O sea: **si Sofía liquida sólo reservas `completada`, no hay forma de que
+después haya un reembolso**. La ventana de riesgo es únicamente esas 3 horas
+entre el fin del evento y el cron. La regla para la lista "listo para
+liquidar" es simple: **sólo reservas en `completada`**, nunca `presente` ni
+`confirmada`.
+
+**Lo que hay que decidir:** el estado `ausente`. Hoy es liquidable (el estudio
+cobra igual si la alumna no fue). Si un día se decide devolver a una ausente,
+ya liquidada, esa plata ya salió. Recomendación: **`ausente` se liquida y no
+se devuelve**, que es la regla de hoy, y dejarla escrita.
+
 ## 🔴 PLATA: la primera facturación real (Citra) — 6/9, diagnosticado y con 2 arreglos
 
 Sofía le transfirió a Citra los 54 créditos de agosto. Cuando fue a marcarlo,
