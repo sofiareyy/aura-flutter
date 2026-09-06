@@ -1445,6 +1445,75 @@ acompaña, pero hoy acompaña en la mitad de los casos.
 **Si sale la A**, antes hay que o cambiar esas 4 fotos, o que el hero saltee a
 los estudios sin foto horizontal.
 
+## 🔴 PLATA: la primera facturación real (Citra) — 6/9, diagnosticado y con 2 arreglos
+
+Sofía le transfirió a Citra los 54 créditos de agosto. Cuando fue a marcarlo,
+**ya decía "Pagado" solo**, y **no encontraba la deuda en su backoffice**.
+
+### Qué había en la base: NADA de Citra
+
+`liquidaciones` tiene **una sola fila en toda la historia**: Hot Clic (prueba,
+20/8). Citra no tiene ninguna. Nadie marcó nada pagado, ni Sofía ni un cron.
+
+### El "Pagado" que vio Citra: es EL MISMO bug del 2/9, en el teléfono
+
+El arreglo del 2/9 (`c3106ff`) **SÍ está vivo en la web**: el bundle de
+somosaurapass.com es byte a byte idéntico al de `gh-pages`, que dice `deploy:
+e45d31a` = punta de `main`. **Brecha entre main y producción: cero.** El deploy
+no viene fallando (se descartó con medición; antes se había dicho lo contrario
+por un grep mal leído).
+
+Lo que sigue vivo es **la app del teléfono, 1.0.6+26**, con la regla vieja:
+
+```dart
+'estado': dt.month == DateTime.now().month ? 'Pendiente' : 'Pagado'
+```
+
+No es "el día 5": es "cuando el mes deja de ser el actual". Agosto pasó a
+"Pagado" el 1/9. **Se arregla sola cuando salga la 1.0.7+27**, que Sofía
+tiene compilada y sin subir. Hasta entonces, TODOS los estudios que usen la
+app del teléfono ven ese "Pagado" falso.
+
+### Por qué no encontraba la deuda: el backoffice abre en el mes actual
+
+`_mesSeleccionado = _meses.first` = septiembre. La deuda es de agosto. Y el
+"historial" sólo miraba meses **con filas** en `liquidaciones`: un mes cerrado
+nunca liquidado (Citra) no aparecía en ningún lado.
+
+### Arreglo 1 · Guard en la base (`FEAT_GUARD_LIQUIDACION_PAGADA_2026-09-06.sql`, APLICADO)
+
+- `estado = 'pagado'` **exige `fecha_pago`**.
+- `estado` sólo puede ser `pendiente` o `pagado` (no había CHECK; entraba
+  cualquier string).
+- Un pago hecho **no se deshace ni se mueve**: no vuelve a pendiente, no cambia
+  de estudio, mes, monto ni fecha. Sólo la nota es editable.
+- Fecha de pago no puede estar en el futuro.
+
+Probado en rollback: 6 casos que rechaza, 4 que deja pasar (incluido el botón
+tal cual está). El sellado de comisión sigue funcionando: el guard corre antes
+por orden alfabético de triggers.
+
+### Arreglo 2 · "Pendiente de pago" arriba del backoffice (Dart, sin desplegar)
+
+El cálculo de un mes pasó a `_calcularMes(mes)` (mismo cuerpo, misma fórmula)
+y `_cargarPendientes` lo corre para **todos los meses cerrados**, listando cada
+estudio con reservas y sin liquidación pagada, **incluidos los meses sin fila**.
+Va arriba de todo, no depende del selector, y pagar desde ahí usa el mes de la
+fila. Simulado con la base: hoy muestra exactamente `Citra · agosto · 3
+reservas · 54 créditos`.
+
+### ⚠️ Lo que falta: registrar el pago REAL de Citra
+
+Sofía ya transfirió. Con el guard puesto y la web sana, **lo hace ella desde
+el backoffice**: elegir agosto (o tocar la fila de Pendientes cuando se
+despliegue) y "Registrar pago". El trigger sella la comisión con los valores
+vigentes.
+
+**Dato importante para ese pago:** `fecha_inicio_cobro` de Citra es el
+**13/9**. Un pago de hoy está en gracia → **comisión 0%, Citra recibe el
+100%** (medido en rollback: `comision_aplicada = 0`). Es lo que corresponde
+según la regla de gracia; conviene que Sofía lo sepa antes de marcar.
+
 ## ✅ AUDITORÍA de la mejora visual (Etapa 1 + 2) — 4/9: 2 hallazgos, los 2 arreglados
 
 Medido contra el código y contra producción, no estimado.

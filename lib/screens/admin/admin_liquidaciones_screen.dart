@@ -34,6 +34,9 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
   // Por estudio: { estudio_id, nombre, cantidad_reservas, monto_total, monto_pagar, estado, fecha_pago, comprobante_nota }
   List<Map<String, dynamic>> _estudios = [];
 
+  // Lo que se debe de meses cerrados, sin importar el selector.
+  List<Map<String, dynamic>> _pendientes = [];
+
   // Historial expandido
   bool _historialExpanded = false;
   bool _loadingHistorial = false;
@@ -76,128 +79,14 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       _error = null;
     });
     try {
-      // Corte por MES CALENDARIO ARGENTINO (2/9). Antes el rango se armaba
-      // con DateTime local sin zona y Postgres lo leía como UTC: las reservas
-      // de 21:00 a 23:59 del último día caían en el mes siguiente. Además el
-      // fin era `lte 23:59:59`, que dejaba una grieta de sub-segundo donde
-      // una reserva no caía en NINGÚN mes: ahora es exclusivo (lt).
-      final limites = limitesMesArgentino(_mesSeleccionado);
-      final inicio = limites.inicioUtc.toIso8601String();
-      final finExclusivo = limites.finExclusivoUtc.toIso8601String();
-
-      // 1. Traer reservas del mes con el estudio (via clase). reservas no tiene
-      // columna estudio_id: se obtiene de clases.estudio_id. Join explícito con
-      // el hint de FK para que PostgREST resuelva la relación (evita PGRST200).
-      final reservas = await _client
-          .from('reservas')
-          .select(
-              'estado, creditos_usados, clases!reservas_clase_id_fkey(estudio_id, tipo)')
-          .inFilter('estado', AppConstants.estadosLiquidables)
-          .gte('created_at', inicio)
-          .lt('created_at', finExclusivo);
-
-      // 2. Traer todos los estudios activos (con comisión + fecha inicio cobro)
-      // comision_aura / comision_workshop / valor_credito viven en
-      // estudios_datos_cobro; fecha_inicio_cobro sigue en estudios.
-      // Se aplanan para que Liquidacion.* reciba la misma forma de mapa.
-      final estudiosRaw = await _client
-          .from('estudios')
-          .select('id, nombre, fecha_inicio_cobro, '
-              'estudios_datos_cobro(comision_aura, comision_workshop, valor_credito)')
-          .eq('activo', true)
-          .order('nombre');
-      final estudiosData = DatosCobro.aplanarLista(estudiosRaw as List);
-
-      // 3. Traer liquidaciones ya registradas para este mes
-      final liquidaciones = await _client
-          .from('liquidaciones')
-          .select()
-          .eq('mes', _mesSeleccionado);
-
-      // 4. Índice de estudios (trae comisión, valor_credito, fecha_inicio_cobro)
-      final Map<int, Map<String, dynamic>> estudioPorId = {
-        for (final e in (estudiosData as List))
-          (e['id'] as num).toInt(): Map<String, dynamic>.from(e as Map),
-      };
-
-      // 5. Neto por estudio, usando la MISMA fórmula que Cobros y Dashboard
-      // (Liquidacion.netoReserva): valor_credito del estudio, comisión por
-      // tipo, y fecha_inicio_cobro. Así las tres pantallas dan el mismo número.
-      final Map<int, int> montoPagarPorEstudio = {};
-      final Map<int, int> montoBrutoPorEstudio = {};
-      final Map<int, int> reservasPorEstudio = {};
-
-      for (final r in (reservas as List)) {
-        final clase = r['clases'] as Map<String, dynamic>?;
-        final esId = (clase?['estudio_id'] as num?)?.toInt();
-        if (esId == null) continue;
-        final estudio = estudioPorId[esId];
-
-        // Reserva aplanada como la esperan los helpers.
-        final reservaPlana = <String, dynamic>{
-          'estado': r['estado'],
-          'creditos_usados': r['creditos_usados'],
-          '_clase_tipo': clase?['tipo'],
-        };
-        final cred = (r['creditos_usados'] as num?)?.toInt() ?? 0;
-
-        montoPagarPorEstudio[esId] = (montoPagarPorEstudio[esId] ?? 0) +
-            Liquidacion.netoReserva(reservaPlana, estudio);
-        montoBrutoPorEstudio[esId] = (montoBrutoPorEstudio[esId] ?? 0) +
-            cred * ValorCredito.deEstudio(estudio);
-        reservasPorEstudio[esId] = (reservasPorEstudio[esId] ?? 0) + 1;
-      }
-
-      // Mapa de liquidaciones registradas
-      final Map<int, Map<String, dynamic>> liqMap = {};
-      for (final l in (liquidaciones as List)) {
-        final esId = (l['estudio_id'] as num?)?.toInt();
-        if (esId != null) liqMap[esId] = Map<String, dynamic>.from(l);
-      }
-
-      // 6. Construir lista solo de estudios con reservas
-      final List<Map<String, dynamic>> resultado = [];
-      for (final e in estudioPorId.values) {
-        final esId = (e['id'] as num).toInt();
-        final cantReservas = reservasPorEstudio[esId] ?? 0;
-        if (cantReservas == 0) continue;
-
-        final montoTotal = montoBrutoPorEstudio[esId] ?? 0;
-        final montoPagar = montoPagarPorEstudio[esId] ?? 0;
-        // Comisión efectiva derivada de los montos reales (promedio ponderado
-        // para estudios con clases + workshops).
-        final comisionPct = montoTotal > 0
-            ? (montoTotal - montoPagar) / montoTotal * 100
-            : Liquidacion.comision(e, esWorkshop: false);
-
-        final liq = liqMap[esId];
-        resultado.add({
-          'estudio_id': esId,
-          'nombre': e['nombre']?.toString() ?? 'Estudio',
-          'cantidad_reservas': cantReservas,
-          'monto_total': montoTotal,
-          'monto_pagar': montoPagar,
-          'comision_pct': comisionPct,
-          'estado': liq?['estado'] ?? 'pendiente',
-          'fecha_pago': liq?['fecha_pago'],
-          'comprobante_nota': liq?['comprobante_nota'],
-          'liquidacion_id': liq?['id'],
-        });
-      }
-
-      // Ordenar: pendientes primero, luego por monto desc
-      resultado.sort((a, b) {
-        final aPend = a['estado'] == 'pendiente' ? 0 : 1;
-        final bPend = b['estado'] == 'pendiente' ? 0 : 1;
-        if (aPend != bPend) return aPend - bPend;
-        return (b['monto_pagar'] as int).compareTo(a['monto_pagar'] as int);
-      });
-
+      final resultado = await _calcularMes(_mesSeleccionado);
       if (!mounted) return;
       setState(() {
         _estudios = resultado;
         _loading = false;
       });
+      // Los pendientes de TODOS los meses cerrados, aparte del selector.
+      await _cargarPendientes();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -205,6 +94,153 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
         _loading = false;
       });
     }
+  }
+
+  /// Lo que Aura le debe a cada estudio por [mes], con la MISMA fórmula que
+  /// Cobros y Dashboard (`Liquidacion.netoReserva`). Devuelve sólo estudios
+  /// con reservas, con su liquidación registrada si la hay.
+  ///
+  /// Era el cuerpo de `_cargar`. Se separó (6/9/2026) para poder correrlo
+  /// sobre varios meses: la pantalla abría siempre en el mes ACTUAL, y lo que
+  /// se debe es del mes ANTERIOR, así que la deuda quedaba escondida detrás
+  /// del selector. Con la primera facturación real (Citra, agosto), Sofía
+  /// abrió el backoffice en septiembre, lo vio vacío y creyó que los
+  /// pendientes habían desaparecido.
+  Future<List<Map<String, dynamic>>> _calcularMes(String mes) async {
+    // Corte por MES CALENDARIO ARGENTINO (2/9). Antes el rango se armaba
+    // con DateTime local sin zona y Postgres lo leía como UTC: las reservas
+    // de 21:00 a 23:59 del último día caían en el mes siguiente. Además el
+    // fin era `lte 23:59:59`, que dejaba una grieta de sub-segundo donde
+    // una reserva no caía en NINGÚN mes: ahora es exclusivo (lt).
+    final limites = limitesMesArgentino(mes);
+    final inicio = limites.inicioUtc.toIso8601String();
+    final finExclusivo = limites.finExclusivoUtc.toIso8601String();
+
+    // 1. Traer reservas del mes con el estudio (via clase). reservas no tiene
+    // columna estudio_id: se obtiene de clases.estudio_id. Join explícito con
+    // el hint de FK para que PostgREST resuelva la relación (evita PGRST200).
+    final reservas = await _client
+        .from('reservas')
+        .select(
+            'estado, creditos_usados, clases!reservas_clase_id_fkey(estudio_id, tipo)')
+        .inFilter('estado', AppConstants.estadosLiquidables)
+        .gte('created_at', inicio)
+        .lt('created_at', finExclusivo);
+
+    // 2. Traer todos los estudios activos (con comisión + fecha inicio cobro)
+    // comision_aura / comision_workshop / valor_credito viven en
+    // estudios_datos_cobro; fecha_inicio_cobro sigue en estudios.
+    // Se aplanan para que Liquidacion.* reciba la misma forma de mapa.
+    final estudiosRaw = await _client
+        .from('estudios')
+        .select('id, nombre, fecha_inicio_cobro, '
+            'estudios_datos_cobro(comision_aura, comision_workshop, valor_credito)')
+        .eq('activo', true)
+        .order('nombre');
+    final estudiosData = DatosCobro.aplanarLista(estudiosRaw as List);
+
+    // 3. Traer liquidaciones ya registradas para este mes
+    final liquidaciones =
+        await _client.from('liquidaciones').select().eq('mes', mes);
+
+    // 4. Índice de estudios (trae comisión, valor_credito, fecha_inicio_cobro)
+    final Map<int, Map<String, dynamic>> estudioPorId = {
+      for (final e in (estudiosData as List))
+        (e['id'] as num).toInt(): Map<String, dynamic>.from(e as Map),
+    };
+
+    // 5. Neto por estudio, usando la MISMA fórmula que Cobros y Dashboard
+    // (Liquidacion.netoReserva): valor_credito del estudio, comisión por
+    // tipo, y fecha_inicio_cobro. Así las tres pantallas dan el mismo número.
+    final Map<int, int> montoPagarPorEstudio = {};
+    final Map<int, int> montoBrutoPorEstudio = {};
+    final Map<int, int> reservasPorEstudio = {};
+
+    for (final r in (reservas as List)) {
+      final clase = r['clases'] as Map<String, dynamic>?;
+      final esId = (clase?['estudio_id'] as num?)?.toInt();
+      if (esId == null) continue;
+      final estudio = estudioPorId[esId];
+
+      // Reserva aplanada como la esperan los helpers.
+      final reservaPlana = <String, dynamic>{
+        'estado': r['estado'],
+        'creditos_usados': r['creditos_usados'],
+        '_clase_tipo': clase?['tipo'],
+      };
+      final cred = (r['creditos_usados'] as num?)?.toInt() ?? 0;
+
+      montoPagarPorEstudio[esId] = (montoPagarPorEstudio[esId] ?? 0) +
+          Liquidacion.netoReserva(reservaPlana, estudio);
+      montoBrutoPorEstudio[esId] = (montoBrutoPorEstudio[esId] ?? 0) +
+          cred * ValorCredito.deEstudio(estudio);
+      reservasPorEstudio[esId] = (reservasPorEstudio[esId] ?? 0) + 1;
+    }
+
+    // Mapa de liquidaciones registradas
+    final Map<int, Map<String, dynamic>> liqMap = {};
+    for (final l in (liquidaciones as List)) {
+      final esId = (l['estudio_id'] as num?)?.toInt();
+      if (esId != null) liqMap[esId] = Map<String, dynamic>.from(l);
+    }
+
+    // 6. Construir lista solo de estudios con reservas
+    final List<Map<String, dynamic>> resultado = [];
+    for (final e in estudioPorId.values) {
+      final esId = (e['id'] as num).toInt();
+      final cantReservas = reservasPorEstudio[esId] ?? 0;
+      if (cantReservas == 0) continue;
+
+      final montoTotal = montoBrutoPorEstudio[esId] ?? 0;
+      final montoPagar = montoPagarPorEstudio[esId] ?? 0;
+      // Comisión efectiva derivada de los montos reales (promedio ponderado
+      // para estudios con clases + workshops).
+      final comisionPct = montoTotal > 0
+          ? (montoTotal - montoPagar) / montoTotal * 100
+          : Liquidacion.comision(e, esWorkshop: false);
+
+      final liq = liqMap[esId];
+      resultado.add({
+        'estudio_id': esId,
+        'nombre': e['nombre']?.toString() ?? 'Estudio',
+        'mes': mes,
+        'cantidad_reservas': cantReservas,
+        'monto_total': montoTotal,
+        'monto_pagar': montoPagar,
+        'comision_pct': comisionPct,
+        'estado': liq?['estado'] ?? 'pendiente',
+        'fecha_pago': liq?['fecha_pago'],
+        'comprobante_nota': liq?['comprobante_nota'],
+        'liquidacion_id': liq?['id'],
+      });
+    }
+
+    // Ordenar: pendientes primero, luego por monto desc
+    resultado.sort((a, b) {
+      final aPend = a['estado'] == 'pendiente' ? 0 : 1;
+      final bPend = b['estado'] == 'pendiente' ? 0 : 1;
+      if (aPend != bPend) return aPend - bPend;
+      return (b['monto_pagar'] as int).compareTo(a['monto_pagar'] as int);
+    });
+    return resultado;
+  }
+
+  /// TODO lo que Aura debe: cada estudio con reservas en un mes CERRADO que
+  /// no tenga liquidación pagada. No depende del selector. Es la lista que
+  /// Sofía necesita ver siempre arriba, hasta que lo pague.
+  ///
+  /// Un mes cerrado sin ninguna fila en `liquidaciones` también cuenta: es
+  /// exactamente el caso que se escondía (Citra, agosto).
+  Future<void> _cargarPendientes() async {
+    final mesActual = mesArgentinoDe(DateTime.now());
+    final cerrados = _meses.where((m) => m != mesActual).toList();
+    final List<Map<String, dynamic>> deuda = [];
+    for (final mes in cerrados) {
+      final filas = await _calcularMes(mes);
+      deuda.addAll(filas.where((f) => f['estado'] != 'pagado'));
+    }
+    if (!mounted) return;
+    setState(() => _pendientes = deuda);
   }
 
   Future<void> _cargarHistorial() async {
@@ -270,7 +306,9 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       } else {
         await _client.from('liquidaciones').insert({
           'estudio_id': esId,
-          'mes': _mesSeleccionado,
+          // El mes de la FILA, no el del selector: desde "Pendientes" se paga
+          // un mes que no es el seleccionado.
+          'mes': (estudio['mes'] as String?) ?? _mesSeleccionado,
           'monto_total_reservas': montoTotal,
           'monto_a_pagar': montoPagar,
           'cantidad_reservas': cantReservas,
@@ -281,7 +319,11 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       }
 
       if (!mounted) return;
+      // La fila pagada sale de "Pendientes" en el acto.
       setState(() {
+        _pendientes.removeWhere(
+          (p) => p['estudio_id'] == esId && p['mes'] == estudio['mes'],
+        );
         final idx = _estudios.indexWhere((e) => e['estudio_id'] == esId);
         if (idx >= 0) {
           _estudios[idx] = {
@@ -506,6 +548,9 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
                   child: ListView(
                     children: [
                       const SizedBox(height: 16),
+                      // Lo que se debe, SIEMPRE arriba y sin depender del
+                      // selector de mes. Ver `_cargarPendientes`.
+                      _buildPendientesSection(),
                       _buildResumenCard(),
                       const SizedBox(height: 20),
                       ..._estudios.map(_buildEstudioCard),
@@ -515,6 +560,77 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
                     ],
                   ),
                 ),
+    );
+  }
+
+  Widget _buildPendientesSection() {
+    final total = _pendientes.fold<int>(
+      0,
+      (acc, e) => acc + (e['monto_pagar'] as int),
+    );
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+      decoration: BoxDecoration(
+        color: _pendientes.isEmpty
+            ? const Color(0xFFE3F3E5)
+            : const Color(0xFFFFF3DE),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _pendientes.isEmpty
+                    ? Icons.check_circle_outline_rounded
+                    : Icons.pending_actions_rounded,
+                size: 20,
+                color: _pendientes.isEmpty
+                    ? const Color(0xFF43A047)
+                    : AppColors.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _pendientes.isEmpty
+                      ? 'No debés nada de meses cerrados'
+                      : 'Pendiente de pago · ${_fmt(total)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_pendientes.isEmpty)
+            const SizedBox(height: 10)
+          else ...[
+            const Padding(
+              padding: EdgeInsets.only(top: 4, bottom: 10),
+              child: Text(
+                'Meses cerrados sin pagar, de todos los estudios. '
+                'Desaparecen de acá cuando tocás "Registrar pago".',
+                style: TextStyle(color: Color(0xFF8F877F), fontSize: 12),
+              ),
+            ),
+            // La tarjeta trae su propio margen lateral de 20 y acá ya está
+            // dentro de una caja con padding: se lo compensa para que quede
+            // alineada con el título.
+            ..._pendientes.map(
+              (e) => Transform.translate(
+                offset: const Offset(-4, 0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: _buildEstudioCard(e, margenLateral: 4),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -647,7 +763,10 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
     );
   }
 
-  Widget _buildEstudioCard(Map<String, dynamic> estudio) {
+  Widget _buildEstudioCard(
+    Map<String, dynamic> estudio, {
+    double margenLateral = 20,
+  }) {
     final nombre = estudio['nombre'] as String;
     final cantReservas = estudio['cantidad_reservas'] as int;
     final montoPagar = estudio['monto_pagar'] as int;
@@ -657,7 +776,7 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
     final inicial = nombre.isNotEmpty ? nombre[0].toUpperCase() : '?';
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      margin: EdgeInsets.fromLTRB(margenLateral, 0, margenLateral, 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -703,7 +822,11 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$cantReservas reserva${cantReservas != 1 ? 's' : ''} este mes',
+                      // En "Pendientes" la fila puede ser de otro mes que el
+                      // del selector: hay que decir cuál.
+                      estudio['mes'] == _mesSeleccionado
+                          ? '$cantReservas reserva${cantReservas != 1 ? 's' : ''} este mes'
+                          : '$cantReservas reserva${cantReservas != 1 ? 's' : ''} · ${_labelMes(estudio['mes'] as String)}',
                       style: const TextStyle(
                         color: Color(0xFF8F877F),
                         fontSize: 13,
