@@ -1,6 +1,6 @@
 # Registro de builds de iOS
 
-Última actualización: 2026-09-04.
+Última actualización: 2026-09-09.
 
 ## Historial de versiones publicadas
 
@@ -11,7 +11,33 @@
 | `1.0.6+24` | Precios + los 5 fixes de Dart de abajo + `MinimumOSVersion 15` | subido a App Store Connect el 2026-08-18 ✅ |
 | **`1.0.6+25`** | Push (FCM) en Android e iOS · force-update · modo visita · lista de espera · fixes de seguridad de base | **PUBLICADO** ✅ — confirmado por Sofía el 30/8 |
 | **`1.0.6+26`** | DROP de la columna fantasma · manejo de errores legible de los guards · `#BK-` · foto de perfil unificada | **PUBLICADO** ✅ — aprobado el 29/8 |
-| **`1.0.7+27`** | Reseñas completas (pantalla, por reserva, Mis Reservas) · Cobros con liquidaciones reales y corte de mes argentino · Explorar con experiencias y foto grande en mobile · vidriera y heroes · muro de registro y vuelta a la clase · perfil reordenado · servicios de precio fijo (chips, precio único, backoffice) · bienvenida borrada (se van los 404 de cada login) · eliminar estudio seguro · 9 cortos | **compilado el 4/9, PENDIENTE de archivar y subir** — `pubspec` bumpeado en este mismo commit; iOS release compila sin firmar, AAB firmado con `aura-upload` en `build/app/outputs/bundle/release/` |
+| **`1.0.7+27`** | Reseñas completas (pantalla, por reserva, Mis Reservas) · Cobros con liquidaciones reales y corte de mes argentino · Explorar con experiencias y foto grande en mobile · vidriera y heroes · muro de registro y vuelta a la clase · perfil reordenado · servicios de precio fijo (chips, precio único, backoffice) · bienvenida borrada (se van los 404 de cada login) · eliminar estudio seguro · 9 cortos | **SUBIDO a App Store Connect el 9/9** ✅ — con Transporter, no con Xcode (ver abajo). Falta que Apple lo apruebe |
+
+| **`1.0.8+28`** | **SIN COMPILAR TODAVÍA.** Junta lo que se haga desde el 9/9. Ya tiene esperando: **la letra grande del sistema** (tope de 1,5x + tarjetas que crecen, `545f5a7`) y el **responsive de las 36 pantallas** (`b5902a3`) | ⬜ esperando más cambios |
+
+### ⚠️ Cómo se subió la 1.0.7, y el bloqueador que apareció (9/9)
+
+**Xcode no podía archivar.** `Any iOS Device` figuraba como destino
+**inelegible**: *"iOS 26.5 is not installed. Please download and install the
+platform from Xcode > Settings > Components"*. El SDK estaba en disco, pero
+faltaba el **componente de plataforma**, que Xcode 26 descarga aparte.
+
+Se probaron cuatro caminos y **los cuatro fallaban igual** (`flutter build
+ipa`, `flutter build ios`, `xcodebuild archive` con `-sdk` y con
+`-destination`): no era un problema del proyecto, y **Transporter tampoco lo
+salteaba**, porque Transporter sólo sube un `.ipa` que ya existe y generarlo
+es justo el paso que estaba bloqueado.
+
+**Se resolvió bajando el componente** (Xcode → Settings → Components, varios
+GB, toda la noche). Antes hubo que **liberar disco**: quedaban 8,1 GB libres de
+460. Se limpiaron 19 GB de caché regenerable (npm 8,0 · archives v1.0.0 5,1 ·
+Homebrew 4,2 · DerivedData 1,9 · docs 0,5). ⚠️ El disco sigue justo: **Steam
+ocupa 249 GB**, más de la mitad, y eso no se toca sin que lo decida Sofía.
+
+Con el componente instalado, `flutter build ipa --release` funcionó y el `.ipa`
+se subió con **Transporter**.
+
+⚠️ **Si vuelve a pasar en la 1.0.8:** es el componente, no el proyecto.
 
 ### ✅ RESUELTO el 2026-08-30 — el 25 sí se subió
 

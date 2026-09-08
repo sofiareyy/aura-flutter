@@ -1511,7 +1511,18 @@ cobra igual si la alumna no fue). Si un día se decide devolver a una ausente,
 ya liquidada, esa plata ya salió. Recomendación: **`ausente` se liquida y no
 se devuelve**, que es la regla de hoy, y dejarla escrita.
 
-## ✅ ACCESIBILIDAD: la letra grande del sistema — 9/9 (Dart, va en la 1.0.8)
+## ⏸️ ESPERANDO LA 1.0.8 — lo que ya está hecho y no llegó al teléfono
+
+La **1.0.7+27 se subió a App Store Connect el 9/9** con Transporter, así que
+todo lo de abajo NO va en ese build: sale con la **1.0.8**. En la web ya está
+(o sale al pushear).
+
+- **La letra grande del sistema** — tope de 1,5x + tarjetas que crecen (`545f5a7`).
+- **El responsive de las 36 pantallas** — `b5902a3`, ya pusheado y vivo en web.
+
+No hay que regenerar el `.ipa` de la 1.0.7.
+
+## ✅ ACCESIBILIDAD: la letra grande del sistema — 9/9 (Dart, VA EN LA 1.0.8)
 
 La mamá de Sofía usa el ajuste de tamaño de texto del teléfono y la app se
 rompía: los textos se salían de las tarjetas.
