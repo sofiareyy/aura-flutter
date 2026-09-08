@@ -4,7 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
 
-const _kPrefsKey = 'creditos_onboarding_done';
+/// La marca de "ya lo vio". La lee `main.dart` para decidir si interponerlo
+/// tras el login social (ver `utils/onboarding_creditos.dart`).
+const kPrefsOnboardingCreditos = 'creditos_onboarding_done';
 
 class CreditosOnboardingScreen extends StatefulWidget {
   const CreditosOnboardingScreen({super.key});
@@ -18,30 +20,35 @@ class _CreditosOnboardingScreenState extends State<CreditosOnboardingScreen> {
   final _controller = PageController();
   int _page = 0;
 
+  // Copy reescrito el 9/9/2026 para conversión: de 79 registradas sólo 4
+  // compraron. El texto viejo explicaba el mecanismo ("los créditos son la
+  // moneda") sin decir nunca por qué conviene. Ahora cada pantalla es UNA
+  // frase: qué es, cómo se usa, y el beneficio. Nadie lee onboardings largos.
   static const _slides = [
     _Slide(
-      icon: Icons.toll_rounded,
-      title: '¿Qué son los créditos?',
+      icon: Icons.storefront_rounded,
+      title: 'Una app, muchos estudios',
       body:
-          'Los créditos son la moneda de Aura. Cada clase tiene un valor en créditos y vos reservás con un solo toque, sin complicaciones.',
+          'Comprás créditos y reservás en yoga, pilates, funcional o barre. '
+          'Sin atarte a un solo lugar.',
     ),
     _Slide(
-      icon: Icons.card_giftcard_rounded,
-      title: '¿Cómo conseguirlos?',
+      icon: Icons.auto_awesome_rounded,
+      title: 'Elegís vos',
       body:
-          'Comprá un pack de créditos cuando lo necesites, o suscribite a un plan mensual y recibís créditos automáticamente cada mes.',
+          'Cada clase tiene su valor en créditos. Mirás, elegís y reservás de '
+          'un toque.',
     ),
     _Slide(
-      icon: Icons.calendar_today_rounded,
-      title: '¡A reservar!',
-      body:
-          'Explorá cientos de clases, elegí tu horario favorito y reservá al instante. Tu próxima clase te está esperando.',
+      icon: Icons.favorite_rounded,
+      title: 'Sin cuota mensual',
+      body: 'Pagás lo que usás. Comprás cuando querés, usás cuando podés.',
     ),
   ];
 
   Future<void> _finish() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kPrefsKey, true);
+    await prefs.setBool(kPrefsOnboardingCreditos, true);
     if (!mounted) return;
     // Pieza C: volver a la clase que la invitada estaba mirando cuando se
     // topó con el muro. Sólo se acepta una ruta interna que empiece con "/":
@@ -221,5 +228,5 @@ class _SlidePage extends StatelessWidget {
 /// Returns true if the user has already seen the credits onboarding.
 Future<bool> creditosOnboardingDone() async {
   final prefs = await SharedPreferences.getInstance();
-  return prefs.getBool(_kPrefsKey) ?? false;
+  return prefs.getBool(kPrefsOnboardingCreditos) ?? false;
 }

@@ -68,6 +68,24 @@ class EstudiosService {
     return (data as List).map((e) => Estudio.fromMap(e)).toList();
   }
 
+  /// Cuántos estudios activos hay. Lo usa el muro de créditos para decir "los
+  /// otros 14 estudios" en vez de un genérico "cualquier estudio" (9/9/2026).
+  ///
+  /// Pide sólo el conteo, no las filas. Si falla devuelve null y el mensaje
+  /// cae al texto genérico: nunca muestra un número inventado.
+  Future<int?> contarEstudiosActivos() async {
+    try {
+      final res = await _supabase
+          .from(AppConstants.tableEstudios)
+          .select('id')
+          .eq('activo', true)
+          .count();
+      return res.count;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<List<Estudio>> buscarEstudios(String query) async {
     // `ilike` no aplica sobre text[]; se busca por nombre/barrio en el server
     // y se filtra por categoria en memoria (el set de estudios es chico).

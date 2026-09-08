@@ -135,6 +135,32 @@ class PricingService {
     };
   }
 
+  /// Los créditos de las clases que se pueden reservar de verdad, para poder
+  /// decir cuántas rinde cada pack (9/9/2026).
+  ///
+  /// Trae sólo la columna `creditos`, no las clases enteras: es una lista de
+  /// números para calcular un mínimo y un máximo. Si falla, devuelve vacío y
+  /// la tarjeta del pack simplemente no muestra el rango — nunca inventa uno.
+  Future<List<int>> preciosDeClaseVigentes() async {
+    try {
+      final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
+      final data = await _client
+          .from('clases')
+          .select('creditos, estudios!inner(activo)')
+          .eq('cancelada', false)
+          .neq('tipo', 'workshop')
+          .eq('estudios.activo', true)
+          .gte('fecha', ahora.toIso8601String())
+          .limit(500);
+      return (data as List)
+          .map((r) => (r['creditos'] as num?)?.toInt() ?? 0)
+          .where((c) => c > 0)
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   /// Calcula los packs sin ir al server (usando el valor pasado).
   /// Util para preview en el backoffice mientras edita.
   List<Map<String, dynamic>> packsConValor(int valorCredito) {

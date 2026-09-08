@@ -74,7 +74,9 @@ void main() {
     testWidgets('sin créditos: le explica el modelo de Aura', (tester) async {
       await abrir(tester, saldo: 0, precio: 10);
       expect(find.text('Necesitás créditos para reservar'), findsOneWidget);
-      expect(find.textContaining('comprás un pack'), findsOneWidget);
+      // El texto pasó a vender FLEXIBILIDAD (9/9/2026): lo que Aura tiene y
+      // un gimnasio no es entrar a muchos estudios sin atarse a ninguno.
+      expect(find.textContaining('Con un pack los usás'), findsOneWidget);
       expect(find.textContaining('sin cuota mensual'), findsOneWidget);
     });
 

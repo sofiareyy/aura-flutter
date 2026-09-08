@@ -26,6 +26,7 @@ import '../../utils/grilla_responsive.dart';
 import '../../utils/mapa_link.dart';
 import '../../widgets/organizadores_links.dart';
 import '../../widgets/study_review_sheet.dart';
+import '../../services/estudios_service.dart';
 
 class DetalleClaseScreen extends StatefulWidget {
   final int claseId;
@@ -196,10 +197,16 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     }
   }
 
+  /// Estudios activos, para el mensaje del muro de créditos.
+  int? _totalEstudios;
+
   Future<void> _cargar() async {
     final provider = context.read<AppProvider>();
     try {
       final clase = await _clasesService.getClase(widget.claseId);
+      // Para el muro de créditos: "los otros N estudios". Se pide en paralelo
+      // y si falla queda null, con lo que el mensaje cae al texto genérico.
+      final totalEstudios = await EstudiosService().contarEstudiosActivos();
       bool yaReservado = false;
 
       if (clase != null && provider.userId.isNotEmpty) {
@@ -268,6 +275,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
       if (!mounted) return;
       setState(() {
         _clase = clase;
+        _totalEstudios = totalEstudios;
         _yaReservado = yaReservado;
         _canReview = canReview;
         _reviews = reviews;
@@ -392,6 +400,10 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
         creditosNecesarios: creditosNecesarios,
         creditosActuales: creditosActuales,
         volver: volver,
+        // "los otros N": el de esta clase no se cuenta.
+        otrosEstudios: _totalEstudios == null || _totalEstudios! <= 1
+            ? null
+            : _totalEstudios! - 1,
       ),
     );
   }
@@ -1698,10 +1710,15 @@ class _PaywallSheet extends StatelessWidget {
   /// de caer en /home y tener que buscar de nuevo la clase que ya pagó.
   final String volver;
 
+  /// Cuántos estudios activos hay ADEMÁS del de esta clase. Null = no se
+  /// pudo contar, y el mensaje cae al texto genérico.
+  final int? otrosEstudios;
+
   const _PaywallSheet({
     required this.creditosNecesarios,
     required this.creditosActuales,
     required this.volver,
+    this.otrosEstudios,
   });
 
   @override
@@ -1763,6 +1780,8 @@ class _PaywallSheet extends StatelessWidget {
             mensajePaywall(
               saldo: creditosActuales,
               precio: creditosNecesarios,
+              // "los otros N": el de esta clase no se cuenta.
+              otrosEstudios: otrosEstudios,
             ),
             textAlign: TextAlign.center,
             style: const TextStyle(
@@ -2111,8 +2130,10 @@ Widget debugPaywallSheet({
   required int creditosNecesarios,
   required int creditosActuales,
   String volver = '/clase/1',
+  int? otrosEstudios,
 }) => _PaywallSheet(
   creditosNecesarios: creditosNecesarios,
   creditosActuales: creditosActuales,
   volver: volver,
+  otrosEstudios: otrosEstudios,
 );

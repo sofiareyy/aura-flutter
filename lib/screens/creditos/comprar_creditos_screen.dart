@@ -5,6 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/aura_tokens.dart';
 import '../../services/pricing_service.dart';
 import '../../widgets/ancho_maximo.dart';
+import '../../utils/rango_clases_pack.dart';
 
 class ComprarCreditosScreen extends StatefulWidget {
   /// Pestaña inicial: 0 = Packs, 1 = Suscripciones, 2 = Regalar.
@@ -53,11 +54,16 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
     super.dispose();
   }
 
+  /// Los créditos de las clases reales, para el rango de cada pack.
+  List<int> _preciosDeClase = const [];
+
   Future<void> _loadPacks() async {
     final packs = await _pricingService.getPacks();
+    final precios = await _pricingService.preciosDeClaseVigentes();
     if (!mounted) return;
     setState(() {
       _packs = packs;
+      _preciosDeClase = precios;
       _loadingPacks = false;
     });
   }
@@ -310,6 +316,7 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
                 children: [
                   _PacksTab(
                     packs: _packs,
+                    preciosDeClase: _preciosDeClase,
                     loading: _loadingPacks,
                     selectedIndex: _selectedPack,
                     onSelect: (i) => setState(() => _selectedPack = i),
@@ -382,11 +389,15 @@ class _PacksTab extends StatelessWidget {
   final int? selectedIndex;
   final void Function(int) onSelect;
 
+  /// Los créditos de las clases reales, para decir cuántas rinde cada pack.
+  final List<int> preciosDeClase;
+
   const _PacksTab({
     required this.packs,
     required this.loading,
     required this.selectedIndex,
     required this.onSelect,
+    this.preciosDeClase = const [],
   });
 
   @override
@@ -541,6 +552,47 @@ class _PacksTab extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
+                        // Cuántas clases rinde, con los precios REALES de las
+                        // clases cargadas. Antes la tarjeta decía sólo "50
+                        // créditos · $50.000" y había que hacer la división
+                        // mental justo al momento de pagar. Si no hay datos,
+                        // no se dibuja: nunca se inventa un número.
+                        if (rangoDeClases(
+                              creditosDelPack:
+                                  (pack['creditos'] as num?)?.toInt() ?? 0,
+                              preciosDeClase: preciosDeClase,
+                            ) !=
+                            null) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? AppColors.white.withValues(alpha: 0.18)
+                                  : const Color(0xFFE7F4ED),
+                              borderRadius: BorderRadius.circular(
+                                AuraRadio.pastilla,
+                              ),
+                            ),
+                            child: Text(
+                              rangoDeClases(
+                                creditosDelPack:
+                                    (pack['creditos'] as num?)?.toInt() ?? 0,
+                                preciosDeClase: preciosDeClase,
+                              )!,
+                              style: TextStyle(
+                                color: selected
+                                    ? AppColors.white
+                                    : const Color(0xFF2E7D5B),
+                                fontSize: AuraTipo.secundario,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

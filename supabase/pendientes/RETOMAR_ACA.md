@@ -1511,6 +1511,87 @@ cobra igual si la alumna no fue). Si un día se decide devolver a una ausente,
 ya liquidada, esa plata ya salió. Recomendación: **`ausente` se liquida y no
 se devuelve**, que es la regla de hoy, y dejarla escrita.
 
+## ✅ CONVERSIÓN: los 3 arreglos del embudo — 9/9 (Dart, va en la 1.0.8)
+
+**El problema medido:** 79 alumnas registradas, **4 compras reales**, 2
+reservas. La gente descarga y no compra.
+
+### 1 · El onboarding, ahora para TODOS
+
+Se disparaba **sólo desde el registro con mail**. De las 79 cuentas: **28 con
+Apple, 24 con Google** — el 66% llegaba al muro de pago sin que nadie le
+hubiera explicado qué es un crédito.
+
+Ahora se interpone también tras el login social, en el callback de OAuth de
+`main.dart`, conservando el destino en `?volver=` (la alumna que venía mirando
+una clase vuelve a esa clase).
+
+`utils/onboarding_creditos.dart` decide, y es función pura: **no** se lo muestra
+a un estudio ni a una profe (van a su panel, no compran créditos), y distingue
+`/estudio/56` —la ficha pública, que una alumna sí puede estar mirando— de
+`/estudio/dashboard`.
+
+**El copy nuevo**, una frase por pantalla:
+
+| | |
+|---|---|
+| Una app, muchos estudios | Comprás créditos y reservás en yoga, pilates, funcional o barre. Sin atarte a un solo lugar. |
+| Elegís vos | Cada clase tiene su valor en créditos. Mirás, elegís y reservás de un toque. |
+| Sin cuota mensual | Pagás lo que usás. Comprás cuando querés, usás cuando podés. |
+
+El viejo explicaba el mecanismo ("los créditos son la moneda de Aura") sin decir
+nunca por qué conviene.
+
+### 2 · El rango de clases en la pantalla de compra
+
+La tarjeta decía sólo "Pack Esencial · 50 créditos · $50.000": había que hacer
+la división mental justo al momento de pagar.
+
+`utils/rango_clases_pack.dart` lo calcula con los **precios reales** de las
+clases cargadas (hoy 11 a 18 créditos), así que se corrige solo si entra un
+estudio más caro:
+
+| Pack | Dice |
+|---|---|
+| Prueba · 20 cr | Para probar una clase |
+| Esencial · 50 cr | Entre 2 y 4 clases |
+| Popular · 100 cr | Entre 5 y 9 clases |
+| Full · 200 cr | Entre 11 y 18 clases |
+
+Si no hay precios cargados **no dibuja nada**: nunca inventa un número.
+
+### 3 · El paywall vende flexibilidad
+
+> Esta clase cuesta 18 créditos. Con un pack los usás **acá y en los otros 14
+> estudios**, sin cuota mensual.
+
+El número sale de contar los estudios activos; si falla, cae al genérico "en
+cualquier estudio" sin inventar cifras.
+
+### ❌ Lo que se DESCARTÓ, y por qué
+
+**El cartel de ahorro** (clase suelta vs Aura, o un %). Se investigó cómo lo
+hace ClassPass: vende flexibilidad y deja que los créditos hablen. Y los
+números daban la razón: **el ahorro real ronda el 10%**, porque el crédito se
+fija sobre el pack del estudio con ese mismo descuento. Un número chico invita
+a comparar en vez de convencer.
+
+También se descartó el campo "precio de clase suelta" por estudio que se había
+propuesto para calcularlo.
+
+⚠️ **De paso quedó a la vista** que la tabla `_preciosMercado` del código
+(yoga $30.000, pilates $20.000) está escrita a mano sin fuente, y **sobreestima
+~50%**: el precio real de Ambra, que es yoga, ronda los $20.000. Esa tabla
+sigue alimentando el "ahorro acumulado" de Mis Créditos. Conviene revisarla.
+
+### ⬜ Anotado para Sofía, sin tocar: el pack de entrada
+
+Es **el más caro por crédito**: $1.100 contra $900 del Full. Quien sólo quiere
+probar paga la tarifa más alta, y le sobran entre 2 y 9 créditos que no
+alcanzan para otra clase y vencen a los 30 días. **Decisión de pricing.**
+
+410 tests (26 nuevos), `analyze` en 97, web compila.
+
 ## ⏸️ ESPERANDO LA 1.0.8 — lo que ya está hecho y no llegó al teléfono
 
 La **1.0.7+27 se subió a App Store Connect el 9/9** con Transporter, así que

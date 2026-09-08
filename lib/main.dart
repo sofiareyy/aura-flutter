@@ -21,6 +21,8 @@ import 'services/valor_credito.dart';
 import 'services/version_gate.dart';
 import 'widgets/connectivity_banner.dart';
 import 'widgets/escala_texto.dart';
+import 'screens/onboarding/creditos_onboarding_screen.dart';
+import 'utils/onboarding_creditos.dart';
 
 /// Key global del ScaffoldMessenger para poder mostrar SnackBars desde fuera
 /// del árbol de un Scaffold (p. ej. al fallar el alta tras un callback OAuth).
@@ -366,7 +368,20 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
       // solo uso) y `resolver` sólo lo aplica si el rol daba el /home
       // genérico: un estudio o una profe van igual a su panel.
       final volver = await DestinoPostLogin.tomar();
-      final destinoFinal = DestinoPostLogin.resolver(destino, volver);
+      var destinoFinal = DestinoPostLogin.resolver(destino, volver);
+
+      // El onboarding de créditos, también para quien entra con Google o
+      // Apple (9/9/2026). Antes se disparaba SÓLO desde el registro con mail,
+      // y de las 79 cuentas 52 son de login social: el 66% llegaba al muro de
+      // pago sin que nadie le hubiera explicado qué es un crédito.
+      //
+      // Se interpone conservando el destino en `?volver=`, así la alumna que
+      // venía mirando una clase vuelve a esa clase al terminar.
+      final yaLoVio = await creditosOnboardingDone();
+      if (debeVerOnboarding(destino: destinoFinal, yaLoVio: yaLoVio)) {
+        destinoFinal = rutaOnboardingCon(destinoFinal);
+      }
+
       Future.delayed(const Duration(milliseconds: 200), () {
         if (!mounted) return;
         appRouter.go(destinoFinal);

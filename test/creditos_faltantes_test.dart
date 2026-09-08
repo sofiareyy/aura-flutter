@@ -56,7 +56,7 @@ void main() {
           'Necesitás créditos para reservar');
       final m = mensajePaywall(saldo: 0, precio: 10);
       expect(m, contains('Esta clase cuesta 10 créditos'));
-      expect(m, contains('comprás un pack'));
+      expect(m, contains('Con un pack los usás'));
       expect(m, contains('cualquier estudio'));
       expect(m, contains('sin cuota mensual'));
     });
@@ -102,6 +102,33 @@ void main() {
               isNot(contains('-')));
         }
       }
+    });
+  });
+
+  group('el mensaje vende flexibilidad, no ahorro (9/9/2026)', () {
+    test('con el número de estudios, lo dice concreto', () {
+      final m = mensajePaywall(saldo: 0, precio: 18, otrosEstudios: 14);
+      expect(m, contains('acá y en los otros 14 estudios'));
+      expect(m, contains('sin cuota mensual'));
+    });
+
+    test('sin el dato, cae al genérico y NO inventa un número', () {
+      final m = mensajePaywall(saldo: 0, precio: 18);
+      expect(m, contains('en cualquier estudio'));
+      expect(m, isNot(matches(RegExp(r'otros \d+'))));
+    });
+
+    test('con un solo estudio no dice "los otros 0"', () {
+      final m = mensajePaywall(saldo: 0, precio: 18, otrosEstudios: 0);
+      expect(m, contains('en cualquier estudio'));
+    });
+
+    test('no promete ahorro ni porcentajes', () {
+      // Se descartó el cartel de ahorro: el real ronda el 10% y un número
+      // chico invita a comparar en vez de convencer.
+      final m = mensajePaywall(saldo: 0, precio: 18, otrosEstudios: 14);
+      expect(m.contains('%'), isFalse);
+      expect(m.toLowerCase().contains('ahorr'), isFalse);
     });
   });
 }

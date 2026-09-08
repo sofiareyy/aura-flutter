@@ -47,10 +47,27 @@ String tituloPaywall({required int saldo, required int precio}) {
 /// visible es la misma. Quien tiene 0 créditos necesita que le expliquen de
 /// qué se trata; quien tiene 2 ya sabe qué es un crédito y sólo quiere el
 /// número que le falta.
-String mensajePaywall({required int saldo, required int precio}) {
+/// [otrosEstudios] es cuántos estudios activos hay **además** del de esta
+/// clase. Con ese número el mensaje dice algo concreto ("los otros 14") en vez
+/// de un genérico "cualquier estudio". Si no se sabe, se cae al genérico: no
+/// se inventa una cifra.
+String mensajePaywall({
+  required int saldo,
+  required int precio,
+  int? otrosEstudios,
+}) {
   if (saldo <= 0) {
-    return 'Esta clase cuesta ${_cr(precio)}. En Aura comprás un pack de '
-        'créditos y los usás en cualquier estudio, sin cuota mensual.';
+    // Se vende la FLEXIBILIDAD, no el ahorro (decisión del 9/9/2026, mirando
+    // cómo lo hace ClassPass): lo que Aura tiene y un gimnasio no es entrar a
+    // muchos estudios sin atarse a ninguno. Un cartel de "ahorrás X%" se
+    // descartó: el ahorro real ronda el 10% —el crédito se fija sobre el pack
+    // del estudio, con ese mismo descuento— y un número chico invita a
+    // comparar en vez de convencer.
+    final donde = otrosEstudios != null && otrosEstudios > 0
+        ? 'acá y en los otros $otrosEstudios estudios'
+        : 'en cualquier estudio';
+    return 'Esta clase cuesta ${_cr(precio)}. Con un pack los usás $donde, '
+        'sin cuota mensual.';
   }
   return 'Esta clase cuesta ${_cr(precio)} y tenés $saldo. '
       'Comprá un pack y reservá al toque.';
