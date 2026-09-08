@@ -1511,6 +1511,39 @@ cobra igual si la alumna no fue). Si un día se decide devolver a una ausente,
 ya liquidada, esa plata ya salió. Recomendación: **`ausente` se liquida y no
 se devuelve**, que es la regla de hoy, y dejarla escrita.
 
+## ✅ "Mis créditos": se fue el ahorro inventado — 9/9 (Dart, va en la 1.0.8)
+
+Coherencia con el paywall: si se sacó el ahorro de ahí por no ser defendible,
+no tenía sentido dejarlo acá.
+
+**Lo que se borró:** la tabla `_preciosMercado` (yoga $30.000, pilates $20.000,
+gym $12.000 — escrita a mano, sin fuente ni fecha, **sobreestimaba ~50%**
+contra los precios reales de los estudios) y las tres funciones que la usaban.
+Verificado que **vivían sólo en esa pantalla**.
+
+**Lo que muestra ahora**, todo de datos reales:
+
+| | |
+|---|---|
+| Adelante | **Tenés 24 créditos** · Te alcanza para entre 1 y 2 clases · Elegí entre 15 estudios |
+| El recorrido, abajo y en chico | Llevás 3 clases con Aura |
+| Sin reservas | Reservá tu primera clase · Tenés 24 créditos esperando |
+
+**Los estudios se mencionan sólo si son 2 o más.** Medido: las dos únicas
+alumnas que reservaron lo hicieron **en un solo estudio**, así que un "en 1
+estudio" le diría en la cara que fue a un solo lugar — lo contrario de lo que
+se quiere comunicar. El texto crece con ella.
+
+**Pasó de mensual a histórico** (decisión de Sofía): con una reserva por mes en
+toda la app, la vista mensual quedaba vacía casi siempre. Nueva
+`getReservasHistorico`.
+
+La tarjeta de cada clase también perdió la comparación: ahora dice la clase, el
+estudio y lo que costó en créditos. **En toda la pantalla ya no queda ni un
+monto en pesos**, y hay un test que lo verifica.
+
+429 tests (19 nuevos), `analyze` en 97, web compila.
+
 ## ✅ CONVERSIÓN: los 3 arreglos del embudo — 9/9 (Dart, va en la 1.0.8)
 
 **El problema medido:** 79 alumnas registradas, **4 compras reales**, 2

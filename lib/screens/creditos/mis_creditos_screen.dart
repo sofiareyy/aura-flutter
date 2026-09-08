@@ -9,6 +9,10 @@ import '../../providers/app_provider.dart';
 import '../../services/referidos_service.dart';
 import '../../services/reservas_service.dart';
 import '../../widgets/ancho_maximo.dart';
+import '../../services/pricing_service.dart';
+import '../../services/estudios_service.dart';
+import '../../utils/resumen_creditos.dart';
+import '../../widgets/aura_skeleton.dart';
 
 class MisCreditosScreen extends StatefulWidget {
   const MisCreditosScreen({super.key});
@@ -19,7 +23,12 @@ class MisCreditosScreen extends StatefulWidget {
 
 class _MisCreditosScreenState extends State<MisCreditosScreen> {
   final _reservasService = ReservasService();
-  List<Map<String, dynamic>> _reservasMes = [];
+  /// Histórico: todas las clases tomadas, no sólo las del mes.
+  List<Map<String, dynamic>> _reservas = [];
+
+  /// Para decir para cuánto alcanza el saldo y cuántos estudios hay.
+  List<int> _preciosDeClase = const [];
+  int? _estudiosActivos;
   bool _loadingReservas = true;
   String? _loadedUserId;
 
@@ -134,10 +143,14 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
 
   Future<void> _loadReservas(String userId) async {
     try {
-      final data = await _reservasService.getReservasMes(userId);
+      final data = await _reservasService.getReservasHistorico(userId);
+      final precios = await PricingService().preciosDeClaseVigentes();
+      final estudios = await EstudiosService().contarEstudiosActivos();
       if (!mounted) return;
       setState(() {
-        _reservasMes = data;
+        _reservas = data;
+        _preciosDeClase = precios;
+        _estudiosActivos = estudios;
         _loadingReservas = false;
       });
     } catch (_) {
@@ -145,43 +158,6 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
     }
   }
 
-  // ── Savings logic ─────────────────────────────────────────────────────────
-
-  static const Map<String, int> _preciosMercado = {
-    'gym': 12000,
-    'fitness': 12000,
-    'pilates': 20000,
-    'yoga': 30000,
-    'arte': 75000,
-    'ceramica': 75000,
-  };
-
-  int _precioMercadoPara(Map<String, dynamic> reserva) {
-    final clase = reserva['clases'] as Map<String, dynamic>?;
-    final cat = clase?['categoria']?.toString().toLowerCase().trim() ?? '';
-    for (final entry in _preciosMercado.entries) {
-      if (cat.contains(entry.key)) return entry.value;
-    }
-    return 12000;
-  }
-
-  int _ahorroPor(Map<String, dynamic> reserva) {
-    final creditos = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
-    final diff = _precioMercadoPara(reserva) - creditos * 1000;
-    return diff > 0 ? diff : 0;
-  }
-
-  int get _totalAhorro => _reservasMes.fold(0, (acc, r) => acc + _ahorroPor(r));
-
-  static String _fmt(int amount) {
-    final s = amount.toString();
-    final buf = StringBuffer('\$');
-    for (int i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
 
   // ── Build ─────────────────────────────────────────────────────────────────
 
@@ -365,7 +341,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                 const SizedBox(height: 24),
                 const _SectionLabel('TU AHORRO CON AURA'),
                 const SizedBox(height: 12),
-                _buildAhorroSection(),
+                _buildResumenSection(),
                 const SizedBox(height: 8),
               ],
             );
@@ -375,20 +351,32 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
     );
   }
 
-  Widget _buildAhorroSection() {
+  /// La tarjeta de "Mis créditos": qué podés hacer con lo que tenés, y tu
+  /// recorrido histórico.
+  ///
+  /// Reemplaza al "Este mes ahorraste $X" (9/9/2026), que se calculaba contra
+  /// una tabla de precios de mercado escrita a mano en el código, sin fuente
+  /// ni fecha, que sobreestimaba ~50% contra los precios reales de los
+  /// estudios. Se sacó por la misma razón que el cartel de ahorro del paywall.
+  Widget _buildResumenSection() {
     if (_loadingReservas) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 24),
-          child: CircularProgressIndicator(
-            color: AppColors.primary,
-            strokeWidth: 2,
-          ),
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AuraSkeleton(height: 22, width: 180),
+            SizedBox(height: AuraEspacio.m),
+            AuraSkeleton(height: 15, width: 220),
+          ],
         ),
       );
     }
 
-    if (_reservasMes.isEmpty) {
+    final saldo = context.watch<AppProvider>().usuario?.creditos ?? 0;
+
+    if (_reservas.isEmpty) {
+      final vacio = textoSinReservas(creditos: saldo);
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
@@ -396,174 +384,162 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
           color: AppColors.white,
           borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         ),
-        child: const Column(
+        child: Column(
           children: [
-            Icon(Icons.savings_rounded, color: AppColors.primary, size: 48),
-            SizedBox(height: 12),
+            const Icon(
+              Icons.calendar_today_rounded,
+              color: AppColors.primary,
+              size: 44,
+            ),
+            const SizedBox(height: AuraEspacio.m),
             Text(
-              'Reservá tu primera clase',
-              style: TextStyle(
+              vacio.titulo,
+              style: const TextStyle(
                 color: Color(0xFF1A1A1A),
                 fontSize: AuraTipo.cuerpo,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            SizedBox(height: 4),
-            Text(
-              'y empezá a ahorrar con Aura',
-              style: TextStyle(
-                color: Color(0xFF8F877F),
-                fontSize: AuraTipo.cuerpo,
+            if (vacio.bajada != null) ...[
+              const SizedBox(height: AuraEspacio.xs),
+              Text(
+                vacio.bajada!,
+                style: const TextStyle(
+                  color: Color(0xFF8F877F),
+                  fontSize: AuraTipo.cuerpo,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       );
     }
 
-    final total = _totalAhorro;
-    final ultimasReservas = _reservasMes.take(5).toList();
+    final alcanza = textoSaldo(
+      creditos: saldo,
+      preciosDeClase: _preciosDeClase,
+    );
+    final oferta = textoOferta(estudiosActivos: _estudiosActivos);
+    final recorrido = textoRecorrido(
+      clases: _reservas.length,
+      estudios: _reservas
+          .map((r) => (r['clases'] as Map<String, dynamic>?)?['estudio_id'])
+          .whereType<Object>()
+          .toSet()
+          .length,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Dark savings card
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.savings_rounded,
-                    color: AppColors.primary,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Este mes ahorraste',
-                    style: TextStyle(
-                      color: Color(0xFFF5F0EB),
-                      fontSize: AuraTipo.cuerpo,
-                    ),
-                  ),
-                  const Spacer(),
+        if (alcanza != null || oferta != null || recorrido != null)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.black,
+              borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (alcanza != null)
                   Text(
-                    _fmt(total),
+                    alcanza,
                     style: const TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 28,
+                      color: AppColors.white,
+                      fontSize: AuraTipo.titulo,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                if (oferta != null) ...[
+                  const SizedBox(height: AuraEspacio.xs),
+                  Text(
+                    oferta,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: AuraTipo.cuerpo,
+                    ),
+                  ),
                 ],
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Divider(color: Color(0xFF333333), height: 1),
-              ),
-              const Text(
-                'vs pagar precio de mercado en Buenos Aires',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFF8F877F),
-                  fontSize: AuraTipo.secundario,
-                ),
-              ),
-            ],
+                if (recorrido != null) ...[
+                  const SizedBox(height: AuraEspacio.m),
+                  Text(
+                    recorrido,
+                    style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: AuraTipo.secundario,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
-        ),
-
-        // Per-reservation breakdown (only when total saving > 0)
-        if (total > 0) ...[
-          const SizedBox(height: 20),
-          const _SectionLabel('CÓMO AHORRASTE'),
-          const SizedBox(height: 12),
-          ...ultimasReservas.map(_buildReservaCard),
-        ],
+        const SizedBox(height: AuraEspacio.xl),
+        const _SectionLabel('TUS ÚLTIMAS CLASES'),
+        const SizedBox(height: AuraEspacio.m),
+        ..._reservas.take(5).map(_buildReservaCard),
       ],
     );
   }
 
+  /// Una clase del historial: la clase, el estudio y lo que costó en créditos.
+  /// Sin comparación contra precios de mercado inventados (9/9/2026).
   Widget _buildReservaCard(Map<String, dynamic> reserva) {
     final clase = reserva['clases'] as Map<String, dynamic>?;
     final nombre = clase?['nombre']?.toString() ?? 'Clase';
+    final estudio =
+        (clase?['estudios'] as Map<String, dynamic>?)?['nombre']?.toString();
     final creditos = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
-    final precioAura = creditos * 1000;
-    final precioMercado = _precioMercadoPara(reserva);
-    final ahorro = _ahorroPor(reserva);
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: AuraEspacio.s),
+      padding: const EdgeInsets.all(AuraEspacio.m),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(AuraRadio.boton),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
                   nombre,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: AuraTipo.cuerpo,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF1A1A1A),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
+                if (estudio != null && estudio.isNotEmpty) ...[
+                  const SizedBox(height: 2),
                   Text(
-                    _fmt(precioMercado),
+                    estudio,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: AuraTipo.secundario,
-                      color: Color(0xFF9A928B),
-                      decoration: TextDecoration.lineThrough,
-                    ),
-                  ),
-                  Text(
-                    _fmt(precioAura),
-                    style: const TextStyle(
-                      fontSize: AuraTipo.secundario,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF2E7D32),
+                      color: Color(0xFF8F877F),
                     ),
                   ),
                 ],
-              ),
-            ],
-          ),
-          if (ahorro > 0) ...[
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E9),
-                borderRadius: BorderRadius.circular(AuraRadio.pastilla),
-              ),
-              child: Text(
-                '+${_fmt(ahorro)} ahorrado',
-                style: const TextStyle(
-                  fontSize: AuraTipo.etiqueta,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF2E7D32),
-                ),
-              ),
+              ],
             ),
-          ],
+          ),
+          const SizedBox(width: AuraEspacio.m),
+          Text(
+            creditos == 1 ? '1 crédito' : '$creditos créditos',
+            style: const TextStyle(
+              fontSize: AuraTipo.secundario,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primaryTexto,
+            ),
+          ),
         ],
       ),
     );

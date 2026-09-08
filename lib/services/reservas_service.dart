@@ -589,6 +589,29 @@ class ReservasService {
   /// tomaste este mes" en MisCreditos, así que incluye los estados finales:
   /// una vez que el cron `completar-reservas` las pasa a 'completada' seguirían
   /// contando, si no desaparecerían del resumen apenas termina la clase.
+  /// TODAS las clases que la alumna tomó, sin filtro de mes (9/9/2026).
+  ///
+  /// "Mis créditos" pasó de mostrar el mes en curso a mostrar el recorrido
+  /// histórico: con el volumen actual —una reserva por mes en toda la app— la
+  /// vista mensual quedaba vacía casi siempre, y el histórico acumula.
+  ///
+  /// Mismos estados que la liquidación: lo que efectivamente se usó.
+  Future<List<Map<String, dynamic>>> getReservasHistorico([
+    String? userId,
+  ]) async {
+    final effectiveUserId = userId ?? _supabase.auth.currentUser?.id ?? '';
+    if (effectiveUserId.isEmpty) return [];
+
+    final reservas = await _supabase
+        .from(AppConstants.tableReservas)
+        .select()
+        .eq('usuario_id', effectiveUserId)
+        .inFilter('estado', AppConstants.estadosLiquidables)
+        .order('created_at', ascending: false);
+
+    return _joinClasesEstudios(reservas as List);
+  }
+
   Future<List<Map<String, dynamic>>> getReservasMes([String? userId]) async {
     final effectiveUserId = userId ?? _supabase.auth.currentUser?.id ?? '';
     if (effectiveUserId.isEmpty) return [];
