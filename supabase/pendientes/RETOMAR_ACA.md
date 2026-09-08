@@ -1511,6 +1511,58 @@ cobra igual si la alumna no fue). Si un día se decide devolver a una ausente,
 ya liquidada, esa plata ya salió. Recomendación: **`ausente` se liquida y no
 se devuelve**, que es la regla de hoy, y dejarla escrita.
 
+## ✅ ACCESIBILIDAD: la letra grande del sistema — 9/9 (Dart, va en la 1.0.8)
+
+La mamá de Sofía usa el ajuste de tamaño de texto del teléfono y la app se
+rompía: los textos se salían de las tarjetas.
+
+### El diagnóstico, medido
+
+La app **sí respetaba** el ajuste (no tocaba `textScaler`). El problema eran
+las **1359 alturas fijas**: el texto crecía y la caja no. Renderizando los
+widgets reales:
+
+| Escala | Tarjeta de clase | Tarjeta de estudio |
+|---|---|---|
+| **x1.05** | **desborda 2 px** | ok |
+| x1.3 | 18 px | ok |
+| x1.5 | 36 px | ok |
+| x3.0 | 148 px | 135 px |
+
+**Se rompía desde x1.05**: el primer clic de "letra más grande", sin entrar a
+Accesibilidad. Por eso un clamp solo NO alcanzaba — habría que haberlo puesto
+en x1.0, o sea ignorar el ajuste.
+
+### Lo que se hizo: las dos piezas
+
+1. **Tope global de 1,5x** (`widgets/escala_texto.dart`, en el `builder` del
+   `MaterialApp.router`). Un solo lugar; una pantalla nueva lo hereda sola.
+   iOS llega a 3,1x, y a esa escala una tarjeta mediría más que la pantalla.
+2. **Las tarjetas crecen**: alto FIJO → alto MÍNIMO en la del buscador, y el
+   alto de los carruseles escala con la letra (`conEscalaDeTexto`).
+
+### Tres cosas que aparecieron al hacerlo
+
+- **`Ink` no acepta `constraints`**: hubo que envolverlo en un `ConstrainedBox`.
+- **La foto pedía `height: double.infinity`** y eso andaba SÓLO porque la
+  tarjeta tenía alto fijo. Con alto mínimo, infinito es infinito y reventaba:
+  se resolvió con `IntrinsicHeight` + `stretch`, así la foto toma el alto que
+  fija el texto.
+- **La foto del carrusel NO escala, a propósito.** Al escalarla también, se
+  comía el espacio extra y el texto seguía desbordando. El alto del carrusel
+  crece y todo ese espacio va al texto.
+
+### Verificado
+
+| Ajuste | Tarjeta mide | |
+|---|---|---|
+| x1.0 (normal) | **118 px** | idéntico a antes |
+| x1.3 | 136 px | sin cortes |
+| x1.5 | 154 px | sin cortes |
+| x3.1 (máximo de iOS) | **154 px** | el tope funciona |
+
+374 tests (23 nuevos), `analyze` en 97, web compila.
+
 ## ✅ RESPONSIVE: 36 pantallas que se estiraban en desktop — 6/9 (Dart, sin desplegar)
 
 Inicio, Explorar y los dos detalles ya topaban su ancho. **El resto no**: en un

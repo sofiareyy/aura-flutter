@@ -20,6 +20,7 @@ import 'services/notificaciones_service.dart';
 import 'services/valor_credito.dart';
 import 'services/version_gate.dart';
 import 'widgets/connectivity_banner.dart';
+import 'widgets/escala_texto.dart';
 
 /// Key global del ScaffoldMessenger para poder mostrar SnackBars desde fuera
 /// del árbol de un Scaffold (p. ej. al fallar el alta tras un callback OAuth).
@@ -411,6 +412,10 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
         scaffoldMessengerKey: scaffoldMessengerKey,
         theme: AppTheme.lightTheme,
         routerConfig: appRouter,
+        // El tope del escalado de texto, UNA vez para toda la app. Ver
+        // widgets/escala_texto.dart.
+        builder: (context, child) =>
+            EscalaTextoAcotada(child: child ?? const SizedBox.shrink()),
       ),
     );
   }

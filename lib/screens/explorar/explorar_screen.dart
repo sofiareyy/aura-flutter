@@ -356,7 +356,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                                 color: selected
                                     ? AppColors.black
                                     : AppColors.white,
-                                borderRadius: BorderRadius.circular(AuraRadio.pastilla),
+                                borderRadius: BorderRadius.circular(
+                                  AuraRadio.pastilla,
+                                ),
                                 border: Border.all(
                                   color: selected
                                       ? AppColors.black
@@ -406,7 +408,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: selected ? AppColors.black : AppColors.white,
-                            borderRadius: BorderRadius.circular(AuraRadio.pastilla),
+                            borderRadius: BorderRadius.circular(
+                              AuraRadio.pastilla,
+                            ),
                             border: Border.all(
                               color: selected
                                   ? AppColors.black
@@ -456,7 +460,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: selected ? AppColors.black : AppColors.white,
-                            borderRadius: BorderRadius.circular(AuraRadio.pastilla),
+                            borderRadius: BorderRadius.circular(
+                              AuraRadio.pastilla,
+                            ),
                             border: Border.all(
                               color: selected
                                   ? AppColors.black
@@ -527,7 +533,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                             foregroundColor: AppColors.black,
                             side: const BorderSide(color: AppColors.warmBorder),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AuraRadio.boton),
+                              borderRadius: BorderRadius.circular(
+                                AuraRadio.boton,
+                              ),
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
@@ -554,7 +562,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                             foregroundColor: AppColors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AuraRadio.boton),
+                              borderRadius: BorderRadius.circular(
+                                AuraRadio.boton,
+                              ),
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
@@ -633,7 +643,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 14),
                           decoration: BoxDecoration(
                             color: AppColors.white,
-                            borderRadius: BorderRadius.circular(AuraRadio.boton),
+                            borderRadius: BorderRadius.circular(
+                              AuraRadio.boton,
+                            ),
                             border: Border.all(color: AppColors.warmBorder),
                           ),
                           child: Row(
@@ -693,7 +705,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                                   color: AppColors.warmBorder,
                                 ),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(AuraRadio.boton),
+                                  borderRadius: BorderRadius.circular(
+                                    AuraRadio.boton,
+                                  ),
                                 ),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
@@ -789,7 +803,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                             ),
                             decoration: BoxDecoration(
                               color: active ? AppColors.black : AppColors.white,
-                              borderRadius: BorderRadius.circular(AuraRadio.pastilla),
+                              borderRadius: BorderRadius.circular(
+                                AuraRadio.pastilla,
+                              ),
                               border: Border.all(
                                 color: active
                                     ? AppColors.black
@@ -877,43 +893,50 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                   else ...[
                     // La tira se oculta si ningún estudio del filtro tiene
                     // clases próximas: mejor sin tira que destacando vacíos.
-                    if (destacados.isNotEmpty) SizedBox(
-                      height: altoCarruselDestacados,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: destacados.length,
-                        itemBuilder: (context, index) {
-                          final estudio = destacados[index];
-                          final esAsociado =
-                              _estudioAsociadoId != null &&
-                              estudio.id == _estudioAsociadoId;
-                          return _FeaturedExploreCard(
-                            estudio: estudio,
-                            accentColor: index.isEven
-                                ? AppColors.beigeCard
-                                : AppColors.greenCard,
-                            showBadge: esAsociado,
-                            onTap: () {
-                              if (estudio.id != null) {
-                                context.push('/estudio/${estudio.id}');
-                              }
-                            },
-                          );
-                        },
+                    if (destacados.isNotEmpty)
+                      SizedBox(
+                        // El carrusel es horizontal: su hijo necesita un alto
+                        // acotado, así que no sirve "alto mínimo". Se escala con
+                        // la letra, que ya viene topada en 1,5x.
+                        height: conEscalaDeTexto(
+                          altoCarruselDestacados,
+                          MediaQuery.of(context).textScaler.scale(1),
+                        ),
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: destacados.length,
+                          itemBuilder: (context, index) {
+                            final estudio = destacados[index];
+                            final esAsociado =
+                                _estudioAsociadoId != null &&
+                                estudio.id == _estudioAsociadoId;
+                            return _FeaturedExploreCard(
+                              estudio: estudio,
+                              accentColor: index.isEven
+                                  ? AppColors.beigeCard
+                                  : AppColors.greenCard,
+                              showBadge: esAsociado,
+                              onTap: () {
+                                if (estudio.id != null) {
+                                  context.push('/estudio/${estudio.id}');
+                                }
+                              },
+                            );
+                          },
+                        ),
                       ),
-                    ),
                     // EXPERIENCIAS próximas. Sale del feed YA filtrado, así que
                     // respeta chip/búsqueda/día/horario/créditos sin código extra
                     // y desaparece sola con el filtro Tipo = Clases. Reutiliza la
                     // card del feed (misma identidad visual). Inicio no se toca.
                     if (experienciasDestacadas(lista).isNotEmpty) ...[
-                      const TituloSeccion(
-                        'EXPERIENCIAS',
-                        margenLateral: false,
-                      ),
+                      const TituloSeccion('EXPERIENCIAS', margenLateral: false),
                       SizedBox(
                         // El mismo alto que la tarjeta angosta que va adentro.
-                        height: altoCardBuscador(0),
+                        height: conEscalaDeTexto(
+                          altoCardBuscador(0),
+                          MediaQuery.of(context).textScaler.scale(1),
+                        ),
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           itemCount: experienciasDestacadas(lista).length,
@@ -1022,8 +1045,13 @@ class _FeaturedExploreCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final escala = MediaQuery.of(context).textScaler.scale(1);
     return Container(
-      width: 166,
+      // El ancho también escala con la letra: adentro hay dos carteles (la
+      // categoría y "Tu estudio") que con la letra grande no entraban en los
+      // 166 px y la fila desbordaba de costado. Con la letra en normal mide
+      // exactamente 166, como siempre.
+      width: conEscalaDeTexto(166, escala),
       margin: const EdgeInsets.only(right: 12),
       child: Material(
         color: AppColors.white,
@@ -1045,6 +1073,11 @@ class _FeaturedExploreCard extends StatelessWidget {
                     top: Radius.circular(AuraRadio.tarjeta),
                   ),
                   child: SizedBox(
+                    // La FOTO no escala con la letra, a propósito: el alto del
+                    // carrusel sí crece, y todo ese espacio extra tiene que
+                    // ser para el TEXTO, que es lo que la usuaria agrandó.
+                    // Escalando también la foto, el texto se quedaba sin lugar
+                    // y seguía desbordando.
                     height: 92,
                     width: double.infinity,
                     child: Stack(
@@ -1070,7 +1103,8 @@ class _FeaturedExploreCard extends StatelessWidget {
                                 child: _Pill(
                                   // Una sola: el badge va SOBRE la foto y con
                                   // varias categorías tapaba la imagen.
-                                  text: estudio.categoriaPrincipal.toUpperCase(),
+                                  text: estudio.categoriaPrincipal
+                                      .toUpperCase(),
                                   dark: true,
                                 ),
                               ),
@@ -1083,7 +1117,9 @@ class _FeaturedExploreCard extends StatelessWidget {
                                   ),
                                   decoration: BoxDecoration(
                                     color: AppColors.primary,
-                                    borderRadius: BorderRadius.circular(AuraRadio.pastilla),
+                                    borderRadius: BorderRadius.circular(
+                                      AuraRadio.pastilla,
+                                    ),
                                   ),
                                   child: const Text(
                                     'Tu estudio',
@@ -1294,136 +1330,155 @@ class _ResultCard extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
-            child: Ink(
-              height: altoCard,
-              // La card de EXPERIENCIA se distingue por el fondo, no solo por el
-              // badge (pedido del 1/9): un beige calido apenas mas oscuro que el
-              // fondo de la pantalla (0xFFF7F5F2), para que la clase (blanca)
-              // y la experiencia convivan sin gritar. Solo en Explorar; la card
-              // de Inicio es otra y no se toca.
-              decoration: BoxDecoration(
-                color: esWorkshop ? _fondoExperiencia : AppColors.white,
-                borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
-                border: Border.all(
-                  color: esWorkshop ? _bordeExperiencia : AppColors.warmBorder,
+            // Alto MÍNIMO, no fijo (9/9/2026): con la letra del sistema
+            // agrandada el texto crecía dentro de una caja que no, y se
+            // cortaba. Con la letra en normal mide exactamente lo mismo que
+            // antes; sólo crece cuando hace falta. `Ink` no acepta
+            // `constraints`, de ahí el ConstrainedBox de afuera.
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: altoCard),
+              child: Ink(
+                // La card de EXPERIENCIA se distingue por el fondo, no solo por el
+                // badge (pedido del 1/9): un beige calido apenas mas oscuro que el
+                // fondo de la pantalla (0xFFF7F5F2), para que la clase (blanca)
+                // y la experiencia convivan sin gritar. Solo en Explorar; la card
+                // de Inicio es otra y no se toca.
+                decoration: BoxDecoration(
+                  color: esWorkshop ? _fondoExperiencia : AppColors.white,
+                  borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+                  border: Border.all(
+                    color: esWorkshop
+                        ? _bordeExperiencia
+                        : AppColors.warmBorder,
+                  ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.horizontal(
-                      left: Radius.circular(AuraRadio.tarjeta),
-                    ),
-                    child: SizedBox(
-                      width: anchoFoto,
-                      height: double.infinity,
-                      child: _ExploreClassImage(
-                        imageUrl: imageUrl,
-                        accentColor: accentColor,
+                // IntrinsicHeight mide el alto natural del contenido y se lo
+                // impone a la fila, que es lo que permite que la foto se
+                // estire al alto que fija el TEXTO. Sin esto, `stretch` sobre
+                // una caja sin alto máximo pide infinito y revienta. Antes la
+                // foto pedía `height: double.infinity` y andaba sólo porque la
+                // tarjeta tenía alto FIJO.
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.horizontal(
+                          left: Radius.circular(AuraRadio.tarjeta),
+                        ),
+                        child: SizedBox(
+                          width: anchoFoto,
+                          child: _ExploreClassImage(
+                            imageUrl: imageUrl,
+                            accentColor: accentColor,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                child: Text(
-                                  [
-                                    categoria,
-                                    barrio,
-                                  ].where((e) => e.isNotEmpty).join(' · '),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      [
+                                        categoria,
+                                        barrio,
+                                      ].where((e) => e.isNotEmpty).join(' · '),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        // Daba 1,5:1: no se leía. Ver AppColors.
+                                        color: AppColors.textoSuave,
+                                        fontSize: AuraTipo.etiqueta,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  if (esWorkshop)
+                                    const _PriceBadge(
+                                      text: 'EXPERIENCIA',
+                                      color: AppColors.primary,
+                                    )
+                                  else if (esServicio)
+                                    const _PriceBadge(
+                                      text: 'PRECIO ÚNICO',
+                                      color: Color(0xFF4E6F52),
+                                    )
+                                  else if (tipoPrecio == 'pico')
+                                    const _PriceBadge(
+                                      text: '⚡ POPULAR',
+                                      color: Color(0xFFE8763A),
+                                    )
+                                  else if (esPrecioReducido)
+                                    const _PriceBadge(
+                                      text: '🏷️ PRECIO REDUCIDO',
+                                      color: Color(0xFF4CAF50),
+                                    ),
+                                  // tipoPrecio == 'experiencia' -> sin badge
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                (clase['nombre'] ?? 'Clase').toString(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppColors.black,
+                                  fontSize: AuraTipo.titulo,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              if (esWorkshop && organizadores.isNotEmpty)
+                                OrganizadoresLinks(organizadores: organizadores)
+                              else
+                                Text(
+                                  estudio?['direccion']?.toString() ??
+                                      'Malabia 1510',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    // Daba 1,5:1: no se leía. Ver AppColors.
-                                    color: AppColors.textoSuave,
-                                    fontSize: AuraTipo.etiqueta,
-                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textoSecundario,
+                                    fontSize: AuraTipo.secundario,
                                   ),
                                 ),
-                              ),
-                              if (esWorkshop)
-                                const _PriceBadge(
-                                  text: 'EXPERIENCIA',
-                                  color: AppColors.primary,
-                                )
-                              else if (esServicio)
-                                const _PriceBadge(
-                                  text: 'PRECIO ÚNICO',
-                                  color: Color(0xFF4E6F52),
-                                )
-                              else if (tipoPrecio == 'pico')
-                                const _PriceBadge(
-                                  text: '⚡ POPULAR',
-                                  color: Color(0xFFE8763A),
-                                )
-                              else if (esPrecioReducido)
-                                const _PriceBadge(
-                                  text: '🏷️ PRECIO REDUCIDO',
-                                  color: Color(0xFF4CAF50),
-                                ),
-                              // tipoPrecio == 'experiencia' -> sin badge
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            (clase['nombre'] ?? 'Clase').toString(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.black,
-                              fontSize: AuraTipo.titulo,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          if (esWorkshop && organizadores.isNotEmpty)
-                            OrganizadoresLinks(organizadores: organizadores)
-                          else
-                            Text(
-                              estudio?['direccion']?.toString() ??
-                                  'Malabia 1510',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: AppColors.textoSecundario,
-                                fontSize: AuraTipo.secundario,
-                              ),
-                            ),
-                          const Spacer(),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  clase['fecha'] != null
-                                      ? _formatFecha(clase['fecha'].toString())
-                                      : '',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: AppColors.textoSuave,
-                                    fontSize: AuraTipo.etiqueta,
+                              const Spacer(),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      clase['fecha'] != null
+                                          ? _formatFecha(
+                                              clase['fecha'].toString(),
+                                            )
+                                          : '',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: AppColors.textoSuave,
+                                        fontSize: AuraTipo.etiqueta,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              _Pill(
-                                text: creditos == 0
-                                    ? 'GRATIS'
-                                    : '${creditos ?? 10} cr',
+                                  _Pill(
+                                    text: creditos == 0
+                                        ? 'GRATIS'
+                                        : '${creditos ?? 10} cr',
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),

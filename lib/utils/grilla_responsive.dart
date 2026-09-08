@@ -72,6 +72,19 @@ const double _anchoTarjetaConFotoGrande = 420;
 const double _altoBuscadorAncho = 124;
 const double _altoBuscadorAngosto = 118;
 
+/// Los altos que llevan TEXTO tienen que crecer con la letra del sistema.
+///
+/// Un carrusel horizontal no puede usar "alto mínimo" —su hijo necesita un alto
+/// acotado—, así que se le multiplica el alto por la escala de texto. La
+/// escala ya viene topada en 1,5x (ver `widgets/escala_texto.dart`), de modo
+/// que el alto nunca se dispara.
+///
+/// Con la letra en normal devuelve exactamente el mismo número que antes.
+/// [escala] es `MediaQuery.of(context).textScaler.scale(1)`. Se pasa como
+/// número y no como `BuildContext` para que este archivo siga siendo funciones
+/// puras, testeables sin levantar widgets.
+double conEscalaDeTexto(double alto, double escala) => alto * escala;
+
 /// Alto de la tarjeta del buscador según su propio ancho.
 double altoCardBuscador(double anchoCard) =>
     anchoCard >= _anchoTarjetaConFotoGrande
