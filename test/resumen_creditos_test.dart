@@ -32,8 +32,19 @@ void main() {
       expect(textoSaldo(creditos: 0, preciosDeClase: preciosReales), isNull);
     });
 
-    test('con saldo que no alcanza ni para la más barata, tampoco', () {
-      expect(textoSaldo(creditos: 5, preciosDeClase: preciosReales), isNull);
+    test('con saldo que no alcanza, dice cuánto le falta', () {
+      // El caso real de malekuipers: 4 créditos, clases desde 11.
+      expect(
+        textoSaldo(creditos: 4, preciosDeClase: preciosReales),
+        'Te faltan 7 créditos para tu próxima clase',
+      );
+    });
+
+    test('si le falta uno solo, en singular', () {
+      expect(
+        textoSaldo(creditos: 10, preciosDeClase: preciosReales),
+        'Te falta 1 crédito para tu próxima clase',
+      );
     });
 
     test('sin precios cargados NO inventa un rango', () {

@@ -26,8 +26,20 @@ String? textoSaldo({
     creditosDelPack: creditos,
     preciosDeClase: preciosDeClase,
   );
-  // Sin precios cargados no se dice para cuánto alcanza, pero el saldo sí.
-  if (rango == null) return null;
+  if (rango == null) {
+    // Tiene saldo pero no le alcanza ni para la más barata. Es el caso real de
+    // la alumna más activa que hay (4 créditos, clases desde 11): sin esto su
+    // tarjeta quedaba con una sola línea. Decirle cuánto le falta es cierto y
+    // es el momento exacto en que conviene decírselo.
+    final precios = preciosDeClase.where((p) => p > 0).toList();
+    if (precios.isEmpty) return null;
+    precios.sort();
+    final faltan = precios.first - creditos;
+    if (faltan <= 0) return null;
+    return faltan == 1
+        ? 'Te falta 1 crédito para tu próxima clase'
+        : 'Te faltan $faltan créditos para tu próxima clase';
+  }
   // `rangoDeClases` devuelve "Para probar una clase" pensando en la tarjeta de
   // un pack; acá la frase es sobre lo que YA tiene.
   if (rango == 'Para probar una clase') return 'Te alcanza para una clase';
