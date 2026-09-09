@@ -1323,162 +1323,166 @@ class _ResultCard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, restricciones) {
         final anchoCard = restricciones.maxWidth;
-        final altoCard = altoCardBuscador(anchoCard);
+        // El alto, escalado por la letra del sistema: la tarjeta crece si la
+        // usuaria agrandó la letra, pero TODAS crecen igual, así que la grilla
+        // sigue pareja. La escala ya viene topada en 1,5x.
+        final altoCard = conEscalaDeTexto(
+          altoCardBuscador(anchoCard),
+          MediaQuery.of(context).textScaler.scale(1),
+        );
         final anchoFoto = anchoFotoBuscador(anchoCard, compacta: fotoCompacta);
         return Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
-            // Alto MÍNIMO, no fijo (9/9/2026): con la letra del sistema
-            // agrandada el texto crecía dentro de una caja que no, y se
-            // cortaba. Con la letra en normal mide exactamente lo mismo que
-            // antes; sólo crece cuando hace falta. `Ink` no acepta
-            // `constraints`, de ahí el ConstrainedBox de afuera.
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: altoCard),
-              child: Ink(
-                // La card de EXPERIENCIA se distingue por el fondo, no solo por el
-                // badge (pedido del 1/9): un beige calido apenas mas oscuro que el
-                // fondo de la pantalla (0xFFF7F5F2), para que la clase (blanca)
-                // y la experiencia convivan sin gritar. Solo en Explorar; la card
-                // de Inicio es otra y no se toca.
-                decoration: BoxDecoration(
-                  color: esWorkshop ? _fondoExperiencia : AppColors.white,
-                  borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
-                  border: Border.all(
-                    color: esWorkshop
-                        ? _bordeExperiencia
-                        : AppColors.warmBorder,
-                  ),
+            // Alto FIJO, escalado por la letra del sistema (9/9/2026, tarde).
+            //
+            // Historia corta: era fijo; a la mañana se pasó a `minHeight` +
+            // `IntrinsicHeight` para que la tarjeta creciera con la letra
+            // agrandada. Eso trajo un bug peor: **IntrinsicHeight mide el alto
+            // natural de sus hijos**, y una foto ya cargada reporta el alto que
+            // le toca por la proporción del archivo. Con portadas de 1290×716 a
+            // 900×1600 mezcladas, cada tarjeta medía distinto —de 124 a 331 px—
+            // y la grilla de dos columnas quedaba escalonada con huecos.
+            //
+            // Ahora el alto es uno solo para toda la grilla, pero multiplicado
+            // por la escala de texto (ya topada en 1,5x), que es el mismo
+            // criterio que usan los carruseles: filas parejas Y la tarjeta
+            // sigue creciendo si la usuaria agranda la letra.
+            child: Ink(
+              height: altoCard,
+              // La card de EXPERIENCIA se distingue por el fondo, no solo por el
+              // badge (pedido del 1/9): un beige calido apenas mas oscuro que el
+              // fondo de la pantalla (0xFFF7F5F2), para que la clase (blanca)
+              // y la experiencia convivan sin gritar. Solo en Explorar; la card
+              // de Inicio es otra y no se toca.
+              decoration: BoxDecoration(
+                color: esWorkshop ? _fondoExperiencia : AppColors.white,
+                borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+                border: Border.all(
+                  color: esWorkshop ? _bordeExperiencia : AppColors.warmBorder,
                 ),
-                // IntrinsicHeight mide el alto natural del contenido y se lo
-                // impone a la fila, que es lo que permite que la foto se
-                // estire al alto que fija el TEXTO. Sin esto, `stretch` sobre
-                // una caja sin alto máximo pide infinito y revienta. Antes la
-                // foto pedía `height: double.infinity` y andaba sólo porque la
-                // tarjeta tenía alto FIJO.
-                child: IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.horizontal(
-                          left: Radius.circular(AuraRadio.tarjeta),
-                        ),
-                        child: SizedBox(
-                          width: anchoFoto,
-                          child: _ExploreClassImage(
-                            imageUrl: imageUrl,
-                            accentColor: accentColor,
-                          ),
-                        ),
+              ),
+              // Sin IntrinsicHeight: la fila toma el alto de la tarjeta, que
+              // ya está fijado arriba, y `stretch` estira la foto a ESE alto.
+              // Así la proporción del archivo no puede cambiar la altura.
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(AuraRadio.tarjeta),
+                    ),
+                    child: SizedBox(
+                      width: anchoFoto,
+                      child: _ExploreClassImage(
+                        imageUrl: imageUrl,
+                        accentColor: accentColor,
                       ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      [
-                                        categoria,
-                                        barrio,
-                                      ].where((e) => e.isNotEmpty).join(' · '),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        // Daba 1,5:1: no se leía. Ver AppColors.
-                                        color: AppColors.textoSuave,
-                                        fontSize: AuraTipo.etiqueta,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  if (esWorkshop)
-                                    const _PriceBadge(
-                                      text: 'EXPERIENCIA',
-                                      color: AppColors.primary,
-                                    )
-                                  else if (esServicio)
-                                    const _PriceBadge(
-                                      text: 'PRECIO ÚNICO',
-                                      color: Color(0xFF4E6F52),
-                                    )
-                                  else if (tipoPrecio == 'pico')
-                                    const _PriceBadge(
-                                      text: '⚡ POPULAR',
-                                      color: Color(0xFFE8763A),
-                                    )
-                                  else if (esPrecioReducido)
-                                    const _PriceBadge(
-                                      text: '🏷️ PRECIO REDUCIDO',
-                                      color: Color(0xFF4CAF50),
-                                    ),
-                                  // tipoPrecio == 'experiencia' -> sin badge
-                                ],
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                (clase['nombre'] ?? 'Clase').toString(),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppColors.black,
-                                  fontSize: AuraTipo.titulo,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              if (esWorkshop && organizadores.isNotEmpty)
-                                OrganizadoresLinks(organizadores: organizadores)
-                              else
-                                Text(
-                                  estudio?['direccion']?.toString() ??
-                                      'Malabia 1510',
+                              Expanded(
+                                child: Text(
+                                  [
+                                    categoria,
+                                    barrio,
+                                  ].where((e) => e.isNotEmpty).join(' · '),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    color: AppColors.textoSecundario,
-                                    fontSize: AuraTipo.secundario,
+                                    // Daba 1,5:1: no se leía. Ver AppColors.
+                                    color: AppColors.textoSuave,
+                                    fontSize: AuraTipo.etiqueta,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                              const Spacer(),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      clase['fecha'] != null
-                                          ? _formatFecha(
-                                              clase['fecha'].toString(),
-                                            )
-                                          : '',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: AppColors.textoSuave,
-                                        fontSize: AuraTipo.etiqueta,
-                                      ),
-                                    ),
+                              ),
+                              if (esWorkshop)
+                                const _PriceBadge(
+                                  text: 'EXPERIENCIA',
+                                  color: AppColors.primary,
+                                )
+                              else if (esServicio)
+                                const _PriceBadge(
+                                  text: 'PRECIO ÚNICO',
+                                  color: Color(0xFF4E6F52),
+                                )
+                              else if (tipoPrecio == 'pico')
+                                const _PriceBadge(
+                                  text: '⚡ POPULAR',
+                                  color: Color(0xFFE8763A),
+                                )
+                              else if (esPrecioReducido)
+                                const _PriceBadge(
+                                  text: '🏷️ PRECIO REDUCIDO',
+                                  color: Color(0xFF4CAF50),
+                                ),
+                              // tipoPrecio == 'experiencia' -> sin badge
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            (clase['nombre'] ?? 'Clase').toString(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.black,
+                              fontSize: AuraTipo.titulo,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          if (esWorkshop && organizadores.isNotEmpty)
+                            OrganizadoresLinks(organizadores: organizadores)
+                          else
+                            Text(
+                              estudio?['direccion']?.toString() ??
+                                  'Malabia 1510',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.textoSecundario,
+                                fontSize: AuraTipo.secundario,
+                              ),
+                            ),
+                          const Spacer(),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  clase['fecha'] != null
+                                      ? _formatFecha(clase['fecha'].toString())
+                                      : '',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.textoSuave,
+                                    fontSize: AuraTipo.etiqueta,
                                   ),
-                                  _Pill(
-                                    text: creditos == 0
-                                        ? 'GRATIS'
-                                        : '${creditos ?? 10} cr',
-                                  ),
-                                ],
+                                ),
+                              ),
+                              _Pill(
+                                text: creditos == 0
+                                    ? 'GRATIS'
+                                    : '${creditos ?? 10} cr',
                               ),
                             ],
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ),

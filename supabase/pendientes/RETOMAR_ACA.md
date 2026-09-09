@@ -1544,6 +1544,66 @@ monto en pesos**, y hay un test que lo verifica.
 
 429 tests (19 nuevos), `analyze` en 97, web compila.
 
+## ✅ La grilla escalonada de Explorar — 9/9 tarde (REGRESIÓN propia, arreglada)
+
+Sofía vio la grilla de "TODOS LOS RESULTADOS" despareja, con huecos blancos.
+
+### La causa: un cambio mío de esa misma mañana
+
+La tarjeta tenía **alto FIJO** (`height: altoCard`) y la foto pedía
+`height: double.infinity` para estirarse. Para el arreglo de la letra grande lo
+pasé a `minHeight` + `IntrinsicHeight`.
+
+**`IntrinsicHeight` mide el alto natural de sus hijos**, y una imagen ya cargada
+reporta el alto que le toca por la proporción del archivo. Medido con las
+portadas reales, foto de 186 px de ancho:
+
+| Portada | Proporción | Alto de la tarjeta |
+|---|---|---|
+| Yoguica 1290×716 | 1,80 | 124 px |
+| Citra 1290×910 | 1,42 | 131 px |
+| Tiwar 1024×1024 | 1,00 | **186 px** |
+| YN Pilates 960×1280 | 0,75 | **248 px** |
+| Yessi 900×1600 | 0,56 | **331 px** |
+
+De 124 a 331: casi el triple. Una fila con Yoguica + Yessi dejaba **207 px de
+hueco**.
+
+⚠️ **Por qué los tests no lo vieron:** en un test las imágenes no se descargan,
+el placeholder no tiene alto intrínseco y todas las tarjetas medían 124. **El
+bug sólo existía con fotos cargadas de verdad.**
+
+### El arreglo: alto fijo OTRA VEZ, pero escalado por la letra
+
+`height: conEscalaDeTexto(altoCardBuscador(ancho), escala)` — el mismo criterio
+que ya usaban los carruseles. Filas parejas **y** la accesibilidad intacta. Se
+quitaron el `ConstrainedBox(minHeight:)` y el `IntrinsicHeight`.
+
+**Verificado con el peor texto real, antes de cerrar:**
+
+| | x1.0 | x1.3 | x1.5 (tope) |
+|---|---|---|---|
+| Escritorio | 124 px | 161 px | 186 px |
+| Teléfono | 118 px | 153 px | 177 px |
+
+Sin cortes en ninguno.
+
+### El test que lo atrapa
+
+`grilla_alturas_parejas_test.dart`: recorre **las cinco proporciones reales** y
+exige que todas den la misma altura, más una defensa estructural que falla si
+alguien vuelve a poner `IntrinsicHeight`.
+
+**Probado que el test sirve:** reintroduciendo el bug a propósito, **falla**; al
+restaurar, pasa.
+
+⚠️ Intenté que el test cargara PNG reales con `HttpOverrides`, pero `FotoRed`
+usa caché en disco (`cached_network_image` → sqflite + path_provider) y eso no
+corre en un test. Se resolvió con `AspectRatio`, que aporta el mismo alto
+intrínseco que una `Image` decodificada.
+
+446 tests (3 nuevos), `analyze` en 97, web compila.
+
 ## ✅ Dos bugs de visibilidad en Explorar — 9/9 (Dart, va en la 1.0.8)
 
 ### 1 · El chip de categoría dejaba DESTACADOS vacío
