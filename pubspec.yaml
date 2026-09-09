@@ -41,6 +41,27 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # Genera los 21 archivos del ícono (16 de iOS + 5 de Android) desde el
+  # maestro de assets/icono/. Antes estaban sueltos en el repo desde el
+  # 13/4/2026, sin fuente: cambiar el ícono era rehacerlos a mano.
+  flutter_launcher_icons: ^0.14.4
+
+# El ícono de la app. Para regenerarlo:
+#     dart run flutter_launcher_icons
+#
+# El maestro sale de `herramientas/generar_icono.py`, que dibuja el diseño con
+# supersampling: el ícono viejo tenía exactamente 2 colores —ni un píxel de
+# transición— y por eso las curvas se veían escalonadas.
+flutter_launcher_icons:
+  image_path: "assets/icono/aura_icono_1024.png"
+  ios: true
+  remove_alpha_ios: true
+  android: "ic_launcher"
+  # El ícono ADAPTATIVO, que es lo que Android 8+ necesita: fondo y capa por
+  # separado. Sin esto el sistema le aplica su máscara al PNG cuadrado y le come
+  # las esquinas al naranja.
+  adaptive_icon_background: "#E8763A"
+  adaptive_icon_foreground: "assets/icono/aura_icono_capa_android.png"
 
 flutter:
   uses-material-design: true

@@ -1544,6 +1544,55 @@ monto en pesos**, y hay un test que lo verifica.
 
 429 tests (19 nuevos), `analyze` en 97, web compila.
 
+## ✅ El ícono de la app, regenerado limpio — 9/9 (va en la 1.0.8)
+
+### Lo que había
+
+**Un ícono propio de Aura**, no el placeholder de Flutter (comparado byte a byte
+contra el template: distintos). El anillo negro con punto sobre naranja, con los
+colores **exactos** de la marca: `#E8763A` y `#1A1A1A`.
+
+Pero con dos defectos:
+
+1. **Sin antialiasing.** Tenía exactamente **2 colores** — ni un píxel de
+   transición — así que las curvas se veían escalonadas. (Se descartó el
+   upscale por lo mismo: un reescalado mete cientos de tonos intermedios.)
+2. **Sin ícono adaptativo de Android.** No existía `mipmap-anydpi-v26`, así que
+   en Android 8+ el sistema le aplicaba su máscara al PNG cuadrado y **le comía
+   las esquinas al naranja**.
+
+Y no había fuente ni `flutter_launcher_icons`: cambiar el ícono era rehacer 21
+archivos a mano.
+
+### Lo que se hizo
+
+**El diseño NO cambió.** Se midió la geometría del PNG original y se replicó
+exacta: radio exterior 277/1024, grosor 71, punto 82. Verificado después de
+generar: **idénticos**.
+
+**`herramientas/generar_icono.py`** dibuja el maestro con supersampling 4×4. El
+nuevo tiene **17 tonos** en el borde contra los 2 de antes.
+
+**`flutter_launcher_icons` configurado** en el `pubspec`, con el maestro en
+`assets/icono/`. Regenerar es `dart run flutter_launcher_icons`.
+
+**El adaptativo de Android**, que era lo más importante: fondo `#E8763A` +
+capa con el anillo sobre transparente. Simulado con la máscara circular del
+sistema: **círculo naranja limpio con el anillo centrado**.
+
+⚠️ **La capa NO se reduce en el generador**: `flutter_launcher_icons` ya aplica
+un `inset` del 16%. En el primer intento se redujo en los dos lados y el anillo
+quedaba diminuto.
+
+⚠️ **Se restauró `ios/Runner.xcodeproj/project.pbxproj`**: el plugin cambiaba
+`ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS` de `YES` a
+`AppIcon` sin que se lo pidiera. El proyecto de Xcode queda intacto.
+
+**Generados:** 22 PNG de iOS (con el 1024 sin alfa, como exige Apple), 5
+mipmaps, 5 capas y el XML adaptativo.
+
+446 tests, `analyze` en 97, web compila.
+
 ## ✅ La grilla escalonada de Explorar — 9/9 tarde (REGRESIÓN propia, arreglada)
 
 Sofía vio la grilla de "TODOS LOS RESULTADOS" despareja, con huecos blancos.
