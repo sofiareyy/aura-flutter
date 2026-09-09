@@ -1544,6 +1544,46 @@ monto en pesos**, y hay un test que lo verifica.
 
 429 tests (19 nuevos), `analyze` en 97, web compila.
 
+## 🔎 AUDITORÍA del flujo de reserva — 9/9: 8 de 11 ejes sanos, 1 agujero, 3 menores
+
+Medido contra producción, probado en rollback con cuentas reales (Julieta,
+Santiago) sobre clases de Rock Studios. Ninguna fila de prueba quedó.
+
+### Funciona (verificado)
+
+| # | Eje | Medido |
+|---|---|---|
+| 1 | Reserva → descuento → confirmada | 40 → 22 cr (18 pico), cupo 20 → 19 |
+| 2 | QR | `AURA-uid-clase-ms-azar`, índice único |
+| 3 | Check-in | `presente` con sello; guard impide marcar antes de que cierre la cancelación |
+| 4 | Panel del estudio | ve alumna, clase, horario, salón, estado |
+| 5 | Plata | gracia → 100%; después 30%: $12.600 de $18.000. Base y Dart iguales |
+| 9 | Fallos | sin cupo `sin_lugares`, sin créditos `sin_creditos`, doble toque `ya_reservada`; sin rastro |
+| 11 | Rock ×2 | Palermo 18 pico, Recoleta 16 valle; Santiago las ve |
+
+**5 ataques, 5 bloqueos:** alumna marcarse presente / bajarse créditos /
+cancelar editando; estudio inflar créditos / presente antes de tiempo.
+
+### 🔴 7 · El estudio que cancela por fuera — SIGUE ABIERTO
+
+Reserva queda `confirmada` → cron `completar-reservas` (cada hora al :05, 3 h
+tras el fin) la pasa a `completada` → **se cobra**. La alumna pierde créditos,
+el estudio cobra una clase que no dio. **El sistema no puede distinguir** "no
+fue" de "la clase no existió". Única defensa: el botón de cancelar del panel.
+Para limpiar a mano existe `admin_cancel_reserva` en el backoffice.
+
+### ⚠️ Menores
+
+- **10 ·** Sin escaneo se cobra igual (por diseño), pero es la misma ruta del
+  agujero 7.
+- **8 ·** Grito: reserva cierra 30 h, cancelación 12 h → 18 h donde se puede
+  cancelar pero no rellenar el cupo. Yessi: cancelación a 60 min (todos los
+  demás, 12 h).
+- `reservas.estado` **sin CHECK**: acepta cualquier texto. Los guards lo
+  compensan.
+
+### 6 · Alumna nueva: 6 pasos, los 3 arreglos del 9/9 en web; teléfono con la 1.0.8.
+
 ## ✅ Rock Studios: dos disciplinas y dos salones — 9/9 (verificado + 2 arreglos)
 
 Santiago va a cargar spinning Y pilates, a veces en el mismo horario en salones
