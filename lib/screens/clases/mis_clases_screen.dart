@@ -2146,7 +2146,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 _AuraTextField(
                                   controller: s,
                                   label: 'Sala',
-                                  hint: 'Sala 1',
+                                  // Sugerencia descriptiva, no un número: un
+                                  // estudio con dos clases simultáneas en
+                                  // salones distintos necesita que la alumna
+                                  // sepa a cuál ir. "Sala 1" no le dice nada.
+                                  hint: 'Salón Cycle, Salón Pilates…',
                                 ),
                               ],
                             ),
@@ -2775,7 +2779,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 _AuraTextField(
                                   controller: s,
                                   label: 'Sala',
-                                  hint: 'Sala 1',
+                                  // Sugerencia descriptiva, no un número: un
+                                  // estudio con dos clases simultáneas en
+                                  // salones distintos necesita que la alumna
+                                  // sepa a cuál ir. "Sala 1" no le dice nada.
+                                  hint: 'Salón Cycle, Salón Pilates…',
                                 ),
                               ],
                             ),

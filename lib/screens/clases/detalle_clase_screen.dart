@@ -866,10 +866,17 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                   ? '${clase['duracion_min']} min'
                                   : '60 min',
                             ),
-                            _InfoChipCard(
-                              icon: Icons.place_outlined,
-                              label: clase['sala']?.toString() ?? 'Sala 2',
-                            ),
+                            // El salón SÓLO si el estudio lo cargó. Antes caía
+                            // en 'Sala 2' inventado: en un estudio con dos
+                            // clases simultáneas en salones distintos (Rock
+                            // Palermo: Cycle y Pilates a la misma hora), eso
+                            // mandaba a la alumna a una sala que no existe.
+                            if ((clase['sala']?.toString().trim() ?? '')
+                                .isNotEmpty)
+                              _InfoChipCard(
+                                icon: Icons.place_outlined,
+                                label: clase['sala'].toString().trim(),
+                              ),
                             _InfoChipCard(
                               icon: Icons.people_outline_rounded,
                               label: '$lugaresDisp plazas',

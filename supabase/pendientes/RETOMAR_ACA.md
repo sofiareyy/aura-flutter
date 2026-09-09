@@ -1544,6 +1544,57 @@ monto en pesos**, y hay un test que lo verifica.
 
 429 tests (19 nuevos), `analyze` en 97, web compila.
 
+## ✅ Rock Studios: dos disciplinas y dos salones — 9/9 (verificado + 2 arreglos)
+
+Santiago va a cargar spinning Y pilates, a veces en el mismo horario en salones
+distintos. **Las dos cosas funcionan**, medido contra la base.
+
+### Dos disciplinas con UN precio: correcto
+
+Rock Palermo ya tiene `categorias = {Spinning, Pilates}`, las dos en el
+catálogo. Cada clase elige la suya al crearse.
+
+**El precio NO depende de la disciplina, sólo del horario.** Probado llamando a
+`calcular_precio_clase`:
+
+| | 8:00 | 19:00 |
+|---|---|---|
+| Spinning | 16 cr (valle) | 18 cr (pico) |
+| Pilates | **16 cr** | **18 cr** |
+
+Idéntico, que es lo que acordó Sofía. El sistema sólo podría cobrar distinto por
+disciplina con un "servicio de precio fijo", y Rock no tiene ninguno.
+
+Franjas valle cargadas: **8, 9, 10 y 17 h de lunes a viernes**. Fin de semana,
+todo pico.
+
+En Explorar aparece bajo **las dos** categorías: el chip filtra por la categoría
+de la CLASE, no del estudio.
+
+### Dos clases simultáneas: funcionan
+
+Probado creando las dos a la misma hora en rollback: **sin conflicto**. El único
+índice único de `clases` es `(horario_fijo_id, fecha)` — para que una grilla no
+se duplique—, no hay ninguna restricción por horario del estudio.
+
+El campo `sala` es **texto libre**, así que "Salón Cycle" y "Salón Pilates"
+funcionan tal cual.
+
+### Los 2 arreglos
+
+1. **El detalle de clase inventaba "Sala 2"** cuando el estudio no cargaba
+   salón (`clase['sala'] ?? 'Sala 2'`). Con dos clases simultáneas eso manda a
+   la alumna a una sala que no existe. Ahora el chip **sólo aparece si hay
+   salón**, y un valor con espacios cuenta como vacío.
+2. **La sugerencia del formulario** pasó de `'Sala 1'` a
+   `'Salón Cycle, Salón Pilates…'`, en los dos formularios (clase suelta y
+   grilla), para que los estudios entiendan que pueden nombrarlo de forma útil.
+
+`"Sin ubicación"` de la pantalla de gestión **no se tocó**: es honesto, no
+inventa un salón.
+
+435 tests (5 nuevos), `analyze` en 97, web compila.
+
 ## ✅ CONVERSIÓN: los 3 arreglos del embudo — 9/9 (Dart, va en la 1.0.8)
 
 **El problema medido:** 79 alumnas registradas, **4 compras reales**, 2
