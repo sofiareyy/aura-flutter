@@ -1544,6 +1544,45 @@ monto en pesos**, y hay un test que lo verifica.
 
 429 tests (19 nuevos), `analyze` en 97, web compila.
 
+## ✅ Dos bugs de visibilidad en Explorar — 9/9 (Dart, va en la 1.0.8)
+
+### 1 · El chip de categoría dejaba DESTACADOS vacío
+
+Sofía tocaba "Spinning" para ver sus dos estudios de Rock y la tira decía "no
+encontramos resultados". Sólo aparecían en "Ver todo".
+
+**La causa, medida:** `destacadosDelDia` sólo tomaba estudios **con clases**, y
+Rock no tiene **ninguna** cargada (verificado: 0 clases, ni pasadas ni futuras;
+y no existe ninguna clase de Spinning en toda la base).
+
+**El arreglo:** los que no tienen clases ahora **también entran, pero al final**.
+No se cambia el orden: los que tienen oferta siguen primero, y los vacíos sólo
+ocupan el lugar que sobre. Así la regla vieja —no mandar a la alumna a un
+estudio sin nada que reservar— se conserva, y un estudio nuevo se ve desde el
+día uno.
+
+Simulado con los datos reales: el chip "Spinning" ahora muestra
+**Rock Palermo · Rock Recoleta**.
+
+⚠️ **Tres tests viejos codificaban la regla anterior** (`sin clases cargadas no
+destaca a nadie`) y fallaron: se actualizaron explicando el cambio, no se
+borraron.
+
+### 2 · El detalle del estudio mostraba una sola categoría
+
+Rock Palermo es **Spinning Y Pilates**, pero su ficha usaba `e.categoria` —la
+primera del array— y parecía ser sólo de spinning.
+
+Ahora muestra **todas**, una pastilla por categoría, en un `Wrap` que no
+desborda. Si el array viene vacío cae al escalar, así que no rompe con datos
+viejos.
+
+**En las TARJETAS de Explorar se sigue mostrando una sola**, a propósito: ahí el
+badge va sobre la foto y con varias tapaba la imagen (arreglo del 4/9). Hay un
+test que lo cuida.
+
+443 tests (8 nuevos), `analyze` en 97, web compila.
+
 ## 🔎 AUDITORÍA del flujo de reserva — 9/9: 8 de 11 ejes sanos, 1 agujero, 3 menores
 
 Medido contra producción, probado en rollback con cuentas reales (Julieta,

@@ -163,12 +163,45 @@ List<Estudio> destacadosDelDia({
     // Por id: estable de verdad. Por nombre, un renombre movería la rueda.
     ..sort((a, b) => a.id!.compareTo(b.id!));
 
-  if (candidatos.isEmpty) return elegidos;
+  // Y los que NO tienen clases, para el final (9/9/2026).
+  //
+  // El caso que lo pidió: Sofía cargó Rock Palermo y Recoleta —los dos de
+  // spinning— y al tocar el chip "Spinning" la tira salía VACÍA, con un "no
+  // encontramos resultados", porque ninguno tenía clases cargadas todavía.
+  // Sólo aparecían tocando "Ver todo".
+  //
+  // La regla vieja —destacar sólo estudios con clases— nació para no mandar a
+  // la alumna a un estudio donde no hay nada que reservar, y eso sigue siendo
+  // cierto. Por eso NO se cambia el orden: los que tienen oferta siguen
+  // primero y los vacíos sólo entran si queda lugar. Así un estudio nuevo se
+  // ve desde el día uno sin tapar a los que ya tienen clases.
+  final sinClases = estudios
+      .where((e) =>
+          e.id != null && !usados.contains(e.id) && (cuenta[e.id] ?? 0) == 0)
+      .toList()
+    ..sort((a, b) => a.id!.compareTo(b.id!));
+
+  if (candidatos.isEmpty) {
+    // Ninguno tiene clases: mejor mostrar los vacíos que una tira en blanco
+    // cuando el filtro SÍ tiene estudios.
+    for (final e in sinClases) {
+      if (elegidos.length >= max) break;
+      elegidos.add(e);
+    }
+    return elegidos;
+  }
 
   final arranque = indiceDiaArgentino(hoy) % candidatos.length;
   for (var i = 0; i < candidatos.length; i++) {
     if (elegidos.length >= max) break;
     elegidos.add(candidatos[(arranque + i) % candidatos.length]);
+  }
+
+  // Si sobra lugar en la tira, se completa con los que todavía no cargaron
+  // clases: se ven, pero nunca antes que los que tienen oferta.
+  for (final e in sinClases) {
+    if (elegidos.length >= max) break;
+    elegidos.add(e);
   }
   return elegidos;
 }

@@ -503,7 +503,10 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                         padding: EdgeInsets.symmetric(horizontal: 20),
                         child: Text(
                           'No hay clases disponibles por ahora.',
-                          style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.cuerpo),
+                          style: TextStyle(
+                            color: AppColors.grey,
+                            fontSize: AuraTipo.cuerpo,
+                          ),
                         ),
                       ),
                     )
@@ -614,23 +617,45 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(AuraRadio.chip),
-                    ),
-                    child: Text(
-                      e.categoria,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: AuraTipo.etiqueta,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                  // TODAS las categorías del estudio, una pastilla cada una
+                  // (9/9/2026). Antes mostraba sólo `e.categoria`, la primera
+                  // del array: Rock Palermo es Spinning Y Pilates, y en su
+                  // propia ficha parecía ser nada más que de spinning.
+                  //
+                  // En las TARJETAS de Explorar se sigue mostrando una sola (la
+                  // principal): ahí el badge va sobre la foto y con varias
+                  // tapaba la imagen. Acá hay lugar y es la ficha del estudio,
+                  // donde la alumna quiere saber todo lo que ofrece.
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final cat
+                          in (e.categorias.isEmpty
+                              ? <String>[e.categoria]
+                              : e.categorias))
+                        if (cat.trim().isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(
+                                AuraRadio.chip,
+                              ),
+                            ),
+                            child: Text(
+                              cat.trim(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: AuraTipo.etiqueta,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                    ],
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -874,7 +899,10 @@ class _SocialButton extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(fontSize: AuraTipo.secundario, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                fontSize: AuraTipo.secundario,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),

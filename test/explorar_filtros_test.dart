@@ -312,24 +312,36 @@ void main() {
       List<String> conPocas(int d) => destacadosDelDia(
             estudios: estudios, clases: pocas, hoy: dia(d),
           ).map((x) => x.nombre).toList();
-      expect(conPocas(0).length, 2);
-      expect(conPocas(0).toSet(), {'Citra', 'Tiwar'});
+      // Los DOS con clases salen siempre, y encabezan: desde el 9/9 los que no
+      // tienen clases completan la tira detrás, así que la lista puede ser más
+      // larga que 2.
+      expect(conPocas(0).take(2).toSet(), {'Citra', 'Tiwar'});
       // Aunque salgan los dos siempre, el primero alterna.
       expect(conPocas(1).first, isNot(conPocas(0).first));
     });
 
-    test('sin clases cargadas no destaca a nadie', () {
-      expect(destacadosDelDia(estudios: estudios, clases: const [], hoy: dia(0)),
-          isEmpty);
+    test('sin clases cargadas, ahora SÍ se muestran (cambio del 9/9)', () {
+      // Antes devolvía vacío, para no mandar a la alumna a un estudio sin nada
+      // que reservar. Sofía pidió cambiarlo: con el chip "Spinning" sus dos
+      // estudios de Rock no aparecían en DESTACADOS porque todavía no tenían
+      // clases, y sólo salían tocando "Ver todo". Los que TIENEN clases siguen
+      // primero (ver el test de abajo).
+      expect(
+        destacadosDelDia(estudios: estudios, clases: const [], hoy: dia(0)),
+        isNotEmpty,
+      );
     });
 
-    test('no rompe con clases sin estudio', () {
+    test('no rompe con clases sin estudio, y Citra va PRIMERA', () {
+      // Las filas sin `estudios` se ignoran sin reventar. Y el que tiene
+      // clases de verdad encabeza la tira: los demás entran detrás desde el
+      // cambio del 9/9.
       final s = destacadosDelDia(estudios: estudios, hoy: dia(0), clases: [
         {'id': 1},
         {'id': 2, 'estudios': null},
         claseDe(3),
       ]);
-      expect(s.single.nombre, 'Citra');
+      expect(s.first.nombre, 'Citra');
     });
   });
 }
