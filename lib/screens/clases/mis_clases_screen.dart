@@ -18,6 +18,7 @@ import '../../services/notificaciones_service.dart';
 import '../../services/reservas_service.dart';
 import '../../services/admin_service.dart';
 import '../../widgets/ancho_maximo.dart';
+import '../../utils/textos_apagar_horario.dart';
 
 const String _kPrefsClasesGridView = 'mis_clases_grid_view';
 const String _kPrefsClasesShowPast = 'mis_clases_show_past';
@@ -27,6 +28,18 @@ const String _kPrefsClasesShowPast = 'mis_clases_show_past';
 /// encima asusta (YN Pilates, 24/8). Ojo: NO tapar el error, solo traducirlo.
 const String kMsgErrorCarga =
     'Hubo un problema al cargar. Escribinos a aura.hola.app@gmail.com';
+
+/// Qué hacer con las clases ya publicadas al apagar "Genera clases nuevas".
+///
+/// Los dos caminos son legítimos, y ahí está el punto: hasta el 9/9/2026 el
+/// switch elegía `dejarPublicadas` en silencio y el estudio no se enteraba.
+enum _ApagarHorario {
+  /// Se van: se cancelan con devolución de créditos y mail, y se borran.
+  despublicarlas,
+
+  /// Las que ya están siguen; lo único que cambia es que no se generan nuevas.
+  dejarPublicadas,
+}
 
 /// Mensaje legible de un error: los de la base ya vienen en castellano
 /// (candados, guards), el resto se traduce a un texto genérico.
@@ -469,14 +482,155 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     context.go('/home');
   }
 
+  /// Prende o apaga "Genera clases nuevas" de un horario fijo.
+  ///
+  /// **El bug que cierra** (9/9/2026): apagarlo escribía `activo = false` y
+  /// nada más. El horario salía de la grilla del estudio y los dos generadores
+  /// —el de Dart y el `generar_clases_estudio` del cron— dejaban de extenderlo,
+  /// **pero las clases que ya había generado quedaban publicadas y
+  /// reservables**. El estudio creía haber apagado algo que seguía vivo del
+  /// lado de la alumna. Apareció en YN Pilates: el backoffice mostraba un solo
+  /// horario activo y la app ofrecía dos días.
+  ///
+  /// Ahora apagar pregunta qué hacer con las N clases ya publicadas, porque los
+  /// dos caminos son legítimos: despublicarlas (coherente con "apagué esto") o
+  /// dejarlas y no generar más (terminar el ciclo sin renovarlo). Lo que no se
+  /// hace más es elegir en silencio.
+  ///
+  /// Prender nunca pregunta: `actualizarHorarioFijo` dispara la generación y el
+  /// horario vuelve a llenarse solo.
   Future<void> _toggleFixed(int id, bool activo) async {
     if (_togglingFixed) return;
+
+    if (activo) {
+      await _escribirActivo(id, true);
+      return;
+    }
+
+    // ── Apagar ────────────────────────────────────────────────────────────
+    final messenger = ScaffoldMessenger.of(context);
+
+    List<Map<String, dynamic>> futuras = const [];
+    try {
+      futuras = await _service.listarClasesFuturasDeHorario(id);
+    } catch (_) {}
+    if (!mounted) return;
+
+    // Ordenadas para poder nombrar el rango: "del 16/9 al 4/11".
+    final conFecha =
+        futuras
+            .map((c) => (c, DateTime.tryParse(c['fecha']?.toString() ?? '')))
+            .where((par) => par.$2 != null)
+            .toList()
+          ..sort((a, b) => a.$2!.compareTo(b.$2!));
+    final n = futuras.length;
+
+    // CASO 1 — no hay nada publicado: se apaga sin preguntar.
+    if (n == 0) {
+      final ok = await _escribirActivo(id, false);
+      if (ok && mounted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text(kApagadoSinDespublicar)),
+        );
+      }
+      return;
+    }
+
+    final ids = futuras
+        .map((c) => (c['id'] as num?)?.toInt())
+        .whereType<int>()
+        .toList();
+    // Alumnas con reserva viva. Si la cuenta falla asumimos 0: el diálogo
+    // igual avisa que las clases están reservables, y la cancelación real
+    // devuelve créditos y manda el mail pase lo que pase.
+    final x = ids.isEmpty ? 0 : await _avisoService.contarAlumnosDeClases(ids);
+    if (!mounted) return;
+
+    final horario = _horarios.firstWhere(
+      (h) => (h['id'] as num?)?.toInt() == id,
+      orElse: () => const <String, dynamic>{},
+    );
+    final dia = _dayName((horario['dia_semana'] as num?)?.toInt() ?? 1);
+    final hora = (horario['hora_inicio']?.toString() ?? '--:--').substring(
+      0,
+      5,
+    );
+    final fDia = DateFormat('d/M', 'es');
+    final primera = conFecha.isEmpty ? '—' : fDia.format(conFecha.first.$2!);
+    final ultima = conFecha.isEmpty ? '—' : fDia.format(conFecha.last.$2!);
+
+    // CASOS 2 y 3 — hay clases publicadas. La advertencia de reservas es lo
+    // único que cambia entre los dos.
+    final decision = await _dialogoApagarHorario(
+      n: n,
+      x: x,
+      dia: dia,
+      hora: hora,
+      primera: primera,
+      ultima: ultima,
+    );
+    if (decision == null || !mounted) return;
+
+    if (decision == _ApagarHorario.dejarPublicadas) {
+      final ok = await _escribirActivo(id, false);
+      if (ok && mounted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text(kApagadoSinDespublicar)),
+        );
+      }
+      return;
+    }
+
+    // Despublicar. Mismo orden que _deleteFixed: primero las clases, y sólo
+    // si salieron todas se apaga el horario. Si alguna falla el horario queda
+    // PRENDIDO, para que el estudio vea que el trabajo no terminó.
     setState(() => _togglingFixed = true);
+    var devueltos = 0;
+    try {
+      final fallidas = await _borrarClasesDeHorario(
+        conFecha.isEmpty ? futuras : conFecha.map((par) => par.$1).toList(),
+        (cantidad) => devueltos += cantidad,
+      );
+      await _loadStudio();
+      if (!mounted) return;
+      if (fallidas.isNotEmpty) {
+        await _avisarClasesNoDespublicadas(
+          despublicadas: n - fallidas.length,
+          fallidas: fallidas,
+        );
+        return;
+      }
+      await _escribirActivo(id, false, recargar: false);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(confirmacionDespublicado(n: n, alumnas: devueltos)),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('No se pudo despublicar: ${_mensajeDeError(e)}'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _togglingFixed = false);
+    }
+  }
+
+  /// El UPDATE de `activo` solo. Devuelve false si falló (y ya avisó).
+  Future<bool> _escribirActivo(
+    int id,
+    bool activo, {
+    bool recargar = true,
+  }) async {
+    if (mounted) setState(() => _togglingFixed = true);
     try {
       final updated = await _service.actualizarHorarioFijo(id, {
         'activo': activo,
       });
-      if (!mounted) return;
+      if (!mounted) return true;
       setState(() {
         _horarios = _horarios
             .map(
@@ -488,14 +642,170 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
             )
             .toList();
       });
+      // Prender vuelve a generar clases: hay que releer para que aparezcan.
+      if (activo && recargar) await _loadStudio();
+      return true;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo actualizar: ${e.toString()}')),
+        SnackBar(content: Text('No se pudo actualizar: ${_mensajeDeError(e)}')),
       );
+      return false;
     } finally {
       if (mounted) setState(() => _togglingFixed = false);
     }
+  }
+
+  /// Los dos caminos de apagar un horario que ya publicó clases.
+  ///
+  /// Devuelve `null` si el estudio canceló. "Dejarlas publicadas" NO se
+  /// bloquea nunca, ni con reservas: terminar un ciclo sin renovarlo es
+  /// legítimo y la alumna se queda con su clase.
+  Future<_ApagarHorario?> _dialogoApagarHorario({
+    required int n,
+    required int x,
+    required String dia,
+    required String hora,
+    required String primera,
+    required String ultima,
+  }) {
+    return showDialog<_ApagarHorario>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          kTituloApagarHorario,
+          style: TextStyle(
+            color: AppColors.black,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                cuerpoApagarHorario(
+                  n: n,
+                  dia: dia,
+                  hora: hora,
+                  primera: primera,
+                  ultima: ultima,
+                ),
+                style: const TextStyle(
+                  color: AppColors.black,
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+              if (x > 0) ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFDF0E6),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFF0C9AC)),
+                  ),
+                  child: Text(
+                    advertenciaReservas(x),
+                    style: const TextStyle(
+                      color: Color(0xFF8A4A1C),
+                      fontSize: 13,
+                      height: 1.4,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            style: TextButton.styleFrom(foregroundColor: AppColors.grey),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(ctx).pop(_ApagarHorario.dejarPublicadas),
+            style: TextButton.styleFrom(foregroundColor: AppColors.black),
+            child: const Text(
+              kBotonDejarPublicadas,
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () =>
+                Navigator.of(ctx).pop(_ApagarHorario.despublicarlas),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            child: Text(
+              botonDespublicar(n: n, x: x),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Igual que `_avisarClasesNoBorradas` pero para el camino de apagar: acá el
+  /// horario queda PRENDIDO, no "como estaba".
+  Future<void> _avisarClasesNoDespublicadas({
+    required int despublicadas,
+    required List<String> fallidas,
+  }) {
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(kTituloFallidas),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                cuerpoFallidas(
+                  despublicadas: despublicadas,
+                  fallidas: fallidas.length,
+                ),
+                style: const TextStyle(fontSize: 13, height: 1.35),
+              ),
+              const SizedBox(height: 10),
+              for (final t in fallidas)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '• $t',
+                    style: const TextStyle(fontSize: 12, height: 1.3),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showClaseSheet(Map<String, dynamic> clase) async {
@@ -3448,10 +3758,14 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                     textAlign: TextAlign.center,
                   ),
                 ),
+                // "GENERA", no "ESTADO" (9/9/2026). El switch no controla si
+                // las clases están activas: controla si este horario sigue
+                // PRODUCIENDO clases nuevas cada semana. "Estado" hacía creer
+                // que apagarlo daba de baja lo ya publicado, y no.
                 SizedBox(
                   width: 72,
                   child: Text(
-                    'ESTADO',
+                    'GENERA',
                     style: headerStyle,
                     textAlign: TextAlign.center,
                   ),
@@ -3590,17 +3904,20 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 SizedBox(
                                   width: 72,
                                   child: Center(
-                                    child: Switch(
-                                      value: activo,
-                                      activeColor: AppColors.primary,
-                                      onChanged: _togglingFixed
-                                          ? null
-                                          : (v) => _toggleFixed(
-                                              (h['id'] as num?)?.toInt() ?? 0,
-                                              v,
-                                            ),
-                                      materialTapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
+                                    child: Tooltip(
+                                      message: kTooltipGeneraClases,
+                                      child: Switch(
+                                        value: activo,
+                                        activeColor: AppColors.primary,
+                                        onChanged: _togglingFixed
+                                            ? null
+                                            : (v) => _toggleFixed(
+                                                (h['id'] as num?)?.toInt() ?? 0,
+                                                v,
+                                              ),
+                                        materialTapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -7050,15 +7367,31 @@ class _HorarioFijoCard extends StatelessWidget {
                       fontSize: 13,
                     ),
                   ),
+                  // El 50% de opacidad no explica nada: un horario apagado se
+                  // veía igual que uno deshabilitado. Ahora lo dice.
+                  if (!activo) ...[
+                    const SizedBox(height: 4),
+                    const Text(
+                      kHorarioNoGenera,
+                      style: TextStyle(
+                        color: Color(0xFF8F877F),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            Switch(
-              value: activo,
-              onChanged: onToggle,
-              activeThumbColor: AppColors.primary,
-              activeTrackColor: AppColors.primaryLight,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            Tooltip(
+              message: kTooltipGeneraClases,
+              child: Switch(
+                value: activo,
+                onChanged: onToggle,
+                activeThumbColor: AppColors.primary,
+                activeTrackColor: AppColors.primaryLight,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
             ),
             IconButton(
               onPressed: onEdit,

@@ -39,7 +39,9 @@ class ReservasService {
     return (rows as List).length;
   }
 
-  Future<List<Map<String, dynamic>>> getReservasUsuario([String? userId]) async {
+  Future<List<Map<String, dynamic>>> getReservasUsuario([
+    String? userId,
+  ]) async {
     final effectiveUserId = userId ?? _supabase.auth.currentUser?.id ?? '';
     if (effectiveUserId.isEmpty) return [];
 
@@ -68,8 +70,7 @@ class ReservasService {
       // Si el string traía TZ (ej. "2026-04-30T19:00:00+00:00") parsed.isUtc=true.
       // En ese caso lo convertimos a Argentina. Si era naive lo asumimos
       // ya en hora Argentina (cómo lo escribe _toSupaDate del clases_service).
-      final fechaArgentina =
-          parsed.isUtc ? parsed.add(argOffset) : parsed;
+      final fechaArgentina = parsed.isUtc ? parsed.add(argOffset) : parsed;
       return !fechaArgentina.isBefore(nowArgentina);
     }).toList();
   }
@@ -86,7 +87,9 @@ class ReservasService {
         .from(AppConstants.tableReservas)
         .select()
         .eq('usuario_id', userId)
-        .or('estado.eq.cancelada,estado.eq.completada,estado.eq.cancelada_por_estudio')
+        .or(
+          'estado.eq.cancelada,estado.eq.completada,estado.eq.cancelada_por_estudio',
+        )
         .order('created_at', ascending: false)
         .range(offset, offset + limit - 1);
 
@@ -144,7 +147,10 @@ class ReservasService {
     return rows.map<Map<String, dynamic>>((r) {
       final claseId = (r['clase_id'] as num?)?.toInt();
       final clase = claseId != null ? clasesMap[claseId] : null;
-      return {...Map<String, dynamic>.from(r), if (clase != null) 'clases': clase};
+      return {
+        ...Map<String, dynamic>.from(r),
+        if (clase != null) 'clases': clase,
+      };
     }).toList();
   }
 
@@ -155,8 +161,10 @@ class ReservasService {
   }) async {
     final clase = await _supabase
         .from(AppConstants.tableClases)
-        .select('fecha, reserva_cierre_minutos, lugares_total, '
-            'lugares_disponibles, estudios(reserva_cierre_minutos)')
+        .select(
+          'fecha, reserva_cierre_minutos, lugares_total, '
+          'lugares_disponibles, estudios(reserva_cierre_minutos)',
+        )
         .eq('id', claseId)
         .maybeSingle();
 
@@ -201,9 +209,10 @@ class ReservasService {
         // créditos y llama a apply_reservation, todo en una transacción.
         // `apply_reservation` y `consume_user_credits` ya no son invocables
         // desde el cliente.
-        res = await _supabase.rpc('reservar_clase', params: {
-          'p_clase_id': claseId,
-        });
+        res = await _supabase.rpc(
+          'reservar_clase',
+          params: {'p_clase_id': claseId},
+        );
       } on PostgrestException catch (e) {
         // Casos comunes: la RPC no esta deployada (function not found),
         // schema cache stale, o RLS bloquea. Sin esto el user veia el
@@ -212,7 +221,8 @@ class ReservasService {
         if (msg.contains('reservar_clase') &&
             (msg.contains('does not exist') || msg.contains('not found'))) {
           throw ReservaException(
-              'Sistema temporalmente no disponible. Probá de nuevo en unos minutos.');
+            'Sistema temporalmente no disponible. Probá de nuevo en unos minutos.',
+          );
         }
         throw Exception('No se pudo crear la reserva: ${e.message}');
       }
@@ -237,10 +247,10 @@ class ReservasService {
       final estudio = claseDetalle == null
           ? null
           : await _supabase
-              .from(AppConstants.tableEstudios)
-              .select('nombre, direccion')
-              .eq('id', claseDetalle['estudio_id'])
-              .maybeSingle();
+                .from(AppConstants.tableEstudios)
+                .select('nombre, direccion')
+                .eq('id', claseDetalle['estudio_id'])
+                .maybeSingle();
       final fechaDetalle = DateTime.tryParse(
         claseDetalle?['fecha']?.toString() ?? '',
       );
@@ -258,16 +268,19 @@ class ReservasService {
           codigoQr: codigoQr,
         );
         final estudioId = (claseDetalle['estudio_id'] as num?)?.toInt();
-        final duracionMin = (claseDetalle['duracion_min'] as num?)?.toInt() ?? 60;
+        final duracionMin =
+            (claseDetalle['duracion_min'] as num?)?.toInt() ?? 60;
         if (estudioId != null) {
-          NotificacionesService.instance.scheduleResenaReminder(
-            reservaId: notifId,
-            claseNombre: claseDetalle['nombre']?.toString() ?? 'Tu clase',
-            estudioNombre: estudio?['nombre']?.toString() ?? 'Aura',
-            estudioId: estudioId,
-            fechaClase: fechaDetalle,
-            duracionMin: duracionMin,
-          ).ignore();
+          NotificacionesService.instance
+              .scheduleResenaReminder(
+                reservaId: notifId,
+                claseNombre: claseDetalle['nombre']?.toString() ?? 'Tu clase',
+                estudioNombre: estudio?['nombre']?.toString() ?? 'Aura',
+                estudioId: estudioId,
+                fechaClase: fechaDetalle,
+                duracionMin: duracionMin,
+              )
+              .ignore();
         }
       }
 
@@ -322,10 +335,10 @@ class ReservasService {
   /// el reservante no puede leer estudio_admins ni notificar a otros por RLS.
   Future<void> _notifyProfes(int claseId, String reservanteId) async {
     try {
-      await _supabase.rpc('notify_profes_nueva_reserva', params: {
-        'p_clase_id': claseId,
-        'p_reservante_id': reservanteId,
-      });
+      await _supabase.rpc(
+        'notify_profes_nueva_reserva',
+        params: {'p_clase_id': claseId, 'p_reservante_id': reservanteId},
+      );
     } catch (_) {}
   }
 
@@ -342,13 +355,17 @@ class ReservasService {
       'cancelar_mi_reserva',
       params: {'p_codigo_qr': codigoQr},
     );
-    final map = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+    final map = res is Map
+        ? Map<String, dynamic>.from(res)
+        : <String, dynamic>{};
 
     if (map['ok'] != true) {
-      throw Exception(_mensajeCancelacionError(
-        map['error']?.toString(),
-        (map['cierre_minutos'] as num?)?.toInt(),
-      ));
+      throw Exception(
+        _mensajeCancelacionError(
+          map['error']?.toString(),
+          (map['cierre_minutos'] as num?)?.toInt(),
+        ),
+      );
     }
 
     final devueltos = (map['creditos_devueltos'] as num?)?.toInt() ?? 0;
@@ -395,13 +412,15 @@ class ReservasService {
     try {
       // Limpiar primero pre_confirmadas vencidas de esa clase, asi liberamos
       // lugares fantasma antes de promover.
-      await _supabase.rpc('cleanup_pre_reservas_expiradas',
-          params: {'p_clase_id': claseId});
+      await _supabase.rpc(
+        'cleanup_pre_reservas_expiradas',
+        params: {'p_clase_id': claseId},
+      );
 
-      await _supabase.rpc('waitlist_promote_next', params: {
-        'p_clase_id': claseId,
-        'p_count': count,
-      });
+      await _supabase.rpc(
+        'waitlist_promote_next',
+        params: {'p_clase_id': claseId, 'p_count': count},
+      );
 
       // El aviso al promovido lo manda el SERVIDOR, no este cliente.
       //
@@ -423,8 +442,9 @@ class ReservasService {
 
   /// Lista las reservas pre_confirmadas (pendientes de confirmar) del
   /// usuario logueado, no vencidas.
-  Future<List<Map<String, dynamic>>> getPreReservasUsuario(
-      [String? userId]) async {
+  Future<List<Map<String, dynamic>>> getPreReservasUsuario([
+    String? userId,
+  ]) async {
     final uid = userId ?? _supabase.auth.currentUser?.id ?? '';
     if (uid.isEmpty) return [];
     final rows = await _supabase
@@ -439,8 +459,9 @@ class ReservasService {
 
   /// Entries de lista_espera del usuario logueado, con datos de la clase
   /// para mostrar en MisReservasScreen.
-  Future<List<Map<String, dynamic>>> getListaEsperaUsuario(
-      [String? userId]) async {
+  Future<List<Map<String, dynamic>>> getListaEsperaUsuario([
+    String? userId,
+  ]) async {
     final uid = userId ?? _supabase.auth.currentUser?.id ?? '';
     if (uid.isEmpty) return [];
     // `posicion` NO existe como columna en lista_espera — pedirla daba HTTP
@@ -450,7 +471,8 @@ class ReservasService {
     final rows = await _supabase
         .from('lista_espera')
         .select(
-            'clase_id, created_at, clases(id, nombre, fecha, estudio_id, estudios(nombre, foto_url, direccion))')
+          'clase_id, created_at, clases(id, nombre, fecha, estudio_id, estudios(nombre, foto_url, direccion))',
+        )
         .eq('usuario_id', uid)
         .order('created_at', ascending: true);
 
@@ -487,11 +509,14 @@ class ReservasService {
     required String userId,
     required int creditos,
   }) async {
-    final res = await _supabase.rpc('confirm_pre_reserva', params: {
-      'p_reserva_id': reservaId,
-      'p_user_id': userId,
-      'p_creditos': creditos,
-    });
+    final res = await _supabase.rpc(
+      'confirm_pre_reserva',
+      params: {
+        'p_reserva_id': reservaId,
+        'p_user_id': userId,
+        'p_creditos': creditos,
+      },
+    );
     if (res is! Map || res['ok'] != true) {
       final code = (res is Map ? res['error'] : null)?.toString();
       throw Exception(_mensajeConfirmarError(code));
@@ -503,8 +528,10 @@ class ReservasService {
   /// Libera una pre_confirmada sin cobrar, y dispara la promocion del
   /// siguiente de la lista de espera (server-side).
   Future<void> rechazarPreReserva(int reservaId) async {
-    final res = await _supabase
-        .rpc('release_pre_reserva', params: {'p_reserva_id': reservaId});
+    final res = await _supabase.rpc(
+      'release_pre_reserva',
+      params: {'p_reserva_id': reservaId},
+    );
     if (res is Map && res['ok'] != true) {
       final code = res['error']?.toString();
       throw Exception('No se pudo liberar la pre-reserva: $code');
@@ -543,7 +570,10 @@ class ReservasService {
   /// Called by the studio to cancel a class.
   /// Returns credits to every confirmed reservation and marks them
   /// as 'cancelada_por_estudio'. Returns the number of users refunded.
-  Future<int> cancelarClaseConDevolucion(int claseId, String claseNombre) async {
+  Future<int> cancelarClaseConDevolucion(
+    int claseId,
+    String claseNombre,
+  ) async {
     // D1 — Antes era un loop en el cliente, no transaccional: si fallaba a la
     // mitad, unos alumnos quedaban con créditos devueltos y la reserva sin
     // cancelar, y reintentar devolvía dos veces. Ahora es un RPC que valida
@@ -553,7 +583,9 @@ class ReservasService {
       'estudio_cancelar_clase',
       params: {'p_clase_id': claseId},
     );
-    final map = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+    final map = res is Map
+        ? Map<String, dynamic>.from(res)
+        : <String, dynamic>{};
 
     if (map['ok'] != true) {
       final code = map['error']?.toString();
@@ -564,7 +596,13 @@ class ReservasService {
       );
     }
 
-    final afectados = (map['reservas_canceladas'] as num?)?.toInt() ?? 0;
+    // 'reservas_afectadas', no 'reservas_canceladas'. La RPC se reescribió el
+    // 1/9/2026 al cablear el mail de cancelación (285ce9b) y le cambió el
+    // nombre a la clave; este lado quedó leyendo la vieja, que no existe, así
+    // que SIEMPRE devolvía 0. La cancelación, la devolución y el mail pasan
+    // server-side y nunca se rompieron: lo que estaba mal era el número que se
+    // le informaba al estudio ("devolvimos créditos a 0 alumnas").
+    final afectados = (map['reservas_afectadas'] as num?)?.toInt() ?? 0;
 
     // Notificación in-app a cada alumno. Va fuera de la transacción: si algo
     // falla acá, los créditos ya están devueltos igual.
@@ -679,11 +717,13 @@ class ReservasService {
           .select()
           .eq('id', clase['estudio_id'])
           .maybeSingle();
-      return {...reserva, 'clases': {...clase, 'estudios': estudio}};
+      return {
+        ...reserva,
+        'clases': {...clase, 'estudios': estudio},
+      };
     }
     return Map<String, dynamic>.from(reserva);
   }
-
 
   /// Mapea los codigos de error que devuelve la RPC apply_reservation a
   /// mensajes user-friendly. Cualquier codigo desconocido (incluido un
