@@ -1864,6 +1864,92 @@ alcanzan para otra clase y vencen a los 30 días. **Decisión de pricing.**
 
 410 tests (26 nuevos), `analyze` en 97, web compila.
 
+## ✅ La categoría de la CLASE vs la del ESTUDIO — 9/9 (Dart, va en la 1.0.8)
+
+**Lo que Sofía vio:** en Explorar, la tarjeta de una clase de Rock Studios decía
+`SPINNING · PILATES`, y con el chip en "Pilates" el Inicio traía clases de
+spinning.
+
+**Lo que era.** Siete lugares leían la categoría del **estudio** para etiquetar
+una **clase**. Rock Studios Palermo tiene `estudios.categorias =
+{Spinning, Pilates}`, así que RockFormer —que es pilates— se anunciaba como
+spinning. Los datos siempre estuvieron bien: `clases.categorias` es `{Pilates}`
+para RockFormer y `{Spinning}` para RockCycle.
+
+**No era sólo Rock.** Son **6 estudios multi-categoría** con clases cargadas:
+YN Pilates (5 categorías), Barre Estudio (4), Ambra, Rock Palermo, Tiwar y
+Yessi Funes.
+
+**El arreglo:** un helper único, `lib/utils/categoria_de_clase.dart`, con tres
+funciones — `categoriasDeClase`, `categoriaDeClase` (una sola, para el badge) y
+`claseEsDeCategoria` (para los chips). Prioridad: el array de la clase → su
+escalar → el del estudio como último recurso, para clases viejas.
+
+Aplicado en los 7 lugares:
+
+| Pantalla | Qué hacía antes |
+|---|---|
+| Explorar · tarjeta | `parseCategorias(estudio).take(2)` |
+| Inicio · tarjeta | `estudio['categoria']` |
+| Inicio · **filtro de chips** | `parseCategorias(estudio).any(…)` |
+| Detalle de clase · badge | `estudio['categoria'] ?? 'YOGA'` |
+| Detalle de clase · ver en mapa | `estudio['categoria']` |
+| Confirmar reserva · badge | `estudio['categoria'] ?? 'YOGA'` |
+| Reservar · tarjeta | `estudio['categoria']` |
+| Reservar · **filtro + catálogo de chips** | `parseCategorias(estudio)` |
+
+`reserva_gestion_screen.dart:149` ya estaba bien. La **lista de estudios no se
+tocó**: ahí la categoría del estudio es la correcta.
+
+⚠️ **El filtro de "Reservar" era un séptimo lugar** que no estaba en los seis
+del relevamiento: apareció al revisar la pantalla entera. Mismo bug.
+
+**Se fue el `'YOGA'` literal.** Sin categoría no se dibuja el badge (en las dos
+pantallas el widget va dentro de un `if (categoria.isNotEmpty)`). Dato: las
+**1.381 clases futuras tienen categoría cargada**, así que el fallback no se ve
+hoy — queda cerrada la puerta para mañana.
+
+**Tests:** `test/categoria_de_clase_test.dart`, 20 tests con RockFormer y
+RockCycle como caso real. Tres **renderizan las tarjetas** y leen el texto
+dibujado (Explorar, Inicio, Reservar) — son los que atrapan un revert en la
+pantalla, porque el test del helper solo no lo haría. Verificado que fallan con
+el bug puesto: reintroducido a propósito, cantaron
+`SPINNING · PILATES · PALERMO | RockFormer`.
+
+Para poder medir la tarjeta de "Reservar" se agregó
+`debugClaseDisponibleCard` (`@visibleForTesting`), mismo criterio que
+`debugResultCard` de Explorar.
+
+### 🟡 PENDIENTE DE DECISIÓN: la fila de badges de "Reservar" recorta los créditos
+
+Apareció al escribir el test y **ya existía antes de este cambio** — no tiene
+que ver con las categorías. En `_ClaseDisponibleCard` los badges van en un `Row`
+con `Spacer()`, y lo que se sale por la derecha es **"14 cr"**: lo que la alumna
+paga. Medido a **343 px** (el teléfono más chico que soportamos):
+
+| Categoría en el badge | letra normal | 1,3x | 1,5x |
+|---|---|---|---|
+| `Pilates` | −55 px | −147 px | −208 px |
+| `Holistico / Bienestar` | −212 px | −351 px | −443 px |
+
+**Dos salidas, las dos medidas:**
+
+1. **Badges en `Wrap` (pasan a dos líneas cuando no entran).** No se recorta
+   nada en ningún ancho ni en 1,5x. **Pero** el contenido no entra en una línea
+   ni con letra normal, así que la tarjeta pasa de **120 a 150 px de alto en
+   todos los teléfonos** — cambia cómo se ve la lista de Reservar.
+2. **`Flexible` sólo en el badge de categoría, con puntos suspensivos.** El alto
+   no cambia y los créditos quedan a salvo, pero
+   "Holistico / Bienestar" se ve "Holis…" y en 1,5x todavía sobran **75 px**.
+
+**No apliqué ninguna**: un cambio visual para los 15 estudios no va escondido
+dentro de un arreglo de categorías. Espera el voto de Sofía. El `Wrap` está
+probado y es de 20 líneas.
+
+Por eso el widget test de esa tarjeta pumpea a **440 px** y no a 360: a 360 la
+excepción de overflow hace fallar el test por un motivo que no es el que se está
+probando. Queda anotado en el propio test.
+
 ## ⏸️ ESPERANDO LA 1.0.8 — lo que ya está hecho y no llegó al teléfono
 
 La **1.0.7+27 se subió a App Store Connect el 9/9** con Transporter, así que
@@ -1872,6 +1958,7 @@ todo lo de abajo NO va en ese build: sale con la **1.0.8**. En la web ya está
 
 - **La letra grande del sistema** — tope de 1,5x + tarjetas que crecen (`545f5a7`).
 - **El responsive de las 36 pantallas** — `b5902a3`, ya pusheado y vivo en web.
+- **La categoría de la clase** — RockFormer ya no dice "Spinning" (ver abajo, 9/9).
 
 No hay que regenerar el `.ipa` de la 1.0.7.
 
