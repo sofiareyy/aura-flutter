@@ -67,6 +67,19 @@ ios/.symlinks/
 google-services.json
 GoogleService-Info.plist
 
+# SQL con credenciales. El repo es PUBLICO: una contrasena en texto plano acá
+# queda en el historial para siempre, y reescribir el historial de un repo ya
+# pusheado es carísimo. Regla: si un SQL necesita una contrasena, NO va al
+# repo — se pasa por chat y se corre desde afuera.
+#
+# El nombre del archivo lleva la marca: *_SECRETO.sql o CUENTA_*.sql (el alta
+# de una cuenta siempre trae la contrasena inicial).
+supabase/CUENTA_*.sql
+supabase/**/CUENTA_*.sql
+*_SECRETO.sql
+*_SECRET.sql
+*_CREDENCIALES.sql
+
 # Logs
 flutter_*.log
 
