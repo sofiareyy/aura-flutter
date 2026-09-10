@@ -1920,7 +1920,15 @@ Para poder medir la tarjeta de "Reservar" se agregó
 `debugClaseDisponibleCard` (`@visibleForTesting`), mismo criterio que
 `debugResultCard` de Explorar.
 
-### 🟡 PENDIENTE DE DECISIÓN: la fila de badges de "Reservar" recorta los créditos
+### ✅ RESUELTO el 9/9: la fila de badges de "Reservar" recortaba los créditos
+
+**Decisión de Sofía: va el Wrap de dos líneas.** "El precio cortado con letra
+normal es un problema real; los 30 px de alto no." Aplicado en `b3ad243` con 13
+tests que miden el desborde real del motor de layout en los tres anchos de
+teléfono y con la letra en 1,0x / 1,3x / 1,5x. Verificado que atrapan la
+regresión: con el `Row` viejo fallan 11 de 13.
+
+Lo que sigue abajo queda como registro de la medición.
 
 Apareció al escribir el test y **ya existía antes de este cambio** — no tiene
 que ver con las categorías. En `_ClaseDisponibleCard` los badges van en un `Row`
@@ -1950,6 +1958,97 @@ Por eso el widget test de esa tarjeta pumpea a **440 px** y no a 360: a 360 la
 excepción de overflow hace fallar el test por un motivo que no es el que se está
 probando. Queda anotado en el propio test.
 
+## ✅ Apagar un horario dejaba clases publicadas en silencio — 9/9 (va en la 1.0.8)
+
+**Lo que Sofía vio:** el backoffice de YN mostraba un solo horario activo
+(viernes 11) y la app ofrecía dos días (miércoles 11 y viernes 11).
+
+**Lo que era.** El switch del horario fijo escribía `activo = false` y nada más.
+`_propagarHorarioFijoAClasesFuturas` copia 13 campos del horario a sus clases
+futuras, pero `activo` no está en la lista — y `clases` no tiene esa columna. Así
+que apagar saca el horario de la grilla y **los dos generadores dejan de
+extenderlo**, pero las clases ya generadas quedan publicadas y reservables:
+
+- Dart: `if (horario['activo'] == false) { omitidas++; continue; }`
+- SQL: `where estudio_id = ... and coalesce(activo, true) = true`
+
+Nada en el camino de reserva mira `horarios_fijos.activo`: ninguna de las 11
+funciones SQL que tocan esa tabla está en ese camino, y ni `reservas_service` ni
+`clases_service` la consultan. La alumna podía reservar sin obstáculo.
+
+**Alcance medido:** YN era el **único** caso de toda la plataforma. Tampoco
+existía el caso espejo (horario activo sin clases) ni clases huérfanas
+(`horario_fijo_id = NULL`, que quedan al *borrar* una grilla porque la FK es
+`ON DELETE SET NULL`).
+
+**Arreglado en YN:** `horarios_fijos.activo = true` en el id 240. Los dos
+horarios quedaron activos y sus grillas alineadas (miércoles hasta el 4/11,
+viernes hasta el 6/11 — la última aparición de cada día en la semana 9).
+
+⚠️ **No hay rastro de quién lo apagó.** `horarios_fijos` no tiene `updated_at` y
+`admin_activity_logs` sólo registra acciones del superadmin: **las operaciones de
+la grilla del backoffice del estudio no se loguean.**
+
+### El arreglo del botón (`7b59869`)
+
+Apagar ahora pregunta qué hacer con las N clases publicadas. Los dos caminos son
+legítimos, y ahí estaba el punto: antes elegía uno en silencio.
+
+| | qué hace |
+|---|---|
+| **Despublicar las N** | se cancelan con devolución de créditos y mail, y se borran |
+| **Dejarlas publicadas** | las que están siguen; sólo deja de generar nuevas |
+
+**"Dejarlas publicadas" NO se bloquea ni con reservas.** Sofía había pedido
+bloquear el apagado si había reservas; lo discutimos y aprobó lo contrario:
+bloquear deja sin salida el caso más común y más inocente —el estudio termina un
+ciclo y no lo renueva, pero las clases que ya vendió tienen que darse—. Con
+reservas la opción destructiva muestra el número de alumnas y la advertencia; la
+conservadora nunca se bloquea.
+
+Si alguna clase no se puede despublicar, **el horario queda PRENDIDO** y se
+informa cuál falló y por qué. Mismo criterio que `_deleteFixed`: nunca dejar
+clases huérfanas publicadas con el estudio creyendo que el trabajo terminó.
+
+### El nombre: "Genera clases nuevas", no "Activo"
+
+El switch controla si el horario **sigue produciendo clases nuevas**, no si las
+clases existentes están activas. Cualquier nombre que sugiera "dar de baja"
+miente. La columna `ESTADO` pasó a `GENERA`, el switch tiene tooltip
+("Apagarlo no da de baja las que ya están publicadas") y un horario apagado dice
+**"No genera clases nuevas"** en vez de sólo verse al 50% de opacidad.
+
+Los textos los redactó Sofía palabra por palabra y viven en
+`lib/utils/textos_apagar_horario.dart` como funciones puras, con 20 tests que los
+fijan literal. Regla de redacción suya: **ningún botón dice "eliminar" ni "dar de
+baja"** — despublicar dice lo que pasa. Hay un test que lo cuida.
+
+### 🔴 El bug de plata que apareció al lado, arreglado en el mismo commit
+
+La RPC `estudio_cancelar_clase` devuelve `reservas_afectadas`, y
+`reservas_service.dart` leía **`reservas_canceladas`**, que no existe: el valor
+era **siempre 0**.
+
+Es una regresión del `285ce9b` (1/9), el commit que cableó el mail de
+cancelación: ahí la RPC se reescribió y la clave cambió de nombre, pero el Dart
+no. La cancelación, la devolución de créditos y el mail nunca se rompieron
+—pasan enteros server-side—; lo que estaba mal era el número que se le informaba
+al estudio: "devolvimos créditos a 0 alumnas" cuando eran 3.
+
+Nadie lo vio en 8 días porque **un 0 no parece un error**. Quedó un test de
+contrato (`test/contrato_cancelar_clase_test.dart`) que compara la clave del SQL
+con la que lee el Dart, en vez de mirar el valor.
+
+### ✅ Verificado: el mail de cancelación SÍ le llega a la alumna
+
+Condición para que "despublicar" sea aceptable. La cadena:
+`_borrarClasesDeHorario` → `cancelarClaseConDevolucion` → RPC
+`estudio_cancelar_clase`, que con reservas afectadas hace `net.http_post` a la
+edge function `cancelacion-email`. Esa función busca las reservas de la clase en
+`cancelada_por_estudio`, saca el mail de `usuarios` o de `auth.users` y manda
+**uno por persona** con los créditos devueltos; saltea cuentas borradas. Más la
+notificación in-app, que crea la misma RPC.
+
 ## ⏸️ ESPERANDO LA 1.0.8 — lo que ya está hecho y no llegó al teléfono
 
 La **1.0.7+27 se subió a App Store Connect el 9/9** con Transporter, así que
@@ -1959,6 +2058,8 @@ todo lo de abajo NO va en ese build: sale con la **1.0.8**. En la web ya está
 - **La letra grande del sistema** — tope de 1,5x + tarjetas que crecen (`545f5a7`).
 - **El responsive de las 36 pantallas** — `b5902a3`, ya pusheado y vivo en web.
 - **La categoría de la clase** — RockFormer ya no dice "Spinning" (ver abajo, 9/9).
+- **Los badges de "Reservar"** — ya no tapan los créditos (`b3ad243`).
+- **Apagar un horario** — pregunta qué hacer con las clases publicadas (`7b59869`).
 
 No hay que regenerar el `.ipa` de la 1.0.7.
 
@@ -3736,3 +3837,75 @@ incompleta.**
 
 Plan completo con las 8 áreas y el orden:
 https://claude.ai/code/artifact/85e0bcd6-dc65-4912-aae2-40371ad2e618
+
+## ✅ VERIFICADO el 9/9: las grillas se renuevan solas (hay un mail de por medio)
+
+Sofía le escribió a Santiago que las grillas se renuevan solas. **Es cierto.**
+Verificado eslabón por eslabón porque el dato ya salió por mail:
+
+1. Cron `regenerar-grillas-diario`, **activo**, todas las noches a las 03:00.
+   Corrió **10 de las últimas 10 noches**, todas `succeeded`.
+2. → edge function `regenerar-grillas` (`functions/regenerar-grillas/index.ts:68`)
+3. → RPC `generar_clases_todos_estudios(p_weeks => 9)`
+4. → `generar_clases_estudio(estudio, 9)` por estudio con al menos un horario activo
+
+**Por qué no se congela:** la función no cuenta desde la última clase, cuenta
+desde el **lunes de la semana en curso** (`v_week_start := v_now::date -
+(isodow - 1)`) y publica las 9 semanas siguientes. La ventana se corre sola:
+cada lunes entra una semana nueva al fondo. Entre lunes y lunes no crea nada,
+porque salta lo que ya existe (es idempotente).
+
+**La evidencia dura.** `clases` **no tiene `created_at`**, así que se usa el `id`
+como orden de creación. En Citra Barre, con la grilla cargada desde hace meses:
+
+| semana de la clase | ids |
+|---|---|
+| 7/9 | 397 – 618 |
+| 5/10 | 1232 – 1382 |
+| 19/10 | 1933 – 1955 |
+| **26/10** | **6195 – 6217** |
+| **2/11** | **6511 – 6533** |
+
+Las semanas más lejanas tienen los ids más altos, en bloques limpios. En Tiwar
+esos bloques son 6218–6254 (26/10) y 6549–6585 (2/11) — **pegados a los de
+Citra**, que es la firma de `generar_clases_todos_estudios` recorriendo los
+estudios en una sola corrida. Dos lunes consecutivos de renovación, grabados en
+los ids.
+
+⚠️ **La condición que conviene que el estudio sepa:** se renueva *mientras el
+horario fijo siga activo*. El contraejemplo vive en la misma base: **Sculpt Club
+tiene 0 horarios fijos y su techo quedó congelado en el 3/9**, en el pasado. El
+miércoles de YN era la versión parcial del mismo problema.
+
+Para Rock: las dos sedes tienen sus 53 horarios activos, así que se renuevan sin
+que Santiago toque nada.
+
+## 🔒 Credenciales en el repo — barrido del 9/9
+
+**El repo es PÚBLICO.** El alta de una cuenta de estudio genera un SQL con la
+contraseña inicial en texto plano (`supabase/CUENTA_*.sql`). El de Rockcycle
+quedó en el árbol de trabajo **sin commitear** — verificado contra los 686
+commits. No hubo fuga.
+
+**Barrido del historial completo** (686 commits, 4.720 blobs sin contar
+`build/`), decodificando el rol de cada JWT sin imprimirla:
+
+| qué | resultado |
+|---|---|
+| JWT que existieron alguna vez | 151, **todas `role: anon`** |
+| `service_role` | **cero**, ni en el árbol ni en el historial |
+| tokens `sbp_` / `sb_secret_` | cero |
+| contraseñas en texto plano | sólo el SQL de Rockcycle, nunca commiteado |
+| `.env`, `.pem`, `.p12`, keystores, service accounts | ninguno trackeado |
+
+La `anon` key es pública por diseño: viaja dentro del `.ipa` y del bundle web,
+cualquiera la saca del navegador. Lo que protege los datos es RLS. Esas 151 no
+son una fuga.
+
+**`.gitignore` (`fd55efd`):** `supabase/CUENTA_*.sql`,
+`supabase/**/CUENTA_*.sql`, `*_SECRETO.sql`, `*_SECRET.sql`,
+`*_CREDENCIALES.sql`. Verificado que atrapan el archivo y que ningún SQL ya
+trackeado queda tapado.
+
+**Regla de Sofía, para adelante:** si un SQL necesita una contraseña, **no va al
+repo** — se pasa por chat y se corre desde afuera.
