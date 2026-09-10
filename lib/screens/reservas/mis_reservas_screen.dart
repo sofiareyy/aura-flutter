@@ -1009,22 +1009,35 @@ class _ClaseDisponibleCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+          // Los badges van en un Wrap, no en un Row (9/9/2026). El Row los
+          // ponía en una línea sola y empujaba los créditos fuera de la
+          // tarjeta. Medido a 343 px de ancho (el teléfono más chico que
+          // soportamos): se perdían 55 px con "Pilates" y 212 px con
+          // "Holistico / Bienestar", y con la letra del sistema en 1.5x
+          // llegaba a 443. Lo que se recortaba era "14 cr" — lo que la alumna
+          // paga. Con Wrap, en 1.0x se ve idéntico (entra todo en una línea) y
+          // recién con la letra agrandada pasa a dos.
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (categoria.isNotEmpty) ...[
-                _Badge(
-                  text: categoria,
-                  bg: _categoryBadgeBg,
-                  fg: AppColors.primary,
+              Expanded(
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    if (categoria.isNotEmpty)
+                      _Badge(
+                        text: categoria,
+                        bg: _categoryBadgeBg,
+                        fg: AppColors.primary,
+                      ),
+                    if (fecha != null)
+                      _TiempoBadge(claseFecha: fecha, hoy: hoy),
+                    _LugaresBadge(lugares: lugares),
+                  ],
                 ),
-                const SizedBox(width: 6),
-              ],
-              if (fecha != null) ...[
-                _TiempoBadge(claseFecha: fecha, hoy: hoy),
-                const SizedBox(width: 6),
-              ],
-              _LugaresBadge(lugares: lugares),
-              const Spacer(),
+              ),
+              const SizedBox(width: 8),
               Text(
                 '$creditos cr',
                 style: const TextStyle(
@@ -1352,6 +1365,8 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(
         text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: fg,
           fontSize: AuraTipo.etiqueta,

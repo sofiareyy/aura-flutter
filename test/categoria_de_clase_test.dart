@@ -181,11 +181,8 @@ void main() {
     Future<void> pump(
       WidgetTester tester,
       Widget card, {
-      // 360 es un teléfono normal. La tarjeta de "Reservar" se mide a 440
-      // porque su fila de badges ya desbordaba ANTES de este cambio (medido
-      // 9/9/2026: 55 px a 343, 40 a 358) y la excepción de overflow hace
-      // fallar el test por un motivo que no es el que se está probando. El
-      // desborde quedó anotado aparte en RETOMAR_ACA.
+      // 360 es un teléfono normal. Las tres tarjetas entran sin desbordar
+      // desde que los badges de "Reservar" pasaron a Wrap (9/9/2026).
       double ancho = 360,
     }) => tester.pumpWidget(
       MaterialApp(
@@ -232,7 +229,6 @@ void main() {
           clase: rockFormerCompleta,
           hoy: DateTime(2026, 9, 9),
         ),
-        ancho: 440,
       );
       final texto = textoDe(tester);
       expect(texto, contains('Pilates'));
