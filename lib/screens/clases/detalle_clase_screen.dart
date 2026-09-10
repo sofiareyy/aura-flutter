@@ -27,6 +27,7 @@ import '../../utils/mapa_link.dart';
 import '../../widgets/organizadores_links.dart';
 import '../../widgets/study_review_sheet.dart';
 import '../../services/estudios_service.dart';
+import '../../utils/categoria_de_clase.dart';
 
 class DetalleClaseScreen extends StatefulWidget {
   final int claseId;
@@ -605,7 +606,10 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
         MediaQuery.of(context).padding.bottom + 16 + _altoCTA + 16;
     final barrio = estudio?['barrio']?.toString() ?? 'Palermo';
     final estudioNombre = estudio?['nombre']?.toString() ?? 'Aura Studio';
-    final categoria = estudio?['categoria']?.toString().toUpperCase() ?? 'YOGA';
+    // La categoría de la CLASE (9/9/2026). Antes leía la del estudio y caía en
+    // el literal 'YOGA' cuando faltaba: una clase de spinning podía anunciarse
+    // como yoga. Sin dato no hay badge — mejor vacío que mentiroso.
+    final categoria = categoriaDeClase(clase).toUpperCase();
     final galleryUrls = ((clase['galeria_urls'] as List?) ?? const [])
         .map((item) => item.toString())
         .where((item) => item.trim().isNotEmpty)
@@ -688,25 +692,27 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 7,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary,
-                                    borderRadius: BorderRadius.circular(AuraRadio.pastilla),
-                                  ),
-                                  child: Text(
-                                    categoria,
-                                    style: const TextStyle(
-                                      color: AppColors.white,
-                                      fontSize: AuraTipo.secundario,
-                                      fontWeight: FontWeight.w700,
+                                if (categoria.isNotEmpty) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 7,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      borderRadius: BorderRadius.circular(AuraRadio.pastilla),
+                                    ),
+                                    child: Text(
+                                      categoria,
+                                      style: const TextStyle(
+                                        color: AppColors.white,
+                                        fontSize: AuraTipo.secundario,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 10),
+                                  const SizedBox(height: 10),
+                                ],
                                 Text(
                                   clase['nombre']?.toString() ?? 'Clase',
                                   maxLines: 2,
@@ -826,11 +832,11 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                   final uri = Uri(
                                     path: '/mapa',
                                     queryParameters: {
-                                      if ((estudio?['categoria'] ?? '')
-                                          .toString()
-                                          .isNotEmpty)
-                                        'categoria': estudio!['categoria']
-                                            .toString(),
+                                      // La de la clase: si abrís el mapa desde
+                                      // una clase de pilates de Rock Studios,
+                                      // tiene que filtrar pilates, no spinning.
+                                      if (categoria.isNotEmpty)
+                                        'categoria': categoria,
                                       if ((estudio?['nombre'] ?? '')
                                           .toString()
                                           .isNotEmpty)

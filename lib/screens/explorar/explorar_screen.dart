@@ -14,6 +14,7 @@ import '../../widgets/foto_red.dart';
 import '../../widgets/titulo_seccion.dart';
 import '../../widgets/aura_skeleton.dart';
 import '../../core/theme/aura_tokens.dart';
+import '../../utils/categoria_de_clase.dart';
 
 class ExplorarScreen extends StatefulWidget {
   const ExplorarScreen({super.key});
@@ -1280,9 +1281,10 @@ class _ResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final estudio = clase['estudios'] as Map<String, dynamic>?;
-    final categoria = estudio == null
-        ? ''
-        : Estudio.parseCategorias(estudio).take(2).join(' · ').toUpperCase();
+    // La categoría de la CLASE, no las del estudio (9/9/2026): Rock Studios
+    // tiene Spinning y Pilates, y toda tarjeta suya decía "SPINNING · PILATES"
+    // aunque la clase fuera sólo de una de las dos.
+    final categoria = categoriaDeClase(clase).toUpperCase();
     final barrio = (estudio?['barrio'] ?? '').toString().toUpperCase();
     final imageUrl = (clase['imagen_url'] ?? estudio?['foto_url'])?.toString();
     final tipoPrecio = clase['tipo_precio']?.toString();

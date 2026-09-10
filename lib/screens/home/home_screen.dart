@@ -26,6 +26,7 @@ import '../../widgets/titulo_seccion.dart';
 import '../../widgets/organizadores_links.dart';
 import '../../widgets/aura_skeleton.dart';
 import '../../widgets/registro_muro.dart';
+import '../../utils/categoria_de_clase.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -303,15 +304,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final ofrecibles = clasesTomables(_proximasClases, ahora: ahora);
     final clasesFiltradas = _categoriaSeleccionada == 'Todos'
         ? ofrecibles
-        : ofrecibles.where((clase) {
-            final estudio = clase['estudios'] as Map<String, dynamic>?;
-            if (estudio == null) return false;
-            // El estudio entra si CUALQUIERA de sus categorias matchea.
-            final objetivo = _categoriaSeleccionada.toLowerCase();
-            return Estudio.parseCategorias(
-              estudio,
-            ).any((c) => c.trim().toLowerCase() == objetivo);
-          }).toList();
+        // Por la categoría de la CLASE, no del estudio (9/9/2026). Rock
+        // Studios es Spinning Y Pilates: filtrando por Pilates salían sus
+        // clases de spinning, porque se miraba el perfil del estudio.
+        : ofrecibles
+              .where((c) => claseEsDeCategoria(c, _categoriaSeleccionada))
+              .toList();
     final clasesEstaSemana = clasesFiltradas.where((clase) {
       // Las fechas en DB estan en hora Argentina sin marker; forzamos UTC con
       // 'Z' para comparar en el mismo frame que 'ahora'.
@@ -1763,7 +1761,7 @@ class HomeNearbyClassCard extends StatelessWidget {
     final fecha = clase['fecha'] != null
         ? DateTime.tryParse(clase['fecha'].toString())
         : null;
-    final categoria = (estudio?['categoria'] ?? '').toString();
+    final categoria = categoriaDeClase(clase);
     final imageUrl = (clase['imagen_url'] ?? estudio?['foto_url'])?.toString();
     final lugaresDisponibles = (clase['lugares_disponibles'] as num?) ?? 0;
 

@@ -7,7 +7,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/aura_tokens.dart';
-import '../../models/estudio.dart';
 import '../../providers/app_provider.dart';
 import '../../services/clases_service.dart';
 import '../../services/reservas_service.dart';
@@ -15,6 +14,7 @@ import '../../services/reviews_service.dart';
 import '../../widgets/study_review_sheet.dart';
 import '../../utils/cierre_minutos.dart';
 import '../../widgets/ancho_maximo.dart';
+import '../../utils/categoria_de_clase.dart';
 
 const _darkAppBar = Color(0xFF1A1A1A);
 const _cream = Color(0xFFF5F0E8);
@@ -183,16 +183,11 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
         .where((c) => !claseIdsReservadas.contains((c['id'] as num?)?.toInt()))
         .toList();
 
-    // Categorias derivadas de los estudios presentes en las clases.
+    // Categorias derivadas de las CLASES, no de sus estudios: el chip existe
+    // sólo si hay clases de esa categoría.
     final cats = <String>{};
     for (final c in clasesFiltered) {
-      final estudio = c['estudios'] as Map?;
-      if (estudio == null) continue;
-      cats.addAll(
-        Estudio.parseCategorias(
-          Map<String, dynamic>.from(estudio),
-        ).map((e) => e.trim()).where((e) => e.isNotEmpty),
-      );
+      cats.addAll(categoriasDeClase(c));
     }
     final categorias = ['Todos', ...cats.toList()..sort()];
 
@@ -303,13 +298,9 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
 
   bool _matchesCategoria(Map<String, dynamic> clase) {
     if (_categoriaSeleccionada == 'Todos') return true;
-    final estudio = clase['estudios'] as Map?;
-    if (estudio == null) return false;
-    // Matchea si CUALQUIERA de las categorias del estudio coincide.
-    final objetivo = _categoriaSeleccionada.toLowerCase();
-    return Estudio.parseCategorias(
-      Map<String, dynamic>.from(estudio),
-    ).any((c) => c.trim().toLowerCase() == objetivo);
+    // Por la categoría de la CLASE, no del estudio (9/9/2026): con el chip en
+    // Pilates salían las clases de spinning de Rock Studios.
+    return claseEsDeCategoria(clase, _categoriaSeleccionada);
   }
 
   List<DateTime> get _diasDisponibles {
@@ -964,7 +955,7 @@ class _ClaseDisponibleCard extends StatelessWidget {
         ? '${fecha.hour.toString().padLeft(2, '0')}:'
               '${fecha.minute.toString().padLeft(2, '0')}'
         : '--:--';
-    final categoria = (estudio?['categoria'] ?? '').toString();
+    final categoria = categoriaDeClase(clase);
     final lugares = (clase['lugares_disponibles'] as num?)?.toInt() ?? 0;
     final creditos = (clase['creditos'] as num?)?.toInt() ?? 0;
     final fotoUrl = (clase['imagen_url'] ?? estudio?['foto_url'])?.toString();
@@ -1990,3 +1981,16 @@ class _EsperaCard extends StatelessWidget {
     );
   }
 }
+
+/// SOLO PARA TESTS: expone la tarjeta de "clases disponibles" para verificar
+/// qué categoría muestra sin levantar la pantalla entera (que necesita
+/// Supabase). Mismo criterio que `debugResultCard` en Explorar.
+@visibleForTesting
+Widget debugClaseDisponibleCard({
+  required Map<String, dynamic> clase,
+  DateTime? hoy,
+}) => _ClaseDisponibleCard(
+  clase: clase,
+  hoy: hoy ?? DateTime.now(),
+  onTap: () {},
+);

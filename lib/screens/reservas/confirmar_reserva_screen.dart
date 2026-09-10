@@ -14,6 +14,7 @@ import '../../utils/cierre_minutos.dart';
 import '../../utils/creditos_faltantes.dart';
 import '../../utils/destino_post_login.dart';
 import '../../utils/grilla_responsive.dart';
+import '../../utils/categoria_de_clase.dart';
 
 class ConfirmarReservaScreen extends StatefulWidget {
   final int claseId;
@@ -185,6 +186,9 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
   Widget _buildContent() {
     final clase = _clase!;
     final estudio = clase['estudios'] as Map<String, dynamic>?;
+    // La de la CLASE, y sin el literal 'YOGA' de antes: en la pantalla donde
+    // se gastan los créditos, una categoría inventada es lo peor posible.
+    final categoria = categoriaDeClase(clase).toUpperCase();
     final fecha = clase['fecha'] != null
         ? DateTime.tryParse(clase['fecha'].toString())
         : null;
@@ -265,28 +269,27 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
                                 ),
                               ),
                               const SizedBox(height: 14),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  borderRadius: BorderRadius.circular(AuraRadio.pastilla),
-                                ),
-                                child: Text(
-                                  estudio?['categoria']
-                                          ?.toString()
-                                          .toUpperCase() ??
-                                      'YOGA',
-                                  style: const TextStyle(
-                                    color: AppColors.white,
-                                    fontSize: AuraTipo.etiqueta,
-                                    fontWeight: FontWeight.w700,
+                              if (categoria.isNotEmpty) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(AuraRadio.pastilla),
+                                  ),
+                                  child: Text(
+                                    categoria,
+                                    style: const TextStyle(
+                                      color: AppColors.white,
+                                      fontSize: AuraTipo.etiqueta,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 14),
+                                const SizedBox(height: 14),
+                              ],
                               Text(
                                 clase['nombre']?.toString() ?? 'Clase',
                                 maxLines: 2,
