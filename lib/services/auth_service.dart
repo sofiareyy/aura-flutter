@@ -8,8 +8,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/constants/app_constants.dart';
+import '../utils/codigos_pendientes.dart';
 import 'estudio_admin_service.dart';
 import 'notificaciones_service.dart';
+import 'referidos_service.dart';
 
 class AuthService {
   final _supabase = Supabase.instance.client;
@@ -302,6 +304,52 @@ class AuthService {
     }
 
     return 'usuario';
+  }
+
+  /// Aplica los códigos (gift card y referido) que un registro SIN sesión dejó
+  /// guardados — ver [CodigosPendientes]. Va después de `ensureUsuarioCreado`:
+  /// ambos RPC necesitan la fila en `usuarios`.
+  ///
+  /// Devuelve `true` sólo si el canje del REGALO falló, para que quien llama
+  /// avise (es plata que la persona esperaba ver). El referido falla en
+  /// silencio, igual que en el registro con sesión: sólo vincula, y los
+  /// créditos llegan con la primera compra. Nunca lanza: nada de esto puede
+  /// frenar un login.
+  Future<bool> aplicarCodigosPendientes() async {
+    try {
+      final user = _supabase.auth.currentUser;
+      // Sin sesión no se tocan las prefs: `tomar` borra siempre, y acá no
+      // habría contra qué comparar el mail. Los códigos quedan para el login.
+      if (user == null) return false;
+      final pendientes = await CodigosPendientes.tomar(user.email);
+      if (pendientes == null) return false;
+
+      var regaloFallo = false;
+      final regalo = pendientes.regalo;
+      if (regalo != null) {
+        try {
+          await ReferidosService().canjearRegalo(regalo);
+        } catch (e) {
+          regaloFallo = true;
+          debugPrint('[codigosPendientes] canjearRegalo falló: $e');
+        }
+      }
+      final referido = pendientes.referido;
+      if (referido != null) {
+        try {
+          await ReferidosService().aplicarCodigo(
+            usuarioId: user.id,
+            codigo: referido,
+          );
+        } catch (e) {
+          debugPrint('[codigosPendientes] aplicarCodigo referido: $e');
+        }
+      }
+      return regaloFallo;
+    } catch (e) {
+      debugPrint('[codigosPendientes] error inesperado: $e');
+      return false;
+    }
   }
 
   /// Decide a dónde entrar según los accesos del usuario (roles múltiples).

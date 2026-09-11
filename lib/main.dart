@@ -165,8 +165,20 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
         if (event == AuthChangeEvent.signedIn ||
             event == AuthChangeEvent.userUpdated ||
             event == AuthChangeEvent.initialSession) {
+          var regaloFallo = false;
           try {
             await _authService.ensureUsuarioCreado();
+            // Los códigos que un registro SIN sesión dejó guardados (mail
+            // pendiente de validar) se aplican ACÁ y no en `destinoInicial()`,
+            // a propósito: este listener es el único lugar por el que pasa
+            // cualquier entrada (mail, Google, Apple nativo y la recarga de
+            // web tras OAuth) y ya tiene a mano el messenger global para
+            // avisar y el provider para refrescar el saldo justo después —
+            // el mismo orden que el registro con sesión. Va adentro del
+            // `try` para correr sólo si la fila en `usuarios` existe (los RPC
+            // la necesitan) y, si no hay sesión, `ensureUsuarioCreado` corta
+            // antes y los códigos quedan esperando al login. Nunca lanza.
+            regaloFallo = await _authService.aplicarCodigosPendientes();
           } catch (e) {
             debugPrint('[authListener] ensureUsuarioCreado falló: $e');
           }
@@ -180,6 +192,18 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
             try {
               await context.read<AppProvider>().cargarUsuario();
             } catch (_) {}
+          }
+          // Misma asimetría que el registro con sesión: si el regalo no se
+          // pudo canjear la persona se entera (es plata que esperaba ver); el
+          // referido, si falló, ya quedó sólo en el log.
+          if (regaloFallo) {
+            scaffoldMessengerKey.currentState?.showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'No pudimos canjear tu regalo. Probá desde Mis Créditos.',
+                ),
+              ),
+            );
           }
           // PUSH: el permiso se pide ACA, después del login, no en main().
           // Antes salía el diálogo de iOS al abrir la app por primera vez,

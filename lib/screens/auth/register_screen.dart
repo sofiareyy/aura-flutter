@@ -11,6 +11,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/referidos_service.dart';
+import '../../utils/codigos_pendientes.dart';
 import '../../utils/destino_post_login.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/ancho_maximo.dart';
@@ -169,6 +170,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
 
       if (response.session == null) {
+        // Los códigos de abajo (regalo y referido) no se pueden aplicar acá:
+        // `canjear_regalo` valida contra `auth.uid()` y sin sesión no hay uid.
+        // Antes se perdían en silencio (estaban después de este `return`).
+        // Quedan guardados atados al mail y los consume el primer login que
+        // funcione — ver [CodigosPendientes]. Si guardar falla, la cuenta ya
+        // se creó igual: no se rompe el aviso del mail por eso.
+        var guardoCodigos = false;
+        try {
+          guardoCodigos = await CodigosPendientes.recordar(
+            mail: _emailCtrl.text,
+            regalo: _codigoRegaloCtrl.text,
+            referido: _codigoReferidoCtrl.text,
+          );
+        } catch (e) {
+          debugPrint('[register] no se pudieron guardar los códigos: $e');
+        }
+        if (!mounted) return;
         // Diálogo (no snackbar) porque navegamos a /login enseguida y el aviso
         // es clave: la persona tiene que encontrar el mail para validar.
         await showDialog<void>(
@@ -178,11 +196,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               borderRadius: BorderRadius.circular(16),
             ),
             title: const Text('Revisá tu mail 🧡'),
-            content: const Text(
+            content: Text(
               'Te enviamos un mail para validar tu cuenta. Puede figurar como '
               'remitente "Supabase" y estar en spam: buscalo, abrilo y tocá el '
-              'link. Después iniciá sesión.',
-              style: TextStyle(
+              'link. Después iniciá sesión.'
+              '${guardoCodigos ? ' Tu código se aplica solo cuando entres.' : ''}',
+              style: const TextStyle(
                 color: AppColors.black,
                 fontSize: 14,
                 height: 1.45,
