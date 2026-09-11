@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/constants/app_constants.dart';
 import '../core/theme/app_theme.dart';
+import '../services/analytics/analytics.dart';
 
 /// Por qué se le pide cuenta al invitado. Define el texto del muro.
 enum MuroMotivo { reservar, listaEspera, favorito, reservas, perfil }
@@ -244,10 +245,19 @@ class RegistroMuro extends StatelessWidget {
                   width: double.infinity,
                   height: 48,
                   child: OutlinedButton.icon(
-                    onPressed: () => launchUrl(
-                      Uri.parse(descarga.url),
-                      mode: LaunchMode.externalApplication,
-                    ),
+                    onPressed: () {
+                      // Antes de abrir: el hit sale por sendBeacon y no
+                      // demora la tienda. Sólo cuenta si es la App Store.
+                      Analytics.appStoreClick(
+                        url: descarga.url,
+                        texto: 'Descargá Aura en ${descarga.tienda}',
+                        placement: 'registration_wall',
+                      );
+                      launchUrl(
+                        Uri.parse(descarga.url),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    },
                     icon: const Icon(Icons.ios_share_rounded, size: 17),
                     label: Text('Descargá Aura en ${descarga.tienda}'),
                     style: OutlinedButton.styleFrom(

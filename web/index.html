@@ -16,6 +16,14 @@
   -->
   <base href="$FLUTTER_BASE_HREF">
 
+  <!--
+    Google Analytics 4. El ID y toda la lógica viven en aura-analytics.js
+    (único lugar). Va sincrónico y ANTES que Flutter: el page_view de la carga
+    se arma con la URL tal cual llegó, así los UTM de las campañas quedan
+    medidos aunque después la app toque la URL.
+  -->
+  <script src="aura-analytics.js"></script>
+
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="El primer marketplace de fitness y experiencias de Buenos Aires">

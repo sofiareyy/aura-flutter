@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_theme.dart';
+import '../../services/analytics/analytics.dart';
 import '../../providers/app_provider.dart';
 import '../../screens/auth/splash_screen.dart';
 import '../../screens/auth/onboarding_screen.dart';
@@ -485,4 +486,14 @@ final appRouter = GoRouter(
     // del estudio. Las versiones válidas viven en /estudio/asistencia,
     // /estudio/cobros y /estudio/dashboard.
   ],
-);
+)..routerDelegate.addListener(_medirRuta);
+
+/// page_view de Google Analytics en cada cambio de ruta (sólo web; ver
+/// [Analytics]). Se escucha el delegate y no un NavigatorObserver porque los
+/// shells tienen navigators propios: el delegate ve `go`, `push`, `pop`, los
+/// redirect y el botón atrás del navegador, todos por el mismo lado.
+void _medirRuta() {
+  final config = appRouter.routerDelegate.currentConfiguration;
+  if (config.isEmpty) return; // todavía resolviendo la primera ruta
+  Analytics.rutaCambio(config.uri.path);
+}
