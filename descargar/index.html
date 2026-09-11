@@ -2,6 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<!-- Google Analytics 4 (ID y lógica en /aura-analytics.js). Sincrónico y primero: congela los UTM antes que nada. -->
+<script src="/aura-analytics.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Descargá Aura — marketplace de fitness y experiencias de Buenos Aires</title>
 <meta name="description" content="Descargá Aura Pass: el marketplace de fitness y experiencias de Buenos Aires. Movimiento, conexión, experiencia.">
@@ -269,7 +271,7 @@
 
     <!-- iOS -->
     <section class="block block--ios">
-      <a class="cta" id="ios-cta" href="#">
+      <a class="cta" id="ios-cta" href="#" data-placement="hero">
         <svg width="20" height="24" viewBox="0 0 384 512" fill="currentColor" aria-hidden="true"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
         Descargar en App Store
       </a>
@@ -291,7 +293,7 @@
 
     <!-- Desktop / otros -->
     <section class="block block--desktop">
-      <a class="cta" id="desktop-cta" href="#">
+      <a class="cta" id="desktop-cta" href="#" data-placement="download_section">
         <svg width="20" height="24" viewBox="0 0 384 512" fill="currentColor" aria-hidden="true"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
         Descargar en App Store
       </a>
@@ -318,19 +320,35 @@
     // Solo se aceptan campanas de esta lista: un ?c= inventado (o basura de un
     // scraper) cae en organico_sep en vez de crear tokens sueltos que ensucian
     // el reporte de Apple. Sumar una campana = una linea mas aca.
+    //
+    // Convivencia con los UTM (GA4, septiembre 2026): los anuncios nuevos
+    // llegan con utm_source=meta&utm_content=lanzamiento|estudios y pueden no
+    // traer ?c=. Los dos sistemas miden cosas distintas y no se pisan:
+    //   · UTM -> Google Analytics (visitas y clics en la web). Los lee solo
+    //     /aura-analytics.js; esta pagina no los toca ni los borra.
+    //   · ct  -> App Store Connect (instalaciones). Va en el link de la tienda.
+    // Si viene ?c=, manda ?c= (los links viejos siguen igual). Si no, y el
+    // trafico es de Meta, el ct sale de utm_content con esta misma lista.
     var CAMPANAS = {
       "carrusel": "meta_carrusel_sep",
-      "lanzamiento": "meta_lanzamiento_sep"
+      "lanzamiento": "meta_lanzamiento_sep",
+      "estudios": "meta_estudios_sep"
     };
     var CT_POR_DEFECTO = "organico_sep";
 
+    function campana(valor) {
+      if (!valor) return null;
+      valor = valor.trim().toLowerCase();
+      return Object.prototype.hasOwnProperty.call(CAMPANAS, valor) ? CAMPANAS[valor] : null;
+    }
+
     var ct = CT_POR_DEFECTO;
     try {
-      var c = new URLSearchParams(window.location.search).get("c");
-      if (c) {
-        c = c.trim().toLowerCase();
-        if (Object.prototype.hasOwnProperty.call(CAMPANAS, c)) ct = CAMPANAS[c];
-      }
+      var qs = new URLSearchParams(window.location.search);
+      var desdeUtm = (qs.get("utm_source") || "").trim().toLowerCase() === "meta"
+        ? campana(qs.get("utm_content"))
+        : null;
+      ct = campana(qs.get("c")) || desdeUtm || CT_POR_DEFECTO;
     } catch (e) {
       // Navegador sin URLSearchParams: queda el ct organico, nunca sin link.
     }
@@ -355,8 +373,26 @@
     if (desktopCta) desktopCta.setAttribute("href", APP_STORE_URL);
 
     // iOS: redirección automática (con el botón como respaldo si el navegador la bloquea).
+    //
+    // Es el camino por el que se va casi todo el trafico de Meta en iPhone, asi
+    // que se mide como app_store_click con placement "auto_redirect" (no hubo
+    // clic: el filtro por placement lo separa de los botones). A los 900 ms,
+    // como siempre, se manda el evento y se navega apenas GA confirma el envio.
+    // Si GA no responde (bloqueador, red lenta) se navega igual a los 600 ms:
+    // en el peor caso el salto pasa de 0,9 s a 1,5 s, nunca queda trabado.
     if (isIOS) {
-      setTimeout(function () { window.location.href = APP_STORE_URL; }, 900);
+      var redireccion = setTimeout(function () {
+        function irALaTienda() { window.location.href = APP_STORE_URL; }
+        if (window.auraAnalytics) {
+          window.auraAnalytics.appStoreClick(
+            APP_STORE_URL, "redireccion automatica", "auto_redirect", irALaTienda, 600);
+        } else {
+          irALaTienda();
+        }
+      }, 900);
+      // Si toca el boton antes, ese clic ya es SU app_store_click ("hero"):
+      // sin esto salian dos eventos para una sola ida a la tienda.
+      if (iosCta) iosCta.addEventListener("click", function () { clearTimeout(redireccion); });
     }
 
     // Android: lista de espera -> Supabase (insert anónimo en public.lista_espera_android; RLS insert-only).
@@ -430,7 +466,7 @@
     <div class="aura-footer__brand">AURA.</div>
     <nav class="aura-footer__links" aria-label="Enlaces de Aura">
       <a href="https://www.instagram.com/somosaura.app" target="_blank" rel="noopener">Instagram</a>
-      <a href="https://apps.apple.com/app/apple-store/id6764207399?pt=128832642&amp;ct=footer_web&amp;mt=8" target="_blank" rel="noopener">App Store</a>
+      <a href="https://apps.apple.com/app/apple-store/id6764207399?pt=128832642&amp;ct=footer_web&amp;mt=8" target="_blank" rel="noopener" data-placement="footer">App Store</a>
       <a href="https://ar.linkedin.com/company/aura-aurapass" target="_blank" rel="noopener">LinkedIn</a>
       <a href="/support.html">Soporte</a>
       <a href="mailto:aura.hola.app@gmail.com">Contacto</a>
