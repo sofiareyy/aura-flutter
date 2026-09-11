@@ -22,6 +22,7 @@
 | ⬜ | **8 menores de la auditoría fresca** | ninguno urgente · re-medidos el 26/8, los 8 siguen abiertos |
 | 🟢 | **Force-update** (`min_build_ios = 26`) | **ACTIVO a propósito** desde el 29/8 · builds 25 y 26 publicados · **no revertir** |
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia |
+| ✅ | **Google Analytics 4 en la web** | **publicado el 11/9** · `web/aura-analytics.js` · quedan 3 pendientes de la política de privacidad (abajo) |
 
 ### 🟢 FORCE-UPDATE ACTIVO en la 26 — decisión de Sofía (confirmada el 30/8)
 
@@ -714,6 +715,24 @@ quedaron desactualizados en dos días. **Medir siempre contra la base.**
 ---
 
 # ⬜ LO QUE QUEDA
+
+## ⬜ Política de privacidad — 3 pendientes (anotados el 11/9, NO urgentes)
+
+El 11/9 se sumó Google Analytics a `web/privacy.html` junto con GA4. Quedaron
+tres cosas para después, por decisión de Sofía:
+
+1. **Sumar Sentry.** Recibe los reportes de errores de la app y la política
+   no lo nombra en "Compartir información".
+2. **Unificar el mail de contacto.** La política dice `hola@somosaura.app`;
+   el footer de todas las páginas estáticas dice `aura.hola.app@gmail.com`.
+   Elegir uno y cambiarlo en TODAS las páginas (no hay includes).
+3. **Revisión legal** de la política completa cuando haya contadora/abogado.
+
+Ojo al tocarla: la frase "No le enviamos tu nombre, tu correo…" a Google es
+cierta porque la recolección de datos proporcionados por usuarios de GA no
+manda el mail de la lista de espera (medido el 11/9). Si se prende esa opción
+en GA, hay que corregir la frase.
+
 
 ## ✅ Multi-sede — CERRADO. Rock Studio se puede cargar.
 
