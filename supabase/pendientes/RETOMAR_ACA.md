@@ -759,10 +759,10 @@ rastro en 9 ejes.
 ### Lo que falta para prenderlo
 1. ~~Aplicar la migración~~ — **hecho el 14/9**, apagada.
 2. ~~Deployar `bono-email` y probarla~~ — **hecho el 14/9** con `test_email`.
-3. **Agregar el SPF** a `somosaurapass.com` — lo pega Sofía en el DNS:
-   `v=spf1 include:_spf.resend.com ~all`. NO bloquea (el DKIM de Resend firma y
-   DMARC está en `p=none`), pero mejora la entregabilidad antes de mandar 15
-   mails juntos.
+3. ~~Agregar el SPF a `somosaurapass.com`~~ — **hecho el 14/9**: Sofía lo pegó
+   en Namecheap (`v=spf1 include:_spf.resend.com ~all`) y se verificó en el
+   autoritativo, en 8.8.8.8 y en 1.1.1.1. El DKIM de Resend y el SPF de
+   `send.somosaurapass.com` quedaron intactos.
 4. El test de Android y la verificación de mail: la condición que puso Sofía.
 5. Prender desde Admin → Config — ojo, **el Dart vive en la rama
    `feature/bono-bienvenida`, sin mergear**: hasta que se mergee, la card no

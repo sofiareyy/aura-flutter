@@ -45,7 +45,14 @@ Dos salidas:
 - **Ponerle MX a `somosaurapass.com`** (por ejemplo el mismo ImprovMX) para que
   la dirección remitente también reciba. Deja todo bajo un solo dominio.
 
-### 2. Falta el SPF de `somosaurapass.com`
+### 2. ~~Falta el SPF~~ — RESUELTO el 14/9/2026
+
+> Puesto en Namecheap el 14/9/2026 y verificado en el servidor autoritativo,
+> en 8.8.8.8 y en 1.1.1.1: `v=spf1 include:_spf.resend.com ~all` (TTL 1799).
+> El DKIM de Resend en la raíz y el SPF de `send.somosaurapass.com` siguen
+> intactos. Queda pendiente sólo el punto 1 (nadie puede responder los mails).
+
+El texto original de la nota, del 21/8:
 
 El dominio **no tiene ningún registro TXT** más allá del DKIM. Resend manda
 desde ahí y el DKIM autentica, así que con DMARC en `p=none` los mails no se
