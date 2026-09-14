@@ -23,7 +23,7 @@
 | 🟢 | **Force-update** (`min_build_ios = 26`) | **ACTIVO a propósito** desde el 29/8 · builds 25 y 26 publicados · **no revertir** |
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia |
 | ✅ | **Google Analytics 4 en la web** | **publicado el 11/9** · `web/aura-analytics.js` · quedan 3 pendientes de la política de privacidad (abajo) |
-| 🟡 | **Bono de bienvenida** | **armado y APAGADO el 14/9** · migración escrita y probada con rollback, NO aplicada · ver abajo |
+| 🟡 | **Bono de bienvenida** | **armado y APAGADO el 14/9** · migración APLICADA y `bono-email` deployada, todo en OFF · el Dart sin mergear · ver abajo |
 
 ### 🟢 FORCE-UPDATE ACTIVO en la 26 — decisión de Sofía (confirmada el 30/8)
 
@@ -728,13 +728,16 @@ cuentas nuevas (se acreditan solas al registrarse, por trigger).
 después del test de Android y de activar la verificación de mail.
 
 ### Qué hay y dónde
-- `supabase/migrations/20260914120000_bono_bienvenida_apagado.sql` — **escrita
-  y probada, NO aplicada.** Tabla `bono_otorgado`, flags en
-  `configuracion_global`, `acreditar_bono`, trigger de alta, los RPC de admin
-  y `admin_bono_metricas`.
-- `supabase/functions/bono-email/` — mail por Resend. **Sin deployar.**
-  Declarada en `config.toml` con `verify_jwt = true`. Acepta
-  `{"test_email": "..."}` para probar la plantilla sin tocar a nadie.
+- `supabase/migrations/20260914120000_bono_bienvenida_apagado.sql` — **APLICADA
+  el 14/9.** Tabla `bono_otorgado`, flags en `configuracion_global`,
+  `acreditar_bono`, el trigger `trg_bono_alta_usuaria` (activo pero inerte con
+  el flag en false), los RPC de admin y `admin_bono_metricas`. Verificado
+  después de aplicar: `bono_esta_activo()` = false, 0 otorgados, 0 créditos,
+  0 avisos, cola de mails vacía.
+- `supabase/functions/bono-email/` — mail por Resend. **DEPLOYADA el 14/9** y
+  probada con `test_email` a aura.hola.app@gmail.com: HTTP 200, `enviados: 1`.
+  Declarada en `config.toml` con `verify_jwt = true`. Ningún mail salió a
+  usuarias.
 - Dart: card en Admin → Config, cartel en el Inicio (`lib/utils/bono_cartel.dart`,
   13 tests) y los métodos en `admin_service.dart`.
 
@@ -754,13 +757,18 @@ la métrica detecta un uso simulado. Verificado después que el rollback no dej�
 rastro en 9 ejes.
 
 ### Lo que falta para prenderlo
-1. Aplicar la migración (queda apagada igual).
-2. Deployar `bono-email` y probarla con `test_email`.
-3. **Agregar el SPF** a `somosaurapass.com` (ver abajo): hoy no tiene TXT en la
-   raíz. Sin eso, 15 mails de golpe tienen más chance de caer en spam.
-4. Prender desde Admin → Config y recién ahí tocar "Otorgar a las ya
-   registradas".
-5. Opcional: agendar los recordatorios con
+1. ~~Aplicar la migración~~ — **hecho el 14/9**, apagada.
+2. ~~Deployar `bono-email` y probarla~~ — **hecho el 14/9** con `test_email`.
+3. **Agregar el SPF** a `somosaurapass.com` — lo pega Sofía en el DNS:
+   `v=spf1 include:_spf.resend.com ~all`. NO bloquea (el DKIM de Resend firma y
+   DMARC está en `p=none`), pero mejora la entregabilidad antes de mandar 15
+   mails juntos.
+4. El test de Android y la verificación de mail: la condición que puso Sofía.
+5. Prender desde Admin → Config — ojo, **el Dart vive en la rama
+   `feature/bono-bienvenida`, sin mergear**: hasta que se mergee, la card no
+   está en el backoffice.
+6. Recién ahí, "Otorgar a las ya registradas".
+7. Opcional: agendar los recordatorios con
    `select cron.schedule('bono-recordatorios', '0 14 * * *', $cron$ select public.bono_recordatorios(); $cron$);`
    La función existe; **no hay ningún cron creado**.
 
