@@ -479,3 +479,14 @@ entrypoint = "./functions/push-enviar/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/cancelacion-email/index.ts"
+
+# Mail del bono de bienvenida. La dispara `acreditar_bono` (y los
+# recordatorios) por pg_net con el anon key en Authorization +
+# `x-notif-secret`, igual que cancelacion-email: verify_jwt = true y la
+# autorizacion real la hace el secreto adentro. Declarada desde el dia 1 para
+# que un `functions deploy` no le cambie el valor en silencio.
+# Acepta {"test_email": "..."} para probar la plantilla sin tocar a nadie.
+[functions.bono-email]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/bono-email/index.ts"

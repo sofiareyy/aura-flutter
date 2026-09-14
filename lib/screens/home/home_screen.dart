@@ -17,6 +17,7 @@ import '../../services/location_service.dart';
 import '../../services/notificaciones_service.dart';
 import '../../services/reservas_service.dart';
 import '../../services/studio_geo_service.dart';
+import '../../utils/bono_cartel.dart';
 import '../../utils/categorias_con_oferta.dart';
 import '../../utils/volver_a_tus_estudios.dart';
 import '../../utils/grilla_responsive.dart';
@@ -102,6 +103,70 @@ class _HomeScreenState extends State<HomeScreen> {
     _cargar();
     _checkBannerDismissed();
     _restaurarUbicacionSiPermitida();
+    _maybeMostrarBono();
+  }
+
+  /// Cartel del bono de bienvenida: la primera vez que abre el home teniendo
+  /// créditos de regalo sin usar.
+  ///
+  /// Sin esto el bono no existe: ya pasó (medido el 14/9/2026) que de 11
+  /// regalos manuales de créditos, 4 quedaron intactos porque nadie se
+  /// enteró. La campanita y el mail avisan afuera; esto es lo que lo pone
+  /// adelante de los ojos de quien sí entró.
+  ///
+  /// El flag se guarda POR CUENTA, no por dispositivo: si se comparte el
+  /// teléfono, la segunda persona también tiene que ver el suyo.
+  Future<void> _maybeMostrarBono() async {
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid == null) return; // invitada: no tiene bono
+      final prefs = await SharedPreferences.getInstance();
+      final clave = 'bono_cartel_visto_$uid';
+      if (prefs.getBool(clave) == true) return;
+
+      final res = await Supabase.instance.client.rpc('mi_bono');
+      final bono = BonoCartel.leer(res);
+      if (bono == null) return; // sin bono, ya usado o vencido
+      final restante = bono.restante;
+      final vence = bono.venceEl;
+
+      await prefs.setBool(clave, true);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          // Token, no un número a mano: el Inicio tiene un test que falla si
+          // aparece un radio crudo nuevo (fue la auditoría de diseño del 4/9).
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+          ),
+          title: Text('🧡 Tenés $restante créditos de regalo'),
+          content: Text(
+            vence == null
+                ? 'Ya están en tu cuenta y alcanzan para una clase. '
+                    'Elegí el estudio que quieras y reservá tu lugar.'
+                : 'Ya están en tu cuenta y alcanzan para una clase. '
+                    'Podés usarlos hasta el ${DateFormat('d/M').format(vence)}.',
+            style: const TextStyle(height: 1.45),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Después'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                context.go('/explorar');
+              },
+              child: const Text('Ver clases'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      // Nunca romper el home por el cartel.
+    }
   }
 
   Future<void> _checkBannerDismissed() async {

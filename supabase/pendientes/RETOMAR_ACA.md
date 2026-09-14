@@ -23,6 +23,7 @@
 | 🟢 | **Force-update** (`min_build_ios = 26`) | **ACTIVO a propósito** desde el 29/8 · builds 25 y 26 publicados · **no revertir** |
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia |
 | ✅ | **Google Analytics 4 en la web** | **publicado el 11/9** · `web/aura-analytics.js` · quedan 3 pendientes de la política de privacidad (abajo) |
+| 🟡 | **Bono de bienvenida** | **armado y APAGADO el 14/9** · migración escrita y probada con rollback, NO aplicada · ver abajo |
 
 ### 🟢 FORCE-UPDATE ACTIVO en la 26 — decisión de Sofía (confirmada el 30/8)
 
@@ -715,6 +716,62 @@ quedaron desactualizados en dos días. **Medir siempre contra la base.**
 ---
 
 # ⬜ LO QUE QUEDA
+
+## 🟡 Bono de bienvenida — ARMADO Y APAGADO (14/9)
+
+16 créditos por cuenta, una sola vez, que vencen a los 60 días. **Dos grupos
+con topes separados y medidos aparte**: 15 cuentas ya registradas que nunca
+compraron un pack (se otorgan a mano, arrancando por las más activas) y 15
+cuentas nuevas (se acreditan solas al registrarse, por trigger).
+
+**Nada de esto corre hoy: el flag `bono_activo` está en false.** Se prende
+después del test de Android y de activar la verificación de mail.
+
+### Qué hay y dónde
+- `supabase/migrations/20260914120000_bono_bienvenida_apagado.sql` — **escrita
+  y probada, NO aplicada.** Tabla `bono_otorgado`, flags en
+  `configuracion_global`, `acreditar_bono`, trigger de alta, los RPC de admin
+  y `admin_bono_metricas`.
+- `supabase/functions/bono-email/` — mail por Resend. **Sin deployar.**
+  Declarada en `config.toml` con `verify_jwt = true`. Acepta
+  `{"test_email": "..."}` para probar la plantilla sin tocar a nadie.
+- Dart: card en Admin → Config, cartel en el Inicio (`lib/utils/bono_cartel.dart`,
+  13 tests) y los métodos en `admin_service.dart`.
+
+### Cómo se mide (lo que se pidió)
+Por grupo: cuántas lo recibieron, cuántas lo **usaron en una clase** y cuántas
+**compraron un pack después**. El uso sale del rastro real:
+`reservas.creditos_lotes` guarda de qué lote salió cada crédito, así que se
+sabe qué clase se pagó con el bono. Las canceladas no cuentan (devuelven los
+créditos). Ojo: `amount_remaining` NO sirve para saber si se usó o si venció,
+porque al vencer un lote el refresh lo pone en 0; por eso lo consumido se suma
+desde las reservas.
+
+### Probado el 14/9 contra producción (`begin … rollback`, 16 pasos)
+Apagado no regala nada; sin admin lo rechaza; otorga exactamente 15 con
+vencimiento correcto; repetirlo no duplica; ningún comprador de packs se cuela;
+la métrica detecta un uso simulado. Verificado después que el rollback no dejó
+rastro en 9 ejes.
+
+### Lo que falta para prenderlo
+1. Aplicar la migración (queda apagada igual).
+2. Deployar `bono-email` y probarla con `test_email`.
+3. **Agregar el SPF** a `somosaurapass.com` (ver abajo): hoy no tiene TXT en la
+   raíz. Sin eso, 15 mails de golpe tienen más chance de caer en spam.
+4. Prender desde Admin → Config y recién ahí tocar "Otorgar a las ya
+   registradas".
+5. Opcional: agendar los recordatorios con
+   `select cron.schedule('bono-recordatorios', '0 14 * * *', $cron$ select public.bono_recordatorios(); $cron$);`
+   La función existe; **no hay ningún cron creado**.
+
+### Por qué el aviso es la mitad del trabajo
+Medido el 14/9: de 11 regalos manuales de créditos, **4 quedaron intactos**.
+Y el alcance de cada canal es desparejo: la campanita llega a quien abre la
+app, el push sólo a **13 de las 79** (iPhone con la app instalada; Android no
+está publicado) y el mail a las 82. Por eso avisa por los tres a la vez.
+`usuarios.notifs_promos` está en **false para las 82** (es el default y nunca
+se ofreció) y **ningún código lo lee**: el bono se trata como aviso
+transaccional, no promocional — son créditos que ya están en la cuenta.
 
 ## ⬜ Política de privacidad — 3 pendientes (anotados el 11/9, NO urgentes)
 
