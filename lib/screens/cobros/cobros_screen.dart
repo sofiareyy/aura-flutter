@@ -628,6 +628,20 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                                     fontSize: 13,
                                                   ),
                                                 ),
+                                                if (item['_correccion'] != null)
+                                                  Padding(
+                                                    padding: const EdgeInsets
+                                                        .only(top: 2),
+                                                    child: Text(
+                                                      item['_correccion']
+                                                          as String,
+                                                      style: const TextStyle(
+                                                        color: Color(0xFF8F877F),
+                                                        fontSize: 11,
+                                                        height: 1.3,
+                                                      ),
+                                                    ),
+                                                  ),
                                               ],
                                             ),
                                           ),
@@ -1262,14 +1276,14 @@ class _CobrosScreenState extends State<CobrosScreen> {
         DateTime.now().month - 5 + index,
         1,
       );
+      // Por mes de la CLASE, en calendario argentino (16/9): el quinto
+      // lugar que agrupaba por created_at con el mes del dispositivo.
+      final mes = mesArgentinoDe(date);
       final total = _reservasNoCanceladas
           .where((reserva) {
-            final created = DateTime.tryParse(
-              reserva['created_at']?.toString() ?? '',
-            );
-            return created != null &&
-                created.year == date.year &&
-                created.month == date.month;
+            final dt = Liquidacion.fechaDeClase(reserva) ??
+                DateTime.tryParse(reserva['created_at']?.toString() ?? '');
+            return dt != null && mesArgentinoDe(dt) == mes;
           })
           .fold<int>(0, (acc, reserva) => acc + _montoReserva(reserva));
       return {'date': date, 'total': total};

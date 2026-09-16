@@ -27,6 +27,40 @@ class Liquidacion {
   /// Comisión de workshops por defecto. También configurable por estudio.
   static const double comisionWorkshopDefault = 15;
 
+  /// Lo efectivamente pagado de una liquidación: `monto_a_pagar` más la
+  /// suma de sus asientos de corrección (`liquidaciones_correcciones`,
+  /// 16/9/2026). La fila de la liquidación nunca se toca; si se pagó otra
+  /// cosa, queda en un asiento aparte con motivo y firma.
+  static int montoPagadoEfectivo(Map<String, dynamic> liquidacion) {
+    final base = (liquidacion['monto_a_pagar'] as num?)?.toInt() ?? 0;
+    return base + correccionesDe(liquidacion).fold<int>(
+        0, (acc, c) => acc + ((c['diferencia'] as num?)?.toInt() ?? 0));
+  }
+
+  /// Los asientos de corrección de una liquidación, más viejo primero.
+  static List<Map<String, dynamic>> correccionesDe(
+      Map<String, dynamic> liquidacion) {
+    final raw = liquidacion['liquidaciones_correcciones'];
+    if (raw is! List) return const [];
+    final lista = raw
+        .whereType<Map>()
+        .map((c) => Map<String, dynamic>.from(c))
+        .toList()
+      ..sort((a, b) => (a['created_at']?.toString() ?? '')
+          .compareTo(b['created_at']?.toString() ?? ''));
+    return lista;
+  }
+
+  /// La comisión que rige después de las correcciones: la del último asiento
+  /// si lo hay, si no la sellada en la fila. `null` si no hay ninguna.
+  static double? comisionEfectivaSellada(Map<String, dynamic> liquidacion) {
+    final correcciones = correccionesDe(liquidacion);
+    final ultima = correcciones.isEmpty ? null : correcciones.last;
+    final raw = ultima?['comision_real'] ?? liquidacion['comision_aplicada'];
+    if (raw == null) return null;
+    return double.tryParse(raw.toString());
+  }
+
   /// La fecha de la clase de una reserva, si viene adjunta. Los servicios la
   /// pegan como `_clase_fecha` (igual que `_clase_tipo`); el backoffice la
   /// trae del embed de `clases`.

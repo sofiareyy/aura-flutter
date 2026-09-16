@@ -26,9 +26,11 @@ Map<String, dynamic> filaLiquidacion({
   if (pagada) {
     final total =
         (liquidacion!['monto_total_reservas'] as num?)?.toInt() ?? 0;
-    final pagar = (liquidacion['monto_a_pagar'] as num?)?.toInt() ?? 0;
-    final sellada = double.tryParse(
-        liquidacion['comision_aplicada']?.toString() ?? '');
+    // Lo EFECTIVAMENTE pagado: la fila más sus asientos de corrección. La
+    // fila no se toca nunca; si se pagó otra cosa, hay un asiento con motivo.
+    final pagar = Liquidacion.montoPagadoEfectivo(liquidacion);
+    final sellada = Liquidacion.comisionEfectivaSellada(liquidacion);
+    final correcciones = Liquidacion.correccionesDe(liquidacion);
     return {
       'estudio_id': estudioId,
       'nombre': nombre,
@@ -46,6 +48,9 @@ Map<String, dynamic> filaLiquidacion({
       'comprobante_nota': liquidacion['comprobante_nota'],
       'liquidacion_id': liquidacion['id'],
       'sellada': true,
+      'correcciones': correcciones.length,
+      if (correcciones.isNotEmpty)
+        'correccion_motivo': correcciones.last['motivo']?.toString(),
     };
   }
 

@@ -22,6 +22,13 @@ import 'liquidacion.dart';
 import 'mes_argentino.dart';
 
 const kEstadoPagado = 'Pagado';
+
+String _fechaCorta(Object? iso) {
+  final d = DateTime.tryParse(iso?.toString() ?? '');
+  if (d == null) return '';
+  final art = d.toUtc().subtract(const Duration(hours: 3));
+  return '${art.day}/${art.month}';
+}
 const kEstadoACobrar = 'A cobrar el 5';
 const kEstadoEnCurso = 'En curso';
 
@@ -89,20 +96,32 @@ List<Map<String, dynamic>> armarHistorialCobros({
     final fila = porMes.putIfAbsent(mes, () => filaVacia(primerDia));
     final pagada = l['estado']?.toString() == 'pagado';
     fila['reservas'] = (l['cantidad_reservas'] as num?)?.toInt() ?? 0;
-    fila['monto'] = (l['monto_a_pagar'] as num?)?.toInt() ?? 0;
+    // Lo EFECTIVAMENTE pagado: la fila más sus asientos de corrección
+    // (16/9). Agosto de Citra: la fila dice $37.800 por el bug de la gracia,
+    // el asiento dice que se transfirieron $54.000, y eso es lo que se ve.
+    final monto = pagada
+        ? Liquidacion.montoPagadoEfectivo(l)
+        : (l['monto_a_pagar'] as num?)?.toInt() ?? 0;
+    fila['monto'] = monto;
     fila['estado'] = pagada ? kEstadoPagado : kEstadoACobrar;
-    // La comisión SELLADA, para mostrarla junto al mes pagado. Es la
-    // constancia de con qué porcentaje se cobró, aunque hoy rija otro.
-    // El monto sellado viaja aparte: el detalle lo usa como total para no
+    // La comisión SELLADA (o la del último asiento), para mostrarla junto al
+    // mes pagado. Es la constancia de con qué porcentaje se cobró, aunque hoy
+    // rija otro. El monto viaja aparte: el detalle lo usa como total para no
     // mostrar un número distinto del que dice esta fila.
-    if (pagada) fila['_sellado'] = (l['monto_a_pagar'] as num?)?.toInt();
-    if (pagada && l['comision_aplicada'] != null) {
-      final c = double.tryParse(l['comision_aplicada'].toString());
-      if (c != null) {
-        fila['comision'] = c.truncateToDouble() == c
-            ? '${c.toInt()}%'
-            : '${c.toStringAsFixed(1)}%';
-      }
+    if (pagada) fila['_sellado'] = monto;
+    final c = pagada ? Liquidacion.comisionEfectivaSellada(l) : null;
+    if (c != null) {
+      fila['comision'] = c.truncateToDouble() == c
+          ? '${c.toInt()}%'
+          : '${c.toStringAsFixed(1)}%';
+    }
+    // Y la nota, para que el estudio sepa que hubo un asiento y por qué.
+    final correcciones = pagada ? Liquidacion.correccionesDe(l) : const [];
+    if (correcciones.isNotEmpty) {
+      final ultima = correcciones.last;
+      fila['_correccion'] =
+          'Corregido el ${_fechaCorta(ultima['created_at'])}: '
+          '${ultima['motivo'] ?? ''}';
     }
   }
 

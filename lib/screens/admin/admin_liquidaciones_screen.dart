@@ -150,9 +150,11 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
     final estudiosData = DatosCobro.aplanarLista(estudiosRaw as List);
 
     // 3. Traer liquidaciones ya registradas para este mes
+    // Con sus asientos de corrección (16/9): una liquidación pagada puede
+    // tener correcciones aparte, que no tocan la fila. Ver filaLiquidacion.
     final liquidaciones = await _client
         .from('liquidaciones')
-        .select()
+        .select('*, liquidaciones_correcciones(*)')
         .eq('mes', mes);
 
     // 4. Índice de estudios (trae comisión, valor_credito, fecha_inicio_cobro)

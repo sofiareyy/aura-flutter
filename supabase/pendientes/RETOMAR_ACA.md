@@ -23,7 +23,7 @@
 | 🟢 | **Force-update** (`min_build_ios = 26`) | **ACTIVO a propósito** desde el 29/8 · builds 25 y 26 publicados · **no revertir** |
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia |
 | ✅ | **Google Analytics 4 en la web** | **publicado el 11/9** · `web/aura-analytics.js` · quedan 3 pendientes de la política de privacidad (abajo) |
-| 🔴 | **BUG DE PLATA: la gracia se aplicaba hacia atrás** | **fix listo el 16/9 en `fix/gracia-fecha-clase`, sin mergear** · migración del sellado sin aplicar · $21.600 de Citra (16.200 ya sellados) · ver abajo |
+| ✅ | **BUG DE PLATA: la gracia se aplicaba hacia atrás** | **CERRADO el 16/9**: fix en producción (web `5afbc06`), sellado corregido, edge functions deployadas, agosto de Citra corregido con asiento auditado ($54.000) · ver abajo |
 
 ### 🟢 FORCE-UPDATE ACTIVO en la 26 — decisión de Sofía (confirmada el 30/8)
 
@@ -717,7 +717,7 @@ quedaron desactualizados en dos días. **Medir siempre contra la base.**
 
 # ⬜ LO QUE QUEDA
 
-## 🔴 La gracia se aplicaba hacia atrás — FIX LISTO (16/9), sin mergear
+## ✅ La gracia se aplicaba hacia atrás — CERRADO el 16/9
 
 **Qué pasaba.** Nadie comparaba la fecha de la clase contra
 `fecha_inicio_cobro`: `Liquidacion.cobraComision` usaba HOY, el espejo TS
@@ -759,14 +759,33 @@ con gracia.
 - Tests: `liquidacion_gracia_test` (12), `fila_liquidacion_test` (5),
   `historial_cobros_test` (+1). 539 en total.
 
-**Lo que queda:**
-1. Mergear la rama y aplicar la migración del sellado — ANTES del 20/9 (BB).
-2. Deployar `aviso-cobro-manana` y `reporte-mensual-estudios` (paridad TS).
-3. Corregir agosto de Citra de forma auditada: la fila está sellada y el guard
-   no la deja tocar. Propuesta en la conversación del 16/9; sin construir.
-4. `_VosRecibis` y los previews de workshop en `mis_clases_screen` siguen
-   usando hoy: son vistas previas, no plata. Pasarles la fecha de la clase
-   del form es una mejora menor.
+**Hecho el 16/9, todo verificado:**
+1. ~~Mergear y aplicar la migración del sellado~~ — mergeado a `main`, web
+   publicada (gh-pages `deploy: 5afbc06`), migración aplicada (la función
+   viva deriva el % de los montos y no mira `fecha_pago`).
+2. ~~Deployar las edge functions~~ — `aviso-cobro-manana` y
+   `reporte-mensual-estudios` deployadas (sus crons siguen apagados).
+3. ~~Agosto de Citra~~ — **asiento de corrección**, opción A ajustada: a Citra
+   ya se le habían transferido los $54.000 correctos, así que el asiento no
+   genera pago pendiente; deja registrado que lo pagado fue $54.000 y que la
+   fila ($37.800) quedó mal por el bug. Tabla `liquidaciones_correcciones`
+   (inmutable, RLS igual que `liquidaciones`, sólo escribe el RPC
+   `admin_corregir_liquidacion_pagada`, que exige admin + motivo y loguea en
+   `admin_activity_logs`). La fila original y el guard quedaron intactos.
+   Asiento `d36b4a66…`, diferencia +16.200, firmado con el admin de Sofía y
+   ejecutado por Claude vía Management API a su pedido (dice eso en el
+   motivo). Cobros del estudio y backoffice muestran fila + asientos
+   (`Liquidacion.montoPagadoEfectivo`). Migración
+   `20260916130000_liquidaciones_correcciones.sql`, 12 casos con rollback.
+
+**Queda (menor):**
+- `_VosRecibis` y los previews de workshop en `mis_clases_screen` siguen
+  usando hoy: son vistas previas, no plata. Pasarles la fecha de la clase
+  del form es una mejora menor.
+- La nota del asiento ("Corregido el 16/9: …") se ve en la vista de tarjetas
+  del historial de Cobros; la vista en tabla muestra el monto corregido pero
+  no la nota. El backoffice tampoco muestra el motivo (sí el monto). No hay
+  UI para crear asientos: se hace por RPC.
 
 ## ⬜ Política de privacidad — 3 pendientes (anotados el 11/9, NO urgentes)
 

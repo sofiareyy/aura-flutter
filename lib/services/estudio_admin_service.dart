@@ -122,9 +122,11 @@ class EstudioAdminService {
   Future<List<Map<String, dynamic>>> getLiquidacionesDeEstudio() async {
     final estudioId = await getCurrentStudioId();
     if (estudioId == null) return [];
+    // Con sus asientos de corrección (16/9): lo pagado real es la fila más
+    // las correcciones. Ver armarHistorialCobros.
     final rows = await _client
         .from('liquidaciones')
-        .select()
+        .select('*, liquidaciones_correcciones(*)')
         .eq('estudio_id', estudioId)
         .order('mes', ascending: false);
     return List<Map<String, dynamic>>.from(rows as List);

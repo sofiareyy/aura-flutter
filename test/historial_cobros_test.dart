@@ -215,4 +215,36 @@ void main() {
         reason: 'clase antes del 13/9: gracia, aunque hoy sea el 16/9');
     expect(filas.single['estado'], kEstadoEnCurso);
   });
+
+  test('EL ASIENTO DE CORRECCIÓN (16/9): Citra ve \$54.000, no los \$37.800 de la fila',
+      () {
+    final liqCitraAgosto = {
+      'mes': '2026-08',
+      'estado': 'pagado',
+      'monto_a_pagar': 37800,
+      'monto_total_reservas': 54000,
+      'cantidad_reservas': 3,
+      'comision_aplicada': '30',
+      'liquidaciones_correcciones': [
+        {
+          'diferencia': 16200,
+          'comision_real': '0.00',
+          'motivo': 'Bug de la gracia retroactiva',
+          'created_at': '2026-09-16T18:00:00Z',
+        },
+      ],
+    };
+    final filas = armarHistorialCobros(
+      reservas: const [],
+      liquidaciones: [liqCitraAgosto],
+      estudio: estudio(),
+      ahora: DateTime(2026, 9, 16),
+    );
+    final agosto = filas.single;
+    expect(agosto['monto'], 54000);
+    expect(agosto['_sellado'], 54000, reason: 'el detalle usa el mismo total');
+    expect(agosto['comision'], '0%');
+    expect(agosto['estado'], kEstadoPagado);
+    expect(agosto['_correccion'], contains('Corregido el 16/9'));
+  });
 }

@@ -118,4 +118,34 @@ void main() {
     expect(fila['monto_pagar'], 18000);
     expect(fila['estado'], 'pendiente');
   });
+
+  test('un ASIENTO DE CORRECCIÓN suma sobre lo sellado, sin tocar la fila', () {
+    // El asiento real del 16/9: la fila dice $37.800, se transfirieron $54.000.
+    final fila = filaLiquidacion(
+      estudioId: 4,
+      nombre: 'Citra Barre',
+      mes: '2026-08',
+      reservas: const [],
+      estudio: citra,
+      liquidacion: {
+        ...agostoSellado,
+        'liquidaciones_correcciones': [
+          {
+            'monto_registrado': 37800,
+            'monto_real': 54000,
+            'diferencia': 16200,
+            'comision_registrada': '30.00',
+            'comision_real': '0.00',
+            'motivo': 'Bug de la gracia retroactiva',
+            'created_at': '2026-09-16T18:00:00Z',
+          },
+        ],
+      },
+    );
+    expect(fila['monto_pagar'], 54000, reason: 'lo efectivamente pagado');
+    expect(fila['comision_pct'], 0.0, reason: 'la del asiento, no la sellada');
+    expect(fila['correcciones'], 1);
+    expect(fila['correccion_motivo'], contains('gracia'));
+    expect(fila['estado'], 'pagado');
+  });
 }
