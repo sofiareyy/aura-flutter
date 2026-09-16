@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import '../../utils/compartir.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/aura_tokens.dart';
@@ -299,12 +300,12 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
             child: ElevatedButton.icon(
               onPressed: _referidosCount >= _maxReferidos
                   ? null
-                  : () {
-                      Share.share(
-                        'Te invito a Aura. Usá mi código $_codigoPropio cuando crees tu cuenta y activamos créditos para los dos.',
-                        subject: 'Tu invitación a Aura',
-                      );
-                    },
+                  : () => compartirOCopiar(
+                      context,
+                      'Te invito a Aura. Usá mi código $_codigoPropio cuando '
+                      'crees tu cuenta y activamos créditos para los dos.',
+                      avisoCopiado: 'Invitación copiada: pegala donde quieras 🧡',
+                    ),
               icon: const Icon(Icons.share_rounded),
               label: const Text('Compartir código'),
             ),

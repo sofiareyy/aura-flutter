@@ -1,13 +1,12 @@
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_constants.dart';
+import '../../utils/compartir.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/aura_tokens.dart';
 import '../../widgets/texto_expandible.dart';
@@ -499,6 +498,35 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
   /// de la otra persona: nadie se la sabe de memoria y era uno a uno. Esto
   /// abre el compartir nativo del teléfono, así el link se puede pegar en una
   /// historia, un grupo de WhatsApp o donde sea.
+  /// La dirección que se le muestra a la alumna: la del workshop si la tiene
+  /// (columna propia de `clases`), si no la del estudio. `null` si no hay
+  /// ninguna, y ahí el bloque "Dónde" no se dibuja.
+  static String? _direccionParaMapa(Map<String, dynamic> clase) {
+    final propia = clase['direccion']?.toString().trim() ?? '';
+    if (propia.isNotEmpty) return propia;
+    final estudio = clase['estudios'] as Map<String, dynamic>?;
+    final delEstudio = estudio?['direccion']?.toString().trim() ?? '';
+    return delEstudio.isEmpty ? null : delEstudio;
+  }
+
+  /// Abre el mapa y avisa si no se pudo. Antes el toque quedaba en silencio
+  /// absoluto cuando `launchUrl` fallaba (por ejemplo, popup bloqueado).
+  Future<void> _abrirMapaDeClase(
+    BuildContext context,
+    Map<String, dynamic> clase,
+  ) async {
+    final estudio = clase['estudios'] as Map<String, dynamic>?;
+    final ok = await abrirMapa(
+      direccion: _direccionParaMapa(clase),
+      lat: (estudio?['lat'] as num?)?.toDouble(),
+      lng: (estudio?['lng'] as num?)?.toDouble(),
+    );
+    if (ok || !context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('No se pudo abrir el mapa.')),
+    );
+  }
+
   Future<void> _compartirClase() async {
     final clase = _clase;
     if (clase == null) return;
@@ -509,28 +537,21 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
         .trim();
     final fecha = DateTime.tryParse(clase['fecha']?.toString() ?? '');
 
-    final partes = <String>[
-      estudio != null && estudio.isNotEmpty ? '$nombre en $estudio' : nombre,
-      if (fecha != null)
-        DateFormat("EEEE d 'de' MMMM 'a las' HH:mm", 'es').format(fecha),
-      'Reservá en Aura 🧡',
-      AppConstants.linkDeClase(widget.claseId),
-    ];
+    final texto = textoCompartirClase(
+      nombre: nombre,
+      estudio: estudio,
+      cuando: fecha == null
+          ? null
+          : DateFormat("EEEE d 'de' MMMM 'a las' HH:mm", 'es').format(fecha),
+      link: AppConstants.linkDeClase(widget.claseId),
+    );
 
-    final texto = partes.join('\n');
-    // Web Share API no existe en todos lados (Safari viejo, Chrome en Linux,
-    // y NUNCA en http://localhost) y share_plus LANZA cuando falta: el botón
-    // quedaba mudo. Fallback: copiar al portapapeles con aviso — nadie se va
-    // sin el link.
-    try {
-      await Share.share(texto);
-    } catch (_) {
-      await Clipboard.setData(ClipboardData(text: texto));
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Link copiado: pegalo donde quieras 🧡')),
-      );
-    }
+    // Pregunta si se puede compartir ANTES de intentarlo, y si no, copia.
+    // Ver lib/utils/compartir.dart: share_plus NO avisa cuando el navegador
+    // no tiene la Web Share API, así que el catch de antes nunca corría y el
+    // botón quedaba mudo.
+    if (!mounted) return;
+    await compartirOCopiar(context, texto);
   }
 
   @override
@@ -1160,8 +1181,14 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                               const SizedBox(height: 18),
                             ],
                           ),
-                        if ((clase['direccion']?.toString().trim() ?? '')
-                            .isNotEmpty)
+                        // DÓNDE. La columna `direccion` de `clases` es
+                        // exclusiva de los workshops: en una clase normal
+                        // siempre viene vacía, así que este bloque no se
+                        // dibujaba nunca y no había dirección que tocar
+                        // (bug del 16/9). Ahora cae a la dirección del
+                        // ESTUDIO, que ya viaja en `clase['estudios']` y no
+                        // se estaba usando.
+                        if (_direccionParaMapa(clase) != null)
                           Column(
                             children: [
                               _SectionBlock(
@@ -1178,20 +1205,20 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                     // La dirección abre el mapa: nadie quiere
                                     // copiarla a mano para saber cómo llegar.
                                     Expanded(
-                                      child: InkWell(
-                                        onTap: () => abrirMapa(
-                                          direccion: clase['direccion']
-                                              ?.toString(),
-                                        ),
-                                        child: Text(
-                                          clase['direccion'].toString(),
-                                          style: const TextStyle(
-                                            color: AppColors.primary,
-                                            fontSize: AuraTipo.cuerpo,
-                                            height: 1.5,
-                                            decoration:
-                                                TextDecoration.underline,
-                                            decorationColor: AppColors.primary,
+                                      child: Builder(
+                                        builder: (ctx) => InkWell(
+                                          onTap: () => _abrirMapaDeClase(ctx, clase),
+                                          child: Text(
+                                            _direccionParaMapa(clase)!,
+                                            style: const TextStyle(
+                                              color: AppColors.primary,
+                                              fontSize: AuraTipo.cuerpo,
+                                              height: 1.5,
+                                              decoration:
+                                                  TextDecoration.underline,
+                                              decorationColor:
+                                                  AppColors.primary,
+                                            ),
                                           ),
                                         ),
                                       ),

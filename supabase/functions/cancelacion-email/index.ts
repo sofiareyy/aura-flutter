@@ -42,25 +42,59 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
-    const { data: clase } = await admin
-      .from('clases')
-      .select('id, nombre, fecha, tipo, estudio_id')
-      .eq('id', claseId)
-      .maybeSingle()
-    if (!clase) return json({ error: 'Clase no encontrada' }, 404)
+    // 17/9/2026: la RPC manda una FOTO de la clase y de los destinatarios,
+    // tomada antes de tocar nada. Es lo que hace que el mail sobreviva a que
+    // borren la clase: "eliminar clase", "eliminar horario fijo", "eliminar en
+    // lote" y "despublicar" cancelan y borran la fila acto seguido, y esta
+    // función corre DESPUÉS del commit. Sin la foto, acá no había ni clase ni
+    // reservas: 404 y cero mails (medido el 16/9).
+    //
+    // Si no viene la foto (llamada vieja, o a mano para reintentar), se cae al
+    // camino anterior: leer la base. Sirve mientras la clase siga existiendo.
+    const foto = (body?.clase ?? null) as Record<string, unknown> | null
+    const destinatariosFoto = Array.isArray(body?.destinatarios)
+      ? body.destinatarios as Array<Record<string, unknown>>
+      : null
 
-    const { data: estudio } = await admin
-      .from('estudios').select('nombre').eq('id', clase.estudio_id).maybeSingle()
-    const estudioNombre = (estudio?.nombre as string | null)?.trim() || 'el estudio'
+    let clase: Record<string, unknown> | null = null
+    let estudioNombre = 'el estudio'
+
+    if (foto) {
+      clase = {
+        id: claseId,
+        nombre: foto.nombre ?? null,
+        fecha: foto.fecha ?? null,
+        tipo: foto.tipo ?? 'clase',
+      }
+      estudioNombre = (foto.estudio_nombre as string | null)?.trim() || 'el estudio'
+    } else {
+      const { data: c } = await admin
+        .from('clases')
+        .select('id, nombre, fecha, tipo, estudio_id')
+        .eq('id', claseId)
+        .maybeSingle()
+      if (!c) return json({ error: 'Clase no encontrada' }, 404)
+      clase = c
+      const { data: estudio } = await admin
+        .from('estudios').select('nombre').eq('id', c.estudio_id).maybeSingle()
+      estudioNombre = (estudio?.nombre as string | null)?.trim() || 'el estudio'
+    }
+
     const esExperiencia = clase.tipo === 'workshop'
 
     // Las reservas que la cancelación acaba de tumbar. `usuario_id` puede ser
     // NULL: reserva de una cuenta borrada, conservada como evidencia de cobro.
-    const { data: reservas } = await admin
-      .from('reservas')
-      .select('id, usuario_id, creditos_usados')
-      .eq('clase_id', claseId)
-      .eq('estado', 'cancelada_por_estudio')
+    const reservas = destinatariosFoto
+      ? destinatariosFoto.map((d) => ({
+          id: d.reserva_id,
+          usuario_id: d.usuario_id,
+          creditos_usados: d.creditos,
+        }))
+      : (await admin
+          .from('reservas')
+          .select('id, usuario_id, creditos_usados')
+          .eq('clase_id', claseId)
+          .eq('estado', 'cancelada_por_estudio')).data
 
     const { fechaStr, horaStr } = formatearFecha(String(clase.fecha ?? ''))
 

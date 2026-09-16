@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import '../../utils/compartir.dart';
+import '../../utils/mapa_link.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/aura_tokens.dart';
@@ -639,44 +641,59 @@ class _ComoLlegarCard extends StatelessWidget {
                 size: 16,
               ),
               const SizedBox(width: 6),
+              // La dirección abre el mapa (16/9). Antes era texto plano: si
+              // el estudio no tenía coordenadas cargadas —que es el caso de
+              // casi todos— esta tarjeta mostraba la dirección y no ofrecía
+              // ninguna forma de llegar.
               Expanded(
-                child: Text(
-                  hasAddress ? direccion : nombre,
-                  style: const TextStyle(
-                    color: Color(0xFF1A1A1A),
-                    fontSize: AuraTipo.cuerpo,
-                    height: 1.4,
+                child: InkWell(
+                  onTap: () => abrirUrl(
+                    mapaUrl(direccion: hasAddress ? direccion : nombre,
+                        lat: lat, lng: lng),
+                  ),
+                  child: Text(
+                    hasAddress ? direccion : nombre,
+                    style: const TextStyle(
+                      color: Color(0xFFE8763A),
+                      fontSize: AuraTipo.cuerpo,
+                      height: 1.4,
+                      decoration: TextDecoration.underline,
+                      decorationColor: Color(0xFFE8763A),
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-          if (hasCoords) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _MapButton(
-                    label: 'Google Maps',
-                    icon: Icons.map_outlined,
-                    onTap: () => abrirUrl(
-                      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
-                    ),
+          // Los botones ya no dependen de tener lat/lng: con la dirección
+          // alcanza para buscar. `mapaUrl` usa las coordenadas si están.
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _MapButton(
+                  label: 'Google Maps',
+                  icon: Icons.map_outlined,
+                  onTap: () => abrirUrl(
+                    mapaUrl(direccion: hasAddress ? direccion : nombre,
+                        lat: lat, lng: lng),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _MapButton(
-                    label: 'Waze',
-                    icon: Icons.navigation_outlined,
-                    onTap: () => abrirUrl(
-                      'https://waze.com/ul?ll=$lat,$lng&navigate=yes',
-                    ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MapButton(
+                  label: 'Waze',
+                  icon: Icons.navigation_outlined,
+                  onTap: () => abrirUrl(
+                    hasCoords
+                        ? 'https://waze.com/ul?ll=$lat,$lng&navigate=yes'
+                        : 'https://waze.com/ul?q=${Uri.encodeComponent(hasAddress ? direccion : nombre)}&navigate=yes',
                   ),
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -836,8 +853,10 @@ class _ShareSheet extends StatelessWidget {
             ),
             label: 'Otras apps',
             onTap: () {
+              // El context del sheet muere con el pop: se comparte ANTES de
+              // cerrar, para que el menú tenga de dónde colgarse en iPad.
+              compartirOCopiar(context, mensaje);
               Navigator.pop(context);
-              Share.share(mensaje);
             },
           ),
 
