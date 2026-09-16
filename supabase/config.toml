@@ -475,6 +475,14 @@ entrypoint = "./functions/push-enviar/index.ts"
 # del proyecto) y la autorizacion real la hace el secreto adentro.
 # Declarada a proposito: sin esta entrada, un `supabase functions deploy` le
 # pondria verify_jwt = true/false en silencio y romperia el disparo.
+# Resumen diario del negocio a la casilla de Aura. Lo dispara un cron con el
+# secreto compartido; los numeros los calcula resumen_diario_preparar() en la
+# base. Acepta {"dry_run": true} para ver el mail sin mandarlo.
+[functions.resumen-diario]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/resumen-diario/index.ts"
+
 [functions.cancelacion-email]
 enabled = true
 verify_jwt = true
