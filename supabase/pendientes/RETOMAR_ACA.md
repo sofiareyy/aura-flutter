@@ -717,6 +717,56 @@ quedaron desactualizados en dos días. **Medir siempre contra la base.**
 
 # ⬜ LO QUE QUEDA
 
+## ⬜ Reportar que la clase NO SE DIO — DISEÑO CERRADO, sin construir (17/9)
+
+Pasó dos veces con YN Pilates. Hoy, si el estudio no da la clase, la alumna
+pierde los créditos y el estudio cobra: el sistema no distingue "no fue" de
+"la clase no existió". Reconstruido de la base: de las dos veces, **una fue
+clase no dada** (devolución manual de 11 créditos el 9/9 17:57) y la otra una
+reserva duplicada. Las dos se arreglaron a mano cancelando la reserva, que es
+lo único que evitó que el estudio cobrara.
+
+### El canal (decisión de Sofía, 17/9)
+**El mail de reseña post-clase que ya existe**, ampliado para que llegue a
+**TODAS las reservas pasadas, con check-in o sin él**.
+
+⚠️ Hoy `pedir_resenas_post_clase()` filtra por `r.checked_in_at is not null`.
+**Que no haya check-in NO significa que la clase no se dio**: puede ser que el
+estudio se olvidó de marcar presente. No se asume nada: se pregunta.
+
+En ese mismo mail, **abajo, chiquito y gris**, una línea que la alumna elige:
+*"¿No pudiste ir o la clase no se dio?"*. Discreto a propósito: no es un botón
+destacado, no se invita a tocarlo.
+- Si dice **"no pude ir"** → no pasa nada, sólo queda registrado.
+- Si dice **"la clase no se dio"** → aviso a Sofía y la reserva entra en
+  revisión.
+
+### Las reglas
+- **NO devuelve créditos automáticamente.** Sofía le pregunta al estudio y
+  decide: si se dio, no pasa nada; si no se dio, devuelve a mano.
+- **La reserva pasa a `en_revision` y no se liquida** hasta que se resuelva.
+  `estadosLiquidables` es whitelist, así que alcanza con NO agregar el estado
+  nuevo a las 5 referencias Dart + 4 TS. `reservas.estado` no tiene CHECK.
+- **Ventana de 48 h** después de la clase para reportar.
+- **Contador de reincidencia por estudio**, visible en su ficha del backoffice.
+- **Si el mes ya se liquidó:** asiento de corrección, el mismo mecanismo que se
+  usó con Citra (`admin_corregir_liquidacion_pagada`).
+- **Si Sofía no resuelve antes del día 5:** la reserva queda afuera de esa
+  liquidación y el estudio la cobra al mes siguiente.
+
+### Lo que falta definir antes de construir
+1. `pedir_resenas_post_clase` hoy **excluye a quien ya reseñó ese estudio**. Si
+   se mantiene ese filtro, una alumna que ya reseñó no recibe el mail y no
+   puede reportar. Hay que sacarlo o separar los dos motivos del mail.
+2. Ampliar a todas las reservas pasadas **multiplica los mails de reseña**: hoy
+   el cron nunca mandó ninguno (`resena_pedida_at` = 0 de 6). Conviene mirar el
+   volumen antes de prenderlo.
+3. Cómo le llega el aviso a Sofía: no hay ningún canal hacia ella hoy. Lo
+   mínimo es un mail por Resend más una sección en el backoffice.
+4. El mail de reseña **no lleva token ni `reserva_id`**: linkea a
+   `/#/estudio/<id>`. Para reportar una reserva concreta hay que sumarle el
+   identificador (o mandar a Mis Reservas, como ya hace la campanita).
+
 ## ✅ La gracia se aplicaba hacia atrás — CERRADO el 16/9
 
 **Qué pasaba.** Nadie comparaba la fecha de la clase contra
