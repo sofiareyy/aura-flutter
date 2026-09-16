@@ -755,9 +755,13 @@ destacado, no se invita a tocarlo.
   liquidación y el estudio la cobra al mes siguiente.
 
 ### Lo que falta definir antes de construir
-1. `pedir_resenas_post_clase` hoy **excluye a quien ya reseñó ese estudio**. Si
-   se mantiene ese filtro, una alumna que ya reseñó no recibe el mail y no
-   puede reportar. Hay que sacarlo o separar los dos motivos del mail.
+1. ~~El filtro de "ya reseñó ese estudio"~~ — **DECIDIDO (17/9): se saca.** La
+   reseña se pide una vez por estudio, pero poder avisar que una clase no se
+   dio es **por reserva**: son dos cosas distintas y no pueden depender una de
+   la otra. En la práctica: el mail sale por cada reserva pasada; el pedido de
+   reseña se sigue mostrando una sola vez por estudio (o se omite si ya
+   reseñó), pero la línea de "¿no pudiste ir o la clase no se dio?" va
+   siempre.
 2. Ampliar a todas las reservas pasadas **multiplica los mails de reseña**: hoy
    el cron nunca mandó ninguno (`resena_pedida_at` = 0 de 6). Conviene mirar el
    volumen antes de prenderlo.
