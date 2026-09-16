@@ -30,6 +30,13 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
   bool _savingCategory = false;
   String? _error;
 
+  /// Bono de bienvenida. `null` = la migración todavía no está aplicada; la
+  /// card lo dice y el resto de la pantalla sigue funcionando igual.
+  Map<String, dynamic>? _bono;
+  Map<String, dynamic>? _bonoMetricas;
+  String? _bonoError;
+  bool _savingBono = false;
+
   /// {nombre, activa, en_uso} por categoría. El backoffice ve también
   /// las desactivadas; los selectores del estudio no.
   List<Map<String, dynamic>> _categories = [];
@@ -81,6 +88,9 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
         _valorCreditoPreview = valorCreditoArs;
         _loading = false;
       });
+      // Aparte y después: si el bono falla (migración sin aplicar), la
+      // pantalla de precios tiene que seguir andando igual.
+      await _cargarBono();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -88,6 +98,143 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
         _loading = false;
       });
     }
+  }
+
+  // ── Bono de bienvenida ──────────────────────────────────────────────────
+  Future<void> _cargarBono() async {
+    try {
+      final cfg = await _service.getBonoConfig();
+      final met = await _service.getBonoMetricas();
+      if (!mounted) return;
+      setState(() {
+        _bono = cfg;
+        _bonoMetricas = Map<String, dynamic>.from(met['grupos'] as Map? ?? {});
+        _bonoError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _bono = null;
+        _bonoError = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  Future<void> _togglearBono(bool prender) async {
+    final cfg = _bono;
+    if (cfg == null) return;
+    if (prender) {
+      final ok = await _confirmar(
+        titulo: '¿Prender el bono?',
+        cuerpo:
+            'Desde este momento, cada cuenta nueva recibe ${cfg['monto']} '
+            'créditos al registrarse, hasta ${cfg['tope_nuevas']} cuentas.\n\n'
+            'A las ya registradas NO les llega nada todavía: eso se hace con '
+            'el botón de abajo, cuando quieras.',
+        confirmar: 'Prender',
+      );
+      if (!ok) return;
+    }
+    setState(() => _savingBono = true);
+    try {
+      if (prender) {
+        await _service.prenderBono(
+          monto: (cfg['monto'] as num).toInt(),
+          topeRegistradas: (cfg['tope_registradas'] as num).toInt(),
+          topeNuevas: (cfg['tope_nuevas'] as num).toInt(),
+        );
+      } else {
+        await _service.apagarBono();
+      }
+      await _cargarBono();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(prender ? 'Bono prendido.' : 'Bono apagado.'),
+          backgroundColor: prender ? AppColors.success : null,
+        ),
+      );
+    } catch (e) {
+      _mostrarError(e);
+    } finally {
+      if (mounted) setState(() => _savingBono = false);
+    }
+  }
+
+  Future<void> _otorgarRegistradas() async {
+    final cfg = _bono;
+    if (cfg == null) return;
+    final cupo = (cfg['tope_registradas'] as num).toInt() -
+        (cfg['dados_registradas'] as num).toInt();
+    if (cupo <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ya se otorgó el tope de este grupo.')),
+      );
+      return;
+    }
+    final ok = await _confirmar(
+      titulo: '¿Otorgar a $cupo usuarias?',
+      cuerpo:
+          'Se les acreditan ${cfg['monto']} créditos a las $cupo usuarias más '
+          'activas que nunca compraron un pack, y se les avisa por la '
+          'campanita, push y mail.\n\nEsto regala créditos de verdad y no se '
+          'puede deshacer con un botón.',
+      confirmar: 'Otorgar',
+    );
+    if (!ok) return;
+    setState(() => _savingBono = true);
+    try {
+      final n = await _service.otorgarBonoRegistradas();
+      await _cargarBono();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Bono otorgado a $n usuarias.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      _mostrarError(e);
+    } finally {
+      if (mounted) setState(() => _savingBono = false);
+    }
+  }
+
+  Future<bool> _confirmar({
+    required String titulo,
+    required String cuerpo,
+    required String confirmar,
+  }) async {
+    final res = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _kCardBg,
+        title: Text(titulo, style: const TextStyle(color: Colors.white)),
+        content: Text(cuerpo, style: const TextStyle(color: _kSubtle, height: 1.45)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            child: Text(confirmar),
+          ),
+        ],
+      ),
+    );
+    return res == true;
+  }
+
+  void _mostrarError(Object e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(e.toString().replaceFirst('Exception: ', '')),
+        backgroundColor: AppColors.error,
+      ),
+    );
   }
 
   Future<void> _guardarValorCredito() async {
@@ -427,7 +574,15 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
                       onToggle: _toggleCategory,
                     ),
                     const SizedBox(height: 14),
-                    // 5. CRÉDITOS DE BIENVENIDA
+                    // 5. BONO DE BIENVENIDA
+                    _BonoCard(
+                      config: _bono,
+                      metricas: _bonoMetricas,
+                      error: _bonoError,
+                      saving: _savingBono,
+                      onToggle: _togglearBono,
+                      onOtorgar: _otorgarRegistradas,
+                    ),
                   ],
                 ],
               ),
@@ -449,6 +604,185 @@ String _fmtPesos(int n) => n.toString().replaceAllMapped(
   RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
   (m) => '${m[1]}.',
 );
+
+/// Bono de bienvenida: interruptor, el botón de otorgar a las ya registradas
+/// y la medición de los dos grupos.
+///
+/// Prender y otorgar son DOS acciones distintas a propósito. Prender sólo
+/// abre la puerta a las cuentas nuevas; regalarle créditos a las que ya
+/// estaban es una decisión aparte, con su propia confirmación, porque es
+/// plata y no se deshace con un botón.
+class _BonoCard extends StatelessWidget {
+  final Map<String, dynamic>? config;
+  final Map<String, dynamic>? metricas;
+  final String? error;
+  final bool saving;
+  final void Function(bool) onToggle;
+  final VoidCallback onOtorgar;
+
+  const _BonoCard({
+    required this.config,
+    required this.metricas,
+    required this.error,
+    required this.saving,
+    required this.onToggle,
+    required this.onOtorgar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cfg = config;
+    if (cfg == null) {
+      return _DarkCard(
+        title: 'Bono de bienvenida',
+        subtitle: error ?? 'No se pudo leer el estado del bono.',
+        children: const [],
+      );
+    }
+
+    final activo = cfg['activo'] == true;
+    final monto = (cfg['monto'] as num?)?.toInt() ?? 0;
+    final dadosReg = (cfg['dados_registradas'] as num?)?.toInt() ?? 0;
+    final topeReg = (cfg['tope_registradas'] as num?)?.toInt() ?? 0;
+    final dadosNue = (cfg['dados_nuevas'] as num?)?.toInt() ?? 0;
+    final topeNue = (cfg['tope_nuevas'] as num?)?.toInt() ?? 0;
+    final candidatas = (cfg['candidatas_registradas'] as num?)?.toInt() ?? 0;
+    final dias = (cfg['vencimiento_dias'] as num?)?.toInt() ?? 60;
+
+    return _DarkCard(
+      title: 'Bono de bienvenida',
+      subtitle: '$monto créditos por cuenta, una sola vez, que vencen a los '
+          '$dias días. Dos grupos con topes separados.',
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                activo ? 'Prendido' : 'Apagado',
+                style: TextStyle(
+                  color: activo ? AppColors.success : _kSubtle,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (saving)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              Switch(
+                value: activo,
+                activeThumbColor: AppColors.primary,
+                onChanged: onToggle,
+              ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _BonoGrupo(
+          titulo: 'Ya registradas (nunca compraron un pack)',
+          dados: dadosReg,
+          tope: topeReg,
+          metricas: metricas?['registradas'] as Map?,
+          extra: '$candidatas candidatas disponibles',
+        ),
+        const SizedBox(height: 10),
+        _BonoGrupo(
+          titulo: 'Cuentas nuevas (se acredita sola al registrarse)',
+          dados: dadosNue,
+          tope: topeNue,
+          metricas: metricas?['nuevas'] as Map?,
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          height: 46,
+          child: OutlinedButton(
+            onPressed: (!activo || saving || dadosReg >= topeReg) ? null : onOtorgar,
+            style: _darkOutlinedStyle(),
+            child: Text(
+              dadosReg >= topeReg
+                  ? 'Tope alcanzado en las ya registradas'
+                  : 'Otorgar a las ya registradas (${topeReg - dadosReg})',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          activo
+              ? 'Arranca por las que entraron a la app más recientemente. Les '
+                  'avisa por campanita, push y mail.'
+              : 'Prendé el bono para poder otorgarlo.',
+          style: const TextStyle(color: _kSubtle, fontSize: 12, height: 1.4),
+        ),
+      ],
+    );
+  }
+}
+
+/// Una fila de medición por grupo: cuántas lo recibieron, cuántas lo usaron
+/// en una clase y cuántas compraron un pack después.
+class _BonoGrupo extends StatelessWidget {
+  final String titulo;
+  final int dados;
+  final int tope;
+  final Map? metricas;
+  final String? extra;
+
+  const _BonoGrupo({
+    required this.titulo,
+    required this.dados,
+    required this.tope,
+    required this.metricas,
+    this.extra,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metricas;
+    final usaron = (m?['usaron_en_clase'] as num?)?.toInt() ?? 0;
+    final compraron = (m?['compraron_pack'] as num?)?.toInt() ?? 0;
+    final usados = (m?['creditos_usados'] as num?)?.toInt() ?? 0;
+    final otorgados = (m?['creditos_otorgados'] as num?)?.toInt() ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _kInputBg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            titulo,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Recibieron $dados de $tope'
+            '${extra != null ? ' · $extra' : ''}',
+            style: const TextStyle(color: _kSubtle, fontSize: 12, height: 1.5),
+          ),
+          Text(
+            'Lo usaron en una clase: $usaron · Compraron un pack después: $compraron',
+            style: const TextStyle(color: _kSubtle, fontSize: 12, height: 1.5),
+          ),
+          Text(
+            'Créditos quemados: $usados de $otorgados',
+            style: const TextStyle(color: _kSubtle, fontSize: 12, height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// Card oscura reutilizable con título.
 class _DarkCard extends StatelessWidget {

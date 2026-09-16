@@ -24,6 +24,7 @@
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia |
 | ✅ | **Google Analytics 4 en la web** | **publicado el 11/9** · `web/aura-analytics.js` · quedan 3 pendientes de la política de privacidad (abajo) |
 | ✅ | **BUG DE PLATA: la gracia se aplicaba hacia atrás** | **CERRADO el 16/9**: fix en producción (web `5afbc06`), sellado corregido, edge functions deployadas, agosto de Citra corregido con asiento auditado ($54.000) · ver abajo |
+| 🟡 | **Bono de bienvenida** | **armado y APAGADO el 14/9** · migración APLICADA, `bono-email` deployada y el Dart mergeado el 16/9 · sigue en OFF · ver abajo |
 
 ### 🟢 FORCE-UPDATE ACTIVO en la 26 — decisión de Sofía (confirmada el 30/8)
 
@@ -840,6 +841,69 @@ con gracia.
   del historial de Cobros; la vista en tabla muestra el monto corregido pero
   no la nota. El backoffice tampoco muestra el motivo (sí el monto). No hay
   UI para crear asientos: se hace por RPC.
+## 🟡 Bono de bienvenida — ARMADO Y APAGADO (14/9)
+
+16 créditos por cuenta, una sola vez, que vencen a los 60 días. **Dos grupos
+con topes separados y medidos aparte**: 15 cuentas ya registradas que nunca
+compraron un pack (se otorgan a mano, arrancando por las más activas) y 15
+cuentas nuevas (se acreditan solas al registrarse, por trigger).
+
+**Nada de esto corre hoy: el flag `bono_activo` está en false.** Se prende
+después del test de Android y de activar la verificación de mail.
+
+### Qué hay y dónde
+- `supabase/migrations/20260914120000_bono_bienvenida_apagado.sql` — **APLICADA
+  el 14/9.** Tabla `bono_otorgado`, flags en `configuracion_global`,
+  `acreditar_bono`, el trigger `trg_bono_alta_usuaria` (activo pero inerte con
+  el flag en false), los RPC de admin y `admin_bono_metricas`. Verificado
+  después de aplicar: `bono_esta_activo()` = false, 0 otorgados, 0 créditos,
+  0 avisos, cola de mails vacía.
+- `supabase/functions/bono-email/` — mail por Resend. **DEPLOYADA el 14/9** y
+  probada con `test_email` a aura.hola.app@gmail.com: HTTP 200, `enviados: 1`.
+  Declarada en `config.toml` con `verify_jwt = true`. Ningún mail salió a
+  usuarias.
+- Dart: card en Admin → Config, cartel en el Inicio (`lib/utils/bono_cartel.dart`,
+  13 tests) y los métodos en `admin_service.dart`.
+
+### Cómo se mide (lo que se pidió)
+Por grupo: cuántas lo recibieron, cuántas lo **usaron en una clase** y cuántas
+**compraron un pack después**. El uso sale del rastro real:
+`reservas.creditos_lotes` guarda de qué lote salió cada crédito, así que se
+sabe qué clase se pagó con el bono. Las canceladas no cuentan (devuelven los
+créditos). Ojo: `amount_remaining` NO sirve para saber si se usó o si venció,
+porque al vencer un lote el refresh lo pone en 0; por eso lo consumido se suma
+desde las reservas.
+
+### Probado el 14/9 contra producción (`begin … rollback`, 16 pasos)
+Apagado no regala nada; sin admin lo rechaza; otorga exactamente 15 con
+vencimiento correcto; repetirlo no duplica; ningún comprador de packs se cuela;
+la métrica detecta un uso simulado. Verificado después que el rollback no dejó
+rastro en 9 ejes.
+
+### Lo que falta para prenderlo
+1. ~~Aplicar la migración~~ — **hecho el 14/9**, apagada.
+2. ~~Deployar `bono-email` y probarla~~ — **hecho el 14/9** con `test_email`.
+3. ~~Agregar el SPF a `somosaurapass.com`~~ — **hecho el 14/9**: Sofía lo pegó
+   en Namecheap (`v=spf1 include:_spf.resend.com ~all`) y se verificó en el
+   autoritativo, en 8.8.8.8 y en 1.1.1.1. El DKIM de Resend y el SPF de
+   `send.somosaurapass.com` quedaron intactos.
+4. El test de Android y la verificación de mail: la condición que puso Sofía.
+5. Prender desde Admin → Config — ojo, **el Dart vive en la rama
+   `feature/bono-bienvenida`, sin mergear**: hasta que se mergee, la card no
+   está en el backoffice.
+6. Recién ahí, "Otorgar a las ya registradas".
+7. Opcional: agendar los recordatorios con
+   `select cron.schedule('bono-recordatorios', '0 14 * * *', $cron$ select public.bono_recordatorios(); $cron$);`
+   La función existe; **no hay ningún cron creado**.
+
+### Por qué el aviso es la mitad del trabajo
+Medido el 14/9: de 11 regalos manuales de créditos, **4 quedaron intactos**.
+Y el alcance de cada canal es desparejo: la campanita llega a quien abre la
+app, el push sólo a **13 de las 79** (iPhone con la app instalada; Android no
+está publicado) y el mail a las 82. Por eso avisa por los tres a la vez.
+`usuarios.notifs_promos` está en **false para las 82** (es el default y nunca
+se ofreció) y **ningún código lo lee**: el bono se trata como aviso
+transaccional, no promocional — son créditos que ya están en la cuenta.
 
 ## ⬜ Política de privacidad — 3 pendientes (anotados el 11/9, NO urgentes)
 

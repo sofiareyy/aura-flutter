@@ -774,6 +774,76 @@ class AdminService {
     return Map<String, dynamic>.from(result.data as Map);
   }
 
+  // ── Bono de bienvenida ────────────────────────────────────────────────────
+  // Todo el filtro (quién califica, topes, una sola vez) vive en la base; acá
+  // sólo se llaman los RPC. Ver supabase/migrations/…_bono_bienvenida_apagado.
+  //
+  // ⚠️ Los RPC pueden no existir si la migración todavía no se aplicó:
+  // PostgREST devuelve PGRST202 ("Could not find the function"). Se traduce a
+  // un mensaje claro en vez del volcado crudo — el mismo problema que tuvo la
+  // feature de bienvenida vieja, que sólo sabía decir un error ilegible.
+
+  /// Estado del bono: activo, monto, topes, cuántos se dieron y cuántas
+  /// candidatas quedan.
+  Future<Map<String, dynamic>> getBonoConfig() async {
+    final res = await _rpcBono('admin_bono_config');
+    return Map<String, dynamic>.from(res as Map);
+  }
+
+  /// Métricas por grupo: otorgadas, cuántas lo usaron en una clase y cuántas
+  /// compraron un pack después.
+  Future<Map<String, dynamic>> getBonoMetricas() async {
+    final res = await _rpcBono('admin_bono_metricas');
+    return Map<String, dynamic>.from(res as Map);
+  }
+
+  /// Prende el bono. NO regala nada por sí solo: las nuevas empiezan a
+  /// recibirlo al registrarse y las ya registradas esperan a
+  /// [otorgarBonoRegistradas].
+  Future<void> prenderBono({
+    required int monto,
+    required int topeRegistradas,
+    required int topeNuevas,
+  }) async {
+    await _rpcBono('admin_bono_prender', {
+      'p_monto': monto,
+      'p_tope_registradas': topeRegistradas,
+      'p_tope_nuevas': topeNuevas,
+    });
+  }
+
+  Future<void> apagarBono() async => _rpcBono('admin_bono_apagar');
+
+  /// Otorga el bono a las ya registradas que nunca compraron un pack,
+  /// arrancando por las más activas recientemente y hasta el tope.
+  /// Devuelve cuántas lo recibieron.
+  Future<int> otorgarBonoRegistradas({int? limite}) async {
+    final res = await _rpcBono(
+      'admin_bono_otorgar_registradas',
+      limite == null ? null : {'p_limite': limite},
+    );
+    final map = Map<String, dynamic>.from(res as Map);
+    if (map['ok'] != true) {
+      throw Exception(map['error'] == 'bono_apagado'
+          ? 'El bono está apagado: prendelo antes de otorgarlo.'
+          : 'No se pudo otorgar: ${map['error']}');
+    }
+    return (map['otorgados'] as num?)?.toInt() ?? 0;
+  }
+
+  Future<dynamic> _rpcBono(String fn, [Map<String, dynamic>? params]) async {
+    try {
+      return await _client.rpc(fn, params: params);
+    } on PostgrestException catch (e) {
+      if (e.code == 'PGRST202') {
+        throw Exception(
+          'Falta aplicar la migración del bono de bienvenida en la base.',
+        );
+      }
+      throw Exception(e.message);
+    }
+  }
+
   Future<String?> getConfigGlobal(String clave) async {
     try {
       final res = await _client
