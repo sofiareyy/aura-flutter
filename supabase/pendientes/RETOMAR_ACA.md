@@ -717,6 +717,44 @@ quedaron desactualizados en dos días. **Medir siempre contra la base.**
 
 # ⬜ LO QUE QUEDA
 
+## 🟡 Resumen diario del negocio — ARMADO, falta prender el cron (16/9)
+
+Un mail a `aura.hola.app@gmail.com` todos los días, con pocos números y los
+que hacen actuar. **Sale aunque esté todo en cero** y va **numerado**: si ves
+el #36 y nunca viste el #35, algo se rompió (un mail que no llega es
+indistinguible de uno que no se mandó; numerarlos es lo único que lo delata
+sin contratar un servicio aparte).
+
+### Qué hay
+- `supabase/migrations/20260916120000_cuentas_internas.sql` — **APLICADA.**
+  Tabla `cuentas_internas` (110 filas: 103 testers del CSV de Play Console,
+  6 probables y la cuenta de Sofía) + `es_cuenta_interna(email)`. **17 de las
+  100 usuarias de la base son internas.**
+- `supabase/migrations/20260916130000_resumen_diario_datos.sql` — **APLICADA.**
+  `resumen_diario_preparar()` calcula todo y registra el envío en
+  `resumen_diario_envios` (de ahí sale el número). Idempotente por día: si el
+  cron corre dos veces, la segunda no manda nada.
+- `supabase/functions/resumen-diario/` — **DEPLOYADA** y probada: el #1 salió
+  el 16/9 20:36 a la casilla de Aura. Acepta `dry_run` y `test_email`.
+
+### Qué mide (y qué NO)
+Movimiento: altas de ayer y del mes · reservas de ayer, y cuántas de gente que
+nunca había reservado · packs · reseñas **sólo si hubo**.
+Plata: créditos en circulación · checkouts abandonados del mes **sólo si hubo**
+· quiénes compraron y nunca reservaron.
+Para actuar, **con nombres**: reportes de "la clase no se dio" (aparece solo
+cuando exista esa tabla) · gracia que vence en 7 días · estudios activos sin
+clases futuras · estudios que nunca tuvieron una reserva.
+
+**Las cuentas internas no cuentan en ningún número.** Sin ese filtro,
+septiembre marcaba 29 altas; las reales son 13.
+
+### Falta
+1. **Crear el cron** (no existe todavía). Cuando se decida el horario:
+   `select cron.schedule('resumen-diario', '0 11 * * *', $cron$ select net.http_post(...) $cron$);`
+   — ojo: el cron tiene que mandar el `x-notif-secret` del vault, como los otros.
+2. Descontar del historial que el #1 se usó el 16/9 en la prueba.
+
 ## ⬜ Reportar que la clase NO SE DIO — DISEÑO CERRADO, sin construir (17/9)
 
 Pasó dos veces con YN Pilates. Hoy, si el estudio no da la clase, la alumna
