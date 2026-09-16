@@ -23,6 +23,7 @@
 | 🟢 | **Force-update** (`min_build_ios = 26`) | **ACTIVO a propósito** desde el 29/8 · builds 25 y 26 publicados · **no revertir** |
 | ⬜ | **Negocio** (los sigue la usuaria) | aviso del fin de gracia |
 | ✅ | **Google Analytics 4 en la web** | **publicado el 11/9** · `web/aura-analytics.js` · quedan 3 pendientes de la política de privacidad (abajo) |
+| 🔴 | **BUG DE PLATA: la gracia se aplicaba hacia atrás** | **fix listo el 16/9 en `fix/gracia-fecha-clase`, sin mergear** · migración del sellado sin aplicar · $21.600 de Citra (16.200 ya sellados) · ver abajo |
 
 ### 🟢 FORCE-UPDATE ACTIVO en la 26 — decisión de Sofía (confirmada el 30/8)
 
@@ -715,6 +716,57 @@ quedaron desactualizados en dos días. **Medir siempre contra la base.**
 ---
 
 # ⬜ LO QUE QUEDA
+
+## 🔴 La gracia se aplicaba hacia atrás — FIX LISTO (16/9), sin mergear
+
+**Qué pasaba.** Nadie comparaba la fecha de la clase contra
+`fecha_inicio_cobro`: `Liquidacion.cobraComision` usaba HOY, el espejo TS
+también (en UTC, 3 h antes), y el trigger de sellado usaba la fecha del PAGO.
+Al terminar la gracia, la comisión se aplicaba a todo lo anterior. Citra
+(gracia hasta el 13/9): la clase del 1/9 pasó a $12.600 en vez de $18.000, y
+agosto se **selló al 30%** porque se pagó el 16/9 ($37.800 en vez de $54.000).
+
+**Plata en juego al 16/9: $21.600, todo de Citra** (4 reservas × $5.400).
+$16.200 están sellados en la liquidación de agosto (pagada el 16/9 12:27 ART,
+`b9261732…`); $5.400 vivos en septiembre (res 712). Los otros 14 estudios con
+gracia tenían 0 reservas con créditos: $0, pero el mismo golpe les llegaba a
+la primera liquidación después de su fecha (BB 20/9, Ambra 23/9, Tiwar y YN
+24/9…).
+
+**El criterio (decisión de Sofía, 16/9): la fecha de la CLASE**, para la
+gracia Y para el mes de liquidación. Verificado antes de tocar: ninguna
+reserva existente cambia de mes (0 de 6) y no hay clases futuras en estudios
+con gracia.
+
+**Qué cambió (rama `fix/gracia-fecha-clase`, commit 89eaed2):**
+- `lib/utils/liquidacion.dart`: `cobraComision`/`comision`/`netoReserva`
+  reciben la fecha de la clase (`_clase_fecha`, día argentino vs
+  `fecha_inicio_cobro`). Sin fecha caen a hoy, sólo para vistas previas.
+- `estudio_admin_service.getReservasDeEstudio` adjunta `_clase_fecha`.
+- Cobros, Dashboard e historial agrupan por mes de la CLASE. El Dashboard era
+  el cuarto lugar que había quedado afuera del corte argentino del 2/9.
+- Backoffice (`admin_liquidaciones_screen`): filtra por `clases.fecha` con
+  `!inner`, y la fila se arma en `lib/utils/fila_liquidacion.dart`: **un mes
+  PAGADO muestra lo sellado** (`monto_a_pagar`, `comision_aplicada`) y no
+  recalcula. Antes recalculaba en vivo hasta lo pagado.
+- Espejo TS (`_shared/liquidacion.ts`, `aviso-cobro-manana`,
+  `reporte-mensual-estudios`): mismo criterio. **Sin deployar** (los dos crons
+  están apagados, no mandan nada igual).
+- `supabase/migrations/20260916120000_sellado_comision_efectiva.sql`: el
+  sellado deja de mirar la fecha de pago y guarda el **% efectivo** derivado de
+  los montos (`1 - a_pagar/total`), que soporta meses mixtos. Probado con
+  rollback (6 casos). **NO aplicada.**
+- Tests: `liquidacion_gracia_test` (12), `fila_liquidacion_test` (5),
+  `historial_cobros_test` (+1). 539 en total.
+
+**Lo que queda:**
+1. Mergear la rama y aplicar la migración del sellado — ANTES del 20/9 (BB).
+2. Deployar `aviso-cobro-manana` y `reporte-mensual-estudios` (paridad TS).
+3. Corregir agosto de Citra de forma auditada: la fila está sellada y el guard
+   no la deja tocar. Propuesta en la conversación del 16/9; sin construir.
+4. `_VosRecibis` y los previews de workshop en `mis_clases_screen` siguen
+   usando hoy: son vistas previas, no plata. Pasarles la fecha de la clase
+   del form es una mejora menor.
 
 ## ⬜ Política de privacidad — 3 pendientes (anotados el 11/9, NO urgentes)
 
