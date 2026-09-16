@@ -13,7 +13,14 @@
 -- del historial: si un día ves el #36 y nunca viste el #35, algo se rompió.
 -- ============================================================================
 
-create or replace function public.resumen_diario_preparar()
+-- `p_solo_calcular` = calcular sin registrar ni mirar el historial. Lo usa el
+-- `dry_run` de la function: sin esto, probar el mail después de que el del día
+-- ya salió devolvía las métricas VIEJAS guardadas — y si se agregó una métrica
+-- nueva, aparecía en cero (pasó el 16/9 con el bloque de estudios).
+drop function if exists public.resumen_diario_preparar();
+
+create or replace function public.resumen_diario_preparar(
+  p_solo_calcular boolean default false)
 returns jsonb
 language plpgsql
 security definer
@@ -31,11 +38,13 @@ declare
   v_m          jsonb;
   v_reportes   int := null;
 begin
-  -- ¿Ya salió el de hoy?
-  select * into v_existente from public.resumen_diario_envios where fecha = v_hoy;
-  if found then
-    return jsonb_build_object('ya_enviado', true, 'numero', v_existente.numero,
-                              'fecha', v_hoy, 'metricas', v_existente.metricas);
+  -- ¿Ya salió el de hoy? (en modo cálculo no importa: se recalcula igual)
+  if not p_solo_calcular then
+    select * into v_existente from public.resumen_diario_envios where fecha = v_hoy;
+    if found then
+      return jsonb_build_object('ya_enviado', true, 'numero', v_existente.numero,
+                                'fecha', v_hoy, 'metricas', v_existente.metricas);
+    end if;
   end if;
 
   select coalesce(max(numero), 0) + 1 into v_numero from public.resumen_diario_envios;
@@ -108,6 +117,16 @@ begin
                                 order by e.fecha_inicio_cobro), '[]'::jsonb)
         from public.estudios e
        where e.activo and e.fecha_inicio_cobro between v_hoy and v_hoy + 7),
+    -- ── Estudios: el panorama completo ─────────────────────────────────
+    -- Sin el total, "6 sin clases" no dice si es mucho o poco.
+    'estudios_total', (select count(*) from public.estudios),
+    'estudios_activos', (select count(*) from public.estudios where activo),
+    'estudios_con_clases', (
+      select count(*) from public.estudios e
+       where e.activo
+         and exists (select 1 from public.clases c
+                      where c.estudio_id = e.id and c.fecha > now()
+                        and coalesce(c.cancelada, false) = false)),
     'estudios_sin_clases', (
       select coalesce(jsonb_agg(jsonb_build_object('nombre', e.nombre) order by e.nombre), '[]'::jsonb)
         from public.estudios e
@@ -124,14 +143,16 @@ begin
                          where c.estudio_id = e.id))
   ) into v_m;
 
-  insert into public.resumen_diario_envios (numero, fecha, metricas)
-  values (v_numero, v_hoy, v_m)
-  on conflict (fecha) do nothing;
+  if not p_solo_calcular then
+    insert into public.resumen_diario_envios (numero, fecha, metricas)
+    values (v_numero, v_hoy, v_m)
+    on conflict (fecha) do nothing;
+  end if;
 
   return jsonb_build_object('ya_enviado', false, 'numero', v_numero,
                             'fecha', v_hoy, 'metricas', v_m);
 end;
 $$;
 
-revoke execute on function public.resumen_diario_preparar() from public, anon, authenticated;
-grant execute on function public.resumen_diario_preparar() to service_role;
+revoke execute on function public.resumen_diario_preparar(boolean) from public, anon, authenticated;
+grant execute on function public.resumen_diario_preparar(boolean) to service_role;
