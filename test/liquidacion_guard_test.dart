@@ -50,7 +50,12 @@ void main() {
       // Es exactamente el caso de Citra. El historial viejo sólo miraba meses
       // con filas, así que un mes nunca liquidado no aparecía en ningún lado.
       expect(admin, contains("f['estado'] != 'pagado'"));
-      expect(admin, contains("'estado': liq?['estado'] ?? 'pendiente'"));
+      // La fila del backoffice se arma en el util puro desde el 16/9 (para
+      // que un mes PAGADO muestre lo sellado); el "sin fila = pendiente"
+      // vive ahí.
+      final fila = leer('lib/utils/fila_liquidacion.dart');
+      expect(fila, contains("'estado': liquidacion?['estado'] ?? 'pendiente'"));
+      expect(admin, contains('filaLiquidacion('));
     });
 
     test('pagar desde Pendientes usa el mes de la fila, no el del selector', () {

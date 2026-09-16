@@ -1,5 +1,6 @@
 import '../core/constants/app_constants.dart';
 import '../services/valor_credito.dart';
+import 'mes_argentino.dart';
 
 /// Fuente única de la lógica de "cuánta plata recibe el estudio".
 ///
@@ -7,6 +8,14 @@ import '../services/valor_credito.dart';
 /// tenía su propia fórmula y no coincidían: unas ignoraban `fecha_inicio_cobro`,
 /// otra hardcodeaba el valor del crédito o la comisión de workshops. Todo eso
 /// pasa por acá para que las cinco vistas den el mismo número.
+///
+/// ⚠️ LA GRACIA SE EVALÚA CON LA FECHA DE LA CLASE (16/9/2026). Antes se
+/// comparaba `fecha_inicio_cobro` contra HOY, así que cuando terminaba la
+/// gracia la comisión se aplicaba hacia atrás: Citra (gracia hasta el 13/9)
+/// pasó a mostrar $12.600 por una clase del 1/9 que valía $18.000, y agosto
+/// entero se selló al 30%. Una clase dada antes de `fecha_inicio_cobro` es del
+/// estudio al 100%, la mire quien la mire y la pague cuando se pague.
+/// Espejo server-side: supabase/functions/_shared/liquidacion.ts.
 class Liquidacion {
   const Liquidacion._();
 
@@ -18,19 +27,41 @@ class Liquidacion {
   /// Comisión de workshops por defecto. También configurable por estudio.
   static const double comisionWorkshopDefault = 15;
 
-  /// True si el estudio ya está en período de cobro. Antes de
-  /// `fecha_inicio_cobro`, Aura no cobra comisión (el estudio recibe el 100%).
-  static bool cobraComision(Map<String, dynamic>? estudio) {
-    final raw = estudio?['fecha_inicio_cobro']?.toString();
-    if (raw == null || raw.isEmpty) return true;
-    final desde = DateTime.tryParse(raw);
-    if (desde == null) return true;
-    return !DateTime.now().isBefore(desde);
+  /// La fecha de la clase de una reserva, si viene adjunta. Los servicios la
+  /// pegan como `_clase_fecha` (igual que `_clase_tipo`); el backoffice la
+  /// trae del embed de `clases`.
+  static DateTime? fechaDeClase(Map<String, dynamic> reserva) {
+    final raw = reserva['_clase_fecha'] ?? reserva['clase_fecha'];
+    if (raw == null) return null;
+    return DateTime.tryParse(raw.toString());
   }
 
-  /// Comisión efectiva (%) para una reserva, según tipo y período de cobro.
-  static double comision(Map<String, dynamic>? estudio, {required bool esWorkshop}) {
-    if (!cobraComision(estudio)) return 0;
+  /// True si a esa fecha el estudio ya está en período de cobro. Antes de
+  /// `fecha_inicio_cobro`, Aura no cobra comisión (el estudio recibe el 100%).
+  ///
+  /// [fecha] es la fecha de la CLASE. Se compara por día calendario argentino
+  /// contra `fecha_inicio_cobro` (que es un día, sin hora): una clase del
+  /// 12/9 a las 23:30 ART está en gracia aunque en UTC ya sea 13/9.
+  ///
+  /// Sin [fecha] se usa hoy: sirve sólo para vistas previas ("vos recibís")
+  /// donde todavía no hay clase. NUNCA para liquidar una reserva.
+  static bool cobraComision(Map<String, dynamic>? estudio, {DateTime? fecha}) {
+    final raw = estudio?['fecha_inicio_cobro']?.toString();
+    if (raw == null || raw.length < 10) return true;
+    final inicio = raw.substring(0, 10); // 'YYYY-MM-DD'
+    if (DateTime.tryParse(inicio) == null) return true;
+    final dia = diaArgentinoDe(fecha ?? DateTime.now());
+    return dia.compareTo(inicio) >= 0;
+  }
+
+  /// Comisión efectiva (%) para una reserva, según tipo, fecha de la clase y
+  /// período de cobro.
+  static double comision(
+    Map<String, dynamic>? estudio, {
+    required bool esWorkshop,
+    DateTime? fecha,
+  }) {
+    if (!cobraComision(estudio, fecha: fecha)) return 0;
     if (esWorkshop) {
       return (estudio?['comision_workshop'] as num?)?.toDouble() ??
           comisionWorkshopDefault;
@@ -44,6 +75,10 @@ class Liquidacion {
 
   /// Neto que recibe el estudio por UNA reserva. 0 si el estado no se cobra
   /// (cancelada / cancelada_por_estudio / pre_confirmada).
+  ///
+  /// La gracia se decide con la fecha de la clase de ESTA reserva
+  /// (`_clase_fecha`). Si no viene, cae a hoy, que es el comportamiento
+  /// viejo: por eso todos los que llaman tienen que adjuntarla.
   static int netoReserva(
     Map<String, dynamic> reserva,
     Map<String, dynamic>? estudio,
@@ -55,7 +90,11 @@ class Liquidacion {
     if (creditos <= 0) return 0;
 
     final valor = ValorCredito.deEstudio(estudio);
-    final pct = comision(estudio, esWorkshop: _esWorkshop(reserva));
+    final pct = comision(
+      estudio,
+      esWorkshop: _esWorkshop(reserva),
+      fecha: fechaDeClase(reserva),
+    );
     final bruto = creditos * valor;
     return (bruto * ((100 - pct) / 100)).round();
   }
@@ -71,14 +110,16 @@ class Liquidacion {
   /// Respeta el período de gracia (`fecha_inicio_cobro`): dentro de la gracia
   /// Aura no cobra comisión y el estudio recibe el 100%. Sirve para mostrar
   /// "vos recibís $X" en el form, con la misma fórmula que la liquidación real.
+  /// [fecha] es la de la clase que se está armando; sin ella, hoy.
   static int netoDeCreditos(
     int creditos,
     Map<String, dynamic>? estudio, {
     bool esWorkshop = false,
+    DateTime? fecha,
   }) {
     if (creditos <= 0) return 0;
     final valor = ValorCredito.deEstudio(estudio);
-    final pct = cobraComision(estudio) ? comision(estudio, esWorkshop: esWorkshop) : 0.0;
+    final pct = comision(estudio, esWorkshop: esWorkshop, fecha: fecha);
     return (creditos * valor * ((100 - pct) / 100)).round();
   }
 
@@ -90,11 +131,15 @@ class Liquidacion {
   // NO es monto * 1.15: eso dejaba al estudio recibiendo ~2,25% menos.
 
   /// Créditos que paga el usuario por un workshop de `montoEstudio` pesos.
-  static int creditosDeWorkshop(int montoEstudio, Map<String, dynamic>? estudio) {
+  static int creditosDeWorkshop(
+    int montoEstudio,
+    Map<String, dynamic>? estudio, {
+    DateTime? fecha,
+  }) {
     if (montoEstudio <= 0) return 0;
     final valor = ValorCredito.deEstudio(estudio);
     if (valor <= 0) return 0;
-    final pct = comision(estudio, esWorkshop: true);
+    final pct = comision(estudio, esWorkshop: true, fecha: fecha);
     final factor = (100 - pct) / 100; // 0.85 con comisión 15
     if (factor <= 0) return 0;
     return (montoEstudio / factor / valor).round();
@@ -103,10 +148,14 @@ class Liquidacion {
   /// Inverso: cuánta plata recibe el estudio dados N créditos de workshop.
   /// Es la fórmula de liquidación real (créditos × valor × (1 − comisión)),
   /// así que coincide con lo que efectivamente cobra.
-  static int montoEstudioDeWorkshop(int creditos, Map<String, dynamic>? estudio) {
+  static int montoEstudioDeWorkshop(
+    int creditos,
+    Map<String, dynamic>? estudio, {
+    DateTime? fecha,
+  }) {
     if (creditos <= 0) return 0;
     final valor = ValorCredito.deEstudio(estudio);
-    final pct = comision(estudio, esWorkshop: true);
+    final pct = comision(estudio, esWorkshop: true, fecha: fecha);
     return (creditos * valor * ((100 - pct) / 100)).round();
   }
 }

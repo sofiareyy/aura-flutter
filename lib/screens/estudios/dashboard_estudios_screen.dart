@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../utils/liquidacion.dart';
+import '../../utils/mes_argentino.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/estudio_admin_service.dart';
@@ -1002,15 +1003,19 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
   /// Reservas del mes que el estudio cobra. Antes filtraba solo
   /// `!= 'cancelada'`, así que sumaba `cancelada_por_estudio` (créditos ya
   /// reembolsados) y `pre_confirmada` (todavía sin consumir) como ingreso.
+  ///
+  /// 16/9/2026: el mes es el de la CLASE, en calendario argentino, igual que
+  /// Cobros y el backoffice. Antes agrupaba por `created_at` con el mes del
+  /// dispositivo: era el cuarto lugar y había quedado afuera del corte del
+  /// 2/9.
   List<Map<String, dynamic>> _reservasDelMes(DateTime date) {
+    final mes = mesArgentinoDe(date);
     return _reservas.where((reserva) {
-      final created = DateTime.tryParse(
-        reserva['created_at']?.toString() ?? '',
-      );
+      final dt = Liquidacion.fechaDeClase(reserva) ??
+          DateTime.tryParse(reserva['created_at']?.toString() ?? '');
       final estado = reserva['estado']?.toString();
-      return created != null &&
-          created.year == date.year &&
-          created.month == date.month &&
+      return dt != null &&
+          mesArgentinoDe(dt) == mes &&
           AppConstants.estadosLiquidables.contains(estado);
     }).toList();
   }

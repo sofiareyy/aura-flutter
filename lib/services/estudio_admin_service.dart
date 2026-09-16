@@ -372,11 +372,17 @@ class EstudioAdminService {
     // Adjuntamos el tipo de la clase ('clase' | 'workshop') sin otra query:
     // ya lo tenemos en `clases`. Cobros lo necesita porque los workshops
     // liquidan con `comision_workshop` y no con `comision_aura`.
+    // Y la FECHA de la clase (16/9): es la que decide la gracia y el mes de
+    // liquidación. Sin ella, `Liquidacion` cae a "hoy" y la comisión se
+    // aplica hacia atrás cuando termina la gracia.
     final tipoPorClase = <int, String>{};
+    final fechaPorClase = <int, String>{};
     for (final c in clases) {
       final id = (c['id'] as num?)?.toInt();
       if (id != null) {
         tipoPorClase[id] = c['tipo']?.toString() ?? 'clase';
+        final f = c['fecha']?.toString();
+        if (f != null && f.isNotEmpty) fechaPorClase[id] = f;
       }
     }
 
@@ -385,6 +391,8 @@ class EstudioAdminService {
       return {
         ...r,
         '_clase_tipo': tipoPorClase[claseId] ?? 'clase',
+        if (fechaPorClase[claseId] != null)
+          '_clase_fecha': fechaPorClase[claseId],
       };
     }).toList();
   }

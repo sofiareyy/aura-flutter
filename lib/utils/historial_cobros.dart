@@ -48,15 +48,20 @@ List<Map<String, dynamic>> armarHistorialCobros({
         '_sellado': null,
       };
 
-  // 1) El cálculo en vivo, agrupando reservas por mes (como siempre).
+  // 1) El cálculo en vivo, agrupando reservas por mes.
   for (final r in reservas) {
     final estado = r['estado']?.toString() ?? '';
     if (estado == 'cancelada') continue;
-    final dt = DateTime.tryParse(r['created_at']?.toString() ?? '');
+    // El mes es el de la CLASE, no el de la reserva (16/9/2026): es el mismo
+    // criterio con el que se decide la gracia, y que los dos usen fechas
+    // distintas es pedir otro bug. `created_at` queda sólo como respaldo si
+    // la reserva llegó sin la fecha de la clase adjunta.
+    final dt = Liquidacion.fechaDeClase(r) ??
+        DateTime.tryParse(r['created_at']?.toString() ?? '');
     if (dt == null) continue;
-    // Corte por MES CALENDARIO ARGENTINO (2/9): created_at llega en UTC y
-    // agrupar por su mes corría al mes siguiente las reservas de 21:00 a
-    // 23:59 del último día.
+    // Corte por MES CALENDARIO ARGENTINO (2/9): la fecha llega en UTC y
+    // agrupar por su mes corría al mes siguiente lo de 21:00 a 23:59 del
+    // último día.
     final mesArg = mesArgentinoDe(dt);
     final fila =
         porMes.putIfAbsent(mesArg, () => filaVacia(primerDiaDe(mesArg)));

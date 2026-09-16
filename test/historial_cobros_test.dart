@@ -191,4 +191,28 @@ void main() {
     ).single;
     expect(fila['reservas'], 1);
   });
+
+  test('EL MES ES EL DE LA CLASE (16/9): reservada el 31/8 para el 2/9 va a septiembre',
+      () {
+    final r = {
+      'created_at': '2026-08-31T20:00:00Z',
+      '_clase_fecha': '2026-09-02T00:30:00Z', // 1/9 21:30 ART
+      'estado': 'completada',
+      'creditos_usados': 18,
+    };
+    final filas = armarHistorialCobros(
+      reservas: [r],
+      liquidaciones: const [],
+      estudio: {
+        'comision_aura': 30,
+        'valor_credito': 1000,
+        'fecha_inicio_cobro': '2026-09-13', // Citra
+      },
+      ahora: DateTime(2026, 9, 16),
+    );
+    expect(filas.single['_mes'], '2026-09');
+    expect(filas.single['monto'], 18000,
+        reason: 'clase antes del 13/9: gracia, aunque hoy sea el 16/9');
+    expect(filas.single['estado'], kEstadoEnCurso);
+  });
 }

@@ -58,3 +58,14 @@ export function mesIndice(mes: string): number {
 export function mesAnio(mes: string): number {
   return Number(mes.split('-')[0])
 }
+
+/** El DÍA calendario argentino de un instante, como 'YYYY-MM-DD'. Espejo de
+ * `diaArgentinoDe` del Dart; lo usa la gracia (fecha de la clase contra
+ * `fecha_inicio_cobro`, que es un día sin hora). */
+export function diaArgentinoDe(instante: Date): string {
+  const art = new Date(instante.getTime() - OFFSET_ART_MS)
+  const y = art.getUTCFullYear()
+  const m = String(art.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(art.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}

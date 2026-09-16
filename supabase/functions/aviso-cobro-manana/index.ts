@@ -120,17 +120,20 @@ Deno.serve(async (req: Request) => {
   // función seguía con la lista vacía, todos los montos daban 0, el guard de
   // `montoNeto === 0` salteaba a todos los estudios y terminaba con un 200
   // sin haber mandado un solo mail. El cron lo anotaba como éxito.
+  // 16/9/2026: el mes se corta por la fecha de la CLASE (`clases.fecha`), no
+  // por `created_at` de la reserva: es el mismo criterio con el que se decide
+  // la gracia. `!inner` para que el filtro sobre el embed excluya la fila.
   const { data: todasReservas, error: reservasErr } = await adminSupabase
     .from('reservas')
-    .select('estado, creditos_usados, clase_id, clases!reservas_clase_id_fkey(estudio_id, tipo)')
+    .select('estado, creditos_usados, clase_id, clases!reservas_clase_id_fkey!inner(estudio_id, tipo, fecha)')
     // 'ausente' liquida igual: el credito se consumio al reservar y no vuelve.
     // 'completada' es obligatorio: el cron completar-reservas mueve ahi las
     // reservas apenas termina la clase. Sin eso, no se cobraria casi nada.
     .in('estado', ['confirmada', 'presente', 'ausente', 'completada'])
-    .gte('created_at', inicioMes)
+    .gte('clases.fecha', inicioMes)
     // .lt(), NO .lte(): el fin es exclusivo. Con el 23:59:59 inclusivo, una
-    // reserva de las 23:59:59.5 no caía en NINGÚN mes.
-    .lt('created_at', finMesExclusivo)
+    // clase de las 23:59:59.5 no caía en NINGÚN mes.
+    .lt('clases.fecha', finMesExclusivo)
 
   // Fail-LOUD: si la consulta de reservas rompe, cortamos con 500 en vez de
   // seguir con la lista vacía. El cron registra la falla y se ve.
@@ -159,13 +162,14 @@ Deno.serve(async (req: Request) => {
   const brutoPorEstudio: Record<number, number> = {}
   const reservasPorEstudio: Record<number, number> = {}
   for (const r of (todasReservas ?? [])) {
-    const clase = r.clases as { estudio_id?: number; tipo?: string } | null
+    const clase = r.clases as { estudio_id?: number; tipo?: string; fecha?: string } | null
     const esId = clase?.estudio_id as number
     if (!esId) continue
     const est = estudioPorId[esId]
     const esWorkshop = clase?.tipo === 'workshop'
+    // La gracia se decide con la fecha de ESTA clase, no con hoy.
     netoPorEstudio[esId] = (netoPorEstudio[esId] ?? 0) + netoReserva(
-      { estado: r.estado, creditos_usados: r.creditos_usados, esWorkshop },
+      { estado: r.estado, creditos_usados: r.creditos_usados, esWorkshop, fecha: clase?.fecha },
       est,
       valorGlobal,
     )

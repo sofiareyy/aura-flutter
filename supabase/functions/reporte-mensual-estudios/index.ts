@@ -121,24 +121,27 @@ Deno.serve(async (req: Request) => {
   // ── Obtener reservas del mes anterior ─────────────────────────────────────
   // OJO: la tabla `reservas` NO tiene columna estudio_id. El estudio se obtiene
   // vía clase: reservas.clase_id -> clases.estudio_id (ver claseEstudioMap).
+  // 16/9/2026: el mes se corta por la fecha de la CLASE, no por `created_at`
+  // de la reserva: mismo criterio con el que se decide la gracia. `!inner`
+  // para que el filtro sobre el embed excluya la fila.
   const { data: reservasMesAnterior, error: reservasErr } = await adminSupabase
     .from('reservas')
-    .select('creditos_usados, estado, clase_id, usuario_id, created_at')
-    .gte('created_at', inicioMesAnterior)
+    .select('creditos_usados, estado, clase_id, usuario_id, created_at, clases!reservas_clase_id_fkey!inner(fecha)')
+    .gte('clases.fecha', inicioMesAnterior)
     // .lt(), NO .lte(): el fin es exclusivo. Con el 23:59:59 inclusivo, una
-    // reserva de las 23:59:59.5 no caía en NINGÚN mes.
-    .lt('created_at', finMesAnteriorExclusivo)
+    // clase de las 23:59:59.5 no caía en NINGÚN mes.
+    .lt('clases.fecha', finMesAnteriorExclusivo)
 
   // ── Obtener reservas del mes dos atrás (para comparación) ─────────────────
   const { data: reservasMesDosAtras, error: reservas2Err } = await adminSupabase
     .from('reservas')
-    .select('clase_id')
+    .select('clase_id, clases!reservas_clase_id_fkey!inner(fecha)')
     // Incluye 'ausente' y 'completada': son reservas que el estudio cobra.
     // Sin 'completada' el reporte del mes pasado saldria casi vacio, porque
     // el cron completar-reservas ya las movio a ese estado.
     .in('estado', ['confirmada', 'presente', 'ausente', 'completada'])
-    .gte('created_at', inicioMesDosAtras)
-    .lt('created_at', finMesDosAtrasExclusivo)
+    .gte('clases.fecha', inicioMesDosAtras)
+    .lt('clases.fecha', finMesDosAtrasExclusivo)
 
   // ── Obtener clases del mes anterior (para hora pico) ──────────────────────
   const { data: clasesDelMes, error: clasesErr } = await adminSupabase
@@ -314,9 +317,11 @@ Deno.serve(async (req: Request) => {
       const cred = (r.creditos_usados as number) ?? 0
       const esWorkshop =
         claseEstudioMap[r.clase_id as number]?.tipo === 'workshop'
+      const fechaClase = (r.clases as { fecha?: string } | null)?.fecha
       montoBruto += cred * vCred
+      // La gracia se decide con la fecha de ESTA clase, no con hoy.
       montoNeto += netoReserva(
-        { estado: r.estado as string, creditos_usados: cred, esWorkshop },
+        { estado: r.estado as string, creditos_usados: cred, esWorkshop, fecha: fechaClase },
         estudio,
         valorGlobal,
       )

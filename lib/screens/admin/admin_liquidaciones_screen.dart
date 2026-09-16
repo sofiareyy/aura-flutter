@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../services/valor_credito.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
-import '../../utils/liquidacion.dart';
+import '../../utils/fila_liquidacion.dart';
 import '../../utils/mes_argentino.dart';
 import '../../utils/datos_cobro.dart';
 import '../../services/admin_service.dart';
@@ -116,17 +115,25 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
     final inicio = limites.inicioUtc.toIso8601String();
     final finExclusivo = limites.finExclusivoUtc.toIso8601String();
 
-    // 1. Traer reservas del mes con el estudio (via clase). reservas no tiene
-    // columna estudio_id: se obtiene de clases.estudio_id. Join explícito con
-    // el hint de FK para que PostgREST resuelva la relación (evita PGRST200).
+    // 1. Traer las reservas cuya CLASE cae en el mes, con el estudio (via
+    // clase). reservas no tiene columna estudio_id: se obtiene de
+    // clases.estudio_id. Join explícito con el hint de FK para que PostgREST
+    // resuelva la relación (evita PGRST200), y `!inner` para poder filtrar
+    // por la fecha de la clase.
+    //
+    // 16/9/2026: el mes se corta por la fecha de la CLASE, no por
+    // `created_at` de la reserva. Es el mismo criterio con el que se decide
+    // la gracia; con dos fechas distintas una reserva del 31/8 para una
+    // clase del 2/9 caía en agosto y se liquidaba con la gracia del 2/9.
     final reservas = await _client
         .from('reservas')
         .select(
-          'estado, creditos_usados, clases!reservas_clase_id_fkey(estudio_id, tipo)',
+          'estado, creditos_usados, '
+          'clases!reservas_clase_id_fkey!inner(estudio_id, tipo, fecha)',
         )
         .inFilter('estado', AppConstants.estadosLiquidables)
-        .gte('created_at', inicio)
-        .lt('created_at', finExclusivo);
+        .gte('clases.fecha', inicio)
+        .lt('clases.fecha', finExclusivo);
 
     // 2. Traer todos los estudios activos (con comisión + fecha inicio cobro)
     // comision_aura / comision_workshop / valor_credito viven en
@@ -154,34 +161,19 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
         (e['id'] as num).toInt(): Map<String, dynamic>.from(e as Map),
     };
 
-    // 5. Neto por estudio, usando la MISMA fórmula que Cobros y Dashboard
-    // (Liquidacion.netoReserva): valor_credito del estudio, comisión por
-    // tipo, y fecha_inicio_cobro. Así las tres pantallas dan el mismo número.
-    final Map<int, int> montoPagarPorEstudio = {};
-    final Map<int, int> montoBrutoPorEstudio = {};
-    final Map<int, int> reservasPorEstudio = {};
-
+    // 5. Reservas por estudio, aplanadas como las esperan los helpers: con el
+    // tipo y la FECHA de la clase (la que decide la gracia).
+    final Map<int, List<Map<String, dynamic>>> reservasPorEstudio = {};
     for (final r in (reservas as List)) {
       final clase = r['clases'] as Map<String, dynamic>?;
       final esId = (clase?['estudio_id'] as num?)?.toInt();
       if (esId == null) continue;
-      final estudio = estudioPorId[esId];
-
-      // Reserva aplanada como la esperan los helpers.
-      final reservaPlana = <String, dynamic>{
+      reservasPorEstudio.putIfAbsent(esId, () => []).add({
         'estado': r['estado'],
         'creditos_usados': r['creditos_usados'],
         '_clase_tipo': clase?['tipo'],
-      };
-      final cred = (r['creditos_usados'] as num?)?.toInt() ?? 0;
-
-      montoPagarPorEstudio[esId] =
-          (montoPagarPorEstudio[esId] ?? 0) +
-          Liquidacion.netoReserva(reservaPlana, estudio);
-      montoBrutoPorEstudio[esId] =
-          (montoBrutoPorEstudio[esId] ?? 0) +
-          cred * ValorCredito.deEstudio(estudio);
-      reservasPorEstudio[esId] = (reservasPorEstudio[esId] ?? 0) + 1;
+        '_clase_fecha': clase?['fecha'],
+      });
     }
 
     // Mapa de liquidaciones registradas
@@ -191,35 +183,24 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       if (esId != null) liqMap[esId] = Map<String, dynamic>.from(l);
     }
 
-    // 6. Construir lista solo de estudios con reservas
+    // 6. Una fila por estudio con reservas en el mes o con liquidación
+    // pagada. La fila PAGADA muestra lo sellado y no recalcula: ver
+    // filaLiquidacion().
     final List<Map<String, dynamic>> resultado = [];
     for (final e in estudioPorId.values) {
       final esId = (e['id'] as num).toInt();
-      final cantReservas = reservasPorEstudio[esId] ?? 0;
-      if (cantReservas == 0) continue;
-
-      final montoTotal = montoBrutoPorEstudio[esId] ?? 0;
-      final montoPagar = montoPagarPorEstudio[esId] ?? 0;
-      // Comisión efectiva derivada de los montos reales (promedio ponderado
-      // para estudios con clases + workshops).
-      final comisionPct = montoTotal > 0
-          ? (montoTotal - montoPagar) / montoTotal * 100
-          : Liquidacion.comision(e, esWorkshop: false);
-
+      final delMes = reservasPorEstudio[esId] ?? const [];
       final liq = liqMap[esId];
-      resultado.add({
-        'estudio_id': esId,
-        'nombre': e['nombre']?.toString() ?? 'Estudio',
-        'mes': mes,
-        'cantidad_reservas': cantReservas,
-        'monto_total': montoTotal,
-        'monto_pagar': montoPagar,
-        'comision_pct': comisionPct,
-        'estado': liq?['estado'] ?? 'pendiente',
-        'fecha_pago': liq?['fecha_pago'],
-        'comprobante_nota': liq?['comprobante_nota'],
-        'liquidacion_id': liq?['id'],
-      });
+      if (delMes.isEmpty && liq?['estado'] != 'pagado') continue;
+
+      resultado.add(filaLiquidacion(
+        estudioId: esId,
+        nombre: e['nombre']?.toString() ?? 'Estudio',
+        mes: mes,
+        reservas: delMes,
+        estudio: e,
+        liquidacion: liq,
+      ));
     }
 
     // Ordenar: pendientes primero, luego por monto desc

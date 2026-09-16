@@ -872,14 +872,16 @@ class _CobrosScreenState extends State<CobrosScreen> {
     String? comisionSellada,
   }) {
     final mesObjetivo = mes ?? mesArgentinoDe(DateTime.now());
+    // El mes es el de la CLASE (16/9): mismo criterio que la gracia y que
+    // el historial (armarHistorialCobros). created_at sólo de respaldo.
     final reservas =
         _reservasNoCanceladas.where((r) {
-          final dt = DateTime.tryParse(r['created_at']?.toString() ?? '');
+          final dt = Liquidacion.fechaDeClase(r) ??
+              DateTime.tryParse(r['created_at']?.toString() ?? '');
           return dt != null && mesArgentinoDe(dt) == mesObjetivo;
         }).toList()..sort(
-          (a, b) => (b['created_at']?.toString() ?? '').compareTo(
-            a['created_at']?.toString() ?? '',
-          ),
+          (a, b) => (b['_clase_fecha']?.toString() ?? b['created_at']?.toString() ?? '')
+              .compareTo(a['_clase_fecha']?.toString() ?? a['created_at']?.toString() ?? ''),
         );
     final etiquetaMes =
         toBeginningOfSentenceCase(
@@ -1211,7 +1213,9 @@ class _CobrosScreenState extends State<CobrosScreen> {
     // afuera del "mes actual" aunque acababa de pasar.
     final mesActual = mesArgentinoDe(DateTime.now());
     return _reservasNoCanceladas.where((r) {
-      final dt = DateTime.tryParse(r['created_at']?.toString() ?? '');
+      // Por fecha de la CLASE (16/9), igual que el historial y el backoffice.
+      final dt = Liquidacion.fechaDeClase(r) ??
+          DateTime.tryParse(r['created_at']?.toString() ?? '');
       return dt != null && mesArgentinoDe(dt) == mesActual;
     }).toList();
   }
