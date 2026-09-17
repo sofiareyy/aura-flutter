@@ -13,7 +13,7 @@
 // el Inicio YA tiene en memoria, no sobre la base, justamente para que la
 // promesa del chip y lo que se ve después no puedan separarse.
 
-import '../models/estudio.dart';
+import 'explorar_filtros.dart';
 
 /// La etiqueta que no filtra nada. Siempre primera y siempre presente.
 const String kCategoriaTodos = 'Todos';
@@ -30,11 +30,13 @@ List<String> categoriasConOferta({
 }) {
   final conClases = <String>{};
   for (final clase in clases) {
-    final estudio = clase['estudios'];
-    if (estudio is! Map) continue;
-    for (final c in Estudio.parseCategorias(
-      Map<String, dynamic>.from(estudio),
-    )) {
+    // 17/9/2026: se mira la categoría DE LA CLASE y, sólo si no declara
+    // ninguna, la del estudio (catsBusquedaDe). Antes miraba únicamente al
+    // estudio, así que una experiencia de cerámica en un estudio que no está
+    // categorizado como cerámica no le daba chip a nadie. Es el mismo
+    // criterio que usa Explorar, para que un chip signifique lo mismo en las
+    // dos pantallas.
+    for (final c in catsBusquedaDe(clase)) {
       final limpia = c.trim();
       if (limpia.isNotEmpty) conClases.add(limpia.toLowerCase());
     }

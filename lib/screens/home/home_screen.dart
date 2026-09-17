@@ -295,7 +295,10 @@ class _HomeScreenState extends State<HomeScreen> {
           // porque la consulta del catálogo no mira `activa` (4/9/2026).
           _categorias = categoriasConOferta(
             catalogo: categorias,
-            clases: clases,
+            // Las EXPERIENCIAS también cuentan (17/9): se pedían aparte y no
+            // entraban al cálculo, así que una categoría que sólo tiene
+            // experiencias —Cerámica -- se quedaba sin chip en el Inicio.
+            clases: [...clases, ...experiencias],
           );
           _categoriaSeleccionada = categoriaValida(
             _categoriaSeleccionada,

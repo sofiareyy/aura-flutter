@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/constants/app_constants.dart';
 import '../models/estudio.dart';
 import '../utils/volver_a_tus_estudios.dart';
+import '../utils/filtros_postgrest.dart';
 
 String _toSupaDate(DateTime dt) {
   return '${dt.year.toString().padLeft(4, '0')}-'
@@ -25,6 +26,10 @@ class ClasesService {
     int offset = 0,
     bool incluirExperiencias = false,
     int diasVentana = 30,
+    String? categoria,
+    String? texto,
+    List<int> estudiosDelTexto = const [],
+    List<int> estudiosDeLaCategoria = const [],
   }) async {
     final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
     final semanasAdelante = ahora.add(Duration(days: diasVentana));
@@ -37,10 +42,26 @@ class ClasesService {
       // Los workshops van en su propia sección "Experiencias" (Home).
       query = query.neq('tipo', 'workshop');
     }
+    // 17/9/2026: el chip y la búsqueda se aplican EN LA BASE.
+    //
+    // Antes se traían 20 clases cualesquiera y se filtraban en memoria. Como
+    // Pilates es el ~15% del catálogo, de esas 20 sobrevivían 2 o 3: el feed
+    // parecía cortado y para ver las 155 clases de Pilates había que tocar
+    // "Cargar más" unas 50 veces. Ahora la página trae 20 clases DE PILATES.
+    final filtroCat = filtroCategoriaPostgrest(categoria, estudiosDeLaCategoria);
+    if (filtroCat != null) query = query.or(filtroCat) as dynamic;
+    final filtroTexto = filtroTextoPostgrest(texto, estudiosDelTexto);
+    if (filtroTexto != null) query = query.or(filtroTexto) as dynamic;
+
     final clases = await query
         .gte('fecha', _toSupaDate(ahora))
         .lte('fecha', _toSupaDate(semanasAdelante))
         .order('fecha', ascending: true)
+        // Desempate por id: SIN esto la paginación no es determinística.
+        // Con varias clases a la misma hora, Postgres puede devolverlas en
+        // otro orden entre la página 1 y la 2, y entonces la 2 repite filas
+        // (se dedupean) u OMITE otras, que se pierden en silencio.
+        .order('id', ascending: true)
         .range(offset, offset + limit - 1);
     final withEstudios =
         await _attachEstudios(List<Map<String, dynamic>>.from(clases as List));
@@ -49,18 +70,33 @@ class ClasesService {
 
   /// Próximos workshops / eventos (tipo = 'workshop'), ordenados por fecha
   /// ascendente. Ventana más amplia porque los eventos suelen ser más lejanos.
-  Future<List<Map<String, dynamic>>> getProximasExperiencias(
-      {int limit = 20, int offset = 0}) async {
+  Future<List<Map<String, dynamic>>> getProximasExperiencias({
+    int limit = 20,
+    int offset = 0,
+    String? categoria,
+    String? texto,
+    List<int> estudiosDelTexto = const [],
+    List<int> estudiosDeLaCategoria = const [],
+  }) async {
     final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
     final hasta = ahora.add(const Duration(days: 90));
-    final clases = await _supabase
+    var query = _supabase
         .from(AppConstants.tableClases)
         .select()
         .eq('tipo', 'workshop')
-        .eq('cancelada', false)
+        .eq('cancelada', false);
+    // Mismos filtros que las clases (17/9): antes las experiencias se traían
+    // todas juntas con tope 100 y sin paginar, y el chip se aplicaba después.
+    final filtroCat = filtroCategoriaPostgrest(categoria, estudiosDeLaCategoria);
+    if (filtroCat != null) query = query.or(filtroCat) as dynamic;
+    final filtroTexto = filtroTextoPostgrest(texto, estudiosDelTexto);
+    if (filtroTexto != null) query = query.or(filtroTexto) as dynamic;
+
+    final clases = await query
         .gte('fecha', _toSupaDate(ahora))
         .lte('fecha', _toSupaDate(hasta))
         .order('fecha', ascending: true)
+        .order('id', ascending: true)
         .range(offset, offset + limit - 1);
     final withEstudios =
         await _attachEstudios(List<Map<String, dynamic>>.from(clases as List));
