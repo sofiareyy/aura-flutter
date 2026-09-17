@@ -771,13 +771,22 @@ primeras tarjetas quedan idénticos**. 580 tests (19 nuevos).
 está EN PANTALLA. Medir "el orden" después de scrolear sin volver arriba da
 falsos positivos — pasó en esta misma sesión.
 
+### El Inicio, en la misma tanda (17/9)
+- El tope de la vidriera **depende de las columnas**: 8 con 1 o 2 (8 filas / 4
+  filas) y 12 con 3 o 4 (4 filas / 3 filas). Era 6 fijo, elegido pensando en 1
+  y 2 columnas: en una compu quedaban DOS filas contra ~1400 clases futuras.
+- **Cuarta columna** en pantallas anchas y el contenido topa en **1400** (era
+  1200): en un monitor de 1920 sobraban ~700 px de fondo.
+- **"Clases esta semana" es grilla** (dos filas) cuando hay 3+ columnas, y
+  sigue siendo carrusel en el celular, donde deslizar es lo natural.
+- "Cerca tuyo" pasa de 6 a 10 estudios: es carrusel, así que no agrega filas.
+- Se actualizaron 5 tests que fijaban los números viejos, cada uno con el
+  motivo. Uno cambió de sentido: con 8 lugares el cupo automático del reparto
+  pasa de 1 a 2 por estudio, así que en el pozo sintético entran 4 estudios en
+  vez de 6. El Inicio real no usa ese cupo automático sino
+  `topeVidrieraPorEstudio`.
+
 ### Pendiente
-- **El Inicio muestra poco** (relevado el 17/9, sin tocar): tope de 6 tarjetas
-  pensado para 1 y 2 columnas —en desktop son 2 filas— y 6 de las 7 secciones
-  son carruseles de 1 fila. Propuesta: tope por columnas (8/8/12), ancho máximo
-  de 1200 a ~1400, cuarta columna en pantallas anchas y "Clases esta semana"
-  como grilla en desktop. Rompe a propósito `vidriera_inicio_test` y
-  `grilla_responsive_test`.
 - **Girlas**: se registró como usuaria común el 27/8, sin estudio. Faltan sus
   datos (Sofía avisa).
 

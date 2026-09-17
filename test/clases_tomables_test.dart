@@ -112,15 +112,16 @@ void main() {
     ];
 
     test('con oferta variada muestra las próximas por fecha, tal cual', () {
-      // Ninguna estudio repite 4 veces, así que el tope no toca nada: el
-      // resultado tiene que ser exactamente las 6 primeras del pozo.
+      // Ningún estudio repite 4 veces, así que el tope no toca nada: el
+      // resultado tiene que ser exactamente las primeras del pozo.
+      // (17/9/2026: la vidriera pasó de 6 a 8 lugares.)
       final entrada = pozo([1, 2, 1, 3, 2, 4, 1, 5]);
       final salida = repartirEntreEstudios(
         entrada,
         max: clasesEnLaVidriera,
         cupo: topeVidrieraPorEstudio,
       );
-      expect(salida.map((c) => c['id']), [0, 1, 2, 3, 4, 5]);
+      expect(salida.map((c) => c['id']), [0, 1, 2, 3, 4, 5, 6, 7]);
     });
 
     /// Cuántas clases aporta cada estudio en el resultado.

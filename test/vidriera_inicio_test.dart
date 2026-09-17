@@ -26,13 +26,21 @@ List<Map<String, dynamic>> deUnEstudio(int estudioId, int n, {int desde = 1}) =>
     );
 
 void main() {
-  test('la vidriera son 6, un solo número para las dos vistas', () {
-    expect(clasesEnLaVidriera, 6);
+  test('la vidriera son 8 en el celular y 12 en una compu (17/9/2026)', () {
+    // Era 6 para todos los anchos, elegido pensando en 1 y 2 columnas. En una
+    // compu son 3 o 4 columnas: quedaban DOS filas contra ~1400 clases
+    // futuras. Ahora el número sigue a las columnas para que no queden filas
+    // a medias.
+    expect(clasesEnLaVidriera, 8);
+    expect(clasesEnLaVidrieraPara(1), 8, reason: 'celular: 8 filas');
+    expect(clasesEnLaVidrieraPara(2), 8, reason: 'tablet: 4 filas');
+    expect(clasesEnLaVidrieraPara(3), 12, reason: 'compu: 4 filas');
+    expect(clasesEnLaVidrieraPara(4), 12, reason: 'pantalla ancha: 3 filas');
   });
 
-  test('EL CASO QUE IMPORTA: 6 estudios distintos, no 6 del mismo', () {
+  test('EL CASO QUE IMPORTA: estudios distintos, no todas del mismo', () {
     // 6 estudios, y el 1 tiene los primeros 10 horarios: sin reparto, la
-    // vidriera serían 6 clases del estudio 1.
+    // vidriera serían todas del estudio 1.
     final pozo = [
       ...deUnEstudio(1, 10),
       ...deUnEstudio(2, 4, desde: 11),
@@ -42,23 +50,32 @@ void main() {
       ...deUnEstudio(6, 4, desde: 11),
     ];
     final v = repartirEntreEstudios(pozo, max: clasesEnLaVidriera);
-    expect(v.length, 6);
+    expect(v.length, 8);
     final estudios = v
         .map((c) => (c['estudios'] as Map)['id'] as int)
         .toSet();
-    expect(estudios.length, 6, reason: 'salieron de $estudios');
+    // Lo que este test protege es que NO salgan las 8 del mismo estudio.
+    //
+    // Antes daba 6 de 6 porque con 6 lugares y 6 estudios el cupo automático
+    // era 1 (uno de cada uno, justo). Con 8 lugares el cupo pasa a 2, así que
+    // entran 4 estudios con 2 clases cada uno: menos variedad en este pozo
+    // sintético —donde un estudio acapara los 10 primeros horarios—, pero el
+    // Inicio real no usa el cupo automático sino `topeVidrieraPorEstudio`.
+    expect(estudios.length, 4, reason: 'salieron de $estudios');
+    expect(estudios.length, greaterThan(1),
+        reason: 'lo que importa: nunca todas del mismo');
   });
 
   test('con pocos estudios, se completa con una segunda de cada uno', () {
     final pozo = [...deUnEstudio(1, 5), ...deUnEstudio(2, 5, desde: 6)];
     final v = repartirEntreEstudios(pozo, max: clasesEnLaVidriera);
-    expect(v.length, 6);
+    expect(v.length, 8);
     final porEstudio = <int, int>{};
     for (final c in v) {
       final id = (c['estudios'] as Map)['id'] as int;
       porEstudio[id] = (porEstudio[id] ?? 0) + 1;
     }
-    expect(porEstudio, {1: 3, 2: 3});
+    expect(porEstudio, {1: 4, 2: 4});
   });
 
   test('con menos clases que lugares, muestra las que hay', () {
