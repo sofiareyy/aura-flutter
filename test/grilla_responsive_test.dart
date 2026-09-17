@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// Los números de las dos grillas de la web (2/9/2026).
 ///
-/// Inicio = vidriera (foto arriba, 16:9, hasta 3 columnas en 1200).
+/// Inicio = vidriera (foto arriba, 16:9, hasta 4 columnas en 1400).
 /// Explorar = buscador (foto al costado, denso, hasta 2 columnas en 1100).
 void main() {
   group('columnas de la vidriera (Inicio)', () {
@@ -20,10 +20,17 @@ void main() {
 
     test('desktop: tres', () {
       expect(columnasVidriera(900), 3);
-      expect(columnasVidriera(1200), 3);
-      // Por más ancha que sea la pantalla no pasa de tres: el contenido topa
-      // en 1200 y las columnas se quedan en ~390 px.
-      expect(columnasVidriera(1880), 3);
+      expect(columnasVidriera(1179), 3);
+    });
+
+    test('pantalla ancha: cuatro (17/9/2026)', () {
+      // Antes topaba en TRES a cualquier ancho, y en un monitor de 1920 se
+      // veían dos filas con ~700 px de fondo vacío al costado. El contenido
+      // ahora topa en 1400 y la cuarta columna deja tarjetas de ~338 px.
+      expect(columnasVidriera(1180), 4);
+      expect(columnasVidriera(1360), 4);
+      // Y no pasa de cuatro: con cinco la foto bajaría de 270 px.
+      expect(columnasVidriera(1880), 4);
     });
   });
 

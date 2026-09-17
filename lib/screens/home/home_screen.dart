@@ -295,7 +295,10 @@ class _HomeScreenState extends State<HomeScreen> {
           // porque la consulta del catálogo no mira `activa` (4/9/2026).
           _categorias = categoriasConOferta(
             catalogo: categorias,
-            clases: clases,
+            // Las EXPERIENCIAS también cuentan (17/9): se pedían aparte y no
+            // entraban al cálculo, así que una categoría que sólo tiene
+            // experiencias —Cerámica -- se quedaba sin chip en el Inicio.
+            clases: [...clases, ...experiencias],
           );
           _categoriaSeleccionada = categoriaValida(
             _categoriaSeleccionada,
@@ -420,17 +423,17 @@ class _HomeScreenState extends State<HomeScreen> {
         .map((c) => (c['id'] as num?)?.toInt())
         .whereType<int>()
         .toSet();
-    final vidriera = repartirEntreEstudios(
-      clasesFiltradas
-          .where((c) => !yaArriba.contains((c['id'] as num?)?.toInt()))
-          .toList(),
-      max: clasesEnLaVidriera,
-      cupo: topeVidrieraPorEstudio,
-    );
+    // El candidato a la vidriera; cuántas entran se decide abajo, cuando se
+    // sabe el ancho (las columnas mandan, para no dejar filas a medias).
+    final candidatasVidriera = clasesFiltradas
+        .where((c) => !yaArriba.contains((c['id'] as num?)?.toInt()))
+        .toList();
 
+    // 10 en vez de 6 (17/9): es un carrusel, así que no agrega filas — sólo
+    // deja seguir deslizando en vez de cortar cuando todavía hay estudios.
     final estudiosCerca = _studioGeoService
         .sortByDistance(estudiosFiltrados, _locationState.position)
-        .take(6)
+        .take(10)
         .toList();
 
     return Scaffold(
@@ -450,6 +453,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? restricciones.maxWidth
                     : anchoMaxVidriera + 40;
                 final columnas = columnasVidriera(anchoCaja - 40);
+                // Las que entran, según las columnas: 8 en el celular y en
+                // tablet, 12 en una compu. Así la grilla cierra filas.
+                final vidriera = repartirEntreEstudios(
+                  candidatasVidriera,
+                  max: clasesEnLaVidrieraPara(columnas),
+                  cupo: topeVidrieraPorEstudio,
+                );
                 return Center(
                   child: SizedBox(
                     width: anchoCaja,
@@ -842,6 +852,45 @@ class _HomeScreenState extends State<HomeScreen> {
                                   height: 1.5,
                                 ),
                               ),
+                            ),
+                          )
+                        // 17/9/2026: en pantalla ancha es GRILLA, en el
+                        // celular sigue siendo carrusel.
+                        //
+                        // El carrusel de una fila era la sección que más
+                        // desaprovechaba la compu: una tira de 320 px de alto
+                        // contra 1400 clases futuras en el catálogo. En el
+                        // celular, en cambio, deslizar de costado es lo
+                        // natural y una grilla acá empujaría todo lo de abajo.
+                        else if (columnas >= 3)
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                            sliver: SliverGrid(
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: columnas,
+                                    crossAxisSpacing: gapGrilla,
+                                    mainAxisSpacing: gapGrilla,
+                                    mainAxisExtent: altoCardVidriera(
+                                      anchoCelda(anchoCaja - 40, columnas),
+                                    ),
+                                  ),
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
+                                final clase = clasesEstaSemana[index];
+                                return HomeNearbyClassCard(
+                                  clase: clase,
+                                  onTap: () =>
+                                      context.push('/clase/${clase['id']}'),
+                                );
+                              },
+                                  // Dos filas completas de la semana; el resto
+                                  // vive en "Más clases" y en Explorar.
+                                  childCount: clasesEstaSemana.length < columnas * 2
+                                      ? clasesEstaSemana.length
+                                      : columnas * 2),
                             ),
                           )
                         else

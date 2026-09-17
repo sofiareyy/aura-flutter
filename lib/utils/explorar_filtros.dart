@@ -23,7 +23,22 @@ List<String> catsBusquedaDe(Map<String, dynamic> clase) {
       : const [];
   final etiquetas = limpiar(clase['etiquetas']);
   if (etiquetas.isNotEmpty) return etiquetas;
-  return limpiar(clase['categorias']);
+  final cats = limpiar(clase['categorias']);
+  if (cats.isNotEmpty) return cats;
+  // 17/9/2026: faltaban DOS escalones que `categoriasDeClase` sí tenía, y por
+  // eso una experiencia con la categoría cargada sólo en el campo suelto (o
+  // heredada del estudio) desaparecía de todo chip que no fuera "Todos",
+  // aunque su propia tarjeta mostrara esa misma categoría.
+  final suelta = clase['categoria']?.toString().trim() ?? '';
+  if (suelta.isNotEmpty) return [suelta];
+  final estudio = clase['estudios'];
+  if (estudio is Map) {
+    final delEstudio = limpiar(estudio['categorias']);
+    if (delEstudio.isNotEmpty) return delEstudio;
+    final sueltaEstudio = estudio['categoria']?.toString().trim() ?? '';
+    if (sueltaEstudio.isNotEmpty) return [sueltaEstudio];
+  }
+  return const [];
 }
 
 bool _contieneCategoria(List<String> cats, String categoria) {
@@ -84,15 +99,25 @@ List<Map<String, dynamic>> mezclarFeed(
   for (final p in [...clases, ...experiencias]) {
     if (vistos.add(p['id'])) out.add(p);
   }
-  out.sort((a, b) {
-    final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
-    final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
-    if (fa == null && fb == null) return 0;
-    if (fa == null) return 1;
-    if (fb == null) return -1;
-    return fa.compareTo(fb);
-  });
+  out.sort(compararPlanes);
   return out;
+}
+
+/// Orden del feed: por fecha y, a igual fecha, por id.
+///
+/// El desempate NO es cosmético (17/9/2026): `List.sort` de Dart no es
+/// estable, y en este feed los empates de horario son la norma (varias clases
+/// a las 10:00 de distintos estudios). Sin desempate, las empatadas podían
+/// permutar entre un render y el siguiente, y la lista "bailaba" sola.
+int compararPlanes(Map<String, dynamic> a, Map<String, dynamic> b) {
+  final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
+  final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
+  if (fa != null && fb != null && fa != fb) return fa.compareTo(fb);
+  if (fa == null && fb != null) return 1;
+  if (fb == null && fa != null) return -1;
+  final ia = (a['id'] as num?)?.toInt() ?? 0;
+  final ib = (b['id'] as num?)?.toInt() ?? 0;
+  return ia.compareTo(ib);
 }
 
 /// Las [max] experiencias más próximas de un feed YA FILTRADO (chip, búsqueda,

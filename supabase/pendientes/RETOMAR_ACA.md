@@ -718,6 +718,78 @@ quedaron desactualizados en dos días. **Medir siempre contra la base.**
 
 # ⬜ LO QUE QUEDA
 
+## 🟡 Explorar: el scroll que se cortaba — ARREGLADO, sin pushear (17/9)
+
+**El síntoma:** filtrando por Pilates aparecía **UNA sola clase**. Medido en la
+web publicada antes de tocar nada, y después del arreglo: **12**.
+
+**La causa:** el chip y el buscador se aplicaban EN MEMORIA sobre las 20 clases
+que traía la primera página, ordenadas por fecha sin mirar la categoría. Como
+Pilates es el ~15% del catálogo (155 de 1048 en 30 días), de esas 20 sobrevivían
+2 o 3. Para ver las 155 había que tocar "Cargar más" unas 50 veces.
+
+**Y el desorden al tocar "ver más"**, tres causas sumadas:
+1. La rueda de destacados usa `% cantidad de candidatos`, y sólo son candidatos
+   los estudios **con clases en el feed ya cargado**. Al paginar entraban más,
+   la cantidad cambiaba y la tira se reordenaba entera.
+2. Al paginar se re-ordenaba la lista COMPLETA en vez de agregar al final.
+3. `.order('fecha')` sin desempate + `.range()`: con clases a la misma hora, la
+   página 2 podía repetir (se dedupeaban) u **omitir** filas, que se perdían en
+   silencio. Y `List.sort` de Dart no es estable: los empates permutaban entre
+   renders.
+
+### Qué cambió
+- `lib/utils/filtros_postgrest.dart` (nuevo): traduce chip y búsqueda a
+  PostgREST. Las clases sin categoría propia heredan la del estudio, pero sólo
+  ésas (si no, filtrar Pilates traería el spinning de un estudio mixto).
+- `clases_service`: las dos consultas reciben categoría y texto, y ordenan por
+  `fecha` **y `id`**. Las experiencias ahora también paginan (antes: tope 100
+  sin paginación).
+- `explorar_screen`: cambiar un filtro recarga desde la base (con espera de
+  350 ms al escribir); la paginación **agrega al final**; **scroll infinito**
+  con el botón como respaldo; los destacados se **congelan** y "Ver todo" suma
+  los que faltan detrás, en vez de cambiar a orden alfabético.
+- `compararPlanes` en `explorar_filtros`: desempate por id en los sorts de
+  memoria.
+
+### Experiencias
+- `catsBusquedaDe` ahora cae al campo suelto y al estudio, como
+  `categoriasDeClase`. Antes una experiencia mostraba "Cerámica" en su tarjeta
+  y **desaparecía al tocar el chip "Cerámica"**.
+- **El filtro de créditos era invisible**: el deslizador decía "Todos" en 100
+  pero la comparación seguía viva, así que una experiencia de más de 100
+  créditos no se mostraba NUNCA. Ahora "Todos" es `null` y no compara nada.
+- Los chips del Inicio cuentan las experiencias (antes se calculaban sólo sobre
+  las clases, así que Cerámica no tenía chip).
+
+### Verificado
+Build local contra la base real: Pilates pasa de 1 a 12 clases; el scroll carga
+más solo; y volviendo al tope después de scrolear, **los destacados y las
+primeras tarjetas quedan idénticos**. 580 tests (19 nuevos).
+
+⚠️ Ojo con las pruebas headless de Flutter web: la semántica sólo expone lo que
+está EN PANTALLA. Medir "el orden" después de scrolear sin volver arriba da
+falsos positivos — pasó en esta misma sesión.
+
+### El Inicio, en la misma tanda (17/9)
+- El tope de la vidriera **depende de las columnas**: 8 con 1 o 2 (8 filas / 4
+  filas) y 12 con 3 o 4 (4 filas / 3 filas). Era 6 fijo, elegido pensando en 1
+  y 2 columnas: en una compu quedaban DOS filas contra ~1400 clases futuras.
+- **Cuarta columna** en pantallas anchas y el contenido topa en **1400** (era
+  1200): en un monitor de 1920 sobraban ~700 px de fondo.
+- **"Clases esta semana" es grilla** (dos filas) cuando hay 3+ columnas, y
+  sigue siendo carrusel en el celular, donde deslizar es lo natural.
+- "Cerca tuyo" pasa de 6 a 10 estudios: es carrusel, así que no agrega filas.
+- Se actualizaron 5 tests que fijaban los números viejos, cada uno con el
+  motivo. Uno cambió de sentido: con 8 lugares el cupo automático del reparto
+  pasa de 1 a 2 por estudio, así que en el pozo sintético entran 4 estudios en
+  vez de 6. El Inicio real no usa ese cupo automático sino
+  `topeVidrieraPorEstudio`.
+
+### Pendiente
+- **Girlas**: se registró como usuaria común el 27/8, sin estudio. Faltan sus
+  datos (Sofía avisa).
+
 ## 🟡 Resumen diario del negocio — ARMADO, falta prender el cron (16/9)
 
 Un mail a `aura.hola.app@gmail.com` todos los días, con pocos números y los

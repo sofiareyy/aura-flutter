@@ -12,7 +12,12 @@ library;
 /// Ancho tope del contenido de Inicio. Un poco más que el buscador: la
 /// vidriera pide respirar. Sin esto, en un monitor de 1920 la tarjeta ocupaba
 /// todo el ancho y la foto quedaba de 1900 × 132 (14:1, una banda).
-const double anchoMaxVidriera = 1200;
+///
+/// 17/9/2026: de 1200 a 1400. En un monitor de 1920 quedaban ~700 px de fondo
+/// vacío a los costados mientras la pantalla mostraba dos filas de tarjetas.
+/// Con 1400 y cuatro columnas la tarjeta queda en ~338 px, más chica que los
+/// 389 de antes pero todavía holgada, y entra una columna más de oferta.
+const double anchoMaxVidriera = 1400;
 
 /// Ancho tope del contenido de Explorar.
 const double anchoMaxBuscador = 1100;
@@ -25,10 +30,14 @@ const double proporcionFotoVidriera = 16 / 9;
 /// Separación entre tarjetas, igual en las dos grillas.
 const double gapGrilla = 16;
 
-/// Columnas de la vidriera (Inicio). Con 3 la foto queda de ~390 px de ancho y
-/// entran 6 clases sin scrollear; con 2 cada foto sería de casi 600 —linda,
-/// pero se ve la mitad de la oferta.
+/// Columnas de la vidriera (Inicio).
+///
+/// 17/9/2026: se suma el cuarto escalón. El tope anterior de 3 dejaba la
+/// pantalla de una compu con dos filas y mucho aire al costado. A 1180 px de
+/// CONTENIDO la cuarta columna todavía deja tarjetas de ~280 px; por debajo,
+/// tres columnas siguen siendo lo cómodo.
 int columnasVidriera(double ancho) {
+  if (ancho >= 1180) return 4;
   if (ancho >= 900) return 3;
   if (ancho >= 720) return 2;
   return 1;
@@ -192,12 +201,21 @@ const double anchoMaxFormulario = 640;
 const double altoCarruselDestacados = 180;
 
 /// Cuántas clases muestra la vidriera del final del Inicio ("MÁS CLASES")
-/// antes del "Ver todas".
+/// antes del "Ver todas". Es el piso: el de 1 y 2 columnas.
 ///
-/// Un solo número para las dos vistas: con 2 columnas son 3 filas y con 1, seis
-/// tarjetas. Antes la sección listaba las 50 clases cargadas, que medido con la
-/// tarjeta real daba 21 pantallas de scroll en el celular.
-const int clasesEnLaVidriera = 6;
+/// 17/9/2026: de 6 a 8. El 6 se eligió pensando en 1 y 2 columnas (6 tarjetas
+/// o 3 filas), pero en una compu son 3 o 4 columnas y quedaban DOS filas
+/// contra 1400 clases futuras en el catálogo. Ahora el número depende de las
+/// columnas para que siempre cierren filas completas — ver
+/// [clasesEnLaVidrieraPara]. La sección sigue siendo un recorte con "Ver
+/// todas": listar las 50 cargadas daba 21 pantallas de scroll en el celular.
+const int clasesEnLaVidriera = 8;
+
+/// Cuántas clases mostrar según las columnas, para que no queden filas a
+/// medias: 8 con 1 o 2 columnas (8 filas / 4 filas) y 12 con 3 o 4 (4 filas /
+/// 3 filas).
+int clasesEnLaVidrieraPara(int columnas) =>
+    columnas >= 3 ? 12 : clasesEnLaVidriera;
 
 /// Cuántas clases del MISMO estudio se admiten en la vidriera del Inicio.
 ///

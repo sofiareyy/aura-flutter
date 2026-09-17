@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -50,7 +52,30 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   // Filtros avanzados
   Set<int> _diasFiltro = {};
   Set<String> _horarioFiltro = {};
-  int _maxCreditos = 100;
+  /// Tope de créditos. `null` = TODOS, sin tope (17/9/2026).
+  ///
+  /// Antes era `int = 100` y el deslizador llegaba justo a 100: decía "Todos"
+  /// pero la comparación seguía viva, así que una experiencia de más de 100
+  /// créditos no se mostraba NUNCA, sin aviso y sin que pareciera que había un
+  /// filtro puesto. Con `null` no se compara nada.
+  int? _maxCreditos;
+
+  /// Scroll infinito: la próxima tanda se pide sola al acercarse al final.
+  final ScrollController _scrollCtrl = ScrollController();
+
+  /// Los destacados se congelan mientras dura la búsqueda.
+  ///
+  /// Se calculaban en cada `build` a partir del feed YA CARGADO, y la rueda
+  /// del día usa `% cantidad de candidatos`: al paginar entraban estudios que
+  /// antes no tenían clases, la cantidad cambiaba y la tira se reordenaba
+  /// entera. Eso es el "se desordena al tocar ver más".
+  List<Estudio> _destacados = [];
+
+  /// Para no pegarle a la base en cada tecla del buscador.
+  Timer? _debounce;
+
+  int _experienciasOffset = 0;
+  bool _hasMoreExperiencias = true;
 
   /// E2: 'todo' | 'clases' | 'experiencias'.
   String _tipoFiltro = 'todo';
@@ -58,20 +83,68 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   int get _cantFiltrosActivos =>
       _diasFiltro.length +
       _horarioFiltro.length +
-      (_maxCreditos < 100 ? 1 : 0) +
+      (_maxCreditos != null ? 1 : 0) +
       (_tipoFiltro != 'todo' ? 1 : 0);
 
   @override
   void initState() {
     super.initState();
     _cargar();
-    _searchCtrl.addListener(() => setState(() {}));
+    // El texto se aplica EN LA BASE, así que se espera a que deje de escribir.
+    _searchCtrl.addListener(_onBuscar);
+    _scrollCtrl.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _scrollCtrl.dispose();
+    _searchCtrl.removeListener(_onBuscar);
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _onBuscar() {
+    setState(() {}); // la X de limpiar y los estudios se filtran en el acto
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) _cargar(mantenerScroll: true);
+    });
+  }
+
+  /// Scroll infinito: cuando falta menos de una pantalla para el final, se
+  /// pide la próxima tanda sola. El botón queda como respaldo.
+  void _onScroll() {
+    if (!_scrollCtrl.hasClients) return;
+    final pos = _scrollCtrl.position;
+    if (pos.pixels >= pos.maxScrollExtent - 600) _cargarMas();
+  }
+
+  /// Los ids de estudios que matchean el texto (nombre, barrio, categorías).
+  /// Van a la query para que "Citra" traiga sus clases aunque ninguna se llame
+  /// así. Los estudios se cargan enteros, así que esto no cuesta una consulta.
+  List<int> get _idsEstudiosDelTexto {
+    final q = _searchCtrl.text.trim().toLowerCase();
+    if (q.isEmpty) return const [];
+    return _estudios
+        .where((e) =>
+            e.nombre.toLowerCase().contains(q) ||
+            (e.barrio?.toLowerCase().contains(q) ?? false) ||
+            e.categorias.any((c) => c.toLowerCase().contains(q)))
+        .map((e) => e.id)
+        .whereType<int>()
+        .toList();
+  }
+
+  /// Los ids de estudios de la categoría activa: para las clases que no
+  /// declaran categoría propia y la heredan del estudio.
+  List<int> get _idsEstudiosDeLaCategoria {
+    if (_categoriaSeleccionada == 'Todos') return const [];
+    return _estudios
+        .where((e) => e.tieneCategoria(_categoriaSeleccionada))
+        .map((e) => e.id)
+        .whereType<int>()
+        .toList();
   }
 
   @override
@@ -90,69 +163,140 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
     _categoriaInicialAplicada = true;
   }
 
-  Future<void> _cargar() async {
-    if (mounted) setState(() => _loading = true);
+  /// Trae la primera página CON LOS FILTROS APLICADOS EN LA BASE.
+  ///
+  /// [mantenerScroll] evita el parpadeo de la silueta cuando el que cambió es
+  /// el texto del buscador: la lista se reemplaza sin volver a vaciar.
+  Future<void> _cargar({bool mantenerScroll = false}) async {
+    if (mounted && !mantenerScroll) setState(() => _loading = true);
+
+    // Los estudios primero: de ahí salen los ids que necesitan los filtros.
+    if (_estudios.isEmpty) {
+      final estudios = await _estudiosService.getEstudios();
+      if (!mounted) return;
+      setState(() => _estudios = estudios);
+    }
+
+    final categoria = _categoriaSeleccionada;
+    final texto = _searchCtrl.text.trim();
+    final idsTexto = _idsEstudiosDelTexto;
+    final idsCategoria = _idsEstudiosDeLaCategoria;
 
     final results = await Future.wait([
       _estudiosService.getEstudios(),
-      _clasesService.getProximasClases(limit: _pageSize, offset: 0),
-      _clasesService.getProximasExperiencias(limit: 100),
+      _clasesService.getProximasClases(
+        limit: _pageSize,
+        offset: 0,
+        categoria: categoria,
+        texto: texto,
+        estudiosDelTexto: idsTexto,
+        estudiosDeLaCategoria: idsCategoria,
+      ),
+      _clasesService.getProximasExperiencias(
+        limit: _pageSize,
+        offset: 0,
+        categoria: categoria,
+        texto: texto,
+        estudiosDelTexto: idsTexto,
+        estudiosDeLaCategoria: idsCategoria,
+      ),
       _estudiosService.getCategorias(),
     ]);
 
     if (!mounted) return;
+    // La base ya devuelve ordenado por fecha y con desempate por id: no se
+    // re-ordena nada acá. Lo que la usuaria ya estaba mirando no se mueve.
     final nuevasClases = List<Map<String, dynamic>>.from(
       results[1] as List<Map<String, dynamic>>,
     );
-    // Sort defensivo asc en el cliente, aunque el backend ya lo haga.
-    nuevasClases.sort((a, b) {
-      final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
-      final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
-      if (fa == null && fb == null) return 0;
-      if (fa == null) return 1;
-      if (fb == null) return -1;
-      return fa.compareTo(fb);
-    });
+    final nuevasExp = List<Map<String, dynamic>>.from(
+      results[2] as List<Map<String, dynamic>>,
+    );
     setState(() {
       _estudios = results[0] as List<Estudio>;
       _clases = nuevasClases;
-      _experiencias = List<Map<String, dynamic>>.from(
-        results[2] as List<Map<String, dynamic>>,
-      );
+      _experiencias = nuevasExp;
       _clasesOffset = nuevasClases.length;
+      _experienciasOffset = nuevasExp.length;
       _hasMoreClases = nuevasClases.length == _pageSize;
+      _hasMoreExperiencias = nuevasExp.length == _pageSize;
       _categorias = results[3] as List<String>;
       if (!_categorias.contains(_categoriaSeleccionada)) {
         _categoriaSeleccionada = 'Todos';
       }
       _loading = false;
     });
+    _congelarDestacados();
   }
 
-  Future<void> _cargarMasClases() async {
-    if (_loadingMore || !_hasMoreClases) return;
+  /// Recalcula la tira de destacados. Se llama al cargar y al cambiar un
+  /// filtro — NUNCA al paginar, que es lo que la reordenaba.
+  void _congelarDestacados() {
+    if (!mounted) return;
+    setState(() {
+      _destacados = destacadosDelDia(
+        estudios: _estudiosFiltrados,
+        clases: _clasesConEstudio,
+        hoy: DateTime.now(),
+        asociadoId: _estudioAsociadoId,
+      );
+    });
+  }
+
+  /// Cambiar el chip de categoría: recarga desde la base.
+  void _elegirCategoria(String categoria) {
+    if (categoria == _categoriaSeleccionada) return;
+    setState(() {
+      _categoriaSeleccionada = categoria;
+      _showAllDestacados = false;
+    });
+    _cargar();
+  }
+
+  /// La próxima tanda: clases y experiencias, con los mismos filtros.
+  /// Se AGREGA al final; no se re-ordena la lista entera.
+  Future<void> _cargarMas() async {
+    if (_loadingMore || (!_hasMoreClases && !_hasMoreExperiencias)) return;
     setState(() => _loadingMore = true);
     try {
-      final mas = await _clasesService.getProximasClases(
-        limit: _pageSize,
-        offset: _clasesOffset,
-      );
+      final categoria = _categoriaSeleccionada;
+      final texto = _searchCtrl.text.trim();
+      final idsTexto = _idsEstudiosDelTexto;
+      final idsCategoria = _idsEstudiosDeLaCategoria;
+
+      final masClases = _hasMoreClases
+          ? await _clasesService.getProximasClases(
+              limit: _pageSize,
+              offset: _clasesOffset,
+              categoria: categoria,
+              texto: texto,
+              estudiosDelTexto: idsTexto,
+              estudiosDeLaCategoria: idsCategoria,
+            )
+          : <Map<String, dynamic>>[];
+      final masExp = _hasMoreExperiencias
+          ? await _clasesService.getProximasExperiencias(
+              limit: _pageSize,
+              offset: _experienciasOffset,
+              categoria: categoria,
+              texto: texto,
+              estudiosDelTexto: idsTexto,
+              estudiosDeLaCategoria: idsCategoria,
+            )
+          : <Map<String, dynamic>>[];
       if (!mounted) return;
-      final merged = [..._clases, ...mas];
-      merged.sort((a, b) {
-        final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
-        final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
-        if (fa == null && fb == null) return 0;
-        if (fa == null) return 1;
-        if (fb == null) return -1;
-        return fa.compareTo(fb);
-      });
       setState(() {
-        _clases = merged;
-        _clasesOffset += mas.length;
-        _hasMoreClases = mas.length == _pageSize;
+        _clases = [..._clases, ...masClases];
+        _experiencias = [..._experiencias, ...masExp];
+        _clasesOffset += masClases.length;
+        _experienciasOffset += masExp.length;
+        if (_hasMoreClases) _hasMoreClases = masClases.length == _pageSize;
+        if (_hasMoreExperiencias) {
+          _hasMoreExperiencias = masExp.length == _pageSize;
+        }
         _loadingMore = false;
       });
+      // Los destacados NO se recalculan acá: es justo lo que los desordenaba.
     } catch (_) {
       if (mounted) setState(() => _loadingMore = false);
     }
@@ -247,21 +391,17 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
         });
         if (!matchesHorario) return false;
       }
-      // Filtro por créditos
-      final creditos = (clase['creditos'] as num?)?.toInt() ?? 99;
-      if (creditos > _maxCreditos) return false;
+      // Filtro por créditos. `null` = Todos: no se compara nada (17/9).
+      final tope = _maxCreditos;
+      if (tope != null) {
+        final creditos = (clase['creditos'] as num?)?.toInt() ?? 0;
+        if (creditos > tope) return false;
+      }
 
       return true;
     }).toList();
-    // Sort por fecha asc para que la mas proxima quede primero.
-    filtered.sort((a, b) {
-      final fa = DateTime.tryParse(a['fecha']?.toString() ?? '');
-      final fb = DateTime.tryParse(b['fecha']?.toString() ?? '');
-      if (fa == null && fb == null) return 0;
-      if (fa == null) return 1;
-      if (fb == null) return -1;
-      return fa.compareTo(fb);
-    });
+    // La más próxima primero, con desempate por id: ver compararPlanes.
+    filtered.sort(compararPlanes);
     return filtered;
   }
 
@@ -276,7 +416,8 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
       builder: (ctx) {
         Set<int> diasTemp = Set.from(_diasFiltro);
         Set<String> horarioTemp = Set.from(_horarioFiltro);
-        int creditosTemp = _maxCreditos;
+        // El deslizador llega a 100 y ahí significa TODOS (sin tope).
+        int creditosTemp = _maxCreditos ?? 100;
         String tipoTemp = _tipoFiltro;
 
         const diasLabels = {
@@ -525,7 +666,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                             setState(() {
                               _diasFiltro = {};
                               _horarioFiltro = {};
-                              _maxCreditos = 100;
+                              _maxCreditos = null; // Todos, sin tope
                               _tipoFiltro = 'todo';
                             });
                             Navigator.of(ctx).pop();
@@ -553,7 +694,8 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                             setState(() {
                               _diasFiltro = diasTemp;
                               _horarioFiltro = horarioTemp;
-                              _maxCreditos = creditosTemp;
+                              // 100 = el máximo del deslizador = sin tope.
+                              _maxCreditos = creditosTemp >= 100 ? null : creditosTemp;
                               _tipoFiltro = tipoTemp;
                             });
                             Navigator.of(ctx).pop();
@@ -591,14 +733,18 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
     // Colapsado: 4 estudios CON clases, sorteados por día con más chances
     // para el que tiene más oferta (ver destacadosDelDia). Expandido: todos
     // los del filtro, como siempre.
+    // Congelados: se calculan al cargar y al cambiar un filtro, no en cada
+    // build ni al paginar (ver _congelarDestacados).
+    //
+    // "Ver todo" agrega los que faltan DETRÁS de los destacados, en vez de
+    // cambiar a orden alfabético: antes el botón reordenaba la tira entera.
     final destacados = _showAllDestacados
-        ? _estudiosFiltrados
-        : destacadosDelDia(
-            estudios: _estudiosFiltrados,
-            clases: _clasesConEstudio,
-            hoy: DateTime.now(),
-            asociadoId: _estudioAsociadoId,
-          );
+        ? <Estudio>[
+            ..._destacados,
+            ..._estudiosFiltrados
+                .where((e) => !_destacados.any((d) => d.id == e.id)),
+          ]
+        : _destacados;
     final lista = _clasesConEstudio;
 
     return Scaffold(
@@ -617,6 +763,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                 maxWidth: anchoMaxBuscador + AuraEspacio.margen * 2,
               ),
               child: ListView(
+                controller: _scrollCtrl,
                 physics: const AlwaysScrollableScrollPhysics(),
                 // El margen lateral es UNO para toda la app: antes acá era 22
                 // y en el Inicio 20.
@@ -793,9 +940,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                         final categoria = _categorias[index];
                         final active = categoria == _categoriaSeleccionada;
                         return GestureDetector(
-                          onTap: () => setState(
-                            () => _categoriaSeleccionada = categoria,
-                          ),
+                          onTap: () => _elegirCategoria(categoria),
                           child: Container(
                             margin: const EdgeInsets.only(right: 8),
                             padding: const EdgeInsets.symmetric(
@@ -880,11 +1025,17 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                           ),
                           const SizedBox(height: AuraEspacio.l),
                           TextButton.icon(
-                            onPressed: () => setState(() {
-                              _searchCtrl.clear();
-                              _categoriaSeleccionada = 'Todos';
-                              _tipoFiltro = 'todo';
-                            }),
+                            onPressed: () {
+                              setState(() {
+                                _searchCtrl.clear();
+                                _categoriaSeleccionada = 'Todos';
+                                _tipoFiltro = 'todo';
+                                _maxCreditos = null;
+                                _diasFiltro = {};
+                                _horarioFiltro = {};
+                              });
+                              _cargar();
+                            },
                             icon: const Icon(Icons.refresh_rounded, size: 16),
                             label: const Text('Limpiar filtros'),
                           ),
@@ -982,7 +1133,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                         clases: lista,
                         onTap: (clase) => context.push('/clase/${clase['id']}'),
                       ),
-                      if (_hasMoreClases || _loadingMore)
+                      if (_hasMoreClases || _hasMoreExperiencias || _loadingMore)
                         Padding(
                           padding: const EdgeInsets.only(top: 4, bottom: 4),
                           child: Center(
@@ -1010,12 +1161,12 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                                     },
                                   )
                                 : TextButton.icon(
-                                    onPressed: _cargarMasClases,
+                                    onPressed: _cargarMas,
                                     icon: const Icon(
                                       Icons.expand_more_rounded,
                                       size: 18,
                                     ),
-                                    label: const Text('Cargar más clases'),
+                                    label: const Text('Cargar más'),
                                   ),
                           ),
                         ),
