@@ -98,7 +98,9 @@ class PricingService {
           .from('pricing_credit_packs')
           .select()
           .eq('activo', true)
-          .order('orden');
+          // ascending explícito: en postgrest-dart el default es DESCENDENTE, y
+          // sin esto los packs salían del Full al Prueba (21/9/2026).
+          .order('orden', ascending: true);
       final rows = List<Map<String, dynamic>>.from(data as List);
       if (rows.isEmpty) return _packsCalculados();
       return rows.map(_packDesdeFila).toList();
@@ -173,7 +175,7 @@ class PricingService {
           .from('pricing_planes')
           .select()
           .eq('activo', true)
-          .order('orden');
+          .order('orden', ascending: true);
       final list = List<Map<String, dynamic>>.from(data as List);
       if (list.isEmpty) return AppConstants.planes;
       return list;
