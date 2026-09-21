@@ -185,7 +185,7 @@ class AdminService {
       final query = _client
           .from('estudios')
           .select(DatosCobro.embedTodo)
-          .order('nombre');
+          .order('nombre', ascending: true);
       final rows = await (search == null || search.trim().isEmpty
           ? query
           : _client
@@ -194,7 +194,7 @@ class AdminService {
               .or(
                 'nombre.ilike.%${search.trim()}%,barrio.ilike.%${search.trim()}%,categoria.ilike.%${search.trim()}%',
               )
-              .order('nombre'));
+              .order('nombre', ascending: true));
       final studios = DatosCobro.aplanarLista(rows as List).map((e) {
         final row = Map<String, dynamic>.from(e);
         row['activo'] = row['activo'] ?? true;
@@ -614,7 +614,7 @@ class AdminService {
         .from('estudio_servicios_precio')
         .select('servicio, creditos, activo')
         .eq('estudio_id', estudioId)
-        .order('servicio');
+        .order('servicio', ascending: true);
     return List<Map<String, dynamic>>.from(rows as List);
   }
 

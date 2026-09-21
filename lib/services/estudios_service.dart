@@ -18,7 +18,7 @@ class EstudiosService {
       final rows = await _supabase
           .from('study_categories')
           .select('nombre')
-          .order('nombre');
+          .order('nombre', ascending: true);
       final categorias = (rows as List)
           .map((row) => (row as Map)['nombre']?.toString().trim() ?? '')
           .where((item) => item.isNotEmpty)
@@ -64,7 +64,7 @@ class EstudiosService {
       query = query.contains('categorias', [categoria]) as dynamic;
     }
 
-    final data = await query.order('nombre');
+    final data = await query.order('nombre', ascending: true);
     return (data as List).map((e) => Estudio.fromMap(e)).toList();
   }
 
@@ -94,14 +94,14 @@ class EstudiosService {
         .select()
         .eq('activo', true)
         .or('nombre.ilike.%$query%,barrio.ilike.%$query%')
-        .order('nombre');
+        .order('nombre', ascending: true);
     final porNombre = (data as List).map((e) => Estudio.fromMap(e)).toList();
 
     final todos = await _supabase
         .from(AppConstants.tableEstudios)
         .select()
         .eq('activo', true)
-        .order('nombre');
+        .order('nombre', ascending: true);
     final q = query.trim().toLowerCase();
     final porCategoria = (todos as List)
         .map((e) => Estudio.fromMap(e))

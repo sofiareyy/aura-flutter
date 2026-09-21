@@ -407,8 +407,8 @@ class EstudioAdminService {
         .from('horarios_fijos')
         .select()
         .eq('estudio_id', studioId)
-        .order('dia_semana')
-        .order('hora_inicio');
+        .order('dia_semana', ascending: true)
+        .order('hora_inicio', ascending: true);
     return List<Map<String, dynamic>>.from(data as List);
   }
 

@@ -146,7 +146,7 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
           'estudios_datos_cobro(comision_aura, comision_workshop, valor_credito)',
         )
         .eq('activo', true)
-        .order('nombre');
+        .order('nombre', ascending: true);
     final estudiosData = DatosCobro.aplanarLista(estudiosRaw as List);
 
     // 3. Traer liquidaciones ya registradas para este mes

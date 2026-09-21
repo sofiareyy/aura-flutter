@@ -10,7 +10,7 @@ class AuraGestionService {
         .from('estudio_alumnos')
         .select()
         .eq('estudio_id', estudioId)
-        .order('nombre');
+        .order('nombre', ascending: true);
     return List<Map<String, dynamic>>.from(rows as List);
   }
 
