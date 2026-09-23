@@ -115,7 +115,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(AuraEspacio.margen),
             children: [
               Center(
                 child: Column(
@@ -139,15 +139,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                             )
                           : null,
                     ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Podés subir una foto o usar una URL.',
-                      style: TextStyle(
-                        color: AppColors.grey,
-                        fontSize: AuraTipo.secundario,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     OutlinedButton(
                       onPressed: _uploading ? null : _subirFoto,
                       child: _uploading
@@ -164,7 +156,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AuraEspacio.seccion),
               TextFormField(
                 controller: _nombreCtrl,
                 decoration: const InputDecoration(labelText: 'Nombre'),
@@ -175,24 +167,6 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                   return null;
                 },
                 onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _avatarCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'URL de foto',
-                  hintText: 'https://...',
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'La imagen queda guardada en Storage para que el perfil no dependa solo de URLs externas.',
-                style: TextStyle(
-                  color: AppColors.grey,
-                  fontSize: AuraTipo.secundario,
-                  height: 1.5,
-                ),
               ),
               const SizedBox(height: 28),
               SizedBox(

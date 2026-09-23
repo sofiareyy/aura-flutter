@@ -61,7 +61,6 @@ class _HomeScreenState extends State<HomeScreen> {
   List<String> _categorias = const ['Todos'];
   final _avisoService = AvisoAlumnosService();
   bool _loading = true;
-  bool _requestingLocation = false;
   bool _bannerDismissed = false;
   bool _tieneHistorialCreditos = true;
   int _unreadNotifs = 0;
@@ -70,31 +69,14 @@ class _HomeScreenState extends State<HomeScreen> {
     status: AuraLocationStatus.unknown,
   );
 
-  Future<void> _pedirUbicacion() async {
-    if (_requestingLocation) return;
-    setState(() => _requestingLocation = true);
-    try {
-      final state = await _locationService.getCurrentLocation();
-      if (!mounted) return;
-      setState(() => _locationState = state);
-      if (state.granted) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('ubicacion_permitida', true);
-      }
-    } finally {
-      if (mounted) setState(() => _requestingLocation = false);
-    }
-  }
-
-  /// Si el usuario ya concedió el permiso en una sesión previa, pedimos la
-  /// ubicación sin mostrar el prompt — el OS la entrega directo porque ya
-  /// tiene permiso. Si el flag está en false (o ausente) dejamos que la UI
-  /// muestre el _LocationPromptCard hasta que el usuario lo tape.
+  /// El Inicio nunca pide permiso de ubicación: sólo la usa si ya está dado
+  /// (desde el mapa o de antes). Se mira el permiso real del sistema, no un
+  /// flag propio: antes, aceptar en el mapa no le avisaba al Inicio y la
+  /// tarjeta seguía pidiendo (21/9/2026).
   Future<void> _restaurarUbicacionSiPermitida() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool('ubicacion_permitida') == true) {
-      await _pedirUbicacion();
-    }
+    final state = await _locationService.getLocationSiYaPermitida();
+    if (!mounted) return;
+    setState(() => _locationState = state);
   }
 
   @override
@@ -736,8 +718,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         SliverToBoxAdapter(
+                          // Sin permiso de ubicación no hay "cerca": la
+                          // sección muestra los mismos estudios, sin pedir
+                          // nada. El permiso se pide sólo en el mapa.
                           child: TituloSeccion(
-                            'CERCA TUYO',
+                            _locationState.granted ? 'CERCA TUYO' : 'ESTUDIOS',
                             accion: 'Ver todo',
                             onAccion: () => context.go('/explorar'),
                           ),
@@ -745,44 +730,37 @@ class _HomeScreenState extends State<HomeScreen> {
                         SliverToBoxAdapter(
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
-                            child: _locationState.granted
-                                ? (estudiosCerca.isEmpty
+                            child: estudiosCerca.isEmpty
+                                ? (_locationState.granted
                                       ? const _EmptyNearbyCard()
-                                      : SizedBox(
-                                          height: 204,
-                                          child: ListView.builder(
-                                            scrollDirection: Axis.horizontal,
-                                            itemCount: estudiosCerca.length,
-                                            itemBuilder: (context, index) {
-                                              final nearby =
-                                                  estudiosCerca[index];
-                                              return SizedBox(
-                                                width: 220,
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        right: 14,
-                                                      ),
-                                                  child: _NearbyStudyCard(
-                                                    estudio: nearby.estudio,
-                                                    distanceLabel:
-                                                        _studioGeoService
-                                                            .formatDistance(
-                                                              nearby.distanceKm,
-                                                            ),
-                                                    onTap: () => context.push(
-                                                      '/estudio/${nearby.estudio.id}',
-                                                    ),
+                                      : const SizedBox.shrink())
+                                : SizedBox(
+                                    height: 204,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: estudiosCerca.length,
+                                      itemBuilder: (context, index) {
+                                        final nearby = estudiosCerca[index];
+                                        return SizedBox(
+                                          width: 220,
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(
+                                              right: 14,
+                                            ),
+                                            child: _NearbyStudyCard(
+                                              estudio: nearby.estudio,
+                                              distanceLabel: _studioGeoService
+                                                  .formatDistance(
+                                                    nearby.distanceKm,
                                                   ),
-                                                ),
-                                              );
-                                            },
+                                              onTap: () => context.push(
+                                                '/estudio/${nearby.estudio.id}',
+                                              ),
+                                            ),
                                           ),
-                                        ))
-                                : _LocationPromptCard(
-                                    locationState: _locationState,
-                                    requesting: _requestingLocation,
-                                    onPrimaryTap: _pedirUbicacion,
+                                        );
+                                      },
+                                    ),
                                   ),
                           ),
                         ),
@@ -2438,113 +2416,6 @@ class _NearbyStudyCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _LocationPromptCard extends StatelessWidget {
-  final AuraLocationState locationState;
-  final bool requesting;
-  final VoidCallback onPrimaryTap;
-
-  const _LocationPromptCard({
-    required this.locationState,
-    required this.requesting,
-    required this.onPrimaryTap,
-  });
-
-  String get _title {
-    switch (locationState.status) {
-      case AuraLocationStatus.granted:
-        return 'Ubicación activada';
-      case AuraLocationStatus.deniedForever:
-        return 'Ubicación bloqueada';
-      case AuraLocationStatus.denied:
-        return 'Activá tu ubicación';
-      case AuraLocationStatus.unavailable:
-        return 'Ubicación no disponible';
-      case AuraLocationStatus.unknown:
-        return 'Activá tu ubicación';
-    }
-  }
-
-  String get _subtitle {
-    switch (locationState.status) {
-      case AuraLocationStatus.granted:
-        return 'Ya podemos usar tu ubicación para priorizar opciones cerca tuyo. Cuando sumemos coordenadas a los estudios, esta sección va a quedar totalmente personalizada.';
-      case AuraLocationStatus.deniedForever:
-        return 'Para mostrarte estudios cerca tuyo, necesitás habilitar la ubicación desde la configuración del dispositivo o navegador.';
-      case AuraLocationStatus.denied:
-        return 'Si aceptás el permiso, vamos a priorizar estudios y experiencias cerca tuyo.';
-      case AuraLocationStatus.unavailable:
-        return 'No pudimos acceder a la ubicación. Mientras tanto, te mostramos opciones destacadas.';
-      case AuraLocationStatus.unknown:
-        return 'Así podemos priorizar estudios y experiencias realmente cerca tuyo. Mientras tanto, te mostramos opciones destacadas.';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
-        border: Border.all(color: AppColors.warmBorder),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF4EC),
-              borderRadius: BorderRadius.circular(AuraRadio.boton),
-            ),
-            child: const Icon(
-              Icons.location_on_outlined,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _title,
-                  style: TextStyle(
-                    color: AppColors.black,
-                    fontSize: AuraTipo.cuerpo,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _subtitle,
-                  style: const TextStyle(
-                    color: AppColors.grey,
-                    fontSize: AuraTipo.secundario,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: requesting ? null : onPrimaryTap,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
-                  ),
-                  child: Text(
-                    requesting ? 'Pidiendo permiso...' : 'Permitir ubicación',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
