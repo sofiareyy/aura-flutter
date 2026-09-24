@@ -57,4 +57,37 @@ void main() {
           contains('search'));
     });
   });
+
+  group('texto de compartir un estudio', () {
+    test('con barrio', () {
+      expect(
+        textoCompartirEstudio(
+          nombre: 'YOYO Yoga Studio',
+          barrio: 'Palermo',
+          link: 'https://somosaurapass.com/#/estudio/12',
+        ),
+        'YOYO Yoga Studio (Palermo)\n'
+        'Mirá sus clases en Aura 🧡\n'
+        'https://somosaurapass.com/#/estudio/12',
+      );
+    });
+
+    test('sin barrio no deja el paréntesis vacío', () {
+      final t = textoCompartirEstudio(
+        nombre: 'Citra Barre',
+        link: 'https://somosaurapass.com/#/estudio/3',
+      );
+      expect(t.contains('('), isFalse);
+      expect(t.split('\n').first, 'Citra Barre');
+    });
+
+    test('barrio en blanco se trata como ausente', () {
+      final t = textoCompartirEstudio(
+        nombre: 'Citra Barre',
+        barrio: '   ',
+        link: 'https://somosaurapass.com/#/estudio/3',
+      );
+      expect(t.split('\n').first, 'Citra Barre');
+    });
+  });
 }

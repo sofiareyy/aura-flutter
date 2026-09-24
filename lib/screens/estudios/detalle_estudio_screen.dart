@@ -9,6 +9,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/aura_tokens.dart';
 import '../../widgets/texto_expandible.dart';
 import '../../widgets/aura_skeleton.dart';
+import '../../core/constants/app_constants.dart';
+import '../../utils/compartir.dart';
 import '../../utils/mapa_link.dart';
 import '../../models/estudio.dart';
 import '../../providers/app_provider.dart';
@@ -162,6 +164,21 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
         ),
       );
     }
+  }
+
+  /// Comparte el estudio. Usa el id de la ruta y no el del estudio cargado,
+  /// así el botón anda igual mientras la ficha todavía está cargando.
+  Future<void> _compartirEstudio() async {
+    final texto = textoCompartirEstudio(
+      nombre: _estudio?.nombre.trim().isNotEmpty == true
+          ? _estudio!.nombre.trim()
+          : 'este estudio',
+      barrio: _estudio?.barrio,
+      link: AppConstants.linkDeEstudio(widget.estudioId),
+    );
+    // compartirOCopiar pregunta si el dispositivo puede compartir ANTES de
+    // intentarlo y, si no, copia al portapapeles. Ver lib/utils/compartir.dart.
+    await compartirOCopiar(context, texto);
   }
 
   Future<void> _toggleFavorito() async {
@@ -697,26 +714,41 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
               ),
             ),
 
-            // Favorito (arriba derecha). Al invitado TAMBIEN se le muestra —
-            // si lo ocultamos, no sabe que la función existe. Al tocarlo abre
-            // el muro cerrable en vez de guardar.
+            // Compartir y favorito (arriba derecha).
+            //
+            // Compartir va A LA IZQUIERDA del corazón para no moverle el lugar
+            // a quien ya lo tiene aprendido. A diferencia del favorito, no
+            // pide cuenta: mandar el link de un estudio es justamente lo que
+            // trae gente nueva, y el perfil se abre sin login.
             Positioned(
               top: 0,
               right: 0,
               child: SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.only(top: 10, right: 16),
-                  child: _EstudioCircleAction(
-                    icon: _esFavorito
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    onTap: Supabase.instance.client.auth.currentUser == null
-                        ? () => RegistroMuro.mostrar(
-                            context,
-                            motivo: MuroMotivo.favorito,
-                          )
-                        : _toggleFavorito,
-                    iconColor: _esFavorito ? AppColors.primary : Colors.white,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _EstudioCircleAction(
+                        icon: Icons.ios_share_rounded,
+                        onTap: _compartirEstudio,
+                      ),
+                      const SizedBox(width: 10),
+                      _EstudioCircleAction(
+                        icon: _esFavorito
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        onTap: Supabase.instance.client.auth.currentUser == null
+                            ? () => RegistroMuro.mostrar(
+                                context,
+                                motivo: MuroMotivo.favorito,
+                              )
+                            : _toggleFavorito,
+                        iconColor: _esFavorito
+                            ? AppColors.primary
+                            : Colors.white,
+                      ),
+                    ],
                   ),
                 ),
               ),

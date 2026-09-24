@@ -36,6 +36,22 @@ String textoCompartirClase({
   return partes.join('\n');
 }
 
+/// El texto que se comparte de un estudio. Función pura, como la de clase.
+/// El barrio entra entre paréntesis cuando está: es lo primero que pregunta
+/// quien recibe el link.
+String textoCompartirEstudio({
+  required String nombre,
+  String? barrio,
+  required String link,
+}) {
+  final limpio = barrio?.trim() ?? '';
+  return <String>[
+    limpio.isEmpty ? nombre : '$nombre ($limpio)',
+    'Mirá sus clases en Aura 🧡',
+    link,
+  ].join('\n');
+}
+
 /// El rectángulo del widget que disparó el compartir. En iPad y en Mac el menú
 /// es un globo anclado a algo: sin esto, share_plus tira `PlatformException`.
 Rect? origenDe(BuildContext context) {

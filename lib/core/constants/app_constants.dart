@@ -26,6 +26,12 @@ class AppConstants {
   /// La web usa hash routing, de ahí el '#'.
   static String linkDeClase(int claseId) => '$auraDominio/#/clase/$claseId';
 
+  /// Link público a un estudio. `/estudio/<id>` es browse: lo abre cualquiera
+  /// sin cuenta (ver `_esEstudioDetalle` en el router), así que el link sirve
+  /// para mandárselo a alguien que todavía no usa Aura.
+  static String linkDeEstudio(int estudioId) =>
+      '$auraDominio/#/estudio/$estudioId';
+
   /// Ficha de la app en las tiendas, para el botón "Actualizar" del
   /// force-update. iOS: App Store id verificado (app "Aura Pass", SOFIA REY).
   /// Android: URL determinística por applicationId (app.somosaura.aura);
