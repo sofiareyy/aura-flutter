@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
@@ -32,11 +33,30 @@ class _MapaScreenState extends State<MapaScreen> {
       const AuraLocationState(status: AuraLocationStatus.unknown);
   NearbyStudyResult? _selectedStudy;
 
+  /// La tarjeta de ayuda es de una sola vez: quien ya entendió el mapa no
+  /// necesita que le siga tapando marcadores. Se recuerda en el dispositivo,
+  /// igual que el cartel de vencimiento del Inicio.
+  bool _hintOculto = false;
+  static const String _prefHintOculto = 'mapa_hint_oculto';
+
   @override
   void initState() {
     super.initState();
     _cargar();
+    _restaurarHint();
     _searchCtrl.addListener(() => setState(() {}));
+  }
+
+  Future<void> _restaurarHint() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _hintOculto = prefs.getBool(_prefHintOculto) ?? false);
+  }
+
+  Future<void> _ocultarHint() async {
+    setState(() => _hintOculto = true);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefHintOculto, true);
   }
 
   @override
@@ -110,6 +130,12 @@ class _MapaScreenState extends State<MapaScreen> {
     final results = _results;
     final center = _geoService.centerForResults(results, _locationState.position);
 
+    // Pantalla baja = celular en horizontal. Ahí el encabezado y el buscador
+    // se comían un tercio del alto y el mapa quedaba en una franja (informe
+    // de testers, 24/9/2026): título y cantidad pasan a una sola línea, el
+    // buscador se achica y los aires se acortan.
+    final bajo = MediaQuery.of(context).size.height < 520;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _loading
@@ -120,7 +146,9 @@ class _MapaScreenState extends State<MapaScreen> {
               child: Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                    padding: bajo
+                        ? const EdgeInsets.fromLTRB(18, 0, 18, 6)
+                        : const EdgeInsets.fromLTRB(18, 18, 18, 14),
                     child: Row(
                       children: [
                         IconButton(
@@ -129,29 +157,61 @@ class _MapaScreenState extends State<MapaScreen> {
                         ),
                         const SizedBox(width: 4),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _categoriaSeleccionada == 'Todos'
-                                    ? 'Mapa'
-                                    : 'Mapa · $_categoriaSeleccionada',
-                                style: const TextStyle(
-                                  color: AppColors.black,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
+                          child: bajo
+                              // En horizontal, título y cantidad en la misma
+                              // línea: el subtítulo aparte costaba una fila
+                              // entera de mapa.
+                              ? Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: [
+                                    Text(
+                                      _categoriaSeleccionada == 'Todos'
+                                          ? 'Mapa'
+                                          : 'Mapa · $_categoriaSeleccionada',
+                                      style: const TextStyle(
+                                        color: AppColors.black,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        '${results.length} estudios',
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: AppColors.grey,
+                                          fontSize: AuraTipo.secundario,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _categoriaSeleccionada == 'Todos'
+                                          ? 'Mapa'
+                                          : 'Mapa · $_categoriaSeleccionada',
+                                      style: const TextStyle(
+                                        color: AppColors.black,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${results.length} estudios para explorar',
+                                      style: const TextStyle(
+                                        color: AppColors.grey,
+                                        fontSize: AuraTipo.secundario,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${results.length} estudios para explorar',
-                                style: const TextStyle(
-                                  color: AppColors.grey,
-                                  fontSize: AuraTipo.secundario,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ],
                     ),
@@ -183,11 +243,15 @@ class _MapaScreenState extends State<MapaScreen> {
                           Expanded(
                             child: TextField(
                               controller: _searchCtrl,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 hintText: 'Buscar estudio o zona...',
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 focusedBorder: InputBorder.none,
+                                isDense: bajo,
+                                contentPadding: bajo
+                                    ? const EdgeInsets.symmetric(vertical: 10)
+                                    : null,
                               ),
                             ),
                           ),
@@ -202,7 +266,7 @@ class _MapaScreenState extends State<MapaScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  SizedBox(height: bajo ? 6 : 14),
                   Expanded(
                     child: Stack(
                       children: [
@@ -334,14 +398,24 @@ class _MapaScreenState extends State<MapaScreen> {
                                     '/estudio/${_selectedStudy!.estudio.id}',
                                   ),
                                 )
-                              : _MapHintCard(
-                                  granted: _locationState.granted,
-                                  onTap: () {
-                                    if (results.isNotEmpty) {
-                                      setState(() => _selectedStudy = results.first);
-                                    }
-                                  },
-                                ),
+                              : _hintOculto
+                                  ? const SizedBox.shrink()
+                                  : _MapHintCard(
+                                      granted: _locationState.granted,
+                                      // En horizontal la pantalla es baja y la
+                                      // tarjeta entera tapaba marcadores
+                                      // (informe de testers, 24/9/2026): ahí
+                                      // va en una sola línea, sin el ícono.
+                                      compacta: bajo,
+                                      onCerrar: _ocultarHint,
+                                      onTap: () {
+                                        if (results.isNotEmpty) {
+                                          setState(
+                                            () => _selectedStudy = results.first,
+                                          );
+                                        }
+                                      },
+                                    ),
                         ),
                       ],
                     ),
@@ -409,10 +483,17 @@ class _MapPillMarker extends StatelessWidget {
 class _MapHintCard extends StatelessWidget {
   final bool granted;
   final VoidCallback onTap;
+  final VoidCallback onCerrar;
+
+  /// Pantalla baja (horizontal): una sola línea, sin el ícono, para dejar ver
+  /// el mapa. El texto y la acción son los mismos.
+  final bool compacta;
 
   const _MapHintCard({
     required this.granted,
     required this.onTap,
+    required this.onCerrar,
+    this.compacta = false,
   });
 
   @override
@@ -423,7 +504,9 @@ class _MapHintCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
         child: Ink(
-          padding: const EdgeInsets.all(16),
+          padding: compacta
+              ? const EdgeInsets.fromLTRB(14, 8, 6, 8)
+              : const EdgeInsets.fromLTRB(16, 16, 6, 16),
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
@@ -437,30 +520,48 @@ class _MapHintCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF4EC),
-                  borderRadius: BorderRadius.circular(AuraRadio.boton),
+              if (!compacta) ...[
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF4EC),
+                    borderRadius: BorderRadius.circular(AuraRadio.boton),
+                  ),
+                  child: const Icon(
+                    Icons.place_outlined,
+                    color: AppColors.primary,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.place_outlined,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
+              ],
               Expanded(
                 child: Text(
                   granted
                       ? 'Mové el mapa o tocá un rating para ver el estudio.'
                       : 'Explorá el mapa y tocá un rating para abrir un estudio.',
+                  maxLines: compacta ? 1 : 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppColors.black,
                     fontSize: AuraTipo.secundario,
                     height: 1.4,
                   ),
                 ),
+              ),
+              // Cerrar. 40x40 para que se pueda tocar aunque el ícono sea
+              // chico: abajo de eso el dedo no acierta.
+              IconButton(
+                onPressed: onCerrar,
+                icon: const Icon(Icons.close_rounded, size: 18),
+                color: AppColors.grey,
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints.tightFor(
+                  width: 40,
+                  height: 40,
+                ),
+                padding: EdgeInsets.zero,
+                tooltip: 'No mostrar más',
               ),
             ],
           ),
