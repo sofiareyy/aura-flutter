@@ -11,6 +11,7 @@ import '../../widgets/texto_expandible.dart';
 import '../../widgets/aura_skeleton.dart';
 import '../../core/constants/app_constants.dart';
 import '../../utils/compartir.dart';
+import '../../utils/foto_url.dart';
 import '../../utils/mapa_link.dart';
 import '../../models/estudio.dart';
 import '../../providers/app_provider.dart';
@@ -587,6 +588,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
             e.fotoUrl?.isNotEmpty == true
                 ? _RemoteImage(
                     url: e.fotoUrl!,
+                    ancho: 1000,
                     fit: BoxFit.cover,
                     placeholder: Container(color: const Color(0xFFEDE7E1)),
                     errorWidget: Container(
@@ -790,6 +792,7 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
                     child: Center(
                       child: _RemoteImage(
                         url: imageUrls[index],
+                        ancho: 1600,
                         fit: BoxFit.contain,
                         errorWidget: const Icon(
                           Icons.broken_image_outlined,
@@ -974,6 +977,7 @@ class _GallerySection extends StatelessWidget {
                   width: 124,
                   child: _RemoteImage(
                     url: imageUrls[index],
+                    ancho: 300,
                     fit: BoxFit.cover,
                     errorWidget: Container(
                       color: const Color(0xFFF3EEE8),
@@ -1191,29 +1195,50 @@ class _RemoteImage extends StatelessWidget {
   final Widget? placeholder;
   final Widget? errorWidget;
 
+  /// Ancho de descarga. Con él, la foto se pide REESCALADA a Storage en vez
+  /// de bajar la original (29/9/2026: esta pantalla bajaba originales de
+  /// hasta 6,4 MB). Si la versión liviana falla, reintenta la original.
+  final int? ancho;
+
   const _RemoteImage({
     required this.url,
     this.fit,
     this.placeholder,
     this.errorWidget,
+    this.ancho,
   });
 
   @override
   Widget build(BuildContext context) {
+    final liviana = ancho == null
+        ? null
+        : fotoOptimizada(url, ancho: ancho!);
+    // La red de seguridad, igual que en FotoRed: si la liviana falla, se
+    // muestra la original antes de rendirse al error.
+    if (liviana != null && liviana != url) {
+      return _crudo(liviana, siFalla: _crudo(url));
+    }
+    return _crudo(url);
+  }
+
+  Widget _crudo(String u, {Widget? siFalla}) {
+    final alFallar = siFalla ?? errorWidget ?? const SizedBox.shrink();
     if (kIsWeb) {
       return Image.network(
-        url,
+        u,
         fit: fit,
+        headers: u == url ? null : headersFoto,
         loadingBuilder: (ctx, child, progress) =>
             progress == null ? child : (placeholder ?? const SizedBox.shrink()),
-        errorBuilder: (ctx, _, __) => errorWidget ?? const SizedBox.shrink(),
+        errorBuilder: (ctx, _, __) => alFallar,
       );
     }
     return CachedNetworkImage(
-      imageUrl: url,
+      imageUrl: u,
+      httpHeaders: u == url ? null : headersFoto,
       fit: fit,
       placeholder: placeholder == null ? null : (_, __) => placeholder!,
-      errorWidget: errorWidget == null ? null : (_, __, ___) => errorWidget!,
+      errorWidget: (_, __, ___) => alFallar,
     );
   }
 }

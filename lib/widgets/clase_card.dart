@@ -1,7 +1,7 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/theme/app_theme.dart';
+import 'foto_red.dart';
 
 class ClaseCard extends StatelessWidget {
   final Map<String, dynamic> clase;
@@ -203,15 +203,10 @@ class _ClaseImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (imageUrl != null && imageUrl!.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: imageUrl!,
-        fit: BoxFit.cover,
-        errorWidget: (_, __, ___) => _fallback(),
-        placeholder: (_, __) => _fallback(),
-      );
-    }
-    return _fallback();
+    // 29/9/2026: pedía la foto ORIGINAL (hasta 6,4 MB) para un recuadro de
+    // 400 px. FotoRed pide la medida justa y, si la versión liviana falla,
+    // reintenta la original: peor caso, queda como estaba.
+    return FotoRed(url: imageUrl, ancho: 200, fallback: _fallback());
   }
 
   Widget _fallback() {
