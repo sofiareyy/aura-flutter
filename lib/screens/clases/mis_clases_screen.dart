@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../utils/cupos_grilla.dart';
 import '../../utils/liquidacion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
@@ -26,6 +27,106 @@ const String _kPrefsClasesShowPast = 'mis_clases_show_past';
 /// Texto que ve el estudio cuando algo de base falla. El detalle técnico va
 /// a debugPrint: un estudio no puede hacer nada con un P0001 en pantalla, y
 /// encima asusta (YN Pilates, 24/8). Ojo: NO tapar el error, solo traducirlo.
+/// LA lista de duraciones, una sola para toda la pantalla.
+///
+/// Antes había cuatro escritas a mano —grilla, clase suelta, workshop y el
+/// "una clase cada" del rango— y no coincidían entre sí: en la clase suelta
+/// no existía 30 y en ningún lado se podía poner 50 (30/9/2026).
+const List<int> kDuracionesClase = [30, 45, 60, 75, 90];
+const List<int> kDuracionesWorkshop = [60, 90, 120, 150, 180, 240];
+
+/// Valor centinela del ítem "Otra…". Nunca se guarda: abre el campo libre.
+const int kDuracionOtra = -1;
+
+/// Límites del campo libre. Son de la pantalla, no de la base: `duracion_min`
+/// es un entero común y no tiene restricción.
+const int kDuracionMinima = 5;
+const int kDuracionMaxima = 480;
+
+String durLabel(int min) {
+  if (min % 60 == 0) return '${min ~/ 60} h';
+  if (min > 60) return '${min ~/ 60} h ${min % 60} min';
+  return '$min min';
+}
+
+/// Los ítems del desplegable de duración.
+///
+/// Incluye SIEMPRE [valor], aunque no esté en la lista canónica. Sin esto, un
+/// horario guardado con una duración propia (50 min) reventaba la pantalla al
+/// abrirlo: `DropdownButton` exige que el valor esté entre los ítems.
+List<DropdownMenuItem<int>> itemsDuracion(int valor, {required bool workshop}) {
+  final base = workshop ? kDuracionesWorkshop : kDuracionesClase;
+  final valores = <int>{...base, if (valor > 0) valor}.toList()..sort();
+  return [
+    for (final m in valores)
+      DropdownMenuItem(value: m, child: Text(durLabel(m))),
+    const DropdownMenuItem(value: kDuracionOtra, child: Text('Otra…')),
+  ];
+}
+
+/// El campo libre de minutos. Devuelve null si se cancela o no es válido.
+Future<int?> pedirDuracionLibre(BuildContext ctx, int actual) async {
+  final ctrl = TextEditingController(text: actual > 0 ? '$actual' : '');
+  String? error;
+  final n = await showDialog<int>(
+    context: ctx,
+    builder: (dctx) => StatefulBuilder(
+      builder: (dctx, setS) => AlertDialog(
+        title: const Text('Duración'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _AuraTextField(
+              controller: ctrl,
+              label: 'Minutos',
+              hint: '50',
+              keyboardType: TextInputType.number,
+            ),
+            if (error != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                error!,
+                style: const TextStyle(color: Color(0xFFC0392B), fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx),
+            child: const Text('Volver'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final v = int.tryParse(ctrl.text.trim());
+              if (v == null ||
+                  v < kDuracionMinima ||
+                  v > kDuracionMaxima ||
+                  v % 5 != 0) {
+                setS(
+                  () => error =
+                      'Entre $kDuracionMinima y $kDuracionMaxima minutos, '
+                      'de a 5 (50, 55, 80…).',
+                );
+                return;
+              }
+              Navigator.pop(dctx, v);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Usar'),
+          ),
+        ],
+      ),
+    ),
+  );
+  ctrl.dispose();
+  return n;
+}
+
 const String kMsgErrorCarga =
     'Hubo un problema al cargar. Escribinos a aura.hola.app@gmail.com';
 
@@ -150,16 +251,94 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   /// "🌙 08:30 · 12 cr": la hora con el precio que le toca en SU franja, con
   /// la misma regla que después aplica el trigger de la base. Sin precio
   /// configurado muestra solo la hora.
-  String _etiquetaHorario(int dia, TimeOfDay t, [List<String>? categorias]) {
+  /// [cupos] es el cupo PROPIO de ese horario, cuando tiene uno distinto del
+  /// general de la grilla. Se muestra a propósito: un cupo equivocado se
+  /// descubre tarde y caro (decisión de Sofía, 30/9/2026).
+  String _etiquetaHorario(
+    int dia,
+    TimeOfDay t, [
+    List<String>? categorias,
+    int? cupos,
+  ]) {
     final p = _precioDe(dia, t, categorias);
     final hhmm = _hhmm(t);
-    if (!p.configurado) return hhmm;
+    final extra = cupos == null ? '' : ' · $cupos cupos';
+    if (!p.configurado) return '$hhmm$extra';
     final ico = switch (p.tipo) {
       TipoPrecio.valle => '🌙 ',
       TipoPrecio.pico => '⚡ ',
       _ => '',
     };
-    return '$ico$hhmm · ${p.creditos} cr';
+    return '$ico$hhmm · ${p.creditos} cr$extra';
+  }
+
+  /// Cupo propio para un horario de la grilla. Devuelve el mapa modificado.
+  /// "Usar el general" borra la excepción.
+  Future<void> _editarCuposDeHorario({
+    required int dia,
+    required TimeOfDay t,
+    required Map<int, Map<int, int>> cupos,
+    required int general,
+  }) async {
+    final minuto = minutoClave(t);
+    final actual = cupos[dia]?[minuto];
+    final ctrl = TextEditingController(
+      text: (actual ?? general).toString(),
+    );
+    final resultado = await showDialog<String>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: Text('Cupos de ${_kDiaCorto[dia]} ${_hhmm(t)}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'El resto de la grilla va con $general.',
+              style: const TextStyle(color: AppColors.grey, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            _AuraTextField(
+              controller: ctrl,
+              label: 'Cupos de este horario',
+              hint: '$general',
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, 'general'),
+            child: const Text('Usar el general'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dctx, ctrl.text.trim()),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+    if (resultado == null) {
+      ctrl.dispose();
+      return;
+    }
+    if (resultado == 'general') {
+      quitarCupo(cupos, dia: dia, minuto: minuto);
+      ctrl.dispose();
+      return;
+    }
+    final n = int.tryParse(resultado);
+    if (n == null || n <= 0) {
+      _snack('Los cupos tienen que ser un número mayor a 0.');
+      ctrl.dispose();
+      return;
+    }
+    fijarCupo(cupos, dia: dia, minuto: minuto, valor: n, general: general);
+    ctrl.dispose();
   }
 
   PricingResult _precioDe(
@@ -2095,25 +2274,22 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 _AuraDropdown<int>(
                                   label: 'Duración',
                                   value: dur,
-                                  items:
-                                      (tipo == 'workshop'
-                                              ? const [
-                                                  60,
-                                                  90,
-                                                  120,
-                                                  150,
-                                                  180,
-                                                  240,
-                                                ]
-                                              : const [45, 60, 75, 90])
-                                          .map(
-                                            (m) => DropdownMenuItem(
-                                              value: m,
-                                              child: Text(_durLabel(m)),
-                                            ),
-                                          )
-                                          .toList(),
-                                  onChanged: (v) => setD(() => dur = v ?? dur),
+                                  items: itemsDuracion(
+                                    dur,
+                                    workshop: tipo == 'workshop',
+                                  ),
+                                  onChanged: (v) async {
+                                    if (v == null) return;
+                                    if (v != kDuracionOtra) {
+                                      setD(() => dur = v);
+                                      return;
+                                    }
+                                    final libre = await pedirDuracionLibre(
+                                      ctx,
+                                      dur,
+                                    );
+                                    if (libre != null) setD(() => dur = libre);
+                                  },
                                 ),
                               ],
                             ),
@@ -2643,11 +2819,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     }
   }
 
-  String _durLabel(int min) {
-    if (min % 60 == 0) return '${min ~/ 60} h';
-    if (min > 60) return '${min ~/ 60} h ${min % 60} min';
-    return '$min min';
-  }
+  String _durLabel(int min) => durLabel(min);
 
   Future<void> _openGridForm() async {
     // Guarda de permiso: la profe no crea, edita, borra ni avisa.
@@ -2683,6 +2855,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     // como horario de apertura: Tiwar cargó 13 clases por día creyendo que
     // cargaba 2 (25/8).
     final horariosPorDia = <int, List<TimeOfDay>>{};
+    // Cupos PROPIOS por horario: dia -> minuto del dia -> cupos. Lo que no
+    // esta aca va con el campo general de la tarjeta Capacidad. Vacio en el
+    // 95% de los casos: quien no lo necesita ni se entera de que existe.
+    final cuposPorHorario = <int, Map<int, int>>{};
+    int cuposGenerales() => int.tryParse(c.text.trim()) ?? 12;
 
     if (!mounted) return;
     final ok = await showModalBottomSheet<bool>(
@@ -2881,38 +3058,46 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 _AuraDropdown<int>(
                                   label: 'Duración de cada clase',
                                   value: dur,
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 30,
-                                      child: Text('30 min'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 45,
-                                      child: Text('45 min'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 60,
-                                      child: Text('60 min'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 75,
-                                      child: Text('75 min'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 90,
-                                      child: Text('90 min'),
-                                    ),
-                                  ],
-                                  onChanged: (v) => setD(() => dur = v ?? dur),
+                                  items: itemsDuracion(dur, workshop: false),
+                                  onChanged: (v) async {
+                                    if (v == null) return;
+                                    if (v != kDuracionOtra) {
+                                      setD(() => dur = v);
+                                      return;
+                                    }
+                                    final libre = await pedirDuracionLibre(
+                                      ctx,
+                                      dur,
+                                    );
+                                    if (libre != null) setD(() => dur = libre);
+                                  },
                                 ),
                                 const SizedBox(height: 14),
                                 _HorariosPorDiaEditor(
                                   dias: (diasSeleccionados.toList()..sort()),
                                   horarios: horariosPorDia,
                                   duracionMin: dur,
-                                  onChanged: () => setD(() {}),
-                                  etiqueta: (d, t) =>
-                                      _etiquetaHorario(d, t, cats),
+                                  onChanged: () => setD(
+                                    () => podarCupos(
+                                      cuposPorHorario,
+                                      horariosPorDia,
+                                    ),
+                                  ),
+                                  etiqueta: (d, t) => _etiquetaHorario(
+                                    d,
+                                    t,
+                                    cats,
+                                    cuposPorHorario[d]?[minutoClave(t)],
+                                  ),
+                                  onTocar: (d, t) async {
+                                    await _editarCuposDeHorario(
+                                      dia: d,
+                                      t: t,
+                                      cupos: cuposPorHorario,
+                                      general: cuposGenerales(),
+                                    );
+                                    setD(() {});
+                                  },
                                 ),
                               ],
                             ),
@@ -3238,6 +3423,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       duracionMin: dur,
       sala: s.text.trim(),
       categorias: cats,
+      cuposPorHorario: cuposPorHorario,
+      cuposGenerales: cuposGenerales(),
     );
     if (confirmado != true || !mounted) {
       n.dispose();
@@ -3258,6 +3445,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         horariosPorDia: porDia,
         duracionMin: dur,
         payloadBase: payloadBase,
+        cuposPorHorario: cuposPorHorario,
       );
       await _loadStudio();
       if (!mounted) return;
@@ -3327,6 +3515,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     required int duracionMin,
     String sala = '',
     List<String>? categorias,
+    Map<int, Map<int, int>> cuposPorHorario = const {},
+    int? cuposGenerales,
   }) async {
     final dias = horariosPorDia.keys.where((d) => d >= 1 && d <= 7).toList()
       ..sort();
@@ -3385,7 +3575,14 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   b.hour * 60 + b.minute,
                                 ),
                               ))
-                              .map((t) => _etiquetaHorario(d, t, categorias))
+                              .map(
+                                (t) => _etiquetaHorario(
+                                  d,
+                                  t,
+                                  categorias,
+                                  cuposPorHorario[d]?[minutoClave(t)],
+                                ),
+                              )
                               .join('   '),
                           style: const TextStyle(
                             color: AppColors.black,
@@ -3408,6 +3605,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                 ),
               ),
               const SizedBox(height: 8),
+              if (cuposGenerales != null)
+                _FilaResumenGrilla(
+                  icono: Icons.event_seat_outlined,
+                  texto: cuposPorHorario.isEmpty
+                      ? '$cuposGenerales cupos en todos'
+                      : '$cuposGenerales cupos, salvo '
+                            '${cuantosConCupoPropio(cuposPorHorario)} '
+                            'horario${cuantosConCupoPropio(cuposPorHorario) != 1 ? 's' : ''} '
+                            'con cupos propios',
+                ),
               _FilaResumenGrilla(
                 icono: Icons.calendar_today_outlined,
                 texto:
@@ -9110,6 +9317,10 @@ class _HorariosPorDiaEditor extends StatelessWidget {
   final int duracionMin;
   final VoidCallback onChanged;
 
+  /// Tocar un horario abre sus cupos propios. Sin esto, el chip sólo se
+  /// puede borrar.
+  final void Function(int dia, TimeOfDay t)? onTocar;
+
   /// Texto del chip. Por defecto la hora; el formulario le pasa hora + precio
   /// por franja para que el estudio VEA el ajuste pico/valle antes de crear.
   final String Function(int dia, TimeOfDay t)? etiqueta;
@@ -9119,6 +9330,7 @@ class _HorariosPorDiaEditor extends StatelessWidget {
     required this.duracionMin,
     required this.onChanged,
     this.etiqueta,
+    this.onTocar,
   });
 
   List<TimeOfDay> _lista(int d) => horarios.putIfAbsent(d, () => []);
@@ -9260,15 +9472,16 @@ class _HorariosPorDiaEditor extends StatelessWidget {
                   _AuraDropdown<int>(
                     label: 'Una clase cada',
                     value: cada,
-                    items: const [
-                      DropdownMenuItem(value: 30, child: Text('30 min')),
-                      DropdownMenuItem(value: 45, child: Text('45 min')),
-                      DropdownMenuItem(value: 60, child: Text('60 min')),
-                      DropdownMenuItem(value: 75, child: Text('75 min')),
-                      DropdownMenuItem(value: 90, child: Text('90 min')),
-                      DropdownMenuItem(value: 120, child: Text('2 h')),
-                    ],
-                    onChanged: (v) => setS(() => cada = v ?? cada),
+                    items: itemsDuracion(cada, workshop: false),
+                    onChanged: (v) async {
+                      if (v == null) return;
+                      if (v != kDuracionOtra) {
+                        setS(() => cada = v);
+                        return;
+                      }
+                      final libre = await pedirDuracionLibre(dctx, cada);
+                      if (libre != null) setS(() => cada = libre);
+                    },
                   ),
                   const SizedBox(height: 10),
                   const Text(
@@ -9402,6 +9615,7 @@ class _HorariosPorDiaEditor extends StatelessWidget {
               _lista(d).removeWhere((x) => _minutoDe(x) == _minutoDe(t));
               onChanged();
             },
+            onTocar: onTocar == null ? null : (t) => onTocar!(d, t),
             onCopiar: () => _copiarA(context, d),
           ),
         ],
@@ -9418,6 +9632,7 @@ class _FilaDia extends StatelessWidget {
   final VoidCallback onAgregar;
   final void Function(TimeOfDay) onQuitar;
   final VoidCallback onCopiar;
+  final void Function(TimeOfDay)? onTocar;
   const _FilaDia({
     required this.dia,
     required this.horarios,
@@ -9426,6 +9641,7 @@ class _FilaDia extends StatelessWidget {
     required this.onAgregar,
     required this.onQuitar,
     required this.onCopiar,
+    this.onTocar,
   });
 
   @override
@@ -9483,6 +9699,9 @@ class _FilaDia extends StatelessWidget {
                           side: const BorderSide(color: Color(0xFFE5E0DA)),
                           visualDensity: VisualDensity.compact,
                           deleteIconColor: const Color(0xFF9A928B),
+                          onPressed: onTocar == null
+                              ? null
+                              : () => onTocar!(t),
                           onDeleted: () => onQuitar(t),
                         ),
                     ],

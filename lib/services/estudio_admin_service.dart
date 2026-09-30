@@ -514,10 +514,15 @@ class EstudioAdminService {
   ///
   /// Devuelve la cantidad REAL de filas insertadas (lo que confirma el
   /// servidor), no el largo del lote armado en el cliente.
+  /// [cuposPorHorario] son los cupos PROPIOS de horarios sueltos:
+  /// `dia -> minuto del día -> cupos`. Lo que no esté ahí usa el
+  /// `lugares_total` de [payloadBase], que es el cupo general de la grilla.
+  /// Así se puede cargar de una 2 lugares a las 8 y 3 a las 9 (30/9/2026).
   Future<int> crearHorariosFijosEnGrilla({
     required Map<int, List<TimeOfDay>> horariosPorDia,
     required int duracionMin,
     required Map<String, dynamic> payloadBase,
+    Map<int, Map<int, int>> cuposPorHorario = const {},
   }) async {
     final studioId = await getCurrentStudioId();
     if (studioId == null) {
@@ -541,12 +546,14 @@ class EstudioAdminService {
       for (final m in minutos.toList()..sort()) {
         final hh = (m ~/ 60).toString().padLeft(2, '0');
         final mm = (m % 60).toString().padLeft(2, '0');
+        final propios = cuposPorHorario[dia]?[m];
         rows.add({
           ...payloadBase,
           'estudio_id': studioId,
           'dia_semana': dia,
           'hora_inicio': '$hh:$mm',
           'duracion_min': duracionMin,
+          if (propios != null && propios > 0) 'lugares_total': propios,
         });
       }
     }
