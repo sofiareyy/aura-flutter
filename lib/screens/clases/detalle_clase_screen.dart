@@ -523,9 +523,9 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
       lng: (estudio?['lng'] as num?)?.toDouble(),
     );
     if (ok || !context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('No se pudo abrir el mapa.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('No se pudo abrir el mapa.')));
   }
 
   Future<void> _compartirClase() async {
@@ -625,7 +625,7 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
     // para la variante que se agregue mañana, y para cuando un texto pase a
     // dos renglones en pantalla angosta.
     final espacioParaCTA =
-        MediaQuery.of(context).padding.bottom + 16 + _altoCTA + 16;
+        MediaQuery.of(context).padding.bottom + 16 + _altoCTA + 24;
     final barrio = estudio?['barrio']?.toString() ?? 'Palermo';
     final estudioNombre = estudio?['nombre']?.toString() ?? 'Aura Studio';
     // La categoría de la CLASE (9/9/2026). Antes leía la del estudio y caía en
@@ -705,6 +705,25 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                               ),
                             ),
                           ),
+                          // Compartir — esquina superior derecha, igual que
+                          // en la ficha del estudio. El botón ancho del final
+                          // queda: sirve a quien scrollea hasta abajo.
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: SafeArea(
+                              child: Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 10,
+                                  right: 16,
+                                ),
+                                child: _CircleAction(
+                                  icon: Icons.ios_share_rounded,
+                                  onTap: _compartirClase,
+                                ),
+                              ),
+                            ),
+                          ),
                           // Badge + título + estudio — esquina inferior
                           Positioned(
                             left: 20,
@@ -722,7 +741,9 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                     ),
                                     decoration: BoxDecoration(
                                       color: AppColors.primary,
-                                      borderRadius: BorderRadius.circular(AuraRadio.pastilla),
+                                      borderRadius: BorderRadius.circular(
+                                        AuraRadio.pastilla,
+                                      ),
                                     ),
                                     child: Text(
                                       categoria,
@@ -835,81 +856,86 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                             ],
                           ),
                         ),
-                        if (estudio?['id'] != null) ...[
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: [
-                              _HeaderActionPill(
-                                icon: Icons.storefront_outlined,
-                                label: 'Ver estudio',
-                                onTap: () =>
-                                    context.push('/estudio/${estudio!['id']}'),
-                              ),
-                              _HeaderActionPill(
-                                icon: Icons.map_outlined,
-                                label: 'Ver en mapa',
-                                onTap: () {
-                                  final uri = Uri(
-                                    path: '/mapa',
-                                    queryParameters: {
-                                      // La de la clase: si abrís el mapa desde
-                                      // una clase de pilates de Rock Studios,
-                                      // tiene que filtrar pilates, no spinning.
-                                      if (categoria.isNotEmpty)
-                                        'categoria': categoria,
-                                      if ((estudio?['nombre'] ?? '')
-                                          .toString()
-                                          .isNotEmpty)
-                                        'q': estudio!['nombre'].toString(),
-                                    },
-                                  );
-                                  context.push(uri.toString());
-                                },
-                              ),
-                              if (_canReview)
-                                _HeaderActionPill(
-                                  icon: Icons.star_outline_rounded,
-                                  label: 'Dejar reseña',
-                                  onTap: _dejarResena,
-                                ),
-                            ],
-                          ),
-                        ],
                         const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: [
-                            _InfoChipCard(
-                              icon: Icons.calendar_today_outlined,
-                              label: fecha != null
-                                  ? DateFormat('EEE d MMM', 'es').format(fecha)
-                                  : 'Fecha',
-                            ),
-                            _InfoChipCard(
-                              icon: Icons.alarm_outlined,
-                              label: clase['duracion_min'] != null
-                                  ? '${clase['duracion_min']} min'
-                                  : '60 min',
-                            ),
-                            // El salón SÓLO si el estudio lo cargó. Antes caía
-                            // en 'Sala 2' inventado: en un estudio con dos
-                            // clases simultáneas en salones distintos (Rock
-                            // Palermo: Cycle y Pilates a la misma hora), eso
-                            // mandaba a la alumna a una sala que no existe.
-                            if ((clase['sala']?.toString().trim() ?? '')
-                                .isNotEmpty)
-                              _InfoChipCard(
-                                icon: Icons.place_outlined,
-                                label: clase['sala'].toString().trim(),
+                        // Los 4 datos en UNA fila, repartiéndose el ancho en
+                        // partes iguales.
+                        //
+                        // Antes era un `Wrap` de tarjetas de 132 px fijos: en
+                        // un celular de 430 sobraban 116 px a la derecha y el
+                        // bloque se veía corrido, y en compu quedaban los 4
+                        // apretados contra el borde izquierdo (1/10/2026).
+                        //
+                        // Siempre son 4: cuando el estudio cargó salón, la
+                        // fecha y la hora comparten la primera tarjeta para
+                        // que el salón entre sin sumar una fila.
+                        Builder(
+                          builder: (_) {
+                            final sala = clase['sala']?.toString().trim() ?? '';
+                            final hora = fecha == null
+                                ? null
+                                : DateFormat('HH:mm').format(fecha);
+                            final dia = fecha != null
+                                ? DateFormat('EEE d MMM', 'es').format(fecha)
+                                : 'Fecha';
+                            final duracion = clase['duracion_min'] != null
+                                ? '${clase['duracion_min']} min'
+                                : '60 min';
+                            // IntrinsicHeight y no `stretch`: dentro del
+                            // scroll el alto es ilimitado, y estirar al cruce
+                            // rompía el layout —los cuadros quedaban sin
+                            // fondo y NADA de lo que sigue se dibujaba
+                            // (medido en el build del 1/10/2026).
+                            return IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(
+                                    child: _InfoChipCard(
+                                      icon: Icons.calendar_today_outlined,
+                                      label: sala.isEmpty || hora == null
+                                          ? dia
+                                          : '$dia\n$hora',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  if (sala.isEmpty && hora != null) ...[
+                                    Expanded(
+                                      child: _InfoChipCard(
+                                        icon: Icons.schedule_rounded,
+                                        label: hora,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  Expanded(
+                                    child: _InfoChipCard(
+                                      icon: Icons.alarm_outlined,
+                                      label: duracion,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  // El salón SÓLO si el estudio lo cargó. Antes
+                                  // caía en 'Sala 2' inventado y mandaba a la
+                                  // alumna a una sala que no existe.
+                                  if (sala.isNotEmpty) ...[
+                                    Expanded(
+                                      child: _InfoChipCard(
+                                        icon: Icons.place_outlined,
+                                        label: sala,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  Expanded(
+                                    child: _InfoChipCard(
+                                      icon: Icons.people_outline_rounded,
+                                      label: '$lugaresDisp plazas',
+                                    ),
+                                  ),
+                                ],
                               ),
-                            _InfoChipCard(
-                              icon: Icons.people_outline_rounded,
-                              label: '$lugaresDisp plazas',
-                            ),
-                          ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 16),
                         Container(
@@ -917,7 +943,9 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                           padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
                           decoration: BoxDecoration(
                             color: AppColors.blackSoft,
-                            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+                            borderRadius: BorderRadius.circular(
+                              AuraRadio.tarjeta,
+                            ),
                             boxShadow: const [
                               BoxShadow(
                                 color: Color(0x12000000),
@@ -1106,7 +1134,9 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                     itemBuilder: (context, index) {
                                       final imageUrl = galleryUrls[index];
                                       return InkWell(
-                                        borderRadius: BorderRadius.circular(AuraRadio.boton),
+                                        borderRadius: BorderRadius.circular(
+                                          AuraRadio.boton,
+                                        ),
                                         onTap: () => _abrirGaleria(
                                           galleryUrls,
                                           initialIndex: index,
@@ -1214,7 +1244,8 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                     Expanded(
                                       child: Builder(
                                         builder: (ctx) => InkWell(
-                                          onTap: () => _abrirMapaDeClase(ctx, clase),
+                                          onTap: () =>
+                                              _abrirMapaDeClase(ctx, clase),
                                           child: Text(
                                             _direccionParaMapa(clase)!,
                                             style: const TextStyle(
@@ -1319,6 +1350,49 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                         if ((clase['instructor']?.toString().trim() ?? '')
                             .isNotEmpty)
                           const SizedBox(height: 18),
+                        if (estudio?['id'] != null) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              _HeaderActionPill(
+                                icon: Icons.storefront_outlined,
+                                label: 'Ver estudio',
+                                onTap: () =>
+                                    context.push('/estudio/${estudio!['id']}'),
+                              ),
+                              _HeaderActionPill(
+                                icon: Icons.map_outlined,
+                                label: 'Ver en mapa',
+                                onTap: () {
+                                  final uri = Uri(
+                                    path: '/mapa',
+                                    queryParameters: {
+                                      // La de la clase: si abrís el mapa desde
+                                      // una clase de pilates de Rock Studios,
+                                      // tiene que filtrar pilates, no spinning.
+                                      if (categoria.isNotEmpty)
+                                        'categoria': categoria,
+                                      if ((estudio?['nombre'] ?? '')
+                                          .toString()
+                                          .isNotEmpty)
+                                        'q': estudio!['nombre'].toString(),
+                                    },
+                                  );
+                                  context.push(uri.toString());
+                                },
+                              ),
+                              if (_canReview)
+                                _HeaderActionPill(
+                                  icon: Icons.star_outline_rounded,
+                                  label: 'Dejar reseña',
+                                  onTap: _dejarResena,
+                                ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 18),
                         _SectionBlock(
                           title: 'Política de cancelación',
                           child: Column(
@@ -1346,6 +1420,41 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                             ],
                           ),
                         ),
+                        // Reseñas del estudio, al FINAL y acotadas.
+                        //
+                        // Hasta 4 y un "Ver más" que lleva a la pantalla de
+                        // reseñas del estudio, que ya existe y pagina: la
+                        // clase no es el lugar para una lista infinita
+                        // (1/10/2026).
+                        if (_reviews.isNotEmpty && estudio?['id'] != null) ...[
+                          const SizedBox(height: 18),
+                          _SectionBlock(
+                            title: 'Reseñas del estudio',
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                for (final r in _reviews.take(kResenasEnClase))
+                                  _ResenaBreve(review: r),
+                                if (_reviews.length > kResenasEnClase) ...[
+                                  const SizedBox(height: 4),
+                                  GestureDetector(
+                                    onTap: () => context.push(
+                                      '/estudio/${estudio!['id']}/resenas',
+                                    ),
+                                    child: Text(
+                                      'Ver las ${_reviews.length} reseñas',
+                                      style: const TextStyle(
+                                        color: AppColors.primaryTexto,
+                                        fontSize: AuraTipo.secundario,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         OutlinedButton.icon(
                           onPressed: _compartirClase,
@@ -1362,7 +1471,9 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                             side: const BorderSide(color: AppColors.primary),
                             minimumSize: const Size(double.infinity, 48),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AuraRadio.boton),
+                              borderRadius: BorderRadius.circular(
+                                AuraRadio.boton,
+                              ),
                             ),
                           ),
                         ),
@@ -1388,17 +1499,38 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                 ),
               ],
             ),
+            // La barra queda anclada abajo SIEMPRE, y el scroll ya le
+            // reserva su alto exacto al final (espacioParaCTA), así que no
+            // esconde nada. La franja de fondo es para que se lea como una
+            // barra y no como un botón flotando sobre el contenido, que es
+            // lo que pasaba en compu con la tarjeta del precio (1/10/2026).
             Positioned(
-              left: 20,
-              right: 20,
-              bottom: MediaQuery.of(context).padding.bottom + 16,
-              child: KeyedSubtree(
-                key: _ctaKey,
-                child: _buildBottomAction(
-                  lugaresDisp: lugaresDisp.toInt(),
-                  reservaCerrada: reservaCerrada,
-                  disponible: disponible,
-                  creditos: creditos,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  22,
+                  20,
+                  MediaQuery.of(context).padding.bottom + 16,
+                ),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x00F7F5F2), AppColors.background],
+                    stops: [0, 0.42],
+                  ),
+                ),
+                child: KeyedSubtree(
+                  key: _ctaKey,
+                  child: _buildBottomAction(
+                    lugaresDisp: lugaresDisp.toInt(),
+                    reservaCerrada: reservaCerrada,
+                    disponible: disponible,
+                    creditos: creditos,
+                  ),
                 ),
               ),
             ),
@@ -1677,10 +1809,10 @@ class _InfoChipCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 132, maxWidth: 164),
+    return SizedBox(
+      // Sin ancho propio: lo reparte la fila. Ver el comentario de la fila.
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
@@ -1699,14 +1831,90 @@ class _InfoChipCard extends StatelessWidget {
             Text(
               label,
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Color(0xFF625C57),
                 fontSize: AuraTipo.secundario,
                 fontWeight: FontWeight.w600,
+                height: 1.25,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Cuántas reseñas se muestran en el detalle de clase antes del "Ver más".
+const int kResenasEnClase = 4;
+
+/// Una reseña en dos líneas: estrellas + quién + cuándo, y el comentario.
+class _ResenaBreve extends StatelessWidget {
+  final Map<String, dynamic> review;
+
+  const _ResenaBreve({required this.review});
+
+  @override
+  Widget build(BuildContext context) {
+    final rating = (review['rating'] as num?)?.toInt() ?? 0;
+    final usuario = review['usuarios'] as Map<String, dynamic>?;
+    final nombre = (usuario?['nombre']?.toString().trim() ?? '');
+    final quien = nombre.isEmpty ? 'Alumna' : nombre.split(' ').first;
+    final fecha = DateTime.tryParse(review['created_at']?.toString() ?? '');
+    final comentario = review['comentario']?.toString().trim() ?? '';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              for (var i = 0; i < 5; i++)
+                Icon(
+                  i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                  size: 15,
+                  color: const Color(0xFFFFC107),
+                ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  quien,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.black,
+                    fontSize: AuraTipo.secundario,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (fecha != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  DateFormat('d MMM', 'es').format(fecha),
+                  style: const TextStyle(
+                    color: AppColors.grey,
+                    fontSize: AuraTipo.etiqueta,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (comentario.isNotEmpty) ...[
+            const SizedBox(height: 5),
+            Text(
+              comentario,
+              style: const TextStyle(
+                color: AppColors.textoSecundario,
+                fontSize: AuraTipo.secundario,
+                height: 1.45,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -1814,10 +2022,7 @@ class _PaywallSheet extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            tituloPaywall(
-              saldo: creditosActuales,
-              precio: creditosNecesarios,
-            ),
+            tituloPaywall(saldo: creditosActuales, precio: creditosNecesarios),
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppColors.black,
@@ -1871,7 +2076,10 @@ class _PaywallSheet extends StatelessWidget {
             ),
             child: const Text(
               'Ahora no',
-              style: TextStyle(fontSize: AuraTipo.cuerpo, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontSize: AuraTipo.cuerpo,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -2038,7 +2246,10 @@ class _PreReservaConfirmCard extends StatelessWidget {
               ),
               child: const Text(
                 'No me interesa',
-                style: TextStyle(fontSize: AuraTipo.cuerpo, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: AuraTipo.cuerpo,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -2093,7 +2304,10 @@ class _WaitlistButton extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               '$waitlistCount ${waitlistCount == 1 ? 'persona' : 'personas'} esperando un lugar',
-              style: const TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario),
+              style: const TextStyle(
+                color: AppColors.grey,
+                fontSize: AuraTipo.secundario,
+              ),
               textAlign: TextAlign.center,
             ),
           ),

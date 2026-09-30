@@ -34,16 +34,20 @@ void main() {
 
     test('el chip del salón se dibuja SÓLO si el estudio lo cargó', () {
       // La condición tiene que estar antes del chip, no un `??` después.
+      // Desde el 1/10/2026 el salón se lee una vez a una variable `sala`,
+      // porque los 4 datos pasaron a una fila que se reparte el ancho.
       final i = detalle.indexOf('Icons.place_outlined');
       expect(i, greaterThan(0));
       final antes = detalle.substring(i - 320, i);
-      expect(antes, contains("clase['sala']"));
-      expect(antes, contains('isNotEmpty'));
+      expect(antes, contains('sala.isNotEmpty'));
     });
 
     test('un salón con sólo espacios cuenta como vacío', () {
+      // El trim vive en la lectura, no al lado del chip.
+      final lectura = detalle.indexOf("clase['sala']?.toString().trim()");
+      expect(lectura, greaterThan(0));
       final i = detalle.indexOf('Icons.place_outlined');
-      expect(detalle.substring(i - 320, i), contains('trim()'));
+      expect(lectura, lessThan(i), reason: 'se lee antes de dibujar el chip');
     });
   });
 
