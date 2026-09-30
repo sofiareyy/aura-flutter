@@ -142,8 +142,16 @@ const double altoTextoVidriera = 148;
 
 /// Alto de una tarjeta de vidriera de [anchoCard] px: la foto en 16:9 más el
 /// texto.
-double altoCardVidriera(double anchoCard) =>
-    anchoCard / proporcionFotoVidriera + altoTextoVidriera;
+/// En UNA columna (celular) la foto va más apaisada: con 16:9 la tarjeta
+/// medía ~345 px y entraban 2,4 por pantalla. A 2,4:1 mide ~294 y entran 3
+/// enteras, sin tocar el desktop, donde la tarjeta es angosta y 16:9 está
+/// bien (1/10/2026).
+const double proporcionFotoVidrieraAngosta = 2.4;
+
+double altoCardVidriera(double anchoCard, {bool unaColumna = false}) =>
+    anchoCard /
+        (unaColumna ? proporcionFotoVidrieraAngosta : proporcionFotoVidriera) +
+    altoTextoVidriera;
 
 /// Alto de los carruseles horizontales de Inicio, cuyas tarjetas miden 320.
 /// Antes era 270 con la foto de alto fijo 132; con la foto en 16:9 la foto
@@ -209,7 +217,9 @@ const double altoCarruselDestacados = 180;
 /// columnas para que siempre cierren filas completas — ver
 /// [clasesEnLaVidrieraPara]. La sección sigue siendo un recorte con "Ver
 /// todas": listar las 50 cargadas daba 21 pantallas de scroll en el celular.
-const int clasesEnLaVidriera = 8;
+/// 13 desde el 1/10/2026 (eran 8): con la tarjeta más baja entran más a la
+/// vista sin que la sección se vuelva un catálogo.
+const int clasesEnLaVidriera = 13;
 
 /// Cuántas clases mostrar según las columnas, para que no queden filas a
 /// medias: 8 con 1 o 2 columnas (8 filas / 4 filas) y 12 con 3 o 4 (4 filas /
@@ -224,3 +234,6 @@ int clasesEnLaVidrieraPara(int columnas) =>
 /// seis veces el mismo lugar. Con la oferta real de hoy nunca llega a
 /// aplicarse.
 const int topeVidrieraPorEstudio = 3;
+
+/// Cuántas clases suma cada toque de "Ver más clases" en el Inicio.
+const int kMasClasesPorToque = 15;

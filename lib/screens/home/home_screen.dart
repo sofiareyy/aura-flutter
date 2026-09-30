@@ -62,6 +62,12 @@ class _HomeScreenState extends State<HomeScreen> {
   final _avisoService = AvisoAlumnosService();
   bool _loading = true;
   bool _bannerDismissed = false;
+
+  /// Clases extra que pidió la usuaria con "Ver más clases". La vidriera
+  /// arranca en [clasesEnLaVidrieraPara] y suma de a [kMasClasesPorToque]:
+  /// "Ver todas" abría las 50 de una y la sección dejaba de ser vidriera
+  /// (1/10/2026).
+  int _clasesExtra = 0;
   bool _tieneHistorialCreditos = true;
   int _unreadNotifs = 0;
   String _categoriaSeleccionada = 'Todos';
@@ -439,7 +445,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // tablet, 12 en una compu. Así la grilla cierra filas.
                 final vidriera = repartirEntreEstudios(
                   candidatasVidriera,
-                  max: clasesEnLaVidrieraPara(columnas),
+                  max: clasesEnLaVidrieraPara(columnas) + _clasesExtra,
                   cupo: topeVidrieraPorEstudio,
                 );
                 return Center(
@@ -851,6 +857,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     mainAxisSpacing: gapGrilla,
                                     mainAxisExtent: altoCardVidriera(
                                       anchoCelda(anchoCaja - 40, columnas),
+                                      unaColumna: columnas == 1,
                                     ),
                                   ),
                               delegate: SliverChildBuilderDelegate((
@@ -860,6 +867,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 final clase = clasesEstaSemana[index];
                                 return HomeNearbyClassCard(
                                   clase: clase,
+                                  proporcionFoto: columnas == 1
+                                      ? proporcionFotoVidrieraAngosta
+                                      : proporcionFotoVidriera,
                                   onTap: () =>
                                       context.push('/clase/${clase['id']}'),
                                 );
@@ -988,11 +998,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         SliverToBoxAdapter(
-                          child: TituloSeccion(
-                            // Con 6 tarjetas, "TODAS" volvía a mentir.
+                          child: const TituloSeccion(
+                            // "Ver todas" se fue ABAJO, al final de la última
+                            // clase: arriba obligaba a subir para tocarlo y
+                            // volver a bajar (1/10/2026).
                             'MÁS CLASES',
-                            accion: 'Ver todas',
-                            onAccion: () => context.go('/explorar'),
                           ),
                         ),
                         // Era un spinner suelto en un hueco crema.
@@ -1058,6 +1068,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     // foto 16:9 de esta columna más el texto.
                                     mainAxisExtent: altoCardVidriera(
                                       anchoCelda(anchoCaja - 40, columnas),
+                                      unaColumna: columnas == 1,
                                     ),
                                   ),
                               delegate: SliverChildBuilderDelegate((
@@ -1067,10 +1078,51 @@ class _HomeScreenState extends State<HomeScreen> {
                                 final clase = vidriera[index];
                                 return HomeNearbyClassCard(
                                   clase: clase,
+                                  proporcionFoto: columnas == 1
+                                      ? proporcionFotoVidrieraAngosta
+                                      : proporcionFotoVidriera,
                                   onTap: () =>
                                       context.push('/clase/${clase['id']}'),
                                 );
                               }, childCount: vidriera.length),
+                            ),
+                          ),
+                        // "Ver más clases" al final: suma de a
+                        // kMasClasesPorToque. Cuando ya no quedan, el botón
+                        // lleva a Explorar, que es donde está el catálogo
+                        // entero con filtros.
+                        if (!_loading && vidriera.isNotEmpty)
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                            sliver: SliverToBoxAdapter(
+                              child: SizedBox(
+                                height: 48,
+                                child: OutlinedButton(
+                                  onPressed: vidriera.length <
+                                          candidatasVidriera.length
+                                      ? () => setState(
+                                          () => _clasesExtra +=
+                                              kMasClasesPorToque,
+                                        )
+                                      : () => context.go('/explorar'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.primary,
+                                    side: const BorderSide(
+                                      color: AppColors.primary,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        AuraRadio.boton,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    vidriera.length < candidatasVidriera.length
+                                        ? 'Ver más clases'
+                                        : 'Ver todas en Explorar',
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         const SliverToBoxAdapter(child: SizedBox(height: 28)),
@@ -1841,10 +1893,16 @@ class HomeNearbyClassCard extends StatelessWidget {
   final Map<String, dynamic> clase;
   final VoidCallback onTap;
 
+  /// Proporción de la foto. El Inicio en UNA columna la pide más apaisada
+  /// para que la tarjeta no mida 345 px: la celda y la foto tienen que usar
+  /// el MISMO número, si no la tarjeta se recorta (1/10/2026).
+  final double proporcionFoto;
+
   const HomeNearbyClassCard({
     super.key,
     required this.clase,
     required this.onTap,
+    this.proporcionFoto = proporcionFotoVidriera,
   });
 
   @override
@@ -1880,7 +1938,7 @@ class HomeNearbyClassCard extends StatelessWidget {
                 // 132, en un monitor de 1920 la lista vertical la dejaba de
                 // 1900 × 132 (14:1) y hasta en el carrusel de 320 daba 2,4:1.
                 child: AspectRatio(
-                  aspectRatio: proporcionFotoVidriera,
+                  aspectRatio: proporcionFoto,
                   child: _HomeClassImage(imageUrl: imageUrl),
                 ),
               ),

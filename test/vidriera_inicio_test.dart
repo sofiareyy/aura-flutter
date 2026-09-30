@@ -26,14 +26,15 @@ List<Map<String, dynamic>> deUnEstudio(int estudioId, int n, {int desde = 1}) =>
     );
 
 void main() {
-  test('la vidriera son 8 en el celular y 12 en una compu (17/9/2026)', () {
+  test('la vidriera son 13 en el celular y 12 en una compu', () {
     // Era 6 para todos los anchos, elegido pensando en 1 y 2 columnas. En una
     // compu son 3 o 4 columnas: quedaban DOS filas contra ~1400 clases
     // futuras. Ahora el número sigue a las columnas para que no queden filas
     // a medias.
-    expect(clasesEnLaVidriera, 8);
-    expect(clasesEnLaVidrieraPara(1), 8, reason: 'celular: 8 filas');
-    expect(clasesEnLaVidrieraPara(2), 8, reason: 'tablet: 4 filas');
+    // 1/10/2026: pasó de 8 a 13 en el celular, con la tarjeta más baja.
+    expect(clasesEnLaVidriera, 13);
+    expect(clasesEnLaVidrieraPara(1), 13, reason: 'celular: 13 filas');
+    expect(clasesEnLaVidrieraPara(2), 13, reason: 'tablet');
     expect(clasesEnLaVidrieraPara(3), 12, reason: 'compu: 4 filas');
     expect(clasesEnLaVidrieraPara(4), 12, reason: 'pantalla ancha: 3 filas');
   });
@@ -49,7 +50,9 @@ void main() {
       ...deUnEstudio(5, 4, desde: 11),
       ...deUnEstudio(6, 4, desde: 11),
     ];
-    final v = repartirEntreEstudios(pozo, max: clasesEnLaVidriera);
+    // max fijo en 8: lo que se mide es el reparto, no cuántas muestra el
+    // Inicio (que cambió a 13 el 1/10/2026).
+    final v = repartirEntreEstudios(pozo, max: 8);
     expect(v.length, 8);
     final estudios = v
         .map((c) => (c['estudios'] as Map)['id'] as int)
@@ -68,7 +71,9 @@ void main() {
 
   test('con pocos estudios, se completa con una segunda de cada uno', () {
     final pozo = [...deUnEstudio(1, 5), ...deUnEstudio(2, 5, desde: 6)];
-    final v = repartirEntreEstudios(pozo, max: clasesEnLaVidriera);
+    // max fijo en 8: lo que se mide es el reparto, no cuántas muestra el
+    // Inicio (que cambió a 13 el 1/10/2026).
+    final v = repartirEntreEstudios(pozo, max: 8);
     expect(v.length, 8);
     final porEstudio = <int, int>{};
     for (final c in v) {

@@ -118,7 +118,8 @@ void main() {
       final entrada = pozo([1, 2, 1, 3, 2, 4, 1, 5]);
       final salida = repartirEntreEstudios(
         entrada,
-        max: clasesEnLaVidriera,
+        max: 8, // el reparto, no el número del Inicio
+
         cupo: topeVidrieraPorEstudio,
       );
       expect(salida.map((c) => c['id']), [0, 1, 2, 3, 4, 5, 6, 7]);
@@ -138,12 +139,13 @@ void main() {
       // sección entera; con tope, 2 y 3 consiguen su lugar.
       final salida = repartirEntreEstudios(
         pozo([1, 1, 1, 1, 1, 1, 2, 3]),
-        max: clasesEnLaVidriera,
+        max: 8, // el reparto, no el número del Inicio
+
         cupo: topeVidrieraPorEstudio,
       );
-      expect(salida.length, clasesEnLaVidriera);
+      expect(salida.length, 8);
       expect(porEstudio(salida).keys, containsAll([1, 2, 3]));
-      expect(porEstudio(salida)[1], lessThan(clasesEnLaVidriera));
+      expect(porEstudio(salida)[1], lessThan(8));
     });
 
     test('el tope es preferencia, no prohibición: primero llenar', () {
@@ -152,11 +154,12 @@ void main() {
       // oferta real, esconder la mitad no ayuda a nadie.
       final salida = repartirEntreEstudios(
         pozo([1, 1, 1, 1, 1, 1, 1, 1]),
-        max: clasesEnLaVidriera,
+        max: 8, // el reparto, no el número del Inicio
+
         cupo: topeVidrieraPorEstudio,
       );
-      expect(salida.length, clasesEnLaVidriera);
-      expect(porEstudio(salida)[1], clasesEnLaVidriera);
+      expect(salida.length, 8);
+      expect(porEstudio(salida)[1], 8);
     });
 
     test('repetir estudio está permitido: no fuerza seis lugares distintos', () {
@@ -164,17 +167,19 @@ void main() {
       // (una por estudio) esto habría devuelto 3 clases; ahora devuelve 6.
       final salida = repartirEntreEstudios(
         pozo([1, 2, 3, 1, 2, 3, 1, 2]),
-        max: clasesEnLaVidriera,
+        max: 8, // el reparto, no el número del Inicio
+
         cupo: topeVidrieraPorEstudio,
       );
-      expect(salida.length, clasesEnLaVidriera);
+      expect(salida.length, 8);
       expect(salida.map((c) => c['estudio_id']).toSet().length, 3);
     });
 
     test('sale ordenada por fecha', () {
       final salida = repartirEntreEstudios(
         pozo([1, 1, 1, 1, 2, 2, 2, 3]),
-        max: clasesEnLaVidriera,
+        max: 8, // el reparto, no el número del Inicio
+
         cupo: topeVidrieraPorEstudio,
       );
       final fechas = salida.map((c) => c['fecha'] as String).toList();
@@ -185,7 +190,7 @@ void main() {
       // Un solo estudio con 8 clases tiene que seguir dando sus 6.
       final salida = repartirEntreEstudios(pozo([1, 1, 1, 1, 1, 1, 1, 1]),
           max: clasesEnLaVidriera);
-      expect(salida.length, clasesEnLaVidriera);
+      expect(salida.length, 8);
     });
   });
 }
