@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../utils/cupos_grilla.dart';
+import '../../utils/foto_url.dart';
 import '../../utils/liquidacion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
@@ -2517,7 +2518,15 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                             ),
                                           )
                                         : Image.network(
-                                            imagenUrl.text.trim(),
+                                            // Optimizada: las fotos de iPhone
+                                            // llegan en HEIC y el navegador no
+                                            // las muestra (30/9/2026).
+                                            fotoOptimizada(
+                                                  imagenUrl.text.trim(),
+                                                  ancho: 800,
+                                                ) ??
+                                                imagenUrl.text.trim(),
+                                            headers: headersFoto,
                                             height: 140,
                                             width: double.infinity,
                                             fit: BoxFit.cover,

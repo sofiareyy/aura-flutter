@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 
 import 'package:image_picker/image_picker.dart';
@@ -28,6 +26,7 @@ class MediaUploadService {
 
     try {
       await _uploadBytes(bucket: bucket, path: path, bytes: bytes);
+      await _normalizarSiNoSeVe(bucket: bucket, path: path, ext: ext);
       return _client.storage.from(bucket).getPublicUrl(path);
     } catch (e) {
       debugPrint('[MediaUploadService.upload] $e');
@@ -62,6 +61,7 @@ class MediaUploadService {
 
     try {
       await _uploadBytes(bucket: 'avatares', path: path, bytes: bytes);
+      await _normalizarSiNoSeVe(bucket: 'avatares', path: path, ext: ext);
       final base = _client.storage.from('avatares').getPublicUrl(path);
       return '$base?t=${DateTime.now().millisecondsSinceEpoch}';
     } catch (e) {
@@ -73,6 +73,50 @@ class MediaUploadService {
       throw Exception(
         'No se pudo subir la imagen. Revisá Storage y volvé a intentarlo.',
       );
+    }
+  }
+
+  /// Formatos que la cámara del iPhone y algunas galerías devuelven, y que
+  /// NO se pueden mostrar en un navegador (heic/heif) o en celulares viejos
+  /// (avif). El 30/9/2026 PUR subió su portada en HEIC y la vio rota en su
+  /// panel; 14 archivos así ya estaban en Storage.
+  static const _formatosQueNoSeVen = {'heic', 'heif', 'avif'};
+
+  /// Reemplaza el archivo recién subido por la versión que devuelve el
+  /// transformador de Storage, que es webp y se ve en todos lados.
+  ///
+  /// Se hace DESPUÉS de subir, y no antes, porque el navegador tampoco puede
+  /// decodificar un HEIC: la conversión sólo la puede hacer el servidor.
+  /// Si algo falla, se deja el original: la foto igual se ve, porque la app
+  /// pide la versión optimizada en todas las pantallas. Es una mejora del
+  /// archivo guardado, no un paso del que dependa la subida.
+  Future<void> _normalizarSiNoSeVe({
+    required String bucket,
+    required String path,
+    required String ext,
+  }) async {
+    if (!_formatosQueNoSeVen.contains(ext)) return;
+    try {
+      final liviana = await _client.storage.from(bucket).download(
+            path,
+            transform: const TransformOptions(
+              width: 1600,
+              resize: ResizeMode.contain,
+              quality: 82,
+            ),
+          );
+      if (liviana.isEmpty) return;
+      await _client.storage.from(bucket).uploadBinary(
+            path,
+            liviana,
+            fileOptions: const FileOptions(
+              cacheControl: '3600',
+              upsert: true,
+              contentType: 'image/webp',
+            ),
+          );
+    } catch (e) {
+      debugPrint('[normalizar $ext] $e');
     }
   }
 

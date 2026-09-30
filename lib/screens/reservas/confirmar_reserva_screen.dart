@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
+import '../../utils/foto_url.dart';
 import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 import '../../services/aura_gestion_service.dart';
@@ -514,7 +515,8 @@ class _ReservationImage extends StatelessWidget {
   Widget build(BuildContext context) {
     if (imageUrl != null && imageUrl!.isNotEmpty) {
       return CachedNetworkImage(
-        imageUrl: imageUrl!,
+        imageUrl: fotoOptimizada(imageUrl!, ancho: 800) ?? imageUrl!,
+        httpHeaders: headersFoto,
         fit: BoxFit.cover,
         errorWidget: (_, __, ___) => _placeholder(),
         placeholder: (_, __) => _placeholder(),

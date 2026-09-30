@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../core/theme/app_theme.dart';
+import '../utils/foto_url.dart';
 import '../models/estudio.dart';
 
 class EstudioCard extends StatelessWidget {
@@ -192,7 +193,9 @@ class EstudioCard extends StatelessWidget {
   Widget _buildImage() {
     if (estudio.fotoUrl != null && estudio.fotoUrl!.isNotEmpty) {
       return CachedNetworkImage(
-        imageUrl: estudio.fotoUrl!,
+        imageUrl:
+            fotoOptimizada(estudio.fotoUrl!, ancho: 600) ?? estudio.fotoUrl!,
+        httpHeaders: headersFoto,
         fit: BoxFit.cover,
         placeholder: (_, __) => Container(color: AppColors.lightGrey),
         errorWidget: (_, __, ___) => _buildPlaceholder(),

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../utils/foto_url.dart';
 import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 import '../../services/clases_service.dart';
@@ -1179,7 +1180,8 @@ class _HistorialCompactCard extends StatelessWidget {
               height: 40,
               child: fotoUrl != null && fotoUrl.isNotEmpty
                   ? CachedNetworkImage(
-                      imageUrl: fotoUrl,
+                      imageUrl: fotoOptimizada(fotoUrl, ancho: 400) ?? fotoUrl,
+                      httpHeaders: headersFoto,
                       fit: BoxFit.cover,
                       placeholder: (context, url) => _smallFallback(),
                       errorWidget: (context, url, error) => _smallFallback(),
@@ -1338,7 +1340,8 @@ class _StudioImage extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(AuraRadio.chip),
       child: CachedNetworkImage(
-        imageUrl: url!,
+        imageUrl: fotoOptimizada(url!, ancho: 160) ?? url!,
+        httpHeaders: headersFoto,
         width: 60,
         height: 60,
         fit: BoxFit.cover,

@@ -11,6 +11,7 @@ import '../../services/media_upload_service.dart';
 import '../../widgets/categorias_checklist.dart';
 import 'admin_pricing_screen.dart';
 import '../../widgets/ancho_maximo.dart';
+import '../../widgets/foto_red.dart';
 
 class AdminEstudiosScreen extends StatefulWidget {
   const AdminEstudiosScreen({super.key});
@@ -412,19 +413,24 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
                               size: 44,
                             ),
                           )
-                        : Image.network(
-                            fotoCtrl.text.trim(),
+                        // FotoRed y no Image.network: las fotos de iPhone
+                        // llegan en HEIC y el navegador no las muestra. La
+                        // optimizada viene en webp (bug del 30/9/2026).
+                        : SizedBox(
                             height: 130,
                             width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              height: 130,
-                              width: double.infinity,
-                              color: const Color(0xFFEDE7E1),
-                              child: const Icon(
-                                Icons.broken_image_outlined,
-                                color: AppColors.grey,
-                                size: 44,
+                            child: FotoRed(
+                              url: fotoCtrl.text.trim(),
+                              ancho: 800,
+                              fallback: Container(
+                                height: 130,
+                                width: double.infinity,
+                                color: const Color(0xFFEDE7E1),
+                                child: const Icon(
+                                  Icons.broken_image_outlined,
+                                  color: AppColors.grey,
+                                  size: 44,
+                                ),
                               ),
                             ),
                           ),

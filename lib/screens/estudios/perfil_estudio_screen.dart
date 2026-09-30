@@ -13,6 +13,7 @@ import '../../utils/datos_cobro.dart';
 import '../../widgets/categorias_checklist.dart';
 import '../../widgets/eliminar_cuenta_helper.dart';
 import '../../widgets/ancho_maximo.dart';
+import '../../widgets/foto_red.dart';
 
 class PerfilEstudioScreen extends StatefulWidget {
   const PerfilEstudioScreen({super.key});
@@ -1259,13 +1260,19 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                                 .isNotEmpty)
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(16),
-                                child: Image.network(
-                                  _estudio!['foto_url'].toString(),
+                                // FotoRed y no Image.network: las fotos de
+                                // iPhone se suben en HEIC y el navegador no
+                                // las puede mostrar. La versión optimizada
+                                // llega en webp y se ve en todos lados
+                                // (bug del 30/9/2026).
+                                child: SizedBox(
                                   width: 80,
                                   height: 80,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) =>
-                                      _avatarFallback(),
+                                  child: FotoRed(
+                                    url: _estudio!['foto_url'].toString(),
+                                    ancho: 200,
+                                    fallback: _avatarFallback(),
+                                  ),
                                 ),
                               )
                             else
@@ -1427,19 +1434,21 @@ class _PerfilEstudioScreenState extends State<PerfilEstudioScreen> {
                                     children: [
                                       ClipRRect(
                                         borderRadius: BorderRadius.circular(12),
-                                        child: Image.network(
-                                          url,
+                                        child: SizedBox(
                                           width: 96,
                                           height: 96,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => Container(
-                                            width: 96,
-                                            height: 96,
-                                            color: const Color(0xFFEDE7E1),
-                                            child: const Icon(
-                                              Icons
-                                                  .image_not_supported_outlined,
-                                              color: AppColors.grey,
+                                          child: FotoRed(
+                                            url: url,
+                                            ancho: 240,
+                                            fallback: Container(
+                                              width: 96,
+                                              height: 96,
+                                              color: const Color(0xFFEDE7E1),
+                                              child: const Icon(
+                                                Icons
+                                                    .image_not_supported_outlined,
+                                                color: AppColors.grey,
+                                              ),
                                             ),
                                           ),
                                         ),

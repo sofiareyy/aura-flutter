@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../utils/compartir.dart';
+import '../../utils/foto_url.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/aura_tokens.dart';
 import '../../widgets/texto_expandible.dart';
@@ -1117,7 +1118,13 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                                           child: SizedBox(
                                             width: 120,
                                             child: CachedNetworkImage(
-                                              imageUrl: imageUrl,
+                                              imageUrl:
+                                                  fotoOptimizada(
+                                                    imageUrl,
+                                                    ancho: 300,
+                                                  ) ??
+                                                  imageUrl,
+                                              httpHeaders: headersFoto,
                                               fit: BoxFit.cover,
                                               errorWidget: (_, __, ___) =>
                                                   Container(
@@ -1540,7 +1547,10 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
                     maxScale: 4,
                     child: Center(
                       child: CachedNetworkImage(
-                        imageUrl: imageUrls[index],
+                        imageUrl:
+                            fotoOptimizada(imageUrls[index], ancho: 1600) ??
+                            imageUrls[index],
+                        httpHeaders: headersFoto,
                         fit: BoxFit.contain,
                         errorWidget: (_, __, ___) => const Icon(
                           Icons.broken_image_outlined,
@@ -1608,7 +1618,10 @@ class _HeroImage extends StatelessWidget {
       return Container(
         color: const Color(0xFF151412),
         child: CachedNetworkImage(
-          imageUrl: imageUrl!,
+          // Las fotos de iPhone llegan en HEIC y el navegador no las muestra:
+          // la versión optimizada llega en webp (bug del 30/9/2026).
+          imageUrl: fotoOptimizada(imageUrl!, ancho: 1200) ?? imageUrl!,
+          httpHeaders: headersFoto,
           fit: useContain ? BoxFit.contain : BoxFit.cover,
           alignment: Alignment.center,
           errorWidget: (_, __, ___) => _placeholder(),
