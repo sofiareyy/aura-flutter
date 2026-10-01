@@ -250,14 +250,19 @@ class _HomeScreenState extends State<HomeScreen> {
       }).ignore();
 
       final results = await Future.wait([
-        // Subimos el limit (era 5) para que aparezcan las clases mas
-        // cercanas en el tiempo. Con limit bajo, si las primeras 5 caian
-        // todas el mismo dia lejano, "esta semana" quedaba vacia. Order
-        // por fecha asc se sigue manteniendo (soonest first).
-        _clasesService.getProximasClases(limit: 50),
+        // 200 desde el 1/10/2026 (era 50, y antes 5).
+        //
+        // No es sólo para llenar la vidriera: los CHIPS de categoría salen de
+        // estas clases, así que el limit decide qué categorías existen en el
+        // Inicio. Con 50 la ventana llegaba hasta las 19:00 de HOY: una
+        // categoría cuyas clases empiezan mañana no tenía chip. Medido: 50 →
+        // hoy, 120 → 4 días, 200 → 5 días, 300 → 7. A 200 la respuesta pesa
+        // unos 30 KB, que es barato para no volver a perder una categoría.
+        _clasesService.getProximasClases(limit: 200),
         _estudiosService.getCategorias(),
         _estudiosService.getEstudios(),
-        _clasesService.getProximasExperiencias(limit: 20),
+        // Las experiencias también cuentan para los chips.
+        _clasesService.getProximasExperiencias(limit: 60),
       ]);
       final clases = results[0] as List<Map<String, dynamic>>;
       final categorias = results[1] as List<String>;
