@@ -99,9 +99,18 @@ function render(numero: number, fecha: string, m: Record<string, unknown>): stri
   const reportes = m.reportes_pendientes
 
   // ── Movimiento ────────────────────────────────────────────────────────
+  // El día 1 "en el mes" vale 0 y se lee raro: la compra de ayer aparece en
+  // "ayer" pero no en "el mes", porque ayer fue del mes pasado. Ahí se dice
+  // cómo cerró el mes anterior en vez de un cero sin contexto (4/10/2026).
+  const diaUno = m.es_dia_uno === true
+  const mesPasado = String(m.mes_pasado ?? 'el mes pasado')
   const movimiento: string[] = [
-    `<b>${n(m.altas_mes)}</b> usuarias nuevas en lo que va del mes`,
-    `<b>${n(m.packs_ayer)}</b> packs ayer · <b>${n(m.packs_mes)}</b> en el mes`,
+    diaUno
+      ? `<b>${n(m.altas_mes_pasado)}</b> usuarias nuevas en ${mesPasado} · el mes nuevo arranca hoy`
+      : `<b>${n(m.altas_mes)}</b> usuarias nuevas en lo que va del mes`,
+    diaUno
+      ? `<b>${n(m.packs_ayer)}</b> packs ayer · ${mesPasado} cerró con <b>${n(m.packs_mes_pasado)}</b>`
+      : `<b>${n(m.packs_ayer)}</b> packs ayer · <b>${n(m.packs_mes)}</b> en el mes`,
   ]
   if (n(m.reservas_ayer_de_gente_nueva) > 0) {
     movimiento.unshift(`<b>${n(m.reservas_ayer_de_gente_nueva)}</b> de las reservas de ayer son de gente que nunca había reservado`)

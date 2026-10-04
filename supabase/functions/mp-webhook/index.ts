@@ -212,6 +212,33 @@ async function processPackPayment(
   if (r && r.is_gift === true && r.already_processed === false && r.gift_codigo) {
     await sendGiftEmail(r)
   }
+
+  // Aviso inmediato a Aura. Mismo criterio que el regalo: SOLO en el primer
+  // procesamiento, así un reintento del webhook no manda dos mails. Si el
+  // RPC no devolvió la bandera (versión vieja), se manda igual: perder un
+  // aviso es peor que repetirlo (4/10/2026).
+  if (!r || r.already_processed !== true) {
+    await avisarCompra(pago.id)
+  }
+}
+
+async function avisarCompra(pagoId: number | string) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/compra-aviso`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ pago_id: pagoId }),
+    })
+    if (!res.ok) {
+      console.error('mp-webhook: compra-aviso falló:', await res.text())
+    }
+  } catch (e) {
+    // Nunca tira para arriba: la compra ya está acreditada.
+    console.error('mp-webhook: excepción enviando compra-aviso:', e)
+  }
 }
 
 async function sendGiftEmail(r: Record<string, unknown>) {

@@ -439,6 +439,15 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/email-regalo/index.ts"
 
+# Aviso inmediato a Aura cuando alguien compra (4/10/2026). Interna: la llama
+# el mp-webhook con el service_role, igual que email-regalo. Declarada ACÁ a
+# propósito: deployar una función sin declararla le cambia el verify_jwt en
+# silencio.
+[functions.compra-aviso]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/compra-aviso/index.ts"
+
 [functions.aviso-cobro-manana]
 enabled = true
 verify_jwt = true
