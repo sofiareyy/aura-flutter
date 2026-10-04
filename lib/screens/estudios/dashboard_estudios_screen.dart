@@ -7,6 +7,7 @@ import '../../core/constants/app_constants.dart';
 import '../../utils/liquidacion.dart';
 import '../../utils/mes_argentino.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 import '../../services/estudio_admin_service.dart';
 import '../../services/reviews_service.dart';
@@ -306,6 +307,70 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
           ingresosWorkshops: _ingresosMesWorkshops,
           mostrarWorkshops: _tieneWorkshops,
           money: _moneyCompact,
+        ),
+        const SizedBox(height: 12),
+        // Entrada a las reservas del mes. El desglose de arriba da números;
+        // esto da la lista: quién, qué clase, cuándo y si vino. Hasta el
+        // 4/10/2026 una reserva pasada no se veía en ninguna pantalla.
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => context.push('/estudio/reservas'),
+            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+            child: Ink(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+                border: Border.all(color: AppColors.warmBorder),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(AuraRadio.boton),
+                    ),
+                    child: const Icon(
+                      Icons.fact_check_outlined,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Reservas del mes',
+                          style: TextStyle(
+                            color: AppColors.black,
+                            fontSize: AuraTipo.cuerpo,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Quién reservó, qué clase y si vino',
+                          style: TextStyle(
+                            color: AppColors.grey,
+                            fontSize: AuraTipo.secundario,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.grey,
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
         const SizedBox(height: 16),
         _misProfesQuickAction(),

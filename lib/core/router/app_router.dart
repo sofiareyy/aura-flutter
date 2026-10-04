@@ -18,6 +18,7 @@ import '../../screens/explorar/explorar_screen.dart';
 import '../../screens/estudios/detalle_estudio_screen.dart';
 import '../../screens/estudios/dashboard_estudios_screen.dart';
 import '../../screens/estudios/perfil_estudio_screen.dart';
+import '../../screens/estudios/reservas_mes_screen.dart';
 import '../../screens/estudios/resenas_screen.dart';
 import '../../screens/clases/detalle_clase_screen.dart';
 import '../../screens/clases/mis_clases_screen.dart';
@@ -351,6 +352,10 @@ final appRouter = GoRouter(
         GoRoute(
           path: '/estudio/cobros',
           builder: (context, state) => const CobrosScreen(),
+        ),
+        GoRoute(
+          path: '/estudio/reservas',
+          builder: (context, state) => const ReservasMesScreen(),
         ),
         GoRoute(
           path: '/estudio/perfil',

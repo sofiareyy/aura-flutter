@@ -350,6 +350,51 @@ class EstudioAdminService {
     return List<Map<String, dynamic>>.from(data as List);
   }
 
+  /// Las reservas del estudio en un rango, con la alumna y la clase.
+  ///
+  /// Existe porque el panel sólo miraba de HOY en adelante: la pantalla de
+  /// asistencia pide `from: hoy` y el dashboard muestra números, no una
+  /// lista. Una reserva de ayer no se podía ver en ninguna parte, y el
+  /// estudio no tenía cómo saber quién vino (4/10/2026).
+  ///
+  /// Trae el nombre de la alumna y los datos de la clase en la MISMA
+  /// consulta: las dos claves foráneas existen, así que PostgREST las puede
+  /// embeber. Ver por qué importa en la nota de los embeds.
+  Future<List<Map<String, dynamic>>> getReservasEnRango({
+    required DateTime desde,
+    required DateTime hasta,
+  }) async {
+    final studioId = await getCurrentStudioId();
+    if (studioId == null) return [];
+
+    final data = await _client
+        .from('reservas')
+        .select(
+          'id, estado, creditos_usados, checked_in_at, created_at, '
+          'usuarios(nombre, email), '
+          'clases!inner(id, nombre, fecha, estudio_id, tipo, sala)',
+        )
+        .eq('clases.estudio_id', studioId)
+        .gte('clases.fecha', _toSupaDate(desde))
+        .lt('clases.fecha', _toSupaDate(hasta))
+        .order('created_at', ascending: false);
+
+    final filas = List<Map<String, dynamic>>.from(data as List);
+    // Por fecha de CLASE, de la más reciente a la más vieja: el estudio
+    // piensa en "qué pasó el jueves", no en cuándo se reservó.
+    filas.sort((a, b) {
+      final fa = DateTime.tryParse(
+        (a['clases'] as Map?)?['fecha']?.toString() ?? '',
+      );
+      final fb = DateTime.tryParse(
+        (b['clases'] as Map?)?['fecha']?.toString() ?? '',
+      );
+      if (fa == null || fb == null) return 0;
+      return fb.compareTo(fa);
+    });
+    return filas;
+  }
+
   Future<List<Map<String, dynamic>>> getReservasDeEstudio({int? limit}) async {
     final clases = await getClasesDeEstudio();
     final classIds = clases
