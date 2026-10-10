@@ -25,6 +25,85 @@
 | ✅ | **Google Analytics 4 en la web** | **publicado el 11/9** · `web/aura-analytics.js` · quedan 3 pendientes de la política de privacidad (abajo) |
 | ✅ | **BUG DE PLATA: la gracia se aplicaba hacia atrás** | **CERRADO el 16/9**: fix en producción (web `5afbc06`), sellado corregido, edge functions deployadas, agosto de Citra corregido con asiento auditado ($54.000) · ver abajo |
 | 🟡 | **Bono de bienvenida** | **armado y APAGADO el 14/9** · migración APLICADA, `bono-email` deployada y el Dart mergeado el 16/9 · sigue en OFF · ver abajo |
+| 🟡 | **Auditoría pre-App-Store** (usuaria + estudio, punta a punta) | **hecha el 10/10** · 30 hallazgos · 4 cerrados ese día, **el resto abierto** · ver la sección de abajo, es lo primero |
+
+### 🟡 AUDITORÍA PRE-APP-STORE — 10/10/2026
+
+Recorrido completo de los dos lados (alta, explorar, reservar, cancelar,
+reseñar, perfil · panel del estudio, grilla, asistencia, cobros) con cuentas
+reales contra la base, no con superadmin.
+
+**Cómo leer cada ítem:** `[MEDIDO]` = probado contra la base o el sitio.
+`[CÓDIGO]` = leído, no ejecutado. `[DORMIDO]` = el bug existe pero hoy no
+tiene con qué dispararse.
+
+#### ✅ Cerrado el 10/10
+
+| # | Qué era | Dónde |
+|---|---|---|
+| 1 | **Buscar por nombre de clase mostraba la pantalla vacía.** El cartel "No encontramos resultados" miraba sólo los estudios y el `else` se llevaba puesta la lista de clases. "reformer" = 312 clases futuras y 0 estudios ⇒ vacío; "pilates" mostraba esas mismas clases | `explorar_screen.dart` · commit `add109a` |
+| 3 | **La profe veía y podía cambiar el CBU del estudio.** `es_miembro_de_estudio` no mira el rol y 15 policies cuelgan de ella | `supabase/SEGURIDAD_PROFE_2026-10-10.sql` · **aplicado en producción** |
+| 4 | **La profe podía borrar un horario fijo y dejar las clases huérfanas y vivas** (el trigger no es SECURITY DEFINER + FK en SET NULL) | ídem · cerrado por las mismas policies |
+| 5 | **Una profe logueada no podía abrir el perfil de NINGÚN estudio** — `startsWith('/estudio')` se comía la ficha pública. Un invitado sí podía | `app_router.dart` + `test/ruta_profe_test.dart` |
+
+#### 🔴 Abierto y urgente
+
+- **#2 Sentry está apagado: el DSN es el placeholder** `'REEMPLAZAR_CON_TU_DSN_DE_SENTRY'`. Todo el cableado ya está (paquete, `init` con guarda, usuario en el scope). **Falta sólo el DSN de sentry.io.** Sin esto, un crash en producción no llega a ningún lado. Sumale 56 `catch (_) {}` en 12+ archivos. [MEDIDO]
+- **#6 En la web el splash manda a `/landing` a los 800 ms** y el listener de `signedIn` nunca navega: una usuaria ya logueada puede caer en la landing de visitante. [CÓDIGO]
+- **#7 Los botones de login social quedan colgados en "cargando"** si cancelás la hoja de Google/Apple: no hay observer de ciclo de vida. [CÓDIGO]
+
+#### 🟠 Abierto, medio
+
+- **#8 Asistencia le miente al estudio (5 problemas juntos):** el snackbar "✓ marcado como presente" está fuera del `try`; cualquier excepción se lee como "sin conexión"; un "marcar ausente" offline se sincroniza como PRESENTE (hardcodeado); la cola se vacía aunque el UPDATE afecte 0 filas; y `_cargar` sin try/catch deja spinner infinito. [CÓDIGO]
+- **#9 Apagar un horario puede volver al bug de setiembre:** `listarClasesFuturasDeHorario` dentro de un `catch (_) {}` ⇒ si falla, apaga sin preguntar con las clases vivas. Mismo patrón en borrar (`:3769`, `:6166`), donde el diálogo llega a decir "no afecta a ningún alumno". [CÓDIGO]
+- **#10 Editar un horario fijo dice "no se pudo guardar" cuando sí guardó** (el UPDATE commitea antes de la propagación) y después no recarga, así que el panel muestra lo viejo. [CÓDIGO]
+- **#11 El precio de un workshop se guarda con la comisión de HOY, no la de la fecha del evento** ⇒ un estudio en gracia cobra ~15% menos de lo que tipeó. **[DORMIDO: 0 workshops futuros, pero 11 estudios en gracia.]**
+- **#12 "Reservas del mes" quedó a medias:** los 3 contadores incluyen las canceladas; "No hubo reservas" también sale cuando la query falla; sin entrada en el sidebar ni título en la top bar; `appBar` propio que se apila en compu; en celular resalta "Dashboard"; sin test. [MEDIDO]
+- **#13 Cobros (200) y Dashboard (120) pueden dar dos números distintos del mismo mes.** **[DORMIDO: el estudio con más reservas tiene 8.]** Lo que SÍ está roto hoy: "Clases totales — últimos 30 días" pide sin tope superior ⇒ cuenta ~2 meses de futuro (un estudio tiene 540 clases). [MEDIDO]
+- **#14 El borrado en lote informa éxito parcial como total:** dos `catch (_) {}` y el snackbar cuenta sólo las que salieron. [CÓDIGO]
+- **#15 Dos secciones tituladas "ESTUDIOS" en el Inicio** cuando no hay permiso de ubicación (`home_screen.dart:736` y `:951`), las dos con "Ver todo". Regresión del cambio de ubicación. [MEDIDO]
+- **#16 Los chips de categoría no filtran EXPERIENCIAS.** [CÓDIGO]
+- **#17 El onboarding casi no se muestra:** `debeVerOnboarding` se referencia sólo en `main.dart:405`, adentro del `if (!kIsWeb)` del callback de OAuth. Quien se da de alta por otro camino no lo ve. **Ya se había arreglado en setiembre y volvió.** [MEDIDO]
+- **#18 `notifs_promos` no hace nada:** se lee en 3 lugares y no lo usa nadie. [MEDIDO]
+
+#### 🟡 Abierto, menor
+
+`#19` tres mensajes le tiran el `PostgrestException` crudo al estudio ·
+`#20` `EstudioAdminService.cancelarClase` es código muerto que borra la clase **sin devolver créditos** ·
+`#21` cancelar una clase suelta no dice a cuánta gente afecta ·
+`#22` "Grilla creada… publicando" y acto seguido "(0 nuevas)" ·
+`#23` el contador de "creadas" suma también las actualizadas ·
+`#24` subir el cupo nunca promueve de la lista de espera **[DORMIDO: 0 filas, nunca se usó]** ·
+`#25` el popup del escaneo hace `pop` a ciegas 2,5 s después ·
+`#26` `checked_in_at` se manda en hora local naive (hoy lo salva el trigger) ·
+`#27` mezcla de relojes en los cortes de día ·
+`#28` el aviso a alumnas no cuenta las `pre_confirmada` ·
+`#29` el calendario de Mis clases deja moverse ±365 días con ~5 de datos ·
+`#30` datos inventados que quedaron en la UI ("Malabia 1510", "Palermo", "Aura Studio").
+
+#### ✅ Verificado que ANDA (no tocar)
+
+Reservar (50→39 créditos, QR, cupo 4→3) · doble reserva frenada
+(`ya_reservada`) · cancelar con devolución · clase llena (`sin_lugares`) ·
+presente frenado antes de que cierre la ventana · el estudio sí puede marcar
+una clase pasada · reseñar sin haber ido frenado por RLS · **las 4
+verificaciones de integridad de plata en 0** · las visitas anónimas ya se
+cuentan · de las dos versiones de `set_active_estudio`, **la viva es la buena**
+(devuelve json y preserva `admin`) · el texto de "24 h" del reset de
+contraseña **es correcto** (`mailer_otp_exp = 86400`) · iOS: Apple Sign In,
+`aps-environment: production`, textos de permisos completos ·
+el auto-check-in **no es explotable** (el trigger frena al cliente).
+
+#### ⚠️ Lo que NO se pudo verificar
+
+- **No se entró por UI** como estudio ni como alumna: todo lo `[CÓDIGO]` es lectura, no ejecución.
+- La prueba destructiva de la profe contra Sitio Pilates (32 horarios, 256 clases) **no se corrió**: decisión de Sofía, alcanzaba con las policies.
+- `mailer_autoconfirm` está en `True` ⇒ toda la rama de verificación de mail es código muerto en producción.
+
+#### 🔑 Pendiente de Sofía
+
+**Rotar la service_role key**, que se pegó en un chat el 4/10. Es la llave que
+saltea todo el RLS.
 
 ### 🟢 FORCE-UPDATE ACTIVO en la 26 — decisión de Sofía (confirmada el 30/8)
 
