@@ -66,6 +66,22 @@ const _rutasProfe = ['/estudio/clases', '/estudio/asistencia'];
 bool _rutaPermitidaProfe(String loc) =>
     _rutasProfe.any((p) => loc.startsWith(p));
 
+/// ¿A esta ruta NO puede entrar una profe?
+///
+/// Pública y con test (`test/ruta_profe_test.dart`) porque es la segunda vez
+/// que este guard rompe uso legítimo: el 20/8 con los guards de la grilla, y
+/// el 10/10 acá, cuando `startsWith('/estudio')` se llevaba puesta la ficha
+/// pública del estudio y dejaba a la profe sin poder abrir el perfil de
+/// ninguno —ni el suyo—, algo que un invitado sin cuenta sí podía hacer.
+///
+/// Es fail-closed a propósito: lo que no sea la ficha pública o una de las
+/// dos pantallas de la profe queda vedado. Una ruta nueva del panel se
+/// protege sola, sin que haya que acordarse de agregarla a una lista.
+bool rutaVedadaParaProfe(String loc) =>
+    loc.startsWith('/estudio') &&
+    !_esEstudioDetalle(loc) &&
+    !_rutaPermitidaProfe(loc);
+
 /// Rutas de "browse" que un invitado (sin sesión) puede ver: el marketplace
 /// de solo lectura. El resto sigue protegido (perfil, créditos, reservas,
 /// checkout, panel de estudio/admin) — sin sesión caen a /login.
@@ -121,7 +137,16 @@ final appRouter = GoRouter(
     // redirect global, y no en el builder del shell: el builder corre DESPUES
     // de resolver la ruta, así que CobrosScreen alcanzaba a montarse y a
     // disparar su query de reservas antes de que el redirect la sacara.
-    if (loc.startsWith('/estudio') && !_rutaPermitidaProfe(loc)) {
+    //
+    // `_esEstudioDetalle` queda afuera del gate (10/10/2026): `/estudio`
+    // también es el prefijo de la FICHA PÚBLICA (`/estudio/42`,
+    // `/estudio/42/resenas`), así que una profe logueada no podía abrir el
+    // perfil de ningún estudio —ni el suyo—: la rebotaba a /estudio/clases.
+    // Un invitado sin cuenta sí podía. Se reusa el helper que ya existía
+    // para el gate de invitados en vez de listar las rutas del panel: así
+    // sigue siendo fail-closed, y una ruta nueva del panel queda protegida
+    // sola, sin que haya que acordarse de agregarla.
+    if (rutaVedadaParaProfe(loc)) {
       // read, no watch: en redirect no hay que suscribirse.
       final esProfe = context.read<AppProvider>().esProfe;
       if (esProfe) return '/estudio/clases';
