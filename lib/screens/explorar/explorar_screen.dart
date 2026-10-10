@@ -976,14 +976,24 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                   // El nombre es cierto: son de HOY (rotan por día) y están
                   // destacados con un criterio (más oferta, más chances).
                   // Antes eran los dos primeros del abecedario.
-                  TituloSeccion(
-                    'DESTACADOS HOY',
-                    margenLateral: false,
-                    accion: _showAllDestacados ? 'Ver menos' : 'Ver todo',
-                    onAccion: () => setState(
-                      () => _showAllDestacados = !_showAllDestacados,
+                  // Se esconde cuando NO hay ningún estudio que mostrar: con
+                  // el arreglo de abajo, buscar "reformer" ahora lista las
+                  // clases, y el título quedaba colgado sin nada debajo.
+                  //
+                  // La condición mira `_estudiosFiltrados`, NO `destacados`:
+                  // la tira puede estar vacía con estudios detrás, y entonces
+                  // "Ver todo" es la única forma de sacarlos (es el bug del
+                  // 9/9, el de Rock con el chip "Spinning"). Escondiendo el
+                  // título por tira vacía se perdía ese botón.
+                  if (_loading || _estudiosFiltrados.isNotEmpty)
+                    TituloSeccion(
+                      'DESTACADOS HOY',
+                      margenLateral: false,
+                      accion: _showAllDestacados ? 'Ver menos' : 'Ver todo',
+                      onAccion: () => setState(
+                        () => _showAllDestacados = !_showAllDestacados,
+                      ),
                     ),
-                  ),
                   // Antes: un spinner suelto en un hueco crema de 40+40 px de
                   // alto, y al llegar los datos la tira aparecía de golpe y
                   // empujaba todo lo de abajo. Ahora deja la silueta de las
@@ -995,7 +1005,18 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                       anchoTarjeta: 166,
                       altoFoto: 92,
                     )
-                  else if (_estudiosFiltrados.isEmpty)
+                  // El vacío mira las DOS listas (10/10/2026).
+                  //
+                  // Miraba sólo los estudios, y como el `else` de abajo
+                  // envuelve TODO lo que sigue, se llevaba puesta la lista de
+                  // clases —que ya venía bien filtrada por `query` en
+                  // `_clasesConEstudio`, con su propio vacío más abajo—.
+                  // Medido contra producción: "reformer" matchea 312 clases
+                  // futuras y ningún estudio (no está en su nombre, barrio ni
+                  // categorías), así que daba "No encontramos resultados";
+                  // "pilates" mostraba esas mismas clases. La misma clase
+                  // aparecía o no según qué parte de su nombre escribieras.
+                  else if (_estudiosFiltrados.isEmpty && lista.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 32),
                       child: Column(
