@@ -3,10 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
-
-/// La marca de "ya lo vio". La lee `main.dart` para decidir si interponerlo
-/// tras el login social (ver `utils/onboarding_creditos.dart`).
-const kPrefsOnboardingCreditos = 'creditos_onboarding_done';
+import '../../utils/onboarding_creditos.dart';
 
 class CreditosOnboardingScreen extends StatefulWidget {
   const CreditosOnboardingScreen({super.key});
@@ -97,10 +94,7 @@ class _CreditosOnboardingScreenState extends State<CreditosOnboardingScreen> {
                   onPressed: _finish,
                   child: const Text(
                     'Saltar',
-                    style: TextStyle(
-                      color: Color(0xFF5A534D),
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Color(0xFF5A534D), fontSize: 14),
                   ),
                 ),
               ),
@@ -162,11 +156,7 @@ class _Slide {
   final String title;
   final String body;
 
-  const _Slide({
-    required this.icon,
-    required this.title,
-    required this.body,
-  });
+  const _Slide({required this.icon, required this.title, required this.body});
 }
 
 class _SlidePage extends StatelessWidget {
@@ -192,11 +182,7 @@ class _SlidePage extends StatelessWidget {
                 width: 1.5,
               ),
             ),
-            child: Icon(
-              slide.icon,
-              size: 52,
-              color: AppColors.primary,
-            ),
+            child: Icon(slide.icon, size: 52, color: AppColors.primary),
           ),
           const SizedBox(height: 36),
           Text(
@@ -223,10 +209,4 @@ class _SlidePage extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Returns true if the user has already seen the credits onboarding.
-Future<bool> creditosOnboardingDone() async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getBool(kPrefsOnboardingCreditos) ?? false;
 }

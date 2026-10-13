@@ -21,7 +21,6 @@ import 'services/valor_credito.dart';
 import 'services/version_gate.dart';
 import 'widgets/connectivity_banner.dart';
 import 'widgets/escala_texto.dart';
-import 'screens/onboarding/creditos_onboarding_screen.dart';
 import 'utils/onboarding_creditos.dart';
 
 /// Key global del ScaffoldMessenger para poder mostrar SnackBars desde fuera
@@ -63,22 +62,20 @@ void main() async {
 
   // Sentry: solo activo en producción (DSN vacío = sin reportes en dev/test)
   final sentryDsn = AppConstants.sentryDsn;
-  final sentryEnabled = !kDebugMode &&
+  final sentryEnabled =
+      !kDebugMode &&
       sentryDsn.isNotEmpty &&
       !sentryDsn.startsWith('REEMPLAZAR');
 
   if (sentryEnabled) {
-    await SentryFlutter.init(
-      (options) {
-        options.dsn = sentryDsn;
-        options.environment = 'production';
-        // Captura el 20 % de transacciones para performance monitoring
-        options.tracesSampleRate = 0.2;
-        // Adjunta el stack trace incluso para errores no-exception
-        options.attachStacktrace = true;
-      },
-      appRunner: () => _runApp(),
-    );
+    await SentryFlutter.init((options) {
+      options.dsn = sentryDsn;
+      options.environment = 'production';
+      // Captura el 20 % de transacciones para performance monitoring
+      options.tracesSampleRate = 0.2;
+      // Adjunta el stack trace incluso para errores no-exception
+      options.attachStacktrace = true;
+    }, appRunner: () => _runApp());
   } else {
     _runApp();
   }
@@ -144,80 +141,79 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
   /// si el flujo específico no la creó, este listener lo hace. Es idempotente
   /// (ensureUsuarioCreado relee si ya existe y maneja la carrera).
   void _initAuthListener() {
-    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen(
-      (data) async {
-        final event = data.event;
-        // Recuperación de contraseña: el SDK ya estableció la sesión temporal
-        // al procesar el deep link aura://reset-password. Llevamos a la pantalla
-        // para elegir la clave nueva.
-        if (event == AuthChangeEvent.passwordRecovery) {
-          // Marca el flag para que el splash (en cold start) no pise esta
-          // navegación con su redirect normal a /home. En warm start el splash
-          // no corre y basta con el go() de acá.
-          AuthFlowState.pendingPasswordRecovery = true;
-          Future.delayed(const Duration(milliseconds: 200), () {
-            try {
-              appRouter.go('/reset-password');
-            } catch (_) {}
-          });
-          return;
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((
+      data,
+    ) async {
+      final event = data.event;
+      // Recuperación de contraseña: el SDK ya estableció la sesión temporal
+      // al procesar el deep link aura://reset-password. Llevamos a la pantalla
+      // para elegir la clave nueva.
+      if (event == AuthChangeEvent.passwordRecovery) {
+        // Marca el flag para que el splash (en cold start) no pise esta
+        // navegación con su redirect normal a /home. En warm start el splash
+        // no corre y basta con el go() de acá.
+        AuthFlowState.pendingPasswordRecovery = true;
+        Future.delayed(const Duration(milliseconds: 200), () {
+          try {
+            appRouter.go('/reset-password');
+          } catch (_) {}
+        });
+        return;
+      }
+      if (event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.userUpdated ||
+          event == AuthChangeEvent.initialSession) {
+        var regaloFallo = false;
+        try {
+          await _authService.ensureUsuarioCreado();
+          // Los códigos que un registro SIN sesión dejó guardados (mail
+          // pendiente de validar) se aplican ACÁ y no en `destinoInicial()`,
+          // a propósito: este listener es el único lugar por el que pasa
+          // cualquier entrada (mail, Google, Apple nativo y la recarga de
+          // web tras OAuth) y ya tiene a mano el messenger global para
+          // avisar y el provider para refrescar el saldo justo después —
+          // el mismo orden que el registro con sesión. Va adentro del
+          // `try` para correr sólo si la fila en `usuarios` existe (los RPC
+          // la necesitan) y, si no hay sesión, `ensureUsuarioCreado` corta
+          // antes y los códigos quedan esperando al login. Nunca lanza.
+          regaloFallo = await _authService.aplicarCodigosPendientes();
+        } catch (e) {
+          debugPrint('[authListener] ensureUsuarioCreado falló: $e');
         }
-        if (event == AuthChangeEvent.signedIn ||
-            event == AuthChangeEvent.userUpdated ||
-            event == AuthChangeEvent.initialSession) {
-          var regaloFallo = false;
+        // Los créditos de bienvenida se DESCARTARON (decisión del 29/8:
+        // no se regalan créditos a cuentas nuevas). La RPC
+        // acreditar_bienvenida nunca existió en la base y esta llamada
+        // fallaba en silencio EN CADA LOGIN: una ida y vuelta regalada.
+        // Cargar el usuario en el provider para que esProfe / rol activo
+        // (roles múltiples) estén disponibles apenas se entra a un panel.
+        if (mounted) {
           try {
-            await _authService.ensureUsuarioCreado();
-            // Los códigos que un registro SIN sesión dejó guardados (mail
-            // pendiente de validar) se aplican ACÁ y no en `destinoInicial()`,
-            // a propósito: este listener es el único lugar por el que pasa
-            // cualquier entrada (mail, Google, Apple nativo y la recarga de
-            // web tras OAuth) y ya tiene a mano el messenger global para
-            // avisar y el provider para refrescar el saldo justo después —
-            // el mismo orden que el registro con sesión. Va adentro del
-            // `try` para correr sólo si la fila en `usuarios` existe (los RPC
-            // la necesitan) y, si no hay sesión, `ensureUsuarioCreado` corta
-            // antes y los códigos quedan esperando al login. Nunca lanza.
-            regaloFallo = await _authService.aplicarCodigosPendientes();
-          } catch (e) {
-            debugPrint('[authListener] ensureUsuarioCreado falló: $e');
-          }
-          // Los créditos de bienvenida se DESCARTARON (decisión del 29/8:
-          // no se regalan créditos a cuentas nuevas). La RPC
-          // acreditar_bienvenida nunca existió en la base y esta llamada
-          // fallaba en silencio EN CADA LOGIN: una ida y vuelta regalada.
-          // Cargar el usuario en el provider para que esProfe / rol activo
-          // (roles múltiples) estén disponibles apenas se entra a un panel.
-          if (mounted) {
-            try {
-              await context.read<AppProvider>().cargarUsuario();
-            } catch (_) {}
-          }
-          // Misma asimetría que el registro con sesión: si el regalo no se
-          // pudo canjear la persona se entera (es plata que esperaba ver); el
-          // referido, si falló, ya quedó sólo en el log.
-          if (regaloFallo) {
-            scaffoldMessengerKey.currentState?.showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'No pudimos canjear tu regalo. Probá desde Mis Créditos.',
-                ),
-              ),
-            );
-          }
-          // PUSH: el permiso se pide ACA, después del login, no en main().
-          // Antes salía el diálogo de iOS al abrir la app por primera vez,
-          // en frío y antes de saber qué es Aura — quemando el único intento
-          // que da iOS. Y recién ahora hay usuario contra quien registrar el
-          // token del dispositivo.
-          try {
-            await NotificacionesService.instance.pedirPermisos();
-            await NotificacionesService.instance.registrarDispositivo();
+            await context.read<AppProvider>().cargarUsuario();
           } catch (_) {}
         }
-      },
-      onError: (Object e) => debugPrint('[authListener] error: $e'),
-    );
+        // Misma asimetría que el registro con sesión: si el regalo no se
+        // pudo canjear la persona se entera (es plata que esperaba ver); el
+        // referido, si falló, ya quedó sólo en el log.
+        if (regaloFallo) {
+          scaffoldMessengerKey.currentState?.showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No pudimos canjear tu regalo. Probá desde Mis Créditos.',
+              ),
+            ),
+          );
+        }
+        // PUSH: el permiso se pide ACA, después del login, no en main().
+        // Antes salía el diálogo de iOS al abrir la app por primera vez,
+        // en frío y antes de saber qué es Aura — quemando el único intento
+        // que da iOS. Y recién ahora hay usuario contra quien registrar el
+        // token del dispositivo.
+        try {
+          await NotificacionesService.instance.pedirPermisos();
+          await NotificacionesService.instance.registrarDispositivo();
+        } catch (_) {}
+      }
+    }, onError: (Object e) => debugPrint('[authListener] error: $e'));
   }
 
   void _initNotificationHandlers() {
@@ -226,8 +222,7 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
     );
     // App lanzada desde notificación (estaba completamente cerrada)
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final details =
-          await NotificacionesService.instance.getLaunchDetails();
+      final details = await NotificacionesService.instance.getLaunchDetails();
       final payload = details?.notificationResponse?.payload;
       if (payload != null && payload.isNotEmpty) {
         _handleNotificationPayload(payload);
@@ -316,10 +311,7 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
     } catch (_) {}
 
     // Links mientras la app está en segundo plano o abierta
-    _linkSub = appLinks.uriLinkStream.listen(
-      _handleLink,
-      onError: (_) {},
-    );
+    _linkSub = appLinks.uriLinkStream.listen(_handleLink, onError: (_) {});
   }
 
   void _handleLink(Uri uri) {
@@ -374,7 +366,8 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
       scaffoldMessengerKey.currentState?.showSnackBar(
         const SnackBar(
           content: Text(
-              'No pudimos completar el inicio de sesión con Apple. Intentá de nuevo.'),
+            'No pudimos completar el inicio de sesión con Apple. Intentá de nuevo.',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -392,7 +385,6 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
       // solo uso) y `resolver` sólo lo aplica si el rol daba el /home
       // genérico: un estudio o una profe van igual a su panel.
       final volver = await DestinoPostLogin.tomar();
-      var destinoFinal = DestinoPostLogin.resolver(destino, volver);
 
       // El onboarding de créditos, también para quien entra con Google o
       // Apple (9/9/2026). Antes se disparaba SÓLO desde el registro con mail,
@@ -400,11 +392,10 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
       // pago sin que nadie le hubiera explicado qué es un crédito.
       //
       // Se interpone conservando el destino en `?volver=`, así la alumna que
-      // venía mirando una clase vuelve a esa clase al terminar.
-      final yaLoVio = await creditosOnboardingDone();
-      if (debeVerOnboarding(destino: destinoFinal, yaLoVio: yaLoVio)) {
-        destinoFinal = rutaOnboardingCon(destinoFinal);
-      }
+      // venía mirando una clase vuelve a esa clase al terminar. La decisión
+      // vive en `destinoConOnboarding` y no acá: este callback cubre web y
+      // Android, pero no los caminos nativos de iOS (13/10/2026).
+      final destinoFinal = await destinoConOnboarding(destino, volver);
 
       Future.delayed(const Duration(milliseconds: 200), () {
         if (!mounted) return;
@@ -424,9 +415,11 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
         appRouter.go('/login');
         scaffoldMessengerKey.currentState?.showSnackBar(
           SnackBar(
-            content: Text(msg.isNotEmpty
-                ? msg
-                : 'No pudimos completar tu registro. Intentá de nuevo o usá otro método de inicio de sesión.'),
+            content: Text(
+              msg.isNotEmpty
+                  ? msg
+                  : 'No pudimos completar tu registro. Intentá de nuevo o usá otro método de inicio de sesión.',
+            ),
             backgroundColor: Colors.red,
           ),
         );

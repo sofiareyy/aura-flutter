@@ -12,6 +12,7 @@ import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/auth_service.dart';
 import '../../utils/destino_post_login.dart';
+import '../../utils/onboarding_creditos.dart';
 import '../../widgets/ancho_maximo.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -220,8 +221,11 @@ class _LoginScreenState extends State<LoginScreen> {
         await _authService.signInWithAppleNative();
         if (!mounted) return;
         final destino = await _authService.destinoInicial();
+        // Apple nativo también pasa por el onboarding: este camino no toca
+        // el callback de main.dart, y en iOS es EL camino (13/10/2026).
+        final destinoFinal = await destinoConOnboarding(destino, volver);
         if (!mounted) return;
-        context.go(DestinoPostLogin.resolver(destino, volver));
+        context.go(destinoFinal);
         return;
       }
 
@@ -302,7 +306,11 @@ class _LoginScreenState extends State<LoginScreen> {
           // rompemos el login: caemos a /home.
         }
       }
-      if (mounted) context.go(DestinoPostLogin.resolver(destino, _volver));
+      // El login con mail tampoco pasaba por el onboarding: quien se
+      // registró en el teléfono y entra después en la compu, o cambia de
+      // equipo, nunca veía la explicación de los créditos (13/10/2026).
+      final destinoFinal = await destinoConOnboarding(destino, _volver);
+      if (mounted) context.go(destinoFinal);
     } catch (e) {
       if (!mounted) return;
       // Caso especial: cuenta sin confirmar. Va un diálogo con explicación

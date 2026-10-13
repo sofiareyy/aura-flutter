@@ -8,8 +8,10 @@ import 'dart:io';
 
 import 'package:aura_app/utils/onboarding_creditos.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('quién lo ve', () {
     test('una alumna nueva que entra con Google o Apple, SÍ', () {
       expect(debeVerOnboarding(destino: '/home', yaLoVio: false), isTrue);
@@ -98,7 +100,12 @@ void main() {
       // Nadie lee onboardings largos. Ninguna supera las 30 palabras.
       final cuerpos = RegExp(r"body:\s*((?:'[^']*'\s*)+)")
           .allMatches(fuente)
-          .map((m) => m.group(1)!.replaceAll(RegExp(r"'\s*'"), '').replaceAll("'", ''))
+          .map(
+            (m) => m
+                .group(1)!
+                .replaceAll(RegExp(r"'\s*'"), '')
+                .replaceAll("'", ''),
+          )
           .toList();
       expect(cuerpos.length, 3);
       for (final c in cuerpos) {
@@ -109,5 +116,58 @@ void main() {
         );
       }
     });
+  });
+
+  // El agujero del 13/10: la decisión vivía suelta en el callback de OAuth de
+  // `main.dart`, que cubre web y Android. Los tres caminos que resuelven el
+  // destino por su cuenta —Apple nativo al registrarse, Apple nativo al
+  // entrar, y el login con mail— se la salteaban. En iOS la hoja nativa de
+  // Apple es EL camino, así que al 66% de login social el arreglo del 9/9 le
+  // llegaba a medias.
+  group('el destino después de autenticarse', () {
+    setUp(() => SharedPreferences.setMockInitialValues({}));
+
+    test(
+      'una alumna que no lo vio va al onboarding, sin perder su destino',
+      () async {
+        final r = await destinoConOnboarding('/home', '/clase/42');
+        expect(r, startsWith('/creditos-onboarding?volver='));
+        expect(Uri.parse(r).queryParameters['volver'], '/clase/42');
+      },
+    );
+
+    test('la que ya lo vio va derecho a donde iba', () async {
+      SharedPreferences.setMockInitialValues({kPrefsOnboardingCreditos: true});
+      expect(await destinoConOnboarding('/home', '/clase/42'), '/clase/42');
+    });
+
+    test('un estudio nunca lo ve, aunque no lo haya visto', () async {
+      expect(
+        await destinoConOnboarding('/estudio/dashboard', null),
+        '/estudio/dashboard',
+      );
+    });
+  });
+
+  // Este test no mira comportamiento: mira que no vuelva a abrirse el agujero.
+  // Lo que falló no fue la regla —que estaba bien y testeada— sino que tres
+  // pantallas resolvían el destino sin pasar por ella. Un camino nuevo que
+  // llame a `resolver` directo lo rompe acá y no en producción.
+  test('ninguna pantalla resuelve el destino por su cuenta', () {
+    final culpables = <String>[];
+    for (final f in Directory('lib').listSync(recursive: true)) {
+      if (f is! File || !f.path.endsWith('.dart')) continue;
+      if (f.path.endsWith('lib/utils/onboarding_creditos.dart')) continue;
+      if (f.readAsStringSync().contains('DestinoPostLogin.resolver(')) {
+        culpables.add(f.path);
+      }
+    }
+    expect(
+      culpables,
+      isEmpty,
+      reason:
+          'tienen que llamar a destinoConOnboarding(), que resuelve el destino '
+          'Y decide el onboarding en un solo lugar',
+    );
   });
 }

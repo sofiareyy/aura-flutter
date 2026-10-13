@@ -13,6 +13,7 @@ import '../../providers/app_provider.dart';
 import '../../services/referidos_service.dart';
 import '../../utils/codigos_pendientes.dart';
 import '../../utils/destino_post_login.dart';
+import '../../utils/onboarding_creditos.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/ancho_maximo.dart';
 
@@ -107,8 +108,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         await _authService.signInWithAppleNative();
         if (!mounted) return;
         final destino = await _authService.destinoInicial();
+        // Apple nativo también pasa por el onboarding: este camino no toca
+        // el callback de main.dart, y en iOS es EL camino (13/10/2026).
+        final destinoFinal = await destinoConOnboarding(destino, volver);
         if (!mounted) return;
-        context.go(DestinoPostLogin.resolver(destino, volver));
+        context.go(destinoFinal);
         return;
       }
 
