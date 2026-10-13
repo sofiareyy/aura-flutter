@@ -170,10 +170,7 @@ final appRouter = GoRouter(
       path: '/onboarding',
       builder: (context, state) => const AuthOnboardingScreen(),
     ),
-    GoRoute(
-      path: '/login',
-      builder: (context, state) => const LoginScreen(),
-    ),
+    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(
       path: '/register',
       builder: (context, state) => const RegisterScreen(),
@@ -194,10 +191,7 @@ final appRouter = GoRouter(
       navigatorKey: _shellNavigatorKey,
       builder: (context, state, child) => MainShell(child: child),
       routes: [
-        GoRoute(
-          path: '/home',
-          builder: (context, state) => const HomeScreen(),
-        ),
+        GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
         GoRoute(
           path: '/explorar',
           builder: (context, state) => const ExplorarScreen(),
@@ -218,10 +212,8 @@ final appRouter = GoRouter(
     ),
     ShellRoute(
       navigatorKey: _adminNavigatorKey,
-      builder: (context, state, child) => AdminShell(
-        location: state.matchedLocation,
-        child: child,
-      ),
+      builder: (context, state, child) =>
+          AdminShell(location: state.matchedLocation, child: child),
       routes: [
         GoRoute(
           path: '/admin/dashboard',
@@ -344,6 +336,14 @@ final appRouter = GoRouter(
                     ),
                   ];
             var idx = navPaths.indexWhere((p) => loc.startsWith(p));
+            // "Reservas del mes" no tiene lugar propio en el bottom nav —con
+            // 6 ítems no entra— y se llega desde el Dashboard, así que deja
+            // iluminado el Dashboard. Ya pasaba, pero por accidente, por el
+            // `idx < 0` de abajo; ahora es a propósito y se ve. En compu sí
+            // tiene su lugar en el sidebar (13/10/2026).
+            if (idx < 0 && loc.startsWith('/estudio/reservas')) {
+              idx = navPaths.indexOf('/estudio/dashboard');
+            }
             if (idx < 0) idx = 0;
             return Scaffold(
               body: child,
@@ -470,8 +470,8 @@ final appRouter = GoRouter(
           initialTab: tab == 'gift'
               ? 2
               : tab == 'plan'
-                  ? 1
-                  : 0,
+              ? 1
+              : 0,
           volver: state.uri.queryParameters['volver'],
         );
       },
@@ -496,7 +496,8 @@ final appRouter = GoRouter(
       path: '/payment-result',
       builder: (context, state) => PaymentResultScreen(
         pagoId: state.uri.queryParameters['pago_id'],
-        paymentId: state.uri.queryParameters['payment_id'] ??
+        paymentId:
+            state.uri.queryParameters['payment_id'] ??
             state.uri.queryParameters['collection_id'],
         status: state.uri.queryParameters['status'],
       ),
@@ -505,10 +506,7 @@ final appRouter = GoRouter(
       path: '/referidos',
       builder: (context, state) => const ReferidosScreen(),
     ),
-    GoRoute(
-      path: '/mapa',
-      builder: (context, state) => const MapaScreen(),
-    ),
+    GoRoute(path: '/mapa', builder: (context, state) => const MapaScreen()),
     // D1 — Se eliminan /asistencia, /cobros y /dashboard-estudios.
     // Eran rutas espejo de las del panel (/estudio/*) pero FUERA del shell,
     // así que el gate de rol del redirect —que matchea startsWith('/estudio')—

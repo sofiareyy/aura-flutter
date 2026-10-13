@@ -134,6 +134,7 @@ class _EstudioTopBarState extends State<EstudioTopBar> {
     if (loc.startsWith('/estudio/clases')) return 'Mis Clases';
     if (loc.startsWith('/estudio/asistencia')) return 'Asistencia';
     if (loc.startsWith('/estudio/cobros')) return 'Cobros';
+    if (loc.startsWith('/estudio/reservas')) return 'Reservas del mes';
     if (loc.startsWith('/estudio/gestion')) return 'Mis Alumnos';
     if (loc.startsWith('/estudio/perfil')) return 'Perfil del estudio';
     return 'Panel Estudio';

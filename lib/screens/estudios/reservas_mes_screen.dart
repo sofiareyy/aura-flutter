@@ -9,11 +9,13 @@
 // se le marcó el presente.
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/aura_tokens.dart';
 import '../../services/estudio_admin_service.dart';
+import '../../utils/resumen_reservas_mes.dart';
 import '../../widgets/ancho_maximo.dart';
 
 class ReservasMesScreen extends StatefulWidget {
@@ -31,6 +33,12 @@ class _ReservasMesScreenState extends State<ReservasMesScreen> {
   List<Map<String, dynamic>> _reservas = const [];
   bool _loading = true;
 
+  /// Si la query falla, hay que DECIRLO. Antes el `catch` dejaba la lista
+  /// vacía y la pantalla pintaba "No hubo reservas en octubre": un error de
+  /// red era indistinguible de un mes sin actividad, y el estudio se quedaba
+  /// tranquilo creyendo que no había trabajado (13/10/2026).
+  String? _error;
+
   @override
   void initState() {
     super.initState();
@@ -40,7 +48,10 @@ class _ReservasMesScreenState extends State<ReservasMesScreen> {
   }
 
   Future<void> _cargar() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final filas = await _service.getReservasEnRango(
         desde: _mes,
@@ -55,6 +66,7 @@ class _ReservasMesScreenState extends State<ReservasMesScreen> {
       if (!mounted) return;
       setState(() {
         _reservas = const [];
+        _error = 'No pudimos cargar las reservas. Probá de nuevo.';
         _loading = false;
       });
     }
@@ -70,102 +82,166 @@ class _ReservasMesScreenState extends State<ReservasMesScreen> {
     return _mes.year == ahora.year && _mes.month == ahora.month;
   }
 
-  int get _presentes =>
-      _reservas.where((r) => r['checked_in_at'] != null).length;
-
-  int get _creditos => _reservas.fold<int>(
-    0,
-    (total, r) => total + ((r['creditos_usados'] as num?)?.toInt() ?? 0),
-  );
-
   @override
   Widget build(BuildContext context) {
     final titulo = DateFormat("MMMM 'de' y", 'es').format(_mes);
+    final resumen = resumirReservasDelMes(_reservas);
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Reservas del mes')),
-      body: AnchoMaximo(
-        child: RefreshIndicator(
-          color: AppColors.primary,
-          onRefresh: _cargar,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => _moverMes(-1),
-                    icon: const Icon(Icons.chevron_left_rounded),
-                    tooltip: 'Mes anterior',
-                  ),
-                  Expanded(
-                    child: Text(
-                      titulo[0].toUpperCase() + titulo.substring(1),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: AppColors.black,
-                        fontSize: AuraTipo.titulo,
-                        fontWeight: FontWeight.w700,
-                      ),
+      // Sin `appBar`: ninguna pantalla del panel tiene una. En compu el shell
+      // ya pone `EstudioTopBar` y la propia se apilaba debajo; en celular el
+      // encabezado va adentro, como en Cobros (13/10/2026).
+      body: SafeArea(
+        child: AnchoMaximo(
+          child: RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: _cargar,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => context.go('/estudio/dashboard'),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      tooltip: 'Volver al dashboard',
+                    ),
+                  ],
+                ),
+                const Center(
+                  child: Text(
+                    'Reservas del mes',
+                    style: TextStyle(
+                      color: AppColors.black,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  IconButton(
-                    // No se puede ir al futuro: no hay reservas que mirar.
-                    onPressed: _esMesActual ? null : () => _moverMes(1),
-                    icon: const Icon(Icons.chevron_right_rounded),
-                    tooltip: 'Mes siguiente',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              if (!_loading && _reservas.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
-                    border: Border.all(color: AppColors.warmBorder),
-                  ),
-                  child: Row(
-                    children: [
-                      _Dato(valor: '${_reservas.length}', etiqueta: 'reservas'),
-                      _Dato(valor: '$_presentes', etiqueta: 'presentes'),
-                      _Dato(valor: '$_creditos', etiqueta: 'créditos'),
-                    ],
-                  ),
                 ),
-              const SizedBox(height: 16),
-              if (_loading)
-                const Padding(
-                  padding: EdgeInsets.only(top: 60),
-                  child: Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  ),
-                )
-              else if (_reservas.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 50),
-                  child: Column(
-                    children: [
-                      const Icon(
-                        Icons.event_busy_outlined,
-                        size: 42,
-                        color: AppColors.grey,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'No hubo reservas en ${titulo.split(' ').first}.',
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => _moverMes(-1),
+                      icon: const Icon(Icons.chevron_left_rounded),
+                      tooltip: 'Mes anterior',
+                    ),
+                    Expanded(
+                      child: Text(
+                        titulo[0].toUpperCase() + titulo.substring(1),
+                        textAlign: TextAlign.center,
                         style: const TextStyle(
-                          color: AppColors.grey,
-                          fontSize: AuraTipo.cuerpo,
+                          color: AppColors.black,
+                          fontSize: AuraTipo.titulo,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                    ],
+                    ),
+                    IconButton(
+                      // No se puede ir al futuro: no hay reservas que mirar.
+                      onPressed: _esMesActual ? null : () => _moverMes(1),
+                      icon: const Icon(Icons.chevron_right_rounded),
+                      tooltip: 'Mes siguiente',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                if (!_loading && _error == null && _reservas.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+                      border: Border.all(color: AppColors.warmBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        _Dato(
+                          valor: '${resumen.reservas}',
+                          etiqueta: 'reservas',
+                        ),
+                        _Dato(
+                          valor: '${resumen.presentes}',
+                          etiqueta: 'presentes',
+                        ),
+                        _Dato(
+                          valor: '${resumen.creditos}',
+                          etiqueta: 'créditos',
+                        ),
+                        // Sólo si hubo: si no, es una columna en cero que no
+                        // le dice nada a nadie. Y tiene que estar cuando hay,
+                        // porque la lista de abajo igual las muestra.
+                        if (resumen.canceladas > 0)
+                          _Dato(
+                            valor: '${resumen.canceladas}',
+                            etiqueta: 'canceladas',
+                          ),
+                      ],
+                    ),
                   ),
-                )
-              else
-                for (final r in _reservas) _FilaReserva(reserva: r),
-            ],
+                const SizedBox(height: 16),
+                if (_loading)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 60),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  )
+                else if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 50),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.cloud_off_rounded,
+                          size: 42,
+                          color: AppColors.grey,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: AppColors.grey,
+                            fontSize: AuraTipo.cuerpo,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton.icon(
+                          onPressed: _cargar,
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: const Text('Reintentar'),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (_reservas.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 50),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.event_busy_outlined,
+                          size: 42,
+                          color: AppColors.grey,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No hubo reservas en ${titulo.split(' ').first}.',
+                          style: const TextStyle(
+                            color: AppColors.grey,
+                            fontSize: AuraTipo.cuerpo,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  for (final r in _reservas) _FilaReserva(reserva: r),
+              ],
+            ),
           ),
         ),
       ),
@@ -243,7 +319,10 @@ class _FilaReserva extends StatelessWidget {
                 Text(
                   fecha == null
                       ? 'Sin fecha'
-                      : DateFormat("EEE d 'de' MMM · HH:mm", 'es').format(fecha),
+                      : DateFormat(
+                          "EEE d 'de' MMM · HH:mm",
+                          'es',
+                        ).format(fecha),
                   style: const TextStyle(
                     color: AppColors.black,
                     fontSize: AuraTipo.cuerpo,

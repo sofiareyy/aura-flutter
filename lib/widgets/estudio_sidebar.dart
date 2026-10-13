@@ -16,15 +16,31 @@ class EstudioSidebar extends StatelessWidget {
   static const _items = [
     _NavItem(Icons.grid_view_rounded, 'Dashboard', '/estudio/dashboard'),
     _NavItem(Icons.calendar_today_rounded, 'Mis Clases', '/estudio/clases'),
-    _NavItem(Icons.qr_code_scanner_rounded, 'Asistencia', '/estudio/asistencia'),
+    _NavItem(
+      Icons.qr_code_scanner_rounded,
+      'Asistencia',
+      '/estudio/asistencia',
+    ),
     _NavItem(Icons.payments_outlined, 'Cobros', '/estudio/cobros'),
+    // 13/10/2026: nació el 4/10 y se llegaba sólo por una tarjeta del
+    // Dashboard. El filtro de la profe de abajo es lista blanca, así que
+    // agregarla acá no se la muestra a ella.
+    _NavItem(
+      Icons.event_note_outlined,
+      'Reservas del mes',
+      '/estudio/reservas',
+    ),
     // 2026-08-25: "Mis Alumnos" (modo gestión, padrón de alumnos directos)
     // se escondió del menú a pedido de la usuaria: hoy no lo usa nadie
     // (0 estudios en modo gestión, 0 filas en estudio_alumnos) y confundía.
     // La ruta /estudio/gestion, la pantalla y el servicio siguen intactos:
     // para reactivarlo, volver a agregar este ítem.
     // _NavItem(Icons.group_outlined, 'Mis Alumnos', '/estudio/gestion'),
-    _NavItem(Icons.storefront_outlined, 'Perfil del estudio', '/estudio/perfil'),
+    _NavItem(
+      Icons.storefront_outlined,
+      'Perfil del estudio',
+      '/estudio/perfil',
+    ),
   ];
 
   @override
@@ -37,9 +53,12 @@ class EstudioSidebar extends StatelessWidget {
     // Asistencia; sin Dashboard, Cobros, Mis Alumnos ni Perfil del estudio.
     final items = provider.esProfe
         ? _items
-            .where((i) =>
-                i.path == '/estudio/clases' || i.path == '/estudio/asistencia')
-            .toList()
+              .where(
+                (i) =>
+                    i.path == '/estudio/clases' ||
+                    i.path == '/estudio/asistencia',
+              )
+              .toList()
         : _items;
 
     return Container(
@@ -110,10 +129,7 @@ class EstudioSidebar extends StatelessWidget {
 
           // ── Navigation items ──────────────────────────────────────────────
           for (final item in items)
-            _SidebarItem(
-              item: item,
-              isActive: location.startsWith(item.path),
-            ),
+            _SidebarItem(item: item, isActive: location.startsWith(item.path)),
 
           const Spacer(),
 
@@ -210,8 +226,8 @@ class _SidebarItemState extends State<_SidebarItem> {
             color: active
                 ? const Color(0x1FE8763A)
                 : _hovered
-                    ? const Color(0x10FFFFFF)
-                    : Colors.transparent,
+                ? const Color(0x10FFFFFF)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -274,10 +290,7 @@ class _BottomActionState extends State<_BottomAction> {
               const SizedBox(width: 12),
               Text(
                 widget.label,
-                style: TextStyle(
-                  color: widget.color,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: widget.color, fontSize: 14),
               ),
             ],
           ),
