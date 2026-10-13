@@ -132,9 +132,9 @@ class _HomeScreenState extends State<HomeScreen> {
           content: Text(
             vence == null
                 ? 'Ya están en tu cuenta y alcanzan para una clase. '
-                    'Elegí el estudio que quieras y reservá tu lugar.'
+                      'Elegí el estudio que quieras y reservá tu lugar.'
                 : 'Ya están en tu cuenta y alcanzan para una clase. '
-                    'Podés usarlos hasta el ${DateFormat('d/M').format(vence)}.',
+                      'Podés usarlos hasta el ${DateFormat('d/M').format(vence)}.',
             style: const TextStyle(height: 1.45),
           ),
           actions: [
@@ -728,53 +728,66 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                           ),
-                        SliverToBoxAdapter(
-                          // Sin permiso de ubicación no hay "cerca": la
-                          // sección muestra los mismos estudios, sin pedir
-                          // nada. El permiso se pide sólo en el mapa.
-                          child: TituloSeccion(
-                            _locationState.granted ? 'CERCA TUYO' : 'ESTUDIOS',
-                            accion: 'Ver todo',
-                            onAccion: () => context.go('/explorar'),
+                        // "CERCA TUYO" existe SÓLO con permiso de ubicación
+                        // (13/10/2026).
+                        //
+                        // Antes, sin permiso, se seguía dibujando con el
+                        // título "ESTUDIOS". Pero sin posición
+                        // `sortByDistance` deja todas las distancias en null
+                        // y la sección queda siendo los primeros 10 de la
+                        // MISMA lista que la sección "ESTUDIOS" de más abajo:
+                        // mismo título, mismas tarjetas, mismo "Ver todo", y
+                        // la de abajo además los muestra todos. Dos secciones
+                        // iguales, una arriba de la otra.
+                        //
+                        // Eso es lo que veía quien no da permiso, que en la
+                        // web es casi todo el mundo. Con permiso las dos sí
+                        // dicen cosas distintas: ésta ordena por distancia y
+                        // muestra a cuántas cuadras queda cada uno.
+                        if (_locationState.granted) ...[
+                          SliverToBoxAdapter(
+                            child: TituloSeccion(
+                              'CERCA TUYO',
+                              accion: 'Ver todo',
+                              onAccion: () => context.go('/explorar'),
+                            ),
                           ),
-                        ),
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
-                            child: estudiosCerca.isEmpty
-                                ? (_locationState.granted
-                                      ? const _EmptyNearbyCard()
-                                      : const SizedBox.shrink())
-                                : SizedBox(
-                                    height: 204,
-                                    child: ListView.builder(
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: estudiosCerca.length,
-                                      itemBuilder: (context, index) {
-                                        final nearby = estudiosCerca[index];
-                                        return SizedBox(
-                                          width: 220,
-                                          child: Padding(
-                                            padding: const EdgeInsets.only(
-                                              right: 14,
-                                            ),
-                                            child: _NearbyStudyCard(
-                                              estudio: nearby.estudio,
-                                              distanceLabel: _studioGeoService
-                                                  .formatDistance(
-                                                    nearby.distanceKm,
-                                                  ),
-                                              onTap: () => context.push(
-                                                '/estudio/${nearby.estudio.id}',
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                              child: estudiosCerca.isEmpty
+                                  ? const _EmptyNearbyCard()
+                                  : SizedBox(
+                                      height: 204,
+                                      child: ListView.builder(
+                                        scrollDirection: Axis.horizontal,
+                                        itemCount: estudiosCerca.length,
+                                        itemBuilder: (context, index) {
+                                          final nearby = estudiosCerca[index];
+                                          return SizedBox(
+                                            width: 220,
+                                            child: Padding(
+                                              padding: const EdgeInsets.only(
+                                                right: 14,
+                                              ),
+                                              child: _NearbyStudyCard(
+                                                estudio: nearby.estudio,
+                                                distanceLabel: _studioGeoService
+                                                    .formatDistance(
+                                                      nearby.distanceKm,
+                                                    ),
+                                                onTap: () => context.push(
+                                                  '/estudio/${nearby.estudio.id}',
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        );
-                                      },
+                                          );
+                                        },
+                                      ),
                                     ),
-                                  ),
+                            ),
                           ),
-                        ),
+                        ],
                         if (_sugerencias.isNotEmpty) ...[
                           SliverToBoxAdapter(
                             child: TituloSeccion(
@@ -817,7 +830,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             'CLASES ESTA SEMANA',
                             accion: 'Explorar',
                             onAccion: () => context.go('/explorar'),
-                            separar: false,
+                            // Iba siempre pegado, porque arriba estaba el
+                            // carrusel de estudios con su padding de abajo.
+                            // Ahora ese carrusel sólo existe con permiso de
+                            // ubicación, y lo único que puede quedar en el
+                            // medio es "PARA VOS ✨": sin ninguno de los dos
+                            // el título quedaba contra los chips
+                            // (13/10/2026).
+                            separar:
+                                !_locationState.granted && _sugerencias.isEmpty,
                           ),
                         ),
                         // Antes: `SizedBox.shrink()`. La sección desaparecía
@@ -865,25 +886,25 @@ class _HomeScreenState extends State<HomeScreen> {
                                       unaColumna: columnas == 1,
                                     ),
                                   ),
-                              delegate: SliverChildBuilderDelegate((
-                                context,
-                                index,
-                              ) {
-                                final clase = clasesEstaSemana[index];
-                                return HomeNearbyClassCard(
-                                  clase: clase,
-                                  proporcionFoto: columnas == 1
-                                      ? proporcionFotoVidrieraAngosta
-                                      : proporcionFotoVidriera,
-                                  onTap: () =>
-                                      context.push('/clase/${clase['id']}'),
-                                );
-                              },
-                                  // Dos filas completas de la semana; el resto
-                                  // vive en "Más clases" y en Explorar.
-                                  childCount: clasesEstaSemana.length < columnas * 2
-                                      ? clasesEstaSemana.length
-                                      : columnas * 2),
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final clase = clasesEstaSemana[index];
+                                  return HomeNearbyClassCard(
+                                    clase: clase,
+                                    proporcionFoto: columnas == 1
+                                        ? proporcionFotoVidrieraAngosta
+                                        : proporcionFotoVidriera,
+                                    onTap: () =>
+                                        context.push('/clase/${clase['id']}'),
+                                  );
+                                },
+                                // Dos filas completas de la semana; el resto
+                                // vive en "Más clases" y en Explorar.
+                                childCount:
+                                    clasesEstaSemana.length < columnas * 2
+                                    ? clasesEstaSemana.length
+                                    : columnas * 2,
+                              ),
                             ),
                           )
                         else
@@ -1103,7 +1124,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: SizedBox(
                                 height: 48,
                                 child: OutlinedButton(
-                                  onPressed: vidriera.length <
+                                  onPressed:
+                                      vidriera.length <
                                           candidatasVidriera.length
                                       ? () => setState(
                                           () => _clasesExtra +=
@@ -1222,7 +1244,10 @@ class _ProximaReservaCard extends StatelessWidget {
                     ].join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white70, fontSize: AuraTipo.secundario),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: AuraTipo.secundario,
+                    ),
                   ),
                 ],
               ),
@@ -2145,7 +2170,9 @@ class _HomeExperienceCard extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(AuraRadio.pastilla),
+                            borderRadius: BorderRadius.circular(
+                              AuraRadio.pastilla,
+                            ),
                           ),
                           child: Text(
                             '${clase['creditos'] ?? 0} cr',
@@ -2368,7 +2395,11 @@ class _EmptyNearbyCard extends StatelessWidget {
       ),
       child: const Text(
         'Todavía no pudimos estimar estudios cercanos con esta categoría. Probá explorar todo desde el mapa.',
-        style: TextStyle(color: AppColors.grey, fontSize: AuraTipo.secundario, height: 1.45),
+        style: TextStyle(
+          color: AppColors.grey,
+          fontSize: AuraTipo.secundario,
+          height: 1.45,
+        ),
       ),
     );
   }
