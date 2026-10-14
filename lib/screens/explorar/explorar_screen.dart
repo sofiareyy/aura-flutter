@@ -10,6 +10,7 @@ import '../../models/estudio.dart';
 import '../../providers/app_provider.dart';
 import '../../services/clases_service.dart';
 import '../../services/estudios_service.dart';
+import '../../utils/badge_precio.dart';
 import '../../utils/explorar_filtros.dart';
 import '../../utils/grilla_responsive.dart';
 import '../../widgets/foto_red.dart';
@@ -52,6 +53,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   // Filtros avanzados
   Set<int> _diasFiltro = {};
   Set<String> _horarioFiltro = {};
+
   /// Tope de créditos. `null` = TODOS, sin tope (17/9/2026).
   ///
   /// Antes era `int = 100` y el deslizador llegaba justo a 100: decía "Todos"
@@ -70,6 +72,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   /// antes no tenían clases, la cantidad cambiaba y la tira se reordenaba
   /// entera. Eso es el "se desordena al tocar ver más".
   List<Estudio> _destacados = [];
+
+  /// Lo que cada estudio cobra de verdad, para el cartel "PRECIO REDUCIDO".
+  Map<int, RangoPublicado> _rangoPublicado = const {};
 
   /// Para no pegarle a la base en cada tecla del buscador.
   Timer? _debounce;
@@ -127,10 +132,12 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
     final q = _searchCtrl.text.trim().toLowerCase();
     if (q.isEmpty) return const [];
     return _estudios
-        .where((e) =>
-            e.nombre.toLowerCase().contains(q) ||
-            (e.barrio?.toLowerCase().contains(q) ?? false) ||
-            e.categorias.any((c) => c.toLowerCase().contains(q)))
+        .where(
+          (e) =>
+              e.nombre.toLowerCase().contains(q) ||
+              (e.barrio?.toLowerCase().contains(q) ?? false) ||
+              e.categorias.any((c) => c.toLowerCase().contains(q)),
+        )
         .map((e) => e.id)
         .whereType<int>()
         .toList();
@@ -201,6 +208,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
         estudiosDeLaCategoria: idsCategoria,
       ),
       _estudiosService.getCategorias(),
+      _estudiosService.getRangoPublicado(),
     ]);
 
     if (!mounted) return;
@@ -221,6 +229,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
       _hasMoreClases = nuevasClases.length == _pageSize;
       _hasMoreExperiencias = nuevasExp.length == _pageSize;
       _categorias = results[3] as List<String>;
+      _rangoPublicado = results[4] as Map<int, RangoPublicado>;
       if (!_categorias.contains(_categoriaSeleccionada)) {
         _categoriaSeleccionada = 'Todos';
       }
@@ -695,7 +704,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                               _diasFiltro = diasTemp;
                               _horarioFiltro = horarioTemp;
                               // 100 = el máximo del deslizador = sin tope.
-                              _maxCreditos = creditosTemp >= 100 ? null : creditosTemp;
+                              _maxCreditos = creditosTemp >= 100
+                                  ? null
+                                  : creditosTemp;
                               _tipoFiltro = tipoTemp;
                             });
                             Navigator.of(ctx).pop();
@@ -741,8 +752,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
     final destacados = _showAllDestacados
         ? <Estudio>[
             ..._destacados,
-            ..._estudiosFiltrados
-                .where((e) => !_destacados.any((d) => d.id == e.id)),
+            ..._estudiosFiltrados.where(
+              (e) => !_destacados.any((d) => d.id == e.id),
+            ),
           ]
         : _destacados;
     final lista = _clasesConEstudio;
@@ -1122,6 +1134,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                                 child: _ResultCard(
                                   clase: exp,
                                   accentColor: AppColors.beigeCard,
+                                  rango: rangoDeLaClase(exp, _rangoPublicado),
                                   fotoCompacta: true,
                                   onTap: () =>
                                       context.push('/clase/${exp['id']}'),
@@ -1152,9 +1165,12 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                       // quedan parejas solas.
                       _GrillaResultados(
                         clases: lista,
+                        rangoPublicado: _rangoPublicado,
                         onTap: (clase) => context.push('/clase/${clase['id']}'),
                       ),
-                      if (_hasMoreClases || _hasMoreExperiencias || _loadingMore)
+                      if (_hasMoreClases ||
+                          _hasMoreExperiencias ||
+                          _loadingMore)
                         Padding(
                           padding: const EdgeInsets.only(top: 4, bottom: 4),
                           child: Center(
@@ -1376,11 +1392,17 @@ const _bordeExperiencia = Color(0xFFEFE4D8);
 class _GrillaResultados extends StatelessWidget {
   final List<Map<String, dynamic>> clases;
   final void Function(Map<String, dynamic>) onTap;
+  final Map<int, RangoPublicado> rangoPublicado;
 
-  const _GrillaResultados({required this.clases, required this.onTap});
+  const _GrillaResultados({
+    required this.clases,
+    required this.onTap,
+    this.rangoPublicado = const {},
+  });
 
   Widget _tarjeta(int indice) => _ResultCard(
     clase: clases[indice],
+    rango: rangoDeLaClase(clases[indice], rangoPublicado),
     // El color de acento alterna por posición: se calcula sobre el índice
     // real y no sobre el de la fila, para que siga alternando en dos
     // columnas igual que alternaba en una.
@@ -1443,11 +1465,16 @@ class _ResultCard extends StatelessWidget {
   /// 96 px y el ensanche del 3/9 queda sólo en el teléfono, como se pidió.
   final bool fotoCompacta;
 
+  /// El rango que publica el estudio de ESTA clase. Null = no se pudo
+  /// traer, y entonces no se muestra cartel.
+  final RangoPublicado? rango;
+
   const _ResultCard({
     required this.clase,
     required this.accentColor,
     required this.onTap,
     this.fotoCompacta = false,
+    this.rango,
   });
 
   @override
@@ -1472,21 +1499,13 @@ class _ResultCard extends StatelessWidget {
     // estudio (no contra las clases cargadas) para que el badge no cambie
     // según qué página de la lista se haya traído. Medido el 26/8: baja a 371
     // de 997 y las tres de precio único dejan de mostrarlo.
-    final crMinEstudio = (estudio?['creditos_min'] as num?)?.toInt();
-    final crMaxEstudio = (estudio?['creditos_max'] as num?)?.toInt();
-    // Un SERVICIO de precio fijo no entra en el juego de franjas: su precio
-    // es único por definición. Sin esta exclusión, un sauna de 14 en un
-    // estudio con techo 18 salía "PRECIO REDUCIDO" — mintiendo un descuento
-    // donde no hay nada reducido. (Ya estaba anotado en el relevamiento de
-    // servicios; también quedan afuera de "⚡ POPULAR" por la misma razón.)
     final esServicio = tipoPrecio == 'servicio';
-    final esPrecioReducido =
-        !esServicio &&
-        creditos != null &&
-        crMinEstudio != null &&
-        crMaxEstudio != null &&
-        crMaxEstudio > crMinEstudio &&
-        creditos < crMaxEstudio;
+    // La regla vive en `utils/badge_precio.dart`, con su historia y su test.
+    final precioReducido = esPrecioReducido(
+      creditos: creditos,
+      tipoPrecio: tipoPrecio,
+      rango: rango,
+    );
     final organizadores = (clase['organizadores'] as List?) ?? const [];
 
     // La medida de la foto se decide por el ancho de ESTA tarjeta, no por el
@@ -1595,7 +1614,7 @@ class _ResultCard extends StatelessWidget {
                                   text: '⚡ POPULAR',
                                   color: Color(0xFFE8763A),
                                 )
-                              else if (esPrecioReducido)
+                              else if (precioReducido)
                                 const _PriceBadge(
                                   text: '🏷️ PRECIO REDUCIDO',
                                   color: Color(0xFF4CAF50),
@@ -1806,10 +1825,12 @@ class _Pill extends StatelessWidget {
 Widget debugResultCard({
   required Map<String, dynamic> clase,
   bool fotoCompacta = false,
+  RangoPublicado? rango,
 }) => _ResultCard(
   clase: clase,
   accentColor: AppColors.beigeCard,
   fotoCompacta: fotoCompacta,
+  rango: rango,
   onTap: () {},
 );
 

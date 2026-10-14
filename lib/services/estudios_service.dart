@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/constants/app_constants.dart';
 import '../models/estudio.dart';
+import '../utils/badge_precio.dart';
 
 String _toSupaDate(DateTime dt) {
   return '${dt.year.toString().padLeft(4, '0')}-'
@@ -12,6 +13,36 @@ String _toSupaDate(DateTime dt) {
 
 class EstudiosService {
   final _supabase = Supabase.instance.client;
+
+  /// El rango de precios que cada estudio publica HOY, por id de estudio.
+  ///
+  /// Lo usa el cartel "PRECIO REDUCIDO" de Explorar. Sale de una vista y no
+  /// de las clases cargadas a propósito: calculado sobre la página traída, la
+  /// misma clase mostraría o no el cartel según cuánto hubieras scrolleado.
+  /// Ver `lib/utils/badge_precio.dart` y
+  /// `supabase/RANGO_PUBLICADO_2026-10-14.sql`.
+  ///
+  /// Si falla devuelve vacío, y sin rango no se muestra ningún cartel: ante
+  /// la duda, no se promete una rebaja.
+  Future<Map<int, RangoPublicado>> getRangoPublicado() async {
+    try {
+      final rows = await _supabase
+          .from('estudios_rango_publicado')
+          .select('estudio_id, cr_min_publicado, cr_max_publicado');
+      final mapa = <int, RangoPublicado>{};
+      for (final row in (rows as List)) {
+        final r = row as Map<String, dynamic>;
+        final id = (r['estudio_id'] as num?)?.toInt();
+        final min = (r['cr_min_publicado'] as num?)?.toInt();
+        final max = (r['cr_max_publicado'] as num?)?.toInt();
+        if (id == null || min == null || max == null) continue;
+        mapa[id] = RangoPublicado(min, max);
+      }
+      return mapa;
+    } catch (_) {
+      return const {};
+    }
+  }
 
   Future<List<String>> getCategorias() async {
     try {
@@ -29,14 +60,18 @@ class EstudiosService {
       final rows = await _supabase
           .from(AppConstants.tableEstudios)
           .select('categoria, categorias');
-      final categorias = (rows as List)
-          .expand((row) =>
-              Estudio.parseCategorias(Map<String, dynamic>.from(row as Map)))
-          .map((item) => item.trim())
-          .where((item) => item.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort();
+      final categorias =
+          (rows as List)
+              .expand(
+                (row) => Estudio.parseCategorias(
+                  Map<String, dynamic>.from(row as Map),
+                ),
+              )
+              .map((item) => item.trim())
+              .where((item) => item.isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort();
       return ['Todos', ...categorias];
     }
   }
@@ -105,14 +140,14 @@ class EstudiosService {
     final q = query.trim().toLowerCase();
     final porCategoria = (todos as List)
         .map((e) => Estudio.fromMap(e))
-        .where((e) => e.categorias
-            .any((c) => c.toLowerCase().contains(q)))
+        .where((e) => e.categorias.any((c) => c.toLowerCase().contains(q)))
         .toList();
 
     final vistos = <int?>{};
-    return [...porNombre, ...porCategoria]
-        .where((e) => vistos.add(e.id))
-        .toList();
+    return [
+      ...porNombre,
+      ...porCategoria,
+    ].where((e) => vistos.add(e.id)).toList();
   }
 
   Future<Estudio?> getEstudio(int id) async {
@@ -165,7 +200,8 @@ class EstudiosService {
   /// (`ClasesService.getProximasExperiencias`), así que lo que aparece en el
   /// inicio ahora también aparece en el perfil del estudio.
   Future<List<Map<String, dynamic>>> getExperienciasDeEstudio(
-      int estudioId) async {
+    int estudioId,
+  ) async {
     final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
     final hasta = ahora.add(const Duration(days: 90));
     final data = await _supabase
@@ -184,7 +220,8 @@ class EstudiosService {
   /// Completa `lugares_disponibles` con las reservas reales. Se comparte entre
   /// clases y experiencias para no duplicar la lógica.
   Future<List<Map<String, dynamic>>> _conOcupacion(
-      List<Map<String, dynamic>> clases) async {
+    List<Map<String, dynamic>> clases,
+  ) async {
     if (clases.isEmpty) return clases;
 
     final classIds = clases
@@ -213,7 +250,9 @@ class EstudiosService {
       final storedOcupados = total > 0 ? (total - storedDisp) : 0;
       final reserved = classId != null ? (countByClass[classId] ?? 0) : 0;
       final ocupados = reserved > storedOcupados ? reserved : storedOcupados;
-      final disponibles = total > 0 ? (total - ocupados).clamp(0, total) : storedDisp;
+      final disponibles = total > 0
+          ? (total - ocupados).clamp(0, total)
+          : storedDisp;
       return {
         ...c,
         'lugares_disponibles': disponibles,
