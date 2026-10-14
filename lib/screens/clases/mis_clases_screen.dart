@@ -283,9 +283,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   }) async {
     final minuto = minutoClave(t);
     final actual = cupos[dia]?[minuto];
-    final ctrl = TextEditingController(
-      text: (actual ?? general).toString(),
-    );
+    final ctrl = TextEditingController(text: (actual ?? general).toString());
     final resultado = await showDialog<String>(
       context: context,
       builder: (dctx) => AlertDialog(
@@ -369,9 +367,20 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     required int dia,
     required TimeOfDay hora,
     List<String>? categorias,
+    DateTime? fecha,
   }) {
     if (tipo == 'workshop') {
-      return Liquidacion.creditosDeWorkshop(_montoWorkshop(ctrl), _estudio);
+      // Con la fecha DEL EVENTO, no la de hoy (14/10/2026). Para un workshop
+      // este valor es el que queda guardado —el trigger `clases_fija_precio`
+      // no lo pisa—, así que un estudio todavía en gracia que cargaba un
+      // workshop para después de su `fecha_inicio_cobro` lo guardaba sin
+      // comisión y terminaba cobrando ~15% menos de lo que tipeó. Es el mismo
+      // error que la liquidación ya tenía cerrado.
+      return Liquidacion.creditosDeWorkshop(
+        _montoWorkshop(ctrl),
+        _estudio,
+        fecha: fecha,
+      );
     }
     final calculado = _precioDe(dia, hora, categorias).creditos;
     if (calculado != null) return calculado;
@@ -1442,6 +1451,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                   _WorkshopPrecioField(
                                     controller: cred,
                                     estudio: _estudio,
+                                    fecha: fechaSel,
                                     onChanged: () => setD(() {}),
                                   )
                                 else ...[
@@ -1610,6 +1620,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         'creditos': _creditosFinal(
           cred,
           tipoClase,
+          fecha: fechaSel,
           dia: fechaSel.weekday,
           hora: horaSel,
           categorias: cats,
@@ -9210,17 +9221,27 @@ class _WorkshopPrecioField extends StatelessWidget {
   final VoidCallback onChanged;
   final Map<String, dynamic>? estudio;
 
+  /// La fecha del evento, para que la vista previa use la comisión que va a
+  /// regir ese día y no la de hoy. Es null en la grilla, que es recurrente y
+  /// no tiene una fecha única (ahí no se cargan workshops).
+  final DateTime? fecha;
+
   const _WorkshopPrecioField({
     required this.controller,
     required this.onChanged,
     required this.estudio,
+    this.fecha,
   });
 
   @override
   Widget build(BuildContext context) {
     final monto =
         int.tryParse(controller.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-    final creditos = Liquidacion.creditosDeWorkshop(monto, estudio);
+    final creditos = Liquidacion.creditosDeWorkshop(
+      monto,
+      estudio,
+      fecha: fecha,
+    );
     final money = NumberFormat.currency(
       locale: 'es_AR',
       symbol: r'$',
@@ -9708,9 +9729,7 @@ class _FilaDia extends StatelessWidget {
                           side: const BorderSide(color: Color(0xFFE5E0DA)),
                           visualDensity: VisualDensity.compact,
                           deleteIconColor: const Color(0xFF9A928B),
-                          onPressed: onTocar == null
-                              ? null
-                              : () => onTocar!(t),
+                          onPressed: onTocar == null ? null : () => onTocar!(t),
                           onDeleted: () => onQuitar(t),
                         ),
                     ],

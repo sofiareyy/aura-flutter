@@ -290,7 +290,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: _StatBox(
-                value: _clases.length.toString(),
+                value: _clasesUltimos30.toString(),
                 label: 'Clases totales',
                 accent: AppColors.white,
                 footer: 'últimos 30 días',
@@ -1006,6 +1006,26 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
     );
   }
 
+  /// Las de los últimos 30 días DE VERDAD (14/10/2026).
+  ///
+  /// El número de la tarjeta era `_clases.length`, y `_clases` se pide con
+  /// `from: hoy - 30d` y **sin tope superior**: con la grilla publicando 9
+  /// semanas, eso son 30 días de pasado más dos meses de futuro. Un estudio
+  /// con 540 clases cargadas veía un "últimos 30 días" que no era de 30 días
+  /// ni era del pasado.
+  ///
+  /// Se filtra acá y no en la query a propósito: la misma lista alimenta
+  /// "clases de hoy" y la ocupación del mes, que SÍ necesitan el futuro.
+  /// Ponerle `to` a la consulta arreglaba la tarjeta y rompía las otras dos.
+  int get _clasesUltimos30 {
+    final ahora = DateTime.now();
+    final desde = ahora.subtract(const Duration(days: 30));
+    return _clases.where((c) {
+      final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
+      return dt != null && !dt.isBefore(desde) && !dt.isAfter(ahora);
+    }).length;
+  }
+
   List<Map<String, dynamic>> _clasesDelDia(DateTime day) {
     return _clases.where((clase) {
       final dt = DateTime.tryParse(clase['fecha']?.toString() ?? '');
@@ -1076,7 +1096,8 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
   List<Map<String, dynamic>> _reservasDelMes(DateTime date) {
     final mes = mesArgentinoDe(date);
     return _reservas.where((reserva) {
-      final dt = Liquidacion.fechaDeClase(reserva) ??
+      final dt =
+          Liquidacion.fechaDeClase(reserva) ??
           DateTime.tryParse(reserva['created_at']?.toString() ?? '');
       final estado = reserva['estado']?.toString();
       return dt != null &&
