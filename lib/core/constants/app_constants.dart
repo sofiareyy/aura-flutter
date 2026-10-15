@@ -44,7 +44,9 @@ class AppConstants {
   /// Mientras esté en `false`, ningún lugar de la app le ofrece descargar a
   /// alguien en Android: no se frustra a nadie ofreciéndole algo que todavía
   /// no existe. **Publicar Android = poner esto en `true` y sacar un build.**
-  static const bool androidPublicado = false;
+  /// En `true` desde el 15/10/2026: Android salió a producción. Verificado
+  /// antes de prenderlo que la ficha de Play responde 200.
+  static const bool androidPublicado = true;
 
   /// Link de tienda para el muro de invitados, con su propio `ct`: así se
   /// puede medir cuánta gente instaló POR EL MURO, aparte de lo que trae la
