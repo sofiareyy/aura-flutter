@@ -208,32 +208,14 @@ const double anchoMaxFormulario = 640;
 /// `explorar_destacados_test.dart` lo mide con los nombres reales más largos.
 const double altoCarruselDestacados = 180;
 
-/// Cuántas clases muestra la vidriera del final del Inicio ("MÁS CLASES")
-/// antes del "Ver todas". Es el piso: el de 1 y 2 columnas.
-///
-/// 17/9/2026: de 6 a 8. El 6 se eligió pensando en 1 y 2 columnas (6 tarjetas
-/// o 3 filas), pero en una compu son 3 o 4 columnas y quedaban DOS filas
-/// contra 1400 clases futuras en el catálogo. Ahora el número depende de las
-/// columnas para que siempre cierren filas completas — ver
-/// [clasesEnLaVidrieraPara]. La sección sigue siendo un recorte con "Ver
-/// todas": listar las 50 cargadas daba 21 pantallas de scroll en el celular.
-/// 13 desde el 1/10/2026 (eran 8): con la tarjeta más baja entran más a la
-/// vista sin que la sección se vuelva un catálogo.
-const int clasesEnLaVidriera = 13;
-
-/// Cuántas clases mostrar según las columnas, para que no queden filas a
-/// medias: 8 con 1 o 2 columnas (8 filas / 4 filas) y 12 con 3 o 4 (4 filas /
-/// 3 filas).
-int clasesEnLaVidrieraPara(int columnas) =>
-    columnas >= 3 ? 12 : clasesEnLaVidriera;
-
-/// Cuántas clases del MISMO estudio se admiten en la vidriera del Inicio.
-///
-/// No es un criterio de variedad: la vidriera ordena por fecha y repetir
-/// estudio no molesta. Es sólo el piso para que la sección no termine siendo
-/// seis veces el mismo lugar. Con la oferta real de hoy nunca llega a
-/// aplicarse.
-const int topeVidrieraPorEstudio = 3;
+// El tamaño de la vidriera ya NO es un número fijo (15/10/2026).
+//
+// Vivían acá `clasesEnLaVidriera` (13), `clasesEnLaVidrieraPara(columnas)` y
+// `topeVidrieraPorEstudio` (3). Se fueron porque la vidriera dejó de ser "las
+// N más próximas por fecha": ahora muestra la próxima clase de CADA estudio,
+// así que el tamaño sale de cuántos estudios hay. Si mañana son 25, entran
+// los 25. La regla, con la medición que la motivó, está en
+// `utils/vidriera_inicio.dart`.
 
 /// Cuántas clases suma cada toque de "Ver más clases" en el Inicio.
 const int kMasClasesPorToque = 15;

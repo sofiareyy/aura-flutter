@@ -125,10 +125,18 @@ void main() {
           home: Scaffold(
             body: Align(
               alignment: Alignment.topLeft,
-              // 460 y no el ancho de un teléfono: con el cartel puesto, la
-              // tarjeta DESBORDA por debajo de ~440 px (medido: 0,5 px a la
-              // derecha y 2 px abajo). Es anterior a este cambio y está
-              // anotado aparte; acá se mide la regla, no el layout.
+              // 460 y no el ancho de un teléfono, por la FUENTE DE TEST.
+              //
+              // En `flutter test` todos los glifos miden lo mismo (una fuente
+              // de ancho fijo), así que "🏷️ PRECIO REDUCIDO" mide bastante
+              // más que con la tipografía real y la tarjeta desborda por
+              // debajo de ~440 px. Es un artefacto del test: verificado en el
+              // navegador a 320, 360 y 390 px, el cartel entra bien y el
+              // texto de categoría se recorta para dejarle lugar.
+              //
+              // O sea: acá se mide la REGLA, no el layout. Para el layout hay
+              // que mirar `tarjeta_explorar_test`, que trabaja con anchos, o
+              // el navegador.
               child: SizedBox(
                 width: 460,
                 child: debugResultCard(clase: clase(16), rango: rango),

@@ -19,7 +19,7 @@ import '../../services/reservas_service.dart';
 import '../../services/studio_geo_service.dart';
 import '../../utils/bono_cartel.dart';
 import '../../utils/categorias_con_oferta.dart';
-import '../../utils/volver_a_tus_estudios.dart';
+import '../../utils/vidriera_inicio.dart';
 import '../../utils/grilla_responsive.dart';
 import '../../utils/clases_tomables.dart';
 import '../../widgets/foto_red.dart';
@@ -446,13 +446,28 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? restricciones.maxWidth
                     : anchoMaxVidriera + 40;
                 final columnas = columnasVidriera(anchoCaja - 40);
-                // Las que entran, según las columnas: 8 en el celular y en
-                // tablet, 12 en una compu. Así la grilla cierra filas.
-                final vidriera = repartirEntreEstudios(
-                  candidatasVidriera,
-                  max: clasesEnLaVidrieraPara(columnas) + _clasesExtra,
-                  cupo: topeVidrieraPorEstudio,
+                // La próxima clase de CADA estudio, en la rueda del día
+                // (15/10/2026). El tamaño sale de cuántos estudios hay, no de
+                // un número fijo: si mañana son 25, entran los 25.
+                //
+                // Antes eran "las N más próximas por fecha" con tope de 3 por
+                // estudio, y medido con la oferta real eso cubría las tres
+                // primeras horas de la mañana siguiente: un estudio que abre
+                // a la tarde no aparecía nunca. Ver `utils/vidriera_inicio`.
+                final base = vidrieraDelDia(
+                  clases: candidatasVidriera,
+                  hoy: DateTime.now(),
                 );
+                // "Ver más clases" vuelve a ser cronológico: la vidriera
+                // reparte, el "mostrame más" sigue el catálogo por fecha.
+                final vidriera = [
+                  ...base,
+                  ...masClasesDespuesDe(
+                    candidatasVidriera,
+                    base,
+                    cuantas: _clasesExtra,
+                  ),
+                ];
                 return Center(
                   child: SizedBox(
                     width: anchoCaja,

@@ -89,12 +89,16 @@ void main() {
       // de este filtro se seguían dibujando.
       final pozo = List.generate(
         10,
-        (i) => clase('2026-09-04 ${(10 + i).toString().padLeft(2, '0')}:00:00',
-            id: i),
+        (i) => clase(
+          '2026-09-04 ${(10 + i).toString().padLeft(2, '0')}:00:00',
+          id: i,
+        ),
       );
       // A las 10 en punto la de las 10 ya arrancó: quedan 9.
       expect(
-          clasesTomables(pozo, ahora: DateTime.utc(2026, 9, 4, 10)).length, 9);
+        clasesTomables(pozo, ahora: DateTime.utc(2026, 9, 4, 10)).length,
+        9,
+      );
       expect(clasesTomables(pozo, ahora: ahora).length, 7);
     });
   });
@@ -119,8 +123,10 @@ void main() {
       final salida = repartirEntreEstudios(
         entrada,
         max: 8, // el reparto, no el número del Inicio
-
-        cupo: topeVidrieraPorEstudio,
+        // Era `topeVidrieraPorEstudio`, que se borró el 15/10 cuando la
+        // vidriera dejó de usarlo. Acá lo que se mide es `repartirEntreEstudios`
+        // —que sigue viva para "Volvé a tus estudios"—, así que el 3 va literal.
+        cupo: 3,
       );
       expect(salida.map((c) => c['id']), [0, 1, 2, 3, 4, 5, 6, 7]);
     });
@@ -140,8 +146,10 @@ void main() {
       final salida = repartirEntreEstudios(
         pozo([1, 1, 1, 1, 1, 1, 2, 3]),
         max: 8, // el reparto, no el número del Inicio
-
-        cupo: topeVidrieraPorEstudio,
+        // Era `topeVidrieraPorEstudio`, que se borró el 15/10 cuando la
+        // vidriera dejó de usarlo. Acá lo que se mide es `repartirEntreEstudios`
+        // —que sigue viva para "Volvé a tus estudios"—, así que el 3 va literal.
+        cupo: 3,
       );
       expect(salida.length, 8);
       expect(porEstudio(salida).keys, containsAll([1, 2, 3]));
@@ -155,8 +163,10 @@ void main() {
       final salida = repartirEntreEstudios(
         pozo([1, 1, 1, 1, 1, 1, 1, 1]),
         max: 8, // el reparto, no el número del Inicio
-
-        cupo: topeVidrieraPorEstudio,
+        // Era `topeVidrieraPorEstudio`, que se borró el 15/10 cuando la
+        // vidriera dejó de usarlo. Acá lo que se mide es `repartirEntreEstudios`
+        // —que sigue viva para "Volvé a tus estudios"—, así que el 3 va literal.
+        cupo: 3,
       );
       expect(salida.length, 8);
       expect(porEstudio(salida)[1], 8);
@@ -168,8 +178,10 @@ void main() {
       final salida = repartirEntreEstudios(
         pozo([1, 2, 3, 1, 2, 3, 1, 2]),
         max: 8, // el reparto, no el número del Inicio
-
-        cupo: topeVidrieraPorEstudio,
+        // Era `topeVidrieraPorEstudio`, que se borró el 15/10 cuando la
+        // vidriera dejó de usarlo. Acá lo que se mide es `repartirEntreEstudios`
+        // —que sigue viva para "Volvé a tus estudios"—, así que el 3 va literal.
+        cupo: 3,
       );
       expect(salida.length, 8);
       expect(salida.map((c) => c['estudio_id']).toSet().length, 3);
@@ -179,8 +191,10 @@ void main() {
       final salida = repartirEntreEstudios(
         pozo([1, 1, 1, 1, 2, 2, 2, 3]),
         max: 8, // el reparto, no el número del Inicio
-
-        cupo: topeVidrieraPorEstudio,
+        // Era `topeVidrieraPorEstudio`, que se borró el 15/10 cuando la
+        // vidriera dejó de usarlo. Acá lo que se mide es `repartirEntreEstudios`
+        // —que sigue viva para "Volvé a tus estudios"—, así que el 3 va literal.
+        cupo: 3,
       );
       final fechas = salida.map((c) => c['fecha'] as String).toList();
       expect(fechas, List.of(fechas)..sort());
@@ -188,8 +202,13 @@ void main() {
 
     test('"Volvé a tus estudios" no cambia: sin cupo sigue repartiendo', () {
       // Un solo estudio con 8 clases tiene que seguir dando sus 6.
-      final salida = repartirEntreEstudios(pozo([1, 1, 1, 1, 1, 1, 1, 1]),
-          max: clasesEnLaVidriera);
+      final salida = repartirEntreEstudios(
+        pozo([1, 1, 1, 1, 1, 1, 1, 1]),
+        // Era `clasesEnLaVidriera` (13); esa constante se borró el 15/10 con
+        // el cambio de la vidriera. Acá alcanza con un tope holgado: lo que
+        // se mide es que, sin `cupo`, un solo estudio dé sus 8.
+        max: 13,
+      );
       expect(salida.length, 8);
     });
   });
