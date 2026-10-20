@@ -71,10 +71,24 @@ void main() async {
     await SentryFlutter.init((options) {
       options.dsn = sentryDsn;
       options.environment = 'production';
-      // Captura el 20 % de transacciones para performance monitoring
-      options.tracesSampleRate = 0.2;
-      // Adjunta el stack trace incluso para errores no-exception
+      // Adjunta el stack trace incluso para errores no-exception.
       options.attachStacktrace = true;
+
+      // SOLO ERRORES (decisión de Sofía, 19/10/2026). Las tres cosas que
+      // siguen están explícitas aunque dos ya vengan apagadas de fábrica:
+      // así se lee la intención y un cambio de default del SDK no las
+      // enciende solas.
+      //
+      // Sin tracing: estaba en 0.2 y nunca se miró una traza. Performance
+      // monitoring consume cuota y no es lo que se busca — lo que hacía
+      // falta era enterarse de los crashes.
+      options.tracesSampleRate = 0;
+      // Sin session replay: graba la pantalla de la usuaria. Para una app
+      // donde se ven datos personales y de pago, no.
+      options.replay.sessionSampleRate = 0;
+      options.replay.onErrorSampleRate = 0;
+      // Sin logs.
+      options.enableLogs = false;
     }, appRunner: () => _runApp());
   } else {
     _runApp();

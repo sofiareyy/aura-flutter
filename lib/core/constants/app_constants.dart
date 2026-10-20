@@ -1,9 +1,15 @@
 class AppConstants {
-  /// Reemplazá este valor con el DSN de tu proyecto en https://sentry.io
-  static const String sentryDsn = 'REEMPLAZAR_CON_TU_DSN_DE_SENTRY';
+  /// DSN del proyecto de Sentry (cargado el 19/10/2026).
+  ///
+  /// No es una credencial: va dentro de cada app publicada y dentro del
+  /// `main.dart.js` de la web, así que es visible para cualquiera lo pongas
+  /// donde lo pongas. Sólo sirve para MANDAR errores, no para leerlos. Lo
+  /// único que habilita a un tercero es gastar cuota; para eso Sentry tiene
+  /// spike protection, y el DSN se puede rotar.
+  static const String sentryDsn =
+      'https://023fc5e1e3097e031898e0f507bd0474@o4512286067851264.ingest.de.sentry.io/4512286079451216';
 
-  static const String supabaseUrl =
-      'https://hvgqpzvornlnxmsbqnwg.supabase.co';
+  static const String supabaseUrl = 'https://hvgqpzvornlnxmsbqnwg.supabase.co';
 
   /// Dominio propio de Aura, sin barra final. La web vive acá (GitHub Pages
   /// con custom domain) y es el dominio de los mails (Resend).
@@ -36,8 +42,7 @@ class AppConstants {
   /// force-update. iOS: App Store id verificado (app "Aura Pass", SOFIA REY).
   /// Android: URL determinística por applicationId (app.somosaura.aura);
   /// funciona recién cuando la app esté publicada en Play.
-  static const String appStoreUrl =
-      'https://apps.apple.com/app/id6764207399';
+  static const String appStoreUrl = 'https://apps.apple.com/app/id6764207399';
 
   /// ¿Android ya está publicado en Google Play?
   ///
