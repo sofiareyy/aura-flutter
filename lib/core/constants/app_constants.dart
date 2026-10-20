@@ -56,6 +56,19 @@ class AppConstants {
       '?pt=128832642&ct=muro_web&mt=8';
   static const String playStoreUrl =
       'https://play.google.com/store/apps/details?id=app.somosaura.aura';
+
+  /// Los mismos links, con su propia etiqueta de campaña para la LANDING.
+  ///
+  /// Van aparte de los del muro (`appStoreUrlMuro`) a propósito: así se puede
+  /// separar cuánta gente instala desde la portada de cuánta instala desde el
+  /// muro que aparece al querer reservar. Son dos momentos distintos y
+  /// conviene saber cuál empuja.
+  static const String appStoreUrlLanding =
+      'https://apps.apple.com/app/apple-store/id6764207399'
+      '?pt=128832642&ct=landing_web&mt=8';
+  static const String playStoreUrlLanding =
+      'https://play.google.com/store/apps/details?id=app.somosaura.aura'
+      '&referrer=utm_source%3Dlanding_web';
   static const String supabaseAnonKey =
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z3FwenZvcm5sbnhtc2JxbndnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNzcxMjIsImV4cCI6MjA5MDY1MzEyMn0.G5AKWyFGoL8j6IfAZV40U6TceaoQc0oVPYpepiIyDlk';
 
