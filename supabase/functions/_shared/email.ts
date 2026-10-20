@@ -4,11 +4,12 @@
 // encontraba el aviso de reserva):
 // - Un mail sólo-HTML es una señal clásica de spam. `htmlATexto` arma la
 //   versión en texto plano a partir del mismo HTML, así nunca se desincronizan.
-// - El reply-to va al mismo dominio que el remitente. Antes iba a un Gmail, y
-//   esa mezcla de dominios también resta. ImprovMX reenvía hola@ a la casilla
-//   de Aura, así que las respuestas siguen llegando.
+// - El reply-to vive en un solo lugar. Lo ideal sería hola@somosaurapass.com
+//   (mismo dominio que el remitente), pero el 20/10/2026 un mail de prueba a
+//   hola@ NO llegó a la casilla de Aura: ImprovMX no lo está reenviando. Hasta
+//   que eso ande, las respuestas van al Gmail para no perderlas.
 
-export const REPLY_TO = 'hola@somosaurapass.com'
+export const REPLY_TO = 'aura.hola.app@gmail.com'
 
 const ENTIDADES: Record<string, string> = {
   amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
