@@ -125,10 +125,12 @@ Deno.serve(async (req: Request) => {
       const linkReservas = reservaId
         ? `https://somosaurapass.com/#/mis-reservas?reserva=${reservaId}`
         : 'https://somosaurapass.com/#/mis-reservas'
+      // Sólo el enlace: la plantilla lo envuelve en el pie chiquito y gris.
+      // Antes era un <p> adentro de otro <p> (HTML inválido) y encima
+      // heredaba los 14 px centrados del bloque del botón.
       const lineaReporte =
-        `<p style="margin:22px 0 0; font-size:12px; color:#9A9A9A;">` +
         `<a href="${linkReservas}" style="color:#9A9A9A; text-decoration:underline;">` +
-        `¿No pudiste ir o la clase no se dio?</a></p>`
+        `¿No pudiste ir o la clase no se dio?</a>`
 
       const subject = pedirResena
         ? `¿Qué te pareció tu clase en ${estudioNombre}?`
@@ -138,18 +140,19 @@ Deno.serve(async (req: Request) => {
           'TU OPINIÓN VALE',
           `¿Qué te pareció tu clase en <strong>${escape(estudioNombre)}</strong>? 🧡`,
           `Contanos cómo estuvo: tu reseña ayuda a que otras personas descubran este lugar.`,
-          `<a href="https://somosaurapass.com/#/estudio/${estudioId}" style="display:inline-block;background:#E8763A;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;">Dejar mi reseña</a>` +
-            lineaReporte,
+          `<a href="https://somosaurapass.com/#/estudio/${estudioId}" style="display:inline-block;background:#E8763A;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;">Dejar mi reseña</a>`,
           'Recibís este mail porque reservaste una clase por Aura.',
+          lineaReporte,
         )
         // Ya reseñó este estudio: no se le vuelve a pedir. El mail queda
         // corto y su única razón de ser es la pregunta de abajo.
         : plantilla(
           'TU CLASE',
           `Esperamos que hayas disfrutado tu clase en <strong>${escape(estudioNombre)}</strong> 🧡`,
-          `Si hubo algún problema, contanos.`,
-          lineaReporte,
+          `¡Gracias por entrenar con Aura! 🧡`,
+          '',
           'Recibís este mail porque reservaste una clase por Aura.',
+          lineaReporte,
         )
       return await enviar([email], subject, html)
     }
@@ -175,7 +178,11 @@ async function enviar(to: string[], subject: string, html: string) {
   return json({ ok: true, enviados: to.length, resend_id: (out as { id?: string })?.id })
 }
 
-function plantilla(tag: string, titulo: string, cuerpo: string, extra: string, pie: string): string {
+/// `nota` es la línea chiquita y gris del final (19/10). Va aparte de
+/// `cuerpo` —que se dibuja en el recuadro naranja destacado— y de `extra`
+/// —que es el botón—: si la pregunta de "¿qué pasó con la clase?" cae en
+/// cualquiera de esos dos, compite con la reseña, que es lo principal.
+function plantilla(tag: string, titulo: string, cuerpo: string, extra: string, pie: string, nota = ''): string {
   return `<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Aura</title></head>
 <body style="font-family:-apple-system,Arial,sans-serif; background:#F7F5F2; margin:0; padding:24px;">
@@ -187,7 +194,8 @@ function plantilla(tag: string, titulo: string, cuerpo: string, extra: string, p
     <tr><td style="padding:28px 24px;">
       <p style="margin:0 0 16px; color:#1A1A1A; font-size:16px; line-height:1.5;">${titulo}</p>
       <div style="background:#FFF1E8; border-left:4px solid #E8763A; padding:16px; border-radius:8px; margin:16px 0; color:#1A1A1A; font-size:15px; line-height:1.8;">${cuerpo}</div>
-      <p style="margin:16px 0 0; color:#555; font-size:14px; text-align:center;">${extra}</p>
+      ${extra ? `<p style="margin:16px 0 0; color:#555; font-size:14px; text-align:center;">${extra}</p>` : ''}
+      ${nota ? `<p style="margin:22px 0 0; color:#9A9A9A; font-size:12px; text-align:center;">${nota}</p>` : ''}
     </td></tr>
     <tr><td style="background:#F7F5F2; padding:16px 24px; text-align:center; color:#888; font-size:11px;">${pie}</td></tr>
   </table>
