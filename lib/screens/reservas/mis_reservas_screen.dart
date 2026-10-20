@@ -14,6 +14,7 @@ import '../../services/reservas_service.dart';
 import '../../services/reviews_service.dart';
 import '../../widgets/study_review_sheet.dart';
 import '../../utils/cierre_minutos.dart';
+import '../../utils/reporte_clase.dart';
 import '../../widgets/ancho_maximo.dart';
 import '../../utils/categoria_de_clase.dart';
 
@@ -98,6 +99,114 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
       const SnackBar(content: Text('Tu reseña quedó guardada. ¡Gracias! 🧡')),
     );
   }
+
+  /// "¿No pudiste ir o la clase no se dio?"
+  ///
+  /// Discreto a propósito: no es un botón destacado y no se invita a tocarlo.
+  /// La mayoría de las veces la clase se dio y la alumna faltó; lo que se
+  /// busca es que, cuando NO se dio, haya por dónde decirlo. Hasta hoy la
+  /// única salida era escribirle a Sofía y que lo arreglara a mano.
+  Future<void> _reportarReserva(Map<String, dynamic> reserva) async {
+    final reservaId = (reserva['id'] as num?)?.toInt();
+    if (reservaId == null) return;
+
+    final motivo = await showModalBottomSheet<MotivoReporte>(
+      context: context,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        // `AuraRadio.tarjeta` es el token de "tarjetas y hojas". Un literal
+        // acá lo caza `cobertura_sistema_test`, y con razón.
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AuraRadio.tarjeta),
+        ),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 4),
+              child: Text(
+                '¿Qué pasó con esta clase?',
+                style: TextStyle(
+                  color: AppColors.black,
+                  fontSize: AuraTipo.titulo,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Text(
+                'Nos sirve para saber si hubo un problema. No te pedimos nada más.',
+                style: TextStyle(
+                  color: AppColors.grey,
+                  fontSize: AuraTipo.secundario,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.person_off_outlined,
+                color: AppColors.grey,
+              ),
+              title: const Text('No pude ir'),
+              subtitle: const Text('Reservaste y no llegaste a ir'),
+              onTap: () => Navigator.of(ctx).pop(MotivoReporte.noPudeIr),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.event_busy_outlined,
+                color: AppColors.primary,
+              ),
+              title: const Text('La clase no se dio'),
+              subtitle: const Text(
+                'Fuiste y la clase no existió, o la cancelaron',
+              ),
+              onTap: () => Navigator.of(ctx).pop(MotivoReporte.noSeDio),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (motivo == null || !mounted) return;
+
+    final error = await _reservasService.reportarClase(reservaId, motivo);
+    if (!mounted) return;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_mensajeDeReporte(error)),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+    // Se recarga para que la fila muestre el estado nuevo: si avisó que no se
+    // dio, pasa a "Lo estamos revisando".
+    await _cargar();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          motivo == MotivoReporte.noSeDio
+              ? 'Gracias por avisar. Lo revisamos y te contamos.'
+              : 'Gracias por avisar.',
+        ),
+      ),
+    );
+  }
+
+  String _mensajeDeReporte(String error) => switch (error) {
+    'fuera_de_plazo' => 'Pasaron más de 48 horas desde la clase.',
+    'ya_reportada' => 'Ya nos habías avisado de esta clase.',
+    'todavia_no_termino' => 'La clase todavía no terminó.',
+    'cancelada' => 'Esta reserva ya estaba cancelada.',
+    'red' => 'No pudimos avisar. Revisá tu conexión.',
+    _ => 'No pudimos registrar tu aviso. Probá de nuevo.',
+  };
 
   Future<void> _cargar() async {
     final uid = Supabase.instance.client.auth.currentUser?.id ?? '';
@@ -739,6 +848,10 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                               onResenar: _puedeResenar(reserva)
                                   ? () => _resenarReserva(reserva)
                                   : null,
+                              onReportar:
+                                  puedeReportar(reserva, ahora: DateTime.now())
+                                  ? () => _reportarReserva(reserva)
+                                  : null,
                             ),
                           ),
                         ),
@@ -1110,10 +1223,15 @@ class _HistorialCompactCard extends StatelessWidget {
   /// Abre el diálogo para dejar o editar la reseña de esta reserva.
   final VoidCallback? onResenar;
 
+  /// Abre "¿No pudiste ir o la clase no se dio?". Null cuando ya no
+  /// corresponde: pasaron las 48 h, ya avisó, o la reserva está cancelada.
+  final VoidCallback? onReportar;
+
   const _HistorialCompactCard({
     required this.reserva,
     this.resena,
     this.onResenar,
+    this.onReportar,
   });
 
   @override
@@ -1258,6 +1376,35 @@ class _HistorialCompactCard extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                ),
+              ],
+              // Abajo de todo, chiquito y gris: la alumna lo encuentra si lo
+              // necesita y no se le ofrece a quien no tiene nada que reportar.
+              // Decisión del diseño del 17/9: discreto a propósito.
+              if (onReportar != null) ...[
+                const SizedBox(height: 6),
+                GestureDetector(
+                  onTap: onReportar,
+                  child: const Text(
+                    '¿No pudiste ir?',
+                    style: TextStyle(
+                      color: AppColors.textoSuave,
+                      fontSize: AuraTipo.etiqueta,
+                      decoration: TextDecoration.underline,
+                      decorationColor: AppColors.textoSuave,
+                    ),
+                  ),
+                ),
+              ] else if (etiquetaDeReporte(reserva) != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  etiquetaDeReporte(reserva)!,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: AppColors.textoSuave,
+                    fontSize: AuraTipo.etiqueta,
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
               ],

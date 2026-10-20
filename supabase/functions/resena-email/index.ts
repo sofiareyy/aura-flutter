@@ -1,7 +1,10 @@
 // Mails de reseñas, dos modos:
 //   kind 'nueva'  -> aviso a los admins del estudio: alguien dejó una reseña.
-//   kind 'pedido' -> a la alumna que ASISTIÓ (check-in), 15 min después de la
-//                    clase: "¿qué te pareció? dejá tu reseña".
+//   kind 'pedido' -> a la alumna, después de la clase. Desde el 19/10 sale
+//                    con check-in o sin él, y también a quien ya reseñó ese
+//                    estudio: lleva abajo la línea discreta "¿no pudiste ir o
+//                    la clase no se dio?". `pedir_resena` decide si además se
+//                    le pide la reseña.
 // La dispara la base (trigger de study_reviews / cron pedir_resenas_post_clase)
 // vía pg_net, con el mismo secreto compartido que nueva-reserva-estudio-email.
 // Auth: header `x-notif-secret` == NOTIF_TRIGGER_SECRET (fail-closed).
@@ -90,6 +93,12 @@ Deno.serve(async (req: Request) => {
       const usuarioId = String(body?.usuario_id ?? '')
       const estudioId = Number(body?.estudio_id)
       const claseNombre = String(body?.clase_nombre ?? 'tu clase')
+      // Desde el 19/10 el mail sale por CADA reserva pasada, con check-in o
+      // sin él, y no sólo a quien todavía no reseñó. `pedir_resena` dice si
+      // además corresponde pedirle la reseña; la pregunta de qué pasó con la
+      // clase va siempre. Ver MAIL_POST_CLASE_2026-10-19.sql.
+      const reservaId = Number(body?.reserva_id ?? 0)
+      const pedirResena = body?.pedir_resena !== false
       if (!usuarioId || !estudioId) return json({ error: 'Faltan datos' }, 400)
 
       let email = testEmail
@@ -108,14 +117,40 @@ Deno.serve(async (req: Request) => {
       // quiere responder. No se nombra la clase — "tu clase" evita repetir el
       // nombre del estudio cuando la clase se llama igual (era el caso de
       // "Citra barre" en "Citra Barre").
-      const subject = `¿Qué te pareció tu clase en ${estudioNombre}?`
-      const html = plantilla(
-        'TU OPINIÓN VALE',
-        `¿Qué te pareció tu clase en <strong>${escape(estudioNombre)}</strong>? 🧡`,
-        `Contanos cómo estuvo: tu reseña ayuda a que otras personas descubran este lugar.`,
-        `<a href="https://somosaurapass.com/#/estudio/${estudioId}" style="display:inline-block;background:#E8763A;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;">Dejar mi reseña</a>`,
-        'Recibís este mail porque asististe a una clase reservada por Aura.',
-      )
+      // La línea de abajo, chiquita y gris. Discreta A PROPÓSITO: no es un
+      // botón destacado y no se invita a tocarla. La mayoría de las veces la
+      // clase se dio; lo que se busca es que, cuando NO se dio, haya por
+      // dónde decirlo. Lleva a Mis Reservas, que es donde la alumna elige
+      // qué pasó — el mismo destino que la campanita.
+      const linkReservas = reservaId
+        ? `https://somosaurapass.com/#/mis-reservas?reserva=${reservaId}`
+        : 'https://somosaurapass.com/#/mis-reservas'
+      const lineaReporte =
+        `<p style="margin:22px 0 0; font-size:12px; color:#9A9A9A;">` +
+        `<a href="${linkReservas}" style="color:#9A9A9A; text-decoration:underline;">` +
+        `¿No pudiste ir o la clase no se dio?</a></p>`
+
+      const subject = pedirResena
+        ? `¿Qué te pareció tu clase en ${estudioNombre}?`
+        : `¿Cómo estuvo tu clase en ${estudioNombre}?`
+      const html = pedirResena
+        ? plantilla(
+          'TU OPINIÓN VALE',
+          `¿Qué te pareció tu clase en <strong>${escape(estudioNombre)}</strong>? 🧡`,
+          `Contanos cómo estuvo: tu reseña ayuda a que otras personas descubran este lugar.`,
+          `<a href="https://somosaurapass.com/#/estudio/${estudioId}" style="display:inline-block;background:#E8763A;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;">Dejar mi reseña</a>` +
+            lineaReporte,
+          'Recibís este mail porque reservaste una clase por Aura.',
+        )
+        // Ya reseñó este estudio: no se le vuelve a pedir. El mail queda
+        // corto y su única razón de ser es la pregunta de abajo.
+        : plantilla(
+          'TU CLASE',
+          `Esperamos que hayas disfrutado tu clase en <strong>${escape(estudioNombre)}</strong> 🧡`,
+          `Si hubo algún problema, contanos.`,
+          lineaReporte,
+          'Recibís este mail porque reservaste una clase por Aura.',
+        )
       return await enviar([email], subject, html)
     }
 

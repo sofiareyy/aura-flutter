@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/constants/app_constants.dart';
+import '../utils/reporte_clase.dart';
 import '../models/reserva.dart';
 import '../utils/cierre_minutos.dart';
 import 'notificaciones_estudio_service.dart';
@@ -88,12 +89,41 @@ class ReservasService {
         .select()
         .eq('usuario_id', userId)
         .or(
-          'estado.eq.cancelada,estado.eq.completada,estado.eq.cancelada_por_estudio',
+          // `en_revision` entra (16/10/2026): es el estado al que pasa una
+          // reserva cuando la alumna avisa que la clase no se dio. Sin esto
+          // la fila DESAPARECÍA del historial justo después de reportarla, y
+          // la alumna se quedaba sin ver qué pasó con su aviso.
+          'estado.eq.cancelada,estado.eq.completada,'
+          'estado.eq.cancelada_por_estudio,estado.eq.en_revision',
         )
         .order('created_at', ascending: false)
         .range(offset, offset + limit - 1);
 
     return _joinClasesEstudios(reservas as List);
+  }
+
+  /// La alumna avisa que no pudo ir, o que la clase NO SE DIO.
+  ///
+  /// Toda la decisión vive en la RPC `reportar_mi_clase` (SECURITY DEFINER):
+  /// comprueba que la reserva sea suya, que la clase haya terminado, que esté
+  /// dentro de las 48 h y que no se haya reportado antes. "No se dio" además
+  /// pasa la reserva a `en_revision`, que no está en ninguna de las listas de
+  /// estados liquidables, así que deja de facturarse sola.
+  ///
+  /// Devuelve null si salió bien, o el código de error para que la pantalla
+  /// diga algo concreto.
+  Future<String?> reportarClase(int reservaId, MotivoReporte motivo) async {
+    try {
+      final res = await _supabase.rpc(
+        'reportar_mi_clase',
+        params: {'p_reserva_id': reservaId, 'p_motivo': motivo.valor},
+      );
+      final mapa = res is Map ? Map<String, dynamic>.from(res) : null;
+      if (mapa?['ok'] == true) return null;
+      return mapa?['error']?.toString() ?? 'desconocido';
+    } catch (e) {
+      return 'red';
+    }
   }
 
   /// Batch-joins classes and studios to a list of reservations.
