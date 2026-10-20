@@ -379,6 +379,15 @@ class _HomeScreenState extends State<HomeScreen> {
       if (fecha == null) return false;
       return !fecha.isBefore(ahora) && !fecha.isAfter(finSemana);
     }).toList();
+    // Las EXPERIENCIAS también siguen el chip (20/10/2026). Se dibujaban
+    // desde `_experiencias` sin filtrar: tocabas "Yoga" y la sección no se
+    // movía, así que el chip parecía roto. Mismo criterio que las clases —
+    // por la categoría de la EXPERIENCIA, no la del estudio.
+    final experienciasFiltradas = _categoriaSeleccionada == 'Todos'
+        ? _experiencias
+        : _experiencias
+              .where((e) => claseEsDeCategoria(e, _categoriaSeleccionada))
+              .toList();
     final estudiosFiltrados = _categoriaSeleccionada == 'Todos'
         ? _estudios
         : _estudios
@@ -951,7 +960,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         // ── Experiencias (workshops / eventos próximos) ──────────────
-                        if (_experiencias.isNotEmpty) ...[
+                        if (experienciasFiltradas.isNotEmpty) ...[
                           SliverToBoxAdapter(
                             child: TituloSeccion('EXPERIENCIAS'),
                           ),
@@ -963,9 +972,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 20,
                                 ),
-                                itemCount: _experiencias.length,
+                                itemCount: experienciasFiltradas.length,
                                 itemBuilder: (context, index) {
-                                  final exp = _experiencias[index];
+                                  final exp = experienciasFiltradas[index];
                                   return SizedBox(
                                     width: 300,
                                     child: Padding(

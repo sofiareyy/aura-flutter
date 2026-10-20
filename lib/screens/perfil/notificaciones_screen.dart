@@ -18,6 +18,28 @@ class NotificacionesScreen extends StatefulWidget {
 class _NotificacionesScreenState extends State<NotificacionesScreen> {
   bool _loading = true;
   bool _saving = false;
+
+  /// Qué avisos EXISTEN de verdad hoy (20/10/2026).
+  ///
+  /// Se relevó una por una contra las Edge Functions y los crons:
+  ///
+  ///   notifs_reservas      -> lo respeta `aviso-alumnos-email`. REAL.
+  ///   notifs_recordatorios -> no lo lee NADIE. No hay ningún cron que
+  ///                           mande "1 hora antes de tu clase", ni por
+  ///                           vencimiento de créditos, ni por renovación.
+  ///   notifs_promos        -> no lo lee NADIE. No existe ningún envío
+  ///                           promocional: todo lo que sale es transaccional.
+  ///
+  /// Las dos que no existen se esconden. Ofrecer apagar algo que nunca se
+  /// manda no es inofensivo: el subtítulo de "Recordatorios" prometía tres
+  /// avisos concretos y ninguno llegaba nunca.
+  ///
+  /// Para volver a mostrarlas alcanza con poner la constante en `true`, UNA
+  /// VEZ QUE EXISTA QUIEN LAS MANDE Y LAS RESPETE. La columna en la base no
+  /// se tocó, así que el valor que cada persona ya eligió sigue ahí.
+  static const bool _hayRecordatorios = false;
+  static const bool _hayPromos = false;
+
   bool _reservas = true;
   bool _recordatorios = true;
   bool _promos = false;
@@ -117,21 +139,23 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                     value: _reservas,
                     onChanged: (value) => setState(() => _reservas = value),
                   ),
-                  _SwitchTile(
-                    title: 'Recordatorios',
-                    subtitle:
-                        'Aviso 1 hora antes de tus clases, 3 días antes de que venzan tus créditos, y 2 días antes de que se renueve tu plan.',
-                    value: _recordatorios,
-                    onChanged: (value) =>
-                        setState(() => _recordatorios = value),
-                  ),
-                  _SwitchTile(
-                    title: 'Promociones y novedades',
-                    subtitle:
-                        'Lanzamientos, beneficios y recomendaciones de Aura.',
-                    value: _promos,
-                    onChanged: (value) => setState(() => _promos = value),
-                  ),
+                  if (_hayRecordatorios)
+                    _SwitchTile(
+                      title: 'Recordatorios',
+                      subtitle:
+                          'Aviso 1 hora antes de tus clases, 3 días antes de que venzan tus créditos, y 2 días antes de que se renueve tu plan.',
+                      value: _recordatorios,
+                      onChanged: (value) =>
+                          setState(() => _recordatorios = value),
+                    ),
+                  if (_hayPromos)
+                    _SwitchTile(
+                      title: 'Promociones y novedades',
+                      subtitle:
+                          'Lanzamientos, beneficios y recomendaciones de Aura.',
+                      value: _promos,
+                      onChanged: (value) => setState(() => _promos = value),
+                    ),
                   const SizedBox(height: 28),
                   SizedBox(
                     height: 52,

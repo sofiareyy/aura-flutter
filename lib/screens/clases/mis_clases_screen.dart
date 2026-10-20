@@ -2832,6 +2832,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
               .toList();
           _sortFixed();
         });
+        // Recargar: la propagación ya cambió nombre, hora, cupo y créditos
+        // de las clases publicadas en la base, y sin esto el panel seguía
+        // mostrando los valores viejos hasta un refresco manual. La rama de
+        // CREAR ya lo hacía; editar no.
+        await _loadStudio();
+        if (!mounted) return;
         messenger.showSnackBar(
           const SnackBar(content: Text('Horario fijo actualizado')),
         );
@@ -2863,6 +2869,24 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           );
         }
       }
+    } on PropagacionIncompleta catch (e) {
+      // El horario SÍ se guardó; lo que falló fue bajar el cambio a las
+      // clases ya publicadas. Decir "no se pudo guardar" acá era mentir, y
+      // encima dejaba al estudio sin saber que la grilla y las clases
+      // quedaron en desacuerdo (20/10/2026).
+      debugPrint('Propagación incompleta: ${e.causa}');
+      await _loadStudio();
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          duration: const Duration(seconds: 8),
+          content: Text(
+            'El horario se guardó, pero las clases ya publicadas quedaron '
+            'como estaban: ${e.causa}',
+          ),
+        ),
+      );
     } catch (e) {
       // El cartel muestra algo accionable, no el PostgrestException crudo. El
       // detalle tecnico va a debugPrint para poder diagnosticar sin que el

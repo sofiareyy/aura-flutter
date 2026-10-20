@@ -762,6 +762,13 @@ class EstudioAdminService {
     int id,
     Map<String, dynamic> payload,
   ) async {
+    // OJO con el orden: el UPDATE de abajo COMMITEA antes de que corra la
+    // propagación. Si la propagación falla —el guard
+    // `clases_guard_cambios_con_anotadas` tira P0001 cuando una clase ya
+    // tiene más anotadas que el cupo nuevo—, el horario YA quedó guardado.
+    // Antes esa excepción subía tal cual y la pantalla decía "No se pudo
+    // guardar el horario": mentía, y encima dejaba al estudio sin saber que
+    // las clases publicadas quedaron con los valores viejos.
     // Filtramos acá y no en la pantalla para cubrir cualquier caller, y para
     // que agregar un campo nuevo al diálogo no vuelva a romper el guardado.
     final limpio = <String, dynamic>{
@@ -775,11 +782,18 @@ class EstudioAdminService {
         .eq('id', id)
         .select()
         .single();
-    await _propagarHorarioFijoAClasesFuturas(
-      id,
-      Map<String, dynamic>.from(updated),
-    );
-    await generarProximasSemanasDesdeHorarios();
+    try {
+      await _propagarHorarioFijoAClasesFuturas(
+        id,
+        Map<String, dynamic>.from(updated),
+      );
+      await generarProximasSemanasDesdeHorarios();
+    } catch (e) {
+      throw PropagacionIncompleta(
+        horario: Map<String, dynamic>.from(updated),
+        causa: e is PostgrestException ? e.message : e.toString(),
+      );
+    }
     return Map<String, dynamic>.from(updated);
   }
 
@@ -1055,4 +1069,21 @@ class EstudioAdminService {
 
     return {'creadas': creadas, 'omitidas': omitidas};
   }
+}
+
+/// El horario SÍ se guardó, pero las clases ya publicadas no se actualizaron.
+///
+/// Existe porque las dos cosas no son atómicas: el UPDATE de `horarios_fijos`
+/// commitea y recién después corre la propagación a `clases`. Sin esto, un
+/// fallo en la segunda mitad se reportaba como "no se pudo guardar" —falso— y
+/// el estudio no se enteraba de que la grilla y las clases habían quedado en
+/// desacuerdo.
+class PropagacionIncompleta implements Exception {
+  final Map<String, dynamic> horario;
+  final String causa;
+
+  const PropagacionIncompleta({required this.horario, required this.causa});
+
+  @override
+  String toString() => 'PropagacionIncompleta: $causa';
 }
