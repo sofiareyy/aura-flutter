@@ -25,7 +25,42 @@
 | ✅ | **Google Analytics 4 en la web** | **publicado el 11/9** · `web/aura-analytics.js` · quedan 3 pendientes de la política de privacidad (abajo) |
 | ✅ | **BUG DE PLATA: la gracia se aplicaba hacia atrás** | **CERRADO el 16/9**: fix en producción (web `5afbc06`), sellado corregido, edge functions deployadas, agosto de Citra corregido con asiento auditado ($54.000) · ver abajo |
 | 🟡 | **Bono de bienvenida** | **armado y APAGADO el 14/9** · migración APLICADA, `bono-email` deployada y el Dart mergeado el 16/9 · sigue en OFF · ver abajo |
+| ⏰ | **Cargar los feriados de 2028** | **en diciembre de 2027.** 2026 y 2027 ya están en la tabla `feriados`; 2028 hay que traerlo o la grilla los genera como días normales · ver abajo |
 | 🟡 | **Auditoría pre-App-Store** (usuaria + estudio, punta a punta) | **hecha el 10/10** · 30 hallazgos · 4 cerrados ese día, **el resto abierto** · ver la sección de abajo, es lo primero |
+
+### ⏰ FERIADOS — hay que cargar 2028 en diciembre de 2027
+
+Desde el 19/10/2026 la grilla **no genera clases en feriados nacionales**,
+salvo que el estudio prenda "abro los feriados" en su pantalla de grilla
+(`estudios.abre_feriados`, apagado por default).
+
+**Por qué hay que acordarse.** Los feriados argentinos no se calculan: los
+trasladables se mueven y los puentes turísticos se fijan POR DECRETO cada
+año. La tabla `public.feriados` tiene **2026 y 2027 cargados** y nada más.
+Si llega 2028 sin cargar, la tabla queda vacía para ese año y la grilla
+**vuelve a generar clases los feriados sin avisar** — no falla, simplemente
+deja de bloquear.
+
+**Cómo se carga** (diez minutos):
+
+```
+curl -s https://api.argentinadatos.com/v1/feriados/2028
+```
+
+y un `insert … on conflict (fecha) do update` en `public.feriados`. El SQL de
+la carga de 2026/2027 está en `supabase/FERIADOS_2026-10-19.sql` y sirve de
+molde.
+
+**Ojo con el tipo.** Sólo `inamovible` y `trasladable` bloquean. `puente` se
+guarda pero NO bloquea: es "día no laborable con fines turísticos", no un
+feriado — la administración pública no trabaja pero los estudios abren
+(decisión de Sofía, 19/10). 2027 todavía no tiene puentes cargados porque se
+decretan más cerca de la fecha; no es un error de la carga.
+
+**Al activarlo se borraron 142 clases** ya generadas que caían en feriado, de
+17 estudios activos. Ninguna tenía reservas — se verificó justo antes. Las 24
+de Yessi y Yoguica se dejaron: esos estudios están desactivados y sus clases
+no se ven.
 
 ### 🟡 AUDITORÍA PRE-APP-STORE — 10/10/2026
 

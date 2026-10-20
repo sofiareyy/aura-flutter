@@ -47,6 +47,23 @@ class EstudioAdminService {
         .eq('id', uid);
   }
 
+  /// ¿El estudio abre los feriados nacionales?
+  ///
+  /// Apagado por default: el caso común es que cierren, y generar clases que
+  /// nadie va a dar deja a la alumna reservando algo que no existe. El que
+  /// abre lo prende desde su grilla.
+  ///
+  /// Prenderlo NO repone las clases que ya no se generaron: hay que volver a
+  /// publicar la grilla. Lo dice la pantalla.
+  Future<void> setAbreFeriados(bool valor) async {
+    final id = await getCurrentStudioId();
+    if (id == null) return;
+    await _client
+        .from('estudios')
+        .update({'abre_feriados': valor})
+        .eq('id', id);
+  }
+
   Future<int?> getCurrentStudioId() async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return null;
@@ -66,7 +83,8 @@ class EstudioAdminService {
   /// Métricas del dashboard del estudio: favoritos + vistas del mes.
   /// Devuelve {favoritos, vistas_mes} (0 si falla o no hay permisos).
   Future<({int favoritos, int vistasMes})> getMetricasEstudio(
-      int estudioId) async {
+    int estudioId,
+  ) async {
     try {
       final res = await _client.rpc(
         'estudio_metricas',
@@ -104,8 +122,10 @@ class EstudioAdminService {
     // mismo mapa para que el panel muestre el precio que la base va a guardar.
     final rows = await _client
         .from('estudios')
-        .select('${DatosCobro.embedTodo}, '
-            'estudio_servicios_precio(servicio,creditos,activo)')
+        .select(
+          '${DatosCobro.embedTodo}, '
+          'estudio_servicios_precio(servicio,creditos,activo)',
+        )
         .eq('id', studioId)
         .limit(1);
     if (rows.isNotEmpty) {
@@ -159,7 +179,8 @@ class EstudioAdminService {
       final activoId = (userRow?['estudio_id'] as num?)?.toInt();
       return List<Map<String, dynamic>>.from(ea as List).map((row) {
         final est = row['estudios'] as Map?;
-        final eId = (est?['id'] as num?)?.toInt() ??
+        final eId =
+            (est?['id'] as num?)?.toInt() ??
             (row['estudio_id'] as num?)?.toInt();
         return {
           'estudio_id': eId,
@@ -229,12 +250,11 @@ class EstudioAdminService {
     try {
       final res = await _client.rpc(
         'remove_estudio_admin_access',
-        params: {
-          'p_estudio_id': estudioId,
-          'p_usuario_id': usuarioId,
-        },
+        params: {'p_estudio_id': estudioId, 'p_usuario_id': usuarioId},
       );
-      final map = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+      final map = res is Map
+          ? Map<String, dynamic>.from(res)
+          : <String, dynamic>{};
       return map['ok'] == true;
     } catch (_) {
       return false;
@@ -257,8 +277,9 @@ class EstudioAdminService {
           'p_cancelacion_cierre_minutos': cancelacionCierreMinutos,
         },
       );
-      final map =
-          res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+      final map = res is Map
+          ? Map<String, dynamic>.from(res)
+          : <String, dynamic>{};
       return map['ok'] == true;
     } catch (_) {
       return false;
@@ -281,8 +302,8 @@ class EstudioAdminService {
       );
       return {
         for (final r in (rows as List))
-          ((r as Map)['clase_id'] as num).toInt():
-              (r['esperando'] as num).toInt(),
+          ((r as Map)['clase_id'] as num).toInt(): (r['esperando'] as num)
+              .toInt(),
       };
     } catch (e) {
       // Que no se caiga el panel entero por un contador.
@@ -297,9 +318,9 @@ class EstudioAdminService {
         'studio_list_profes',
         params: {'p_estudio_id': estudioId},
       );
-      return List<Map<String, dynamic>>.from(res as List)
-          .map((row) => Map<String, dynamic>.from(row as Map))
-          .toList();
+      return List<Map<String, dynamic>>.from(
+        res as List,
+      ).map((row) => Map<String, dynamic>.from(row as Map)).toList();
     } catch (_) {
       return const [];
     }
@@ -457,7 +478,9 @@ class EstudioAdminService {
     return List<Map<String, dynamic>>.from(data as List);
   }
 
-  Future<Map<String, dynamic>> crearHorarioFijo(Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> crearHorarioFijo(
+    Map<String, dynamic> payload,
+  ) async {
     final studioId = await getCurrentStudioId();
     if (studioId == null) {
       throw Exception('No hay estudio asociado.');
@@ -465,10 +488,7 @@ class EstudioAdminService {
 
     final inserted = await _client
         .from('horarios_fijos')
-        .insert({
-          ...payload,
-          'estudio_id': studioId,
-        })
+        .insert({...payload, 'estudio_id': studioId})
         .select()
         .single();
     await generarProximasSemanasDesdeHorarios();
@@ -507,8 +527,8 @@ class EstudioAdminService {
       'creditos': (payload['creditos'] as num?)?.toInt() ?? 10,
       // null (no `?? 0`) = "sin override": la clase hereda el default del
       // estudio. Guardar 0 pisaba ese default y rompia la ventana de 12 hs.
-      'reserva_cierre_minutos':
-          (payload['reserva_cierre_minutos'] as num?)?.toInt(),
+      'reserva_cierre_minutos': (payload['reserva_cierre_minutos'] as num?)
+          ?.toInt(),
       'cancelacion_cierre_minutos':
           (payload['cancelacion_cierre_minutos'] as num?)?.toInt(),
     };
@@ -532,8 +552,9 @@ class EstudioAdminService {
     // sincroniza el trigger sync_categorias_clase.
     final categorias = payload['categorias'];
     if (categorias is List) {
-      insertPayload['categorias'] =
-          categorias.map((e) => e.toString()).toList();
+      insertPayload['categorias'] = categorias
+          .map((e) => e.toString())
+          .toList();
     }
     final sala = payload['sala'];
     if (sala != null && sala.toString().trim().isNotEmpty) {
@@ -607,8 +628,10 @@ class EstudioAdminService {
       throw Exception('Agregá al menos un horario.');
     }
 
-    final inserted =
-        await _client.from('horarios_fijos').insert(rows).select('id');
+    final inserted = await _client
+        .from('horarios_fijos')
+        .insert(rows)
+        .select('id');
     await generarProximasSemanasDesdeHorarios();
     return (inserted as List).length;
   }
@@ -658,8 +681,7 @@ class EstudioAdminService {
             .select('lugares_disponibles')
             .eq('id', id)
             .maybeSingle();
-        lugaresPrevios =
-            (previa?['lugares_disponibles'] as num?)?.toInt();
+        lugaresPrevios = (previa?['lugares_disponibles'] as num?)?.toInt();
       } catch (_) {}
     }
 
@@ -674,13 +696,14 @@ class EstudioAdminService {
         // un error aca no debe romper el editarClase. El RPC tambien
         // decrementa lugares_disponibles internamente por cada promocion.
         try {
-          await _client.rpc('cleanup_pre_reservas_expiradas',
-              params: {'p_clase_id': id});
-          final res =
-              await _client.rpc('waitlist_promote_next', params: {
-            'p_clase_id': id,
-            'p_count': delta,
-          });
+          await _client.rpc(
+            'cleanup_pre_reservas_expiradas',
+            params: {'p_clase_id': id},
+          );
+          final res = await _client.rpc(
+            'waitlist_promote_next',
+            params: {'p_clase_id': id, 'p_count': delta},
+          );
           // Insertar notificacion in-app (campanita) por cada promovido.
           // La notif "push" local la dispara el dispositivo del alumno
           // cuando entra a la app y detecta su pre_confirmada (vease
@@ -786,8 +809,8 @@ class EstudioAdminService {
       if (lugaresTotal == 0) 'lugares_disponibles': 0,
       'creditos': (horario['creditos'] as num?)?.toInt() ?? 10,
       // null = hereda del estudio. Ver comentario en crearClaseIndividual.
-      'reserva_cierre_minutos':
-          (horario['reserva_cierre_minutos'] as num?)?.toInt(),
+      'reserva_cierre_minutos': (horario['reserva_cierre_minutos'] as num?)
+          ?.toInt(),
       'cancelacion_cierre_minutos':
           (horario['cancelacion_cierre_minutos'] as num?)?.toInt(),
       'categorias': horario['categorias'] ?? const <String>[],
@@ -805,7 +828,9 @@ class EstudioAdminService {
     }
   }
 
-  Future<Map<String, int>> generarProximasSemanasDesdeHorarios({int weeks = kGrillaSemanas}) async {
+  Future<Map<String, int>> generarProximasSemanasDesdeHorarios({
+    int weeks = kGrillaSemanas,
+  }) async {
     // Path rapido: si existe la RPC server-side (supabase/GENERAR_CLASES_DESDE_SQL.sql),
     // delega todo el loop a la base. Es ~10x mas rapido y no depende de
     // que el cliente pase RLS de INSERT/UPDATE/SELECT por cada semana.
@@ -818,7 +843,9 @@ class EstudioAdminService {
         'generar_clases_estudio',
         params: {'p_estudio_id': studioId, 'p_weeks': weeks},
       );
-      final map = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+      final map = res is Map
+          ? Map<String, dynamic>.from(res)
+          : <String, dynamic>{};
       return {
         'creadas': (map['creadas'] as num?)?.toInt() ?? 0,
         'omitidas': (map['omitidas'] as num?)?.toInt() ?? 0,
@@ -884,7 +911,8 @@ class EstudioAdminService {
       final horaInicio = horario['hora_inicio']?.toString() ?? '08:00';
       final partesHora = horaInicio.split(':');
       final hora = int.tryParse(partesHora.first) ?? 8;
-      final minuto = int.tryParse(partesHora.length > 1 ? partesHora[1] : '0') ?? 0;
+      final minuto =
+          int.tryParse(partesHora.length > 1 ? partesHora[1] : '0') ?? 0;
       final fechaClase = DateTime(
         weekStart.year,
         weekStart.month,
@@ -898,8 +926,10 @@ class EstudioAdminService {
       }
 
       // Buscar con rango ±1h para tolerar diferencias de timezone/formato
-      final fechaInicio = _toSupaDate(fechaClase.subtract(const Duration(hours: 1)));
-      final fechaFin    = _toSupaDate(fechaClase.add(const Duration(hours: 1)));
+      final fechaInicio = _toSupaDate(
+        fechaClase.subtract(const Duration(hours: 1)),
+      );
+      final fechaFin = _toSupaDate(fechaClase.add(const Duration(hours: 1)));
       Map<String, dynamic>? existente;
       try {
         final byHorario = await _client
@@ -930,13 +960,12 @@ class EstudioAdminService {
       final duracion = (horario['duracion_min'] as num?)?.toInt() ?? 60;
       final creditos = (horario['creditos'] as num?)?.toInt() ?? 10;
       // null = hereda el default del estudio (no `?? 0`, que lo pisaria).
-      final reservaCierreMinutos =
-          (horario['reserva_cierre_minutos'] as num?)?.toInt();
+      final reservaCierreMinutos = (horario['reserva_cierre_minutos'] as num?)
+          ?.toInt();
       final cancelacionCierreMinutos =
           (horario['cancelacion_cierre_minutos'] as num?)?.toInt();
-      final categorias = (horario['categorias'] as List?)
-              ?.map((e) => e.toString())
-              .toList() ??
+      final categorias =
+          (horario['categorias'] as List?)?.map((e) => e.toString()).toList() ??
           const <String>[];
 
       final fechaStr = _toSupaDate(fechaClase);
@@ -955,7 +984,7 @@ class EstudioAdminService {
         'fecha': fechaStr,
         'duracion_min': duracion,
         'lugares_total': lugares,
-        'lugares_disponibles': lugares,  // al crear, siempre igual a total
+        'lugares_disponibles': lugares, // al crear, siempre igual a total
         'creditos': creditos,
         'reserva_cierre_minutos': reservaCierreMinutos,
         'cancelacion_cierre_minutos': cancelacionCierreMinutos,

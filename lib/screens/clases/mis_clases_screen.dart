@@ -8,6 +8,7 @@ import '../../utils/cupos_grilla.dart';
 import '../../utils/foto_url.dart';
 import '../../utils/liquidacion.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../providers/app_provider.dart';
 import '../../services/aviso_alumnos_service.dart';
 import '../../services/clases_service.dart';
@@ -1854,6 +1855,35 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   /// Cuánta gente espera lugar en cada clase futura, por `clase_id`. Vacío
   /// mientras no haya nadie anotada (que es el caso hoy en todos los estudios).
   Map<int, int> _enEspera = const {};
+
+  /// Prende o apaga "abro los feriados" para este estudio.
+  ///
+  /// Prenderlo no repone lo que ya no se generó: hay que volver a publicar la
+  /// grilla. Se lo decimos en el momento, que es cuando importa.
+  Future<void> _cambiarAbreFeriados(bool valor) async {
+    try {
+      await _service.setAbreFeriados(valor);
+      await _loadStudio();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            valor
+                ? 'Listo. Volvé a publicar la grilla para que aparezcan las clases de los feriados.'
+                : 'Listo. No se van a generar clases en feriados.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo guardar: ${_mensajeDeError(e)}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
 
   Future<void> _loadStudio() async {
     try {
@@ -3949,6 +3979,10 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
         // ── Horarios fijos table ──────────────────────────────────────────
         if (_showFixed) ...[
+          _AvisoFeriados(
+            abre: _estudio?['abre_feriados'] == true,
+            onCambiar: _cambiarAbreFeriados,
+          ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
@@ -9772,3 +9806,54 @@ Widget debugHorariosPorDiaEditor({
   duracionMin: duracionMin,
   onChanged: onChanged ?? () {},
 );
+
+/// "No se generan clases en feriados", con la casilla al lado.
+///
+/// Va arriba de la grilla y no escondido en configuración: el estudio tiene
+/// que enterarse ANTES de que le falte una clase, no después. Lo decidió
+/// Sofía el 19/10, con el antecedente de los guards del 20/8 — bloquear algo
+/// por default y que el que hace uso legítimo se entere tarde.
+class _AvisoFeriados extends StatelessWidget {
+  final bool abre;
+  final ValueChanged<bool> onCambiar;
+
+  const _AvisoFeriados({required this.abre, required this.onCambiar});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(AuraRadio.boton),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.event_busy_outlined,
+            size: 18,
+            color: AppColors.primaryTexto,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              abre
+                  ? 'Abrís los feriados: la grilla genera clases también esos días.'
+                  : 'No se generan clases en feriados. Si abrís, activalo acá.',
+              style: const TextStyle(
+                color: AppColors.primaryTexto,
+                fontSize: AuraTipo.secundario,
+              ),
+            ),
+          ),
+          Switch(
+            value: abre,
+            onChanged: onCambiar,
+            activeThumbColor: AppColors.primary,
+          ),
+        ],
+      ),
+    );
+  }
+}
