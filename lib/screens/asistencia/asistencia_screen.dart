@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/estudio_admin_service.dart';
+import '../../utils/asistencia_offline.dart';
 import '../../widgets/ancho_maximo.dart';
 
 class AsistenciaScreen extends StatefulWidget {
@@ -25,6 +26,9 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
   List<Map<String, dynamic>> _asistentes = [];
   Map<String, dynamic>? _claseSeleccionada;
   bool _loading = true;
+
+  /// El mensaje de error de la carga, null si salió bien.
+  String? _errorCarga;
   DateTime _now = DateTime.now();
   Timer? _bannerTimer;
   Timer? _syncTimer;
@@ -85,7 +89,27 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     super.dispose();
   }
 
+  /// Carga las clases del día. Con red de seguridad (20/10/2026): antes no
+  /// tenía try/catch y se llamaba desde `initState` sin await, así que si
+  /// fallaba la excepción quedaba sin manejar, `_loading` nunca pasaba a
+  /// false y la pantalla se quedaba en el spinner PARA SIEMPRE, sin mensaje.
+  /// Era la única de las seis del panel sin estado de error.
   Future<void> _cargar() async {
+    setState(() => _errorCarga = null);
+    try {
+      await _cargarInterno();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _errorCarga = e is PostgrestException
+            ? e.message
+            : 'No pudimos cargar las clases de hoy.';
+      });
+    }
+  }
+
+  Future<void> _cargarInterno() async {
     final now = DateTime.now();
     // IMPORTANTE: solo clases del estudio ACTIVO. getClasesDeEstudio scopea por
     // usuarios.estudio_id (el estudio en el que estás parada en el panel). Antes
@@ -185,60 +209,99 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     }
   }
 
-  Future<void> _guardarPendienteSync(String codigoQr) async {
+  /// Encola una marca para cuando vuelva la conexión.
+  ///
+  /// Guarda el ESTADO y la HORA, no sólo el código: antes la cola escribía
+  /// `presente` hardcodeado, así que un "marcar ausente" volvía como
+  /// presente, y sellaba la hora de la sincronización en vez de la del
+  /// escaneo.
+  Future<void> _guardarPendienteSync(
+    String codigoQr, {
+    required String estado,
+    DateTime? cuando,
+  }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString('pendientes_sync') ?? '[]';
-      final lista = (jsonDecode(raw) as List)
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList();
-      lista.add({
-        'codigo_qr': codigoQr,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
-      await prefs.setString('pendientes_sync', jsonEncode(lista));
+      final cola = leerCola(jsonDecode(raw) as List);
+      final nueva = encolar(
+        cola,
+        PendienteAsistencia(
+          codigoQr: codigoQr,
+          estado: estado,
+          cuando: cuando ?? DateTime.now(),
+        ),
+      );
+      await prefs.setString(
+        'pendientes_sync',
+        jsonEncode(nueva.map((e) => e.aJson()).toList()),
+      );
     } catch (_) {}
   }
 
+  /// Sincroniza lo encolado. Sólo saca de la cola lo que la base aceptó.
+  ///
+  /// Antes vaciaba la cola entera después del loop. Un UPDATE que afectaba
+  /// 0 filas —RLS filtra, no tira error— se daba por bueno y la asistencia
+  /// se perdía en silencio, con un "✓ Cambios sincronizados" arriba. Ahora
+  /// cada UPDATE pide `.select()` y se cuenta lo que volvió: lo que no entró
+  /// se queda esperando.
   Future<void> _sincronizarPendientes() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString('pendientes_sync');
       if (raw == null || raw == '[]') return;
-      final lista = (jsonDecode(raw) as List)
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList();
-      if (lista.isEmpty) return;
+      final cola = leerCola(jsonDecode(raw) as List);
+      if (cola.isEmpty) return;
 
-      for (final item in lista) {
-        final codigo = item['codigo_qr']?.toString() ?? '';
-        if (codigo.isEmpty) continue;
-        await Supabase.instance.client
-            .from('reservas')
-            .update({
-              'estado': 'presente',
-              'checked_in_at': DateTime.now().toIso8601String(),
-            })
-            .eq('codigo_qr', codigo);
+      final quedan = <PendienteAsistencia>[];
+      var sincronizadas = 0;
+      for (final item in cola) {
+        try {
+          final filas = await Supabase.instance.client
+              .from('reservas')
+              .update(item.aUpdate())
+              .eq('codigo_qr', item.codigoQr)
+              .select('id');
+          if ((filas as List).isEmpty) {
+            // La base no la rechazó: directamente no la vio. Es RLS o un
+            // código que ya no existe. Insistir no lo va a arreglar, pero
+            // tampoco se descarta en silencio: queda para que el conteo de
+            // pendientes lo siga mostrando.
+            quedan.add(item);
+          } else {
+            sincronizadas++;
+          }
+        } catch (e) {
+          // Si volvió a fallar, se queda en la cola.
+          quedan.add(item);
+        }
       }
 
-      await prefs.setString('pendientes_sync', '[]');
-      if (mounted) {
-        setState(() {
-          _isOffline = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('✓ Cambios sincronizados correctamente'),
-            backgroundColor: const Color(0xFF43A047),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            duration: const Duration(seconds: 2),
+      await prefs.setString(
+        'pendientes_sync',
+        jsonEncode(quedan.map((e) => e.aJson()).toList()),
+      );
+      if (!mounted) return;
+      setState(() => _isOffline = quedan.isNotEmpty);
+
+      // El cartel dice la verdad: cuántas entraron y cuántas no.
+      final msg = quedan.isEmpty
+          ? '✓ $sincronizadas asistencia(s) sincronizada(s)'
+          : '$sincronizadas sincronizada(s), ${quedan.length} sin poder guardarse';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: quedan.isEmpty
+              ? const Color(0xFF43A047)
+              : AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-        );
-      }
+          duration: const Duration(seconds: 3),
+        ),
+      );
     } catch (_) {}
   }
 
@@ -634,6 +697,23 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     } catch (e) {
       setState(() => _debugResult = 'EXCEPTION: $e');
       if (!mounted) return;
+
+      // Sólo se cae al modo offline si DE VERDAD no hubo conexión
+      // (20/10/2026). Antes cualquier excepción entraba acá: un 42501 de
+      // RLS, un 400 o un guard de la base mostraban el popup verde
+      // "Guardado offline" y el estudio se iba convencido de que había
+      // tomado la asistencia.
+      if (!esFallaDeRed(e)) {
+        _mostrarPopup(
+          exito: false,
+          titulo: 'No se pudo registrar',
+          subtitulo: e is PostgrestException
+              ? e.message
+              : 'Probá de nuevo en un momento',
+        );
+        return;
+      }
+
       // Offline fallback: search locally
       final match = _asistentes
           .where(
@@ -658,7 +738,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
             return a;
           }).toList();
         });
-        await _guardarPendienteSync(normalizado);
+        await _guardarPendienteSync(normalizado, estado: 'presente');
         final user = asistente['usuario'] as Map<String, dynamic>?;
         _mostrarPopup(
           exito: true,
@@ -1390,6 +1470,36 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
             ? const Center(
                 child: CircularProgressIndicator(color: AppColors.primary),
               )
+            : _errorCarga != null
+            // Decir que falló, y dar por dónde salir. Antes esto no existía
+            // y la pantalla se quedaba girando sin explicación.
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.cloud_off_rounded,
+                        size: 42,
+                        color: AppColors.grey,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _errorCarga!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.grey),
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton.icon(
+                        onPressed: _cargar,
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('Reintentar'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
             : SafeArea(
                 child: RefreshIndicator(
                   color: AppColors.primary,
@@ -1781,20 +1891,61 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       update['checked_in_at'] = null;
     }
 
+    // El resultado manda sobre lo que se muestra (20/10/2026).
+    //
+    // Antes el snackbar y el cambio de la fila estaban FUERA del try: el
+    // estudio veía "✓ marcado como presente" aunque el UPDATE hubiera
+    // fallado o afectado 0 filas. Ahora hay tres finales distintos y cada
+    // uno dice lo que pasó.
+    String msg;
+    Color fondo;
+    var aplicar = true;
+
     try {
-      await Supabase.instance.client
+      final filas = await Supabase.instance.client
           .from('reservas')
           .update(update)
-          .eq('codigo_qr', codigoQr);
-      if (mounted && _isOffline) setState(() => _isOffline = false);
-    } catch (_) {
-      // Offline: queue for sync
-      await _guardarPendienteSync(codigoQr);
-      if (mounted) setState(() => _isOffline = true);
+          .eq('codigo_qr', codigoQr)
+          .select('id');
+
+      if ((filas as List).isEmpty) {
+        // Sin excepción y sin filas: RLS la filtró. No se toca la lista
+        // local, porque en la base no pasó nada.
+        aplicar = false;
+        msg = 'No se pudo marcar a $nombre. Actualizá e intentá de nuevo.';
+        fondo = AppColors.error;
+      } else {
+        msg = nuevoEstado == 'presente'
+            ? '✓ $nombre marcado como presente'
+            : nuevoEstado == 'ausente'
+            ? '$nombre marcado como ausente'
+            : '$nombre marcado como pendiente';
+        fondo = const Color(0xFF1A1A1A);
+        if (mounted && _isOffline) setState(() => _isOffline = false);
+      }
+    } catch (e) {
+      if (esFallaDeRed(e)) {
+        // Sin internet: se encola CON el estado buscado y se avisa que
+        // quedó pendiente, no que se guardó.
+        await _guardarPendienteSync(codigoQr, estado: nuevoEstado);
+        if (mounted) setState(() => _isOffline = true);
+        msg = 'Sin conexión: $nombre queda pendiente de sincronizar.';
+        // Naranja y no el ámbar de `warning`: con texto blanco el ámbar
+        // queda por debajo del contraste legible, y acá el mensaje importa.
+        fondo = AppColors.primary;
+      } else {
+        // El servidor contestó que no. Encolarlo sería mentir: va a fallar
+        // igual. Se muestra el motivo real.
+        aplicar = false;
+        msg = e is PostgrestException
+            ? 'No se pudo marcar a $nombre: ${e.message}'
+            : 'No se pudo marcar a $nombre.';
+        fondo = AppColors.error;
+      }
     }
 
-    // Actualizar lista local
-    if (mounted) {
+    if (!mounted) return;
+    if (aplicar) {
       setState(() {
         _asistentes = _asistentes.map((a) {
           if (a['codigo_qr'] == codigoQr) {
@@ -1803,24 +1954,15 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
           return a;
         }).toList();
       });
-
-      final msg = nuevoEstado == 'presente'
-          ? '✓ $nombre marcado como presente'
-          : nuevoEstado == 'ausente'
-          ? '$nombre marcado como ausente'
-          : '$nombre marcado como pendiente';
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          backgroundColor: const Color(0xFF1A1A1A),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
     }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: fondo,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   Future<void> _mostrarAccionesAsistente(Map<String, dynamic> asistente) async {
