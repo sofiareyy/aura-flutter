@@ -41,6 +41,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # Sube los source maps de la web a Sentry (20/10/2026). Sin esto, TODO
+  # error de web llega como `minified:abh` y es irresoluble: los nombres de
+  # Dart compilado son ilegibles. Ver el bloque `sentry:` al final.
+  sentry_dart_plugin: ^3.0.0
   # Genera los 21 archivos del ícono (16 de iOS + 5 de Android) desde el
   # maestro de assets/icono/. Antes estaban sueltos en el repo desde el
   # 13/4/2026, sin fuente: cambiar el ícono era rehacerlos a mano.
@@ -67,3 +71,30 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+
+# ── Subida de source maps a Sentry ────────────────────────────────────────
+#
+# Lo corre el CI después de `flutter build web --release --source-maps`, con
+# `dart run sentry_dart_plugin`. El .map NO se publica con el sitio: se sube
+# acá y se borra antes del deploy (pesa 4,4 MB y no tiene por qué servirse).
+#
+# FALTAN TRES DATOS, que sólo los tiene Sofía:
+#   · org     — el slug de la organización en Sentry (NO el número del DSN).
+#               Está en la URL del dashboard: sentry.io/organizations/<slug>/
+#   · project — el slug del proyecto, en Settings → Projects.
+#   · el token — un Internal Integration token con permiso
+#               `project:releases`, guardado como secret SENTRY_AUTH_TOKEN en
+#               GitHub. NO va acá: el repo es público.
+#
+# Mientras falte cualquiera de los tres, el paso del CI se saltea solo y el
+# deploy sigue andando igual.
+sentry:
+  upload_source_maps: true
+  upload_debug_symbols: false
+  upload_sources: true
+  org: COMPLETAR_SLUG_DE_LA_ORG
+  project: COMPLETAR_SLUG_DEL_PROYECTO
+  # El nombre de la release tiene que coincidir con el que manda el SDK, que
+  # sale del pubspec: aura_app@<version>. Si se tocan por separado, los mapas
+  # no matchean con los errores y es como no haberlos subido.
+  release: aura_app@1.0.8+33

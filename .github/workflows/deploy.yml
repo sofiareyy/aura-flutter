@@ -14,7 +14,30 @@ jobs:
       # La web vive en la RAÍZ de somosaurapass.com, no en un subdirectorio.
       # Con el dominio propio, --base-href /aura-flutter/ haría que todos los
       # assets se busquen en somosaurapass.com/aura-flutter/... y den 404.
-      - run: flutter build web --release --base-href /
+      # `--source-maps` desde el 20/10/2026: sin el mapa, todo error de web
+      # llega a Sentry como `minified:abh` y no se puede arreglar ninguno.
+      - run: flutter build web --release --base-href / --source-maps
+
+      # Sube los mapas a Sentry. Se saltea solo si falta el token o si el
+      # pubspec todavía tiene los slugs sin completar: un deploy NUNCA puede
+      # romperse por esto.
+      - name: Subir source maps a Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo "Sin SENTRY_AUTH_TOKEN: se saltea la subida de source maps."
+            exit 0
+          fi
+          if grep -q "COMPLETAR_SLUG" pubspec.yaml; then
+            echo "El bloque sentry: del pubspec todavía tiene placeholders."
+            exit 0
+          fi
+          dart run sentry_dart_plugin || echo "La subida falló; el deploy sigue."
+
+      # El .map NO se publica: pesa 4,4 MB y ya vive en Sentry.
+      - run: rm -f build/web/*.map
+
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

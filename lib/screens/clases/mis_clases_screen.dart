@@ -689,6 +689,18 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
   ///
   /// Prender nunca pregunta: `actualizarHorarioFijo` dispara la generación y el
   /// horario vuelve a llenarse solo.
+  /// Lo que se le dice al estudio cuando NO se pudo averiguar qué clases
+  /// tiene publicadas ese horario.
+  ///
+  /// Los tres caminos destructivos de esta pantalla tenían un `catch (_) {}`
+  /// que dejaba `futuras = []`. Una consulta caída se volvía "no hay nada
+  /// publicado", y a partir de ahí: apagar sin preguntar, o confirmar con
+  /// "no afecta a ningún alumno" cuando sí afectaba. Es el bug de setiembre
+  /// otra vez. Ahora se frena: sin ese dato no hay decisión posible.
+  static const String _noSePudoVerificar =
+      'No pudimos verificar qué clases tiene publicadas este horario. '
+      'Revisá tu conexión y probá de nuevo.';
+
   Future<void> _toggleFixed(int id, bool activo) async {
     if (_togglingFixed) return;
 
@@ -703,7 +715,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     List<Map<String, dynamic>> futuras = const [];
     try {
       futuras = await _service.listarClasesFuturasDeHorario(id);
-    } catch (_) {}
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(_noSePudoVerificar),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
     if (!mounted) return;
 
     // Ordenadas para poder nombrar el rango: "del 16/9 al 4/11".
@@ -3809,7 +3830,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     List<Map<String, dynamic>> futuras = const [];
     try {
       futuras = await _service.listarClasesFuturasDeHorario(id);
-    } catch (_) {}
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(_noSePudoVerificar),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
     if (!mounted) return;
 
     final ids = futuras
@@ -6211,7 +6241,16 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     List<Map<String, dynamic>> futuras = const [];
     try {
       futuras = await _service.listarClasesFuturasDeHorario(horarioFijoId);
-    } catch (_) {}
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(_noSePudoVerificar),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
     if (!mounted) return;
 
     final idsFuturas = futuras
@@ -6357,6 +6396,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
 
     int totalDevueltos = 0;
     int canceladas = 0;
+    final fallidas = <String>[];
     for (final id in ids) {
       final clase = _clases.firstWhere(
         (c) => (c['id'] as num?)?.toInt() == id,
@@ -6369,7 +6409,14 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           nom,
         );
         canceladas++;
-      } catch (_) {}
+      } catch (_) {
+        // Las que NO salieron se nombran al final. Antes esto era un
+        // `catch (_) {}` y el cartel contaba sólo las que sí: si el candado
+        // de "clase con anotadas" frenaba 3 de 10, el estudio leía "7 clases
+        // eliminadas" y de las otras 3 no se enteraba nunca.
+        fallidas.add(nom);
+        continue;
+      }
       // Borrado extra "por las dudas" (cancelarClaseConDevolucion ya borra la
       // fila, pero replicamos el patrón de _eliminarClase para robustez).
       try {
@@ -6384,12 +6431,24 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       _seleccionMultiple = false;
       _seleccionadas.clear();
     });
+    // El cartel nombra lo que NO salió. El patrón bueno ya existía en
+    // `_borrarClasesDeHorario`, que nunca se traga un error y devuelve la
+    // lista de fallidas; este camino era el único que no lo seguía.
+    final hubo = fallidas.isNotEmpty;
+    final cuales = fallidas.take(3).join(', ');
+    final cola = hubo
+        ? ' No se pudo eliminar ${fallidas.length}: $cuales'
+              '${fallidas.length > 3 ? '…' : ''}.'
+        : '';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
+        backgroundColor: hubo ? AppColors.error : null,
+        duration: Duration(seconds: hubo ? 6 : 4),
         content: Text(
           '$canceladas clase${canceladas != 1 ? 's' : ''} '
           'eliminada${canceladas != 1 ? 's' : ''}'
-          '${totalDevueltos > 0 ? ', $totalDevueltos alumno${totalDevueltos != 1 ? 's' : ''} con créditos devueltos' : ''}.',
+          '${totalDevueltos > 0 ? ', $totalDevueltos alumno${totalDevueltos != 1 ? 's' : ''} con créditos devueltos' : ''}.'
+          '$cola',
         ),
       ),
     );

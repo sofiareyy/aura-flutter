@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -42,6 +43,14 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   List<String> _categorias = const ['Todos'];
   String _categoriaSeleccionada = 'Todos';
   bool _loading = true;
+
+  /// El mensaje si la carga falló, null si salió bien (20/10/2026).
+  ///
+  /// Antes `_cargar` no tenía try/catch: una falla dejaba `_loading` en true
+  /// y la pantalla giraba para siempre, sin mensaje ni forma de reintentar.
+  /// Explorar es la pantalla más visitada de la web, así que ese spinner
+  /// eterno es la cara que ve la mayoría cuando algo se rompe.
+  String? _errorCarga;
   bool _loadingMore = false;
   bool _hasMoreClases = true;
   int _clasesOffset = 0;
@@ -175,8 +184,26 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   /// [mantenerScroll] evita el parpadeo de la silueta cuando el que cambió es
   /// el texto del buscador: la lista se reemplaza sin volver a vaciar.
   Future<void> _cargar({bool mantenerScroll = false}) async {
-    if (mounted && !mantenerScroll) setState(() => _loading = true);
+    if (mounted) {
+      setState(() {
+        if (!mantenerScroll) _loading = true;
+        _errorCarga = null;
+      });
+    }
+    try {
+      await _cargarInterno(mantenerScroll: mantenerScroll);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _errorCarga = e is PostgrestException
+            ? e.message
+            : 'No pudimos cargar las clases. Revisá tu conexión.';
+      });
+    }
+  }
 
+  Future<void> _cargarInterno({bool mantenerScroll = false}) async {
     // Los estudios primero: de ahí salen los ids que necesitan los filtros.
     if (_estudios.isEmpty) {
       final estudios = await _estudiosService.getEstudios();
@@ -1011,7 +1038,37 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                   // empujaba todo lo de abajo. Ahora deja la silueta de las
                   // tarjetas que vienen, con las medidas reales, así nada
                   // salta de lugar.
-                  if (_loading)
+                  if (_errorCarga != null)
+                    // Decirlo y dar por dónde salir. Antes esto no existía y
+                    // la pantalla giraba sin explicación.
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      child: Column(
+                        children: [
+                          const Icon(
+                            Icons.cloud_off_rounded,
+                            size: 44,
+                            color: Color(0xFFB2A89F),
+                          ),
+                          const SizedBox(height: AuraEspacio.m),
+                          Text(
+                            _errorCarga!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: AppColors.textoSuave,
+                              fontSize: AuraTipo.cuerpo,
+                            ),
+                          ),
+                          const SizedBox(height: AuraEspacio.m),
+                          TextButton.icon(
+                            onPressed: _cargar,
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            label: const Text('Reintentar'),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (_loading)
                     const AuraSkeletonCarrusel(
                       alto: altoCarruselDestacados,
                       anchoTarjeta: 166,

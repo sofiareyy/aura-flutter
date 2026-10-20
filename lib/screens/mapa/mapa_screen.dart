@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
@@ -27,10 +28,16 @@ class _MapaScreenState extends State<MapaScreen> {
 
   List<Estudio> _estudios = [];
   bool _loading = true;
+
+  /// El mensaje si la carga falló (20/10/2026). `_cargar` no tenía try/catch
+  /// y `getCurrentLocation()` tampoco: un problema de geolocalización escapaba
+  /// entero, llegaba a Sentry y dejaba el mapa girando para siempre.
+  String? _errorCarga;
   String _categoriaSeleccionada = 'Todos';
   bool _filtrosInicialesAplicados = false;
-  AuraLocationState _locationState =
-      const AuraLocationState(status: AuraLocationStatus.unknown);
+  AuraLocationState _locationState = const AuraLocationState(
+    status: AuraLocationStatus.unknown,
+  );
   NearbyStudyResult? _selectedStudy;
 
   /// La tarjeta de ayuda es de una sola vez: quien ya entendió el mapa no
@@ -82,23 +89,44 @@ class _MapaScreenState extends State<MapaScreen> {
   }
 
   Future<void> _cargar() async {
-    final studies = await _service.getEstudios();
-    final location = await _locationService.getCurrentLocation();
-    if (!mounted) return;
-    setState(() {
-      _estudios = studies;
-      _locationState = location;
-      _loading = false;
-    });
+    if (mounted) setState(() => _errorCarga = null);
+    try {
+      final studies = await _service.getEstudios();
+      // La ubicación va aparte: que falle el GPS no puede dejar sin mapa a
+      // quien igual quiere ver los estudios. Antes una excepción acá se
+      // llevaba puesta toda la carga.
+      AuraLocationState location = const AuraLocationState(
+        status: AuraLocationStatus.unavailable,
+      );
+      try {
+        location = await _locationService.getCurrentLocation();
+      } catch (_) {}
+      if (!mounted) return;
+      setState(() {
+        _estudios = studies;
+        _locationState = location;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _errorCarga = e is PostgrestException
+            ? e.message
+            : 'No pudimos cargar el mapa. Revisá tu conexión.';
+      });
+    }
   }
 
   List<NearbyStudyResult> get _results {
     final q = _searchCtrl.text.trim().toLowerCase();
     final filtered = _estudios.where((estudio) {
       // Un estudio matchea si CUALQUIERA de sus categorias coincide.
-      final matchesCategory = _categoriaSeleccionada == 'Todos' ||
+      final matchesCategory =
+          _categoriaSeleccionada == 'Todos' ||
           estudio.tieneCategoria(_categoriaSeleccionada);
-      final matchesSearch = q.isEmpty ||
+      final matchesSearch =
+          q.isEmpty ||
           estudio.nombre.toLowerCase().contains(q) ||
           (estudio.barrio?.toLowerCase().contains(q) ?? false) ||
           (estudio.direccion?.toLowerCase().contains(q) ?? false) ||
@@ -120,15 +148,20 @@ class _MapaScreenState extends State<MapaScreen> {
       _categoriaSeleccionada = 'Todos';
       _selectedStudy = null;
     });
-    final center =
-        _geoService.centerForResults(_results, _locationState.position);
+    final center = _geoService.centerForResults(
+      _results,
+      _locationState.position,
+    );
     _mapCtrl.move(center, _locationState.granted ? 12.8 : 11.7);
   }
 
   @override
   Widget build(BuildContext context) {
     final results = _results;
-    final center = _geoService.centerForResults(results, _locationState.position);
+    final center = _geoService.centerForResults(
+      results,
+      _locationState.position,
+    );
 
     // Pantalla baja = celular en horizontal. Ahí el encabezado y el buscador
     // se comían un tercio del alto y el mapa quedaba en una franja (informe
@@ -141,6 +174,38 @@ class _MapaScreenState extends State<MapaScreen> {
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary),
+            )
+          : _errorCarga != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.cloud_off_rounded,
+                      size: 42,
+                      color: AppColors.grey,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _errorCarga!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AppColors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton.icon(
+                      onPressed: _cargar,
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('Reintentar'),
+                    ),
+                    TextButton(
+                      onPressed: () => context.pop(),
+                      child: const Text('Volver'),
+                    ),
+                  ],
+                ),
+              ),
             )
           : SafeArea(
               child: Column(
@@ -284,11 +349,13 @@ class _MapaScreenState extends State<MapaScreen> {
                                   mapController: _mapCtrl,
                                   options: MapOptions(
                                     initialCenter: center,
-                                    initialZoom:
-                                        _locationState.granted ? 12.8 : 11.7,
-                                    interactionOptions: const InteractionOptions(
-                                      flags: InteractiveFlag.all,
-                                    ),
+                                    initialZoom: _locationState.granted
+                                        ? 12.8
+                                        : 11.7,
+                                    interactionOptions:
+                                        const InteractionOptions(
+                                          flags: InteractiveFlag.all,
+                                        ),
                                     onTap: (_, __) =>
                                         setState(() => _selectedStudy = null),
                                   ),
@@ -305,7 +372,9 @@ class _MapaScreenState extends State<MapaScreen> {
                                           Marker(
                                             point: LatLng(
                                               _locationState.position!.latitude,
-                                              _locationState.position!.longitude,
+                                              _locationState
+                                                  .position!
+                                                  .longitude,
                                             ),
                                             width: 30,
                                             height: 30,
@@ -331,8 +400,10 @@ class _MapaScreenState extends State<MapaScreen> {
                                       ),
                                     MarkerLayer(
                                       markers: results
-                                          .where((result) =>
-                                              result.coordinates != null)
+                                          .where(
+                                            (result) =>
+                                                result.coordinates != null,
+                                          )
                                           .map(
                                             (result) => Marker(
                                               point: result.coordinates!,
@@ -390,32 +461,34 @@ class _MapaScreenState extends State<MapaScreen> {
                           child: _selectedStudy != null
                               ? _MapSelectedStudyCard(
                                   result: _selectedStudy!,
-                                  ratingLabel:
-                                      _ratingLabel(_selectedStudy!.estudio.rating),
-                                  distanceLabel: _geoService
-                                      .formatDistance(_selectedStudy!.distanceKm),
+                                  ratingLabel: _ratingLabel(
+                                    _selectedStudy!.estudio.rating,
+                                  ),
+                                  distanceLabel: _geoService.formatDistance(
+                                    _selectedStudy!.distanceKm,
+                                  ),
                                   onTap: () => context.push(
                                     '/estudio/${_selectedStudy!.estudio.id}',
                                   ),
                                 )
                               : _hintOculto
-                                  ? const SizedBox.shrink()
-                                  : _MapHintCard(
-                                      granted: _locationState.granted,
-                                      // En horizontal la pantalla es baja y la
-                                      // tarjeta entera tapaba marcadores
-                                      // (informe de testers, 24/9/2026): ahí
-                                      // va en una sola línea, sin el ícono.
-                                      compacta: bajo,
-                                      onCerrar: _ocultarHint,
-                                      onTap: () {
-                                        if (results.isNotEmpty) {
-                                          setState(
-                                            () => _selectedStudy = results.first,
-                                          );
-                                        }
-                                      },
-                                    ),
+                              ? const SizedBox.shrink()
+                              : _MapHintCard(
+                                  granted: _locationState.granted,
+                                  // En horizontal la pantalla es baja y la
+                                  // tarjeta entera tapaba marcadores
+                                  // (informe de testers, 24/9/2026): ahí
+                                  // va en una sola línea, sin el ícono.
+                                  compacta: bajo,
+                                  onCerrar: _ocultarHint,
+                                  onTap: () {
+                                    if (results.isNotEmpty) {
+                                      setState(
+                                        () => _selectedStudy = results.first,
+                                      );
+                                    }
+                                  },
+                                ),
                         ),
                       ],
                     ),
@@ -431,10 +504,7 @@ class _MapPillMarker extends StatelessWidget {
   final String label;
   final bool active;
 
-  const _MapPillMarker({
-    required this.label,
-    required this.active,
-  });
+  const _MapPillMarker({required this.label, required this.active});
 
   @override
   Widget build(BuildContext context) {
@@ -639,7 +709,9 @@ class _MapSelectedStudyCard extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFF4EC),
-                            borderRadius: BorderRadius.circular(AuraRadio.pastilla),
+                            borderRadius: BorderRadius.circular(
+                              AuraRadio.pastilla,
+                            ),
                           ),
                           child: Text(
                             ratingLabel,
@@ -676,10 +748,7 @@ class _MapSelectedStudyCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.primary,
-              ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
             ],
           ),
         ),
