@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aura_tokens.dart';
 import '../../services/admin_service.dart';
 import 'admin_export_helper.dart';
 import '../../widgets/ancho_maximo.dart';
@@ -24,6 +25,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   String? _error;
   Map<String, dynamic>? _metrics;
 
+  /// Los reportes de "la clase no se dio". Van arriba de todo y sólo cuando
+  /// hay: una reserva en `en_revision` no se liquida, así que cada día que
+  /// pasa sin resolver es plata que el estudio no cobra y créditos que la
+  /// alumna no recupera.
+  List<Map<String, dynamic>> _reportes = const [];
+
   @override
   void initState() {
     super.initState();
@@ -40,9 +47,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     });
     try {
       final data = await _service.getDashboardMetrics(from: _from, to: _to);
+      // Si falla, el dashboard igual se muestra: un reporte no leído no puede
+      // dejar a Sofía sin sus números.
+      final reportes = await _service.listReportesClaseNoDada().catchError(
+        (_) => <Map<String, dynamic>>[],
+      );
       if (!mounted) return;
       setState(() {
         _metrics = data;
+        _reportes = reportes;
         _loading = false;
       });
     } catch (e) {
@@ -52,6 +65,59 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _resolverReporte(
+    Map<String, dynamic> reporte, {
+    required bool seDio,
+  }) async {
+    final id = (reporte['reserva_id'] as num?)?.toInt();
+    if (id == null) return;
+    final creditos = (reporte['creditos_usados'] as num?)?.toInt() ?? 0;
+
+    // Se confirma SIEMPRE, y el texto dice lo que va a pasar con la plata:
+    // una de las dos opciones devuelve créditos y la otra deja que el estudio
+    // cobre. Ninguna es reversible desde acá.
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(seDio ? '¿La clase sí se dio?' : '¿La clase no se dio?'),
+        content: Text(
+          seDio
+              ? 'La reserva vuelve a contar y el estudio la cobra normalmente.'
+              : 'Se le devuelven $creditos créditos a '
+                    '${reporte['alumna'] ?? 'la alumna'} y el estudio NO cobra '
+                    'esta reserva.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    final error = await _service.resolverReporte(id, seDio: seDio);
+    if (!mounted) return;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error == 'no_esta_en_revision'
+                ? 'Ese reporte ya estaba resuelto.'
+                : 'No se pudo resolver: $error',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+    await _load();
   }
 
   Future<void> _pickRange() async {
@@ -140,6 +206,10 @@ Top categoría: ${m['top_categoria'] ?? 'Sin datos'}
                 child: ListView(
                   padding: const EdgeInsets.all(20),
                   children: [
+                    _ReportesPendientes(
+                      reportes: _reportes,
+                      onResolver: _resolverReporte,
+                    ),
                     Row(
                       children: [
                         Expanded(
@@ -503,6 +573,134 @@ class _AlertCard extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Los reportes de "la clase no se dio", arriba de todo y sólo cuando hay.
+///
+/// Mientras una reserva está `en_revision` no se liquida: el estudio no cobra
+/// y la alumna no tiene sus créditos de vuelta. Por eso esto grita, y por eso
+/// desaparece del todo cuando no queda nada pendiente — un cartel que está
+/// siempre deja de leerse.
+class _ReportesPendientes extends StatelessWidget {
+  final List<Map<String, dynamic>> reportes;
+  final Future<void> Function(Map<String, dynamic>, {required bool seDio})
+  onResolver;
+
+  const _ReportesPendientes({required this.reportes, required this.onResolver});
+
+  @override
+  Widget build(BuildContext context) {
+    final pendientes = reportes
+        .where((r) => r['estado'] == 'pendiente')
+        .toList();
+    if (pendientes.isEmpty) return const SizedBox.shrink();
+
+    final fmt = DateFormat("d 'de' MMM, HH:mm", 'es');
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1E8),
+        borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+        border: Border.all(color: AppColors.primary, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.report_problem_outlined,
+                color: AppColors.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                pendientes.length == 1
+                    ? '1 clase reportada como no dada'
+                    : '${pendientes.length} clases reportadas como no dadas',
+                style: const TextStyle(
+                  color: AppColors.black,
+                  fontSize: AuraTipo.cuerpo,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Mientras no se resuelvan, el estudio no las cobra y la alumna no '
+            'tiene sus créditos.',
+            style: TextStyle(
+              color: AppColors.grey,
+              fontSize: AuraTipo.secundario,
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (final r in pendientes) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(AuraRadio.boton),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${r['clase'] ?? 'Clase'} · ${r['estudio'] ?? ''}',
+                    style: const TextStyle(
+                      color: AppColors.black,
+                      fontSize: AuraTipo.cuerpo,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    [
+                      if (r['clase_fecha'] != null)
+                        fmt.format(DateTime.parse(r['clase_fecha'].toString())),
+                      r['alumna']?.toString() ??
+                          r['alumna_email']?.toString() ??
+                          '',
+                      '${(r['creditos_usados'] as num?)?.toInt() ?? 0} créditos',
+                    ].where((e) => e.isNotEmpty).join(' · '),
+                    style: const TextStyle(
+                      color: AppColors.grey,
+                      fontSize: AuraTipo.secundario,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => onResolver(r, seDio: true),
+                          child: const Text('Sí se dio'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => onResolver(r, seDio: false),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Devolver créditos'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

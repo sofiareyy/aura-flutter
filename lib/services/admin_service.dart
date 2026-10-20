@@ -34,7 +34,8 @@ class AdminService {
     final m = Map<String, dynamic>.from((res as List).first as Map);
 
     final now = DateTime.now();
-    final fromStr = (from ?? now.subtract(const Duration(days: 30))).toIso8601String();
+    final fromStr = (from ?? now.subtract(const Duration(days: 30)))
+        .toIso8601String();
     final toStr = (to ?? now).toIso8601String();
     final weekEnd = now.add(const Duration(days: 7));
     final venceHasta = now.add(const Duration(days: 3)).toIso8601String();
@@ -43,54 +44,112 @@ class AdminService {
     try {
       final results = await Future.wait([
         _client.from('usuarios').select('creditos').not('creditos', 'is', null),
-        _client.from('reservas').select('usuario_id').gte('created_at', fromStr).lte('created_at', toStr).neq('estado', 'cancelada'),
-        _client.from('clases').select('instructor').not('instructor', 'is', null).gte('fecha', fromStr).lte('fecha', toStr),
-        _client.from('reservas').select('created_at').gte('created_at', fromStr).lte('created_at', toStr).neq('estado', 'cancelada'),
+        _client
+            .from('reservas')
+            .select('usuario_id')
+            .gte('created_at', fromStr)
+            .lte('created_at', toStr)
+            .neq('estado', 'cancelada'),
+        _client
+            .from('clases')
+            .select('instructor')
+            .not('instructor', 'is', null)
+            .gte('fecha', fromStr)
+            .lte('fecha', toStr),
+        _client
+            .from('reservas')
+            .select('created_at')
+            .gte('created_at', fromStr)
+            .lte('created_at', toStr)
+            .neq('estado', 'cancelada'),
         _client.from('estudios').select('id').eq('activo', true),
-        _client.from('clases').select('estudio_id').gte('fecha', now.toIso8601String()).lte('fecha', weekEnd.toIso8601String()),
-        _client.from('usuarios').select('id').not('creditos_vencimiento', 'is', null).gt('creditos', 0).lte('creditos_vencimiento', venceHasta).gte('creditos_vencimiento', now.toIso8601String()),
-        _client.from('reservas').select('id').eq('estado', 'confirmada').isFilter('checked_in_at', null).lte('created_at', hace24h),
+        _client
+            .from('clases')
+            .select('estudio_id')
+            .gte('fecha', now.toIso8601String())
+            .lte('fecha', weekEnd.toIso8601String()),
+        _client
+            .from('usuarios')
+            .select('id')
+            .not('creditos_vencimiento', 'is', null)
+            .gt('creditos', 0)
+            .lte('creditos_vencimiento', venceHasta)
+            .gte('creditos_vencimiento', now.toIso8601String()),
+        _client
+            .from('reservas')
+            .select('id')
+            .eq('estado', 'confirmada')
+            .isFilter('checked_in_at', null)
+            .lte('created_at', hace24h),
       ]);
 
       // Créditos en circulación
-      final creditosCirculacion = (results[0] as List).fold<int>(0, (s, r) => s + ((r['creditos'] as num?)?.toInt() ?? 0));
+      final creditosCirculacion = (results[0] as List).fold<int>(
+        0,
+        (s, r) => s + ((r['creditos'] as num?)?.toInt() ?? 0),
+      );
 
       // Tasa de conversión
-      final usuariosQueReservaron = (results[1] as List).map((r) => r['usuario_id']).toSet().length;
+      final usuariosQueReservaron = (results[1] as List)
+          .map((r) => r['usuario_id'])
+          .toSet()
+          .length;
       final usuariosTotal = (m['usuarios_total'] as num?)?.toInt() ?? 1;
-      final tasaConversion = usuariosTotal > 0 ? (usuariosQueReservaron * 100 / usuariosTotal).round() : 0;
+      final tasaConversion = usuariosTotal > 0
+          ? (usuariosQueReservaron * 100 / usuariosTotal).round()
+          : 0;
 
       // Top instructor
       final instructorCount = <String, int>{};
       for (final row in (results[2] as List)) {
         final ins = (row['instructor'] as String?)?.trim() ?? '';
-        if (ins.isNotEmpty) instructorCount[ins] = (instructorCount[ins] ?? 0) + 1;
+        if (ins.isNotEmpty)
+          instructorCount[ins] = (instructorCount[ins] ?? 0) + 1;
       }
       final topInstructor = instructorCount.isEmpty
           ? 'Sin datos'
-          : instructorCount.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+          : instructorCount.entries
+                .reduce((a, b) => a.value >= b.value ? a : b)
+                .key;
 
       // Hora pico
       final horaCount = <int, int>{};
       for (final row in (results[3] as List)) {
         final dt = DateTime.tryParse(row['created_at']?.toString() ?? '');
-        if (dt != null) horaCount[dt.toLocal().hour] = (horaCount[dt.toLocal().hour] ?? 0) + 1;
+        if (dt != null)
+          horaCount[dt.toLocal().hour] =
+              (horaCount[dt.toLocal().hour] ?? 0) + 1;
       }
       final horaPico = horaCount.isEmpty
           ? 'Sin datos'
           : '${horaCount.entries.reduce((a, b) => a.value >= b.value ? a : b).key}:00 hs';
 
       // Alertas
-      final estudiosActivos = (results[4] as List).map((r) => (r['id'] as num?)?.toInt()).toSet();
-      final estudiosConClases = (results[5] as List).map((r) => (r['estudio_id'] as num?)?.toInt()).toSet();
-      final estudiosSinClases = estudiosActivos.difference(estudiosConClases).length;
+      final estudiosActivos = (results[4] as List)
+          .map((r) => (r['id'] as num?)?.toInt())
+          .toSet();
+      final estudiosConClases = (results[5] as List)
+          .map((r) => (r['estudio_id'] as num?)?.toInt())
+          .toSet();
+      final estudiosSinClases = estudiosActivos
+          .difference(estudiosConClases)
+          .length;
       final creditosVenciendo = (results[6] as List).length;
       final reservasSinCheckIn = (results[7] as List).length;
 
       final alertas = <String>[];
-      if (estudiosSinClases > 0) alertas.add('$estudiosSinClases estudio${estudiosSinClases > 1 ? "s" : ""} sin clases esta semana');
-      if (creditosVenciendo > 0) alertas.add('$creditosVenciendo usuario${creditosVenciendo > 1 ? "s" : ""} con créditos por vencer en 3 días');
-      if (reservasSinCheckIn > 0) alertas.add('$reservasSinCheckIn reserva${reservasSinCheckIn > 1 ? "s" : ""} confirmada${reservasSinCheckIn > 1 ? "s" : ""} sin check-in hace +24 hs');
+      if (estudiosSinClases > 0)
+        alertas.add(
+          '$estudiosSinClases estudio${estudiosSinClases > 1 ? "s" : ""} sin clases esta semana',
+        );
+      if (creditosVenciendo > 0)
+        alertas.add(
+          '$creditosVenciendo usuario${creditosVenciendo > 1 ? "s" : ""} con créditos por vencer en 3 días',
+        );
+      if (reservasSinCheckIn > 0)
+        alertas.add(
+          '$reservasSinCheckIn reserva${reservasSinCheckIn > 1 ? "s" : ""} confirmada${reservasSinCheckIn > 1 ? "s" : ""} sin check-in hace +24 hs',
+        );
 
       m['creditos_circulacion'] = creditosCirculacion;
       m['tasa_conversion'] = tasaConversion;
@@ -112,7 +171,9 @@ class AdminService {
   Future<List<Map<String, dynamic>>> listUsuarios({String? search}) async {
     final res = await _client.rpc(
       'admin_list_users',
-      params: {'p_search': (search ?? '').trim().isEmpty ? null : search!.trim()},
+      params: {
+        'p_search': (search ?? '').trim().isEmpty ? null : search!.trim(),
+      },
     );
     return List<Map<String, dynamic>>.from(res as List).where((row) {
       final rol = row['rol']?.toString() ?? '';
@@ -126,10 +187,7 @@ class AdminService {
   }) async {
     await _client.rpc(
       'admin_adjust_user_credits',
-      params: {
-        'p_user_id': userId,
-        'p_delta': delta,
-      },
+      params: {'p_user_id': userId, 'p_delta': delta},
     );
   }
 
@@ -176,7 +234,9 @@ class AdminService {
     try {
       final res = await _client.rpc(
         'admin_list_studios',
-        params: {'p_search': (search ?? '').trim().isEmpty ? null : search!.trim()},
+        params: {
+          'p_search': (search ?? '').trim().isEmpty ? null : search!.trim(),
+        },
       );
       return List<Map<String, dynamic>>.from(res as List);
     } catch (_) {
@@ -189,12 +249,12 @@ class AdminService {
       final rows = await (search == null || search.trim().isEmpty
           ? query
           : _client
-              .from('estudios')
-              .select(DatosCobro.embedTodo)
-              .or(
-                'nombre.ilike.%${search.trim()}%,barrio.ilike.%${search.trim()}%,categoria.ilike.%${search.trim()}%',
-              )
-              .order('nombre', ascending: true));
+                .from('estudios')
+                .select(DatosCobro.embedTodo)
+                .or(
+                  'nombre.ilike.%${search.trim()}%,barrio.ilike.%${search.trim()}%,categoria.ilike.%${search.trim()}%',
+                )
+                .order('nombre', ascending: true));
       final studios = DatosCobro.aplanarLista(rows as List).map((e) {
         final row = Map<String, dynamic>.from(e);
         row['activo'] = row['activo'] ?? true;
@@ -223,7 +283,9 @@ class AdminService {
 
       for (final row in studios) {
         final estudioId = (row['id'] as num?)?.toInt();
-        final emails = estudioId == null ? <String>[] : (accessByStudio[estudioId] ?? <String>[]);
+        final emails = estudioId == null
+            ? <String>[]
+            : (accessByStudio[estudioId] ?? <String>[]);
         emails.sort();
         row['admin_count'] =
             ((row['admin_count'] as num?)?.toInt() ?? emails.length);
@@ -244,12 +306,11 @@ class AdminService {
     try {
       final res = await _client.rpc(
         'studio_promote_user_to_admin',
-        params: {
-          'p_estudio_id': estudioId,
-          'p_email': email.trim(),
-        },
+        params: {'p_estudio_id': estudioId, 'p_email': email.trim()},
       );
-      final map = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+      final map = res is Map
+          ? Map<String, dynamic>.from(res)
+          : <String, dynamic>{};
       if (map['ok'] == true) return;
       switch (map['error']?.toString()) {
         case 'user_not_found':
@@ -272,10 +333,7 @@ class AdminService {
     // Fallback legacy
     await _client.rpc(
       'admin_link_estudio_access',
-      params: {
-        'p_estudio_id': estudioId,
-        'p_email': email.trim(),
-      },
+      params: {'p_estudio_id': estudioId, 'p_email': email.trim()},
     );
   }
 
@@ -302,9 +360,9 @@ class AdminService {
         'admin_list_studio_members',
         params: {'p_estudio_id': estudioId},
       );
-      return List<Map<String, dynamic>>.from(res as List)
-          .map((row) => Map<String, dynamic>.from(row as Map))
-          .toList();
+      return List<Map<String, dynamic>>.from(
+        res as List,
+      ).map((row) => Map<String, dynamic>.from(row as Map)).toList();
     } on PostgrestException catch (e) {
       debugPrint(
         '[accesos] admin_list_studio_members falló '
@@ -316,9 +374,9 @@ class AdminService {
         'admin_list_studio_accesses',
         params: {'p_estudio_id': estudioId},
       );
-      return List<Map<String, dynamic>>.from(res as List)
-          .map((row) => Map<String, dynamic>.from(row as Map))
-          .toList();
+      return List<Map<String, dynamic>>.from(
+        res as List,
+      ).map((row) => Map<String, dynamic>.from(row as Map)).toList();
     }
   }
 
@@ -332,8 +390,9 @@ class AdminService {
       'admin_add_studio_profe',
       params: {'p_estudio_id': estudioId, 'p_email': email.trim()},
     );
-    final map =
-        res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+    final map = res is Map
+        ? Map<String, dynamic>.from(res)
+        : <String, dynamic>{};
     if (map['ok'] == true) return;
     switch (map['error']?.toString()) {
       case 'user_not_found':
@@ -341,7 +400,9 @@ class AdminService {
           'No existe una cuenta Aura con ese email. Pedile que se registre primero.',
         );
       case 'forbidden':
-        throw Exception('No tenés permisos para agregar profes a este estudio.');
+        throw Exception(
+          'No tenés permisos para agregar profes a este estudio.',
+        );
       case 'email_required':
         throw Exception('Ingresá un email válido.');
       default:
@@ -357,18 +418,17 @@ class AdminService {
   }) async {
     final res = await _client.rpc(
       'admin_set_studio_access_rol',
-      params: {
-        'p_estudio_id': estudioId,
-        'p_usuario_id': userId,
-        'p_rol': rol,
-      },
+      params: {'p_estudio_id': estudioId, 'p_usuario_id': userId, 'p_rol': rol},
     );
-    final map =
-        res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+    final map = res is Map
+        ? Map<String, dynamic>.from(res)
+        : <String, dynamic>{};
     if (map['ok'] == true) return;
     switch (map['error']?.toString()) {
       case 'forbidden':
-        throw Exception('No tenés permisos para editar accesos de este estudio.');
+        throw Exception(
+          'No tenés permisos para editar accesos de este estudio.',
+        );
       case 'not_member':
         throw Exception('Esta persona ya no es miembro del estudio.');
       case 'invalid_rol':
@@ -384,10 +444,7 @@ class AdminService {
   }) async {
     await _client.rpc(
       'admin_remove_studio_access',
-      params: {
-        'p_estudio_id': estudioId,
-        'p_user_id': userId,
-      },
+      params: {'p_estudio_id': estudioId, 'p_user_id': userId},
     );
   }
 
@@ -430,10 +487,7 @@ class AdminService {
   }) async {
     await _client.rpc(
       'admin_rename_studio_category',
-      params: {
-        'p_actual': oldName.trim(),
-        'p_nuevo': newName.trim(),
-      },
+      params: {'p_actual': oldName.trim(), 'p_nuevo': newName.trim()},
     );
   }
 
@@ -488,15 +542,19 @@ class AdminService {
         // mantiene sincronizada para las vistas y queries legacy.
         'p_categoria': categorias.isEmpty ? '' : categorias.first.trim(),
         'p_barrio': barrio?.trim().isEmpty == true ? null : barrio?.trim(),
-        'p_direccion':
-            direccion?.trim().isEmpty == true ? null : direccion?.trim(),
-        'p_descripcion':
-            descripcion?.trim().isEmpty == true ? null : descripcion?.trim(),
+        'p_direccion': direccion?.trim().isEmpty == true
+            ? null
+            : direccion?.trim(),
+        'p_descripcion': descripcion?.trim().isEmpty == true
+            ? null
+            : descripcion?.trim(),
         'p_foto_url': fotoUrl?.trim().isEmpty == true ? null : fotoUrl?.trim(),
-        'p_instagram':
-            instagram?.trim().isEmpty == true ? null : instagram?.trim(),
-        'p_whatsapp':
-            whatsapp?.trim().isEmpty == true ? null : whatsapp?.trim(),
+        'p_instagram': instagram?.trim().isEmpty == true
+            ? null
+            : instagram?.trim(),
+        'p_whatsapp': whatsapp?.trim().isEmpty == true
+            ? null
+            : whatsapp?.trim(),
         'p_web': web?.trim().isEmpty == true ? null : web?.trim(),
         'p_lat': lat,
         'p_lng': lng,
@@ -535,10 +593,7 @@ class AdminService {
   }) async {
     final res = await _client.rpc(
       'admin_recalcular_precios_estudio',
-      params: {
-        'p_estudio_id': estudioId,
-        'p_incluir_pasadas': incluirPasadas,
-      },
+      params: {'p_estudio_id': estudioId, 'p_incluir_pasadas': incluirPasadas},
     );
     return (res as num?)?.toInt() ?? 0;
   }
@@ -592,7 +647,9 @@ class AdminService {
   Future<List<Map<String, dynamic>>> listReservas({String? search}) async {
     final res = await _client.rpc(
       'admin_list_reservas',
-      params: {'p_search': (search ?? '').trim().isEmpty ? null : search!.trim()},
+      params: {
+        'p_search': (search ?? '').trim().isEmpty ? null : search!.trim(),
+      },
     );
     return List<Map<String, dynamic>>.from(res as List);
   }
@@ -679,8 +736,9 @@ class AdminService {
         'p_nombre': nombre.trim(),
         'p_creditos': creditos,
         'p_precio': precio,
-        'p_descripcion':
-            descripcion?.trim().isEmpty == true ? null : descripcion?.trim(),
+        'p_descripcion': descripcion?.trim().isEmpty == true
+            ? null
+            : descripcion?.trim(),
         'p_ahorro': ahorro?.trim().isEmpty == true ? null : ahorro?.trim(),
         'p_destacado': destacado,
         'p_activo': activo,
@@ -706,8 +764,9 @@ class AdminService {
         'p_nombre': nombre.trim(),
         'p_creditos': creditos,
         'p_precio': precio,
-        'p_descripcion':
-            descripcion?.trim().isEmpty == true ? null : descripcion?.trim(),
+        'p_descripcion': descripcion?.trim().isEmpty == true
+            ? null
+            : descripcion?.trim(),
         'p_popular': popular,
         'p_activo': activo,
         'p_orden': orden,
@@ -723,7 +782,9 @@ class AdminService {
   Future<Map<String, dynamic>> enviarAvisoCobro() async {
     final result = await _client.functions.invoke('aviso-cobro-manana');
     if (result.status != 200) {
-      final msg = (result.data as Map?)?['error']?.toString() ?? 'Error al enviar avisos';
+      final msg =
+          (result.data as Map?)?['error']?.toString() ??
+          'Error al enviar avisos';
       throw Exception(msg);
     }
     return Map<String, dynamic>.from(result.data as Map);
@@ -732,7 +793,9 @@ class AdminService {
   Future<Map<String, dynamic>> enviarReporteMensual() async {
     final result = await _client.functions.invoke('reporte-mensual-estudios');
     if (result.status != 200) {
-      final msg = (result.data as Map?)?['error']?.toString() ?? 'Error al enviar reportes';
+      final msg =
+          (result.data as Map?)?['error']?.toString() ??
+          'Error al enviar reportes';
       throw Exception(msg);
     }
     return Map<String, dynamic>.from(result.data as Map);
@@ -767,7 +830,8 @@ class AdminService {
       },
     );
     if (result.status != 200) {
-      final msg = (result.data as Map?)?['error']?.toString() ??
+      final msg =
+          (result.data as Map?)?['error']?.toString() ??
           'Error creando el estudio.';
       throw Exception(msg);
     }
@@ -824,9 +888,11 @@ class AdminService {
     );
     final map = Map<String, dynamic>.from(res as Map);
     if (map['ok'] != true) {
-      throw Exception(map['error'] == 'bono_apagado'
-          ? 'El bono está apagado: prendelo antes de otorgarlo.'
-          : 'No se pudo otorgar: ${map['error']}');
+      throw Exception(
+        map['error'] == 'bono_apagado'
+            ? 'El bono está apagado: prendelo antes de otorgarlo.'
+            : 'No se pudo otorgar: ${map['error']}',
+      );
     }
     return (map['otorgados'] as num?)?.toInt() ?? 0;
   }
@@ -858,10 +924,11 @@ class AdminService {
   }
 
   Future<void> setConfigGlobal(String clave, String valor) async {
-    await _client.from('configuracion_global').upsert(
-      {'clave': clave, 'valor': valor, 'updated_at': DateTime.now().toIso8601String()},
-      onConflict: 'clave',
-    );
+    await _client.from('configuracion_global').upsert({
+      'clave': clave,
+      'valor': valor,
+      'updated_at': DateTime.now().toIso8601String(),
+    }, onConflict: 'clave');
   }
 
   /// Lee `valor_credito_ars` de `configuracion_global`.
@@ -886,9 +953,9 @@ class AdminService {
   /// este mes. Requiere superadmin (la RPC valida is_admin()).
   Future<List<Map<String, dynamic>>> listEmpresas() async {
     final res = await _client.rpc('admin_list_empresas');
-    return List<Map<String, dynamic>>.from(res as List)
-        .map((row) => Map<String, dynamic>.from(row as Map))
-        .toList();
+    return List<Map<String, dynamic>>.from(
+      res as List,
+    ).map((row) => Map<String, dynamic>.from(row as Map)).toList();
   }
 
   /// Crea o edita una empresa. Devuelve el id.
@@ -929,8 +996,46 @@ class AdminService {
       'admin_list_empresa_empleados',
       params: {'p_empresa_id': empresaId},
     );
-    return List<Map<String, dynamic>>.from(res as List)
-        .map((row) => Map<String, dynamic>.from(row as Map))
-        .toList();
+    return List<Map<String, dynamic>>.from(
+      res as List,
+    ).map((row) => Map<String, dynamic>.from(row as Map)).toList();
+  }
+
+  /// Los reportes de "la clase no se dio", lo pendiente primero.
+  ///
+  /// Sale de la vista `reportes_clase_no_dada`, la MISMA que cuenta el
+  /// resumen diario: si el mail dice "2 sin resolver", acá tienen que estar
+  /// esas dos y no otras.
+  Future<List<Map<String, dynamic>>> listReportesClaseNoDada() async {
+    final res = await _client
+        .from('reportes_clase_no_dada')
+        .select()
+        .order('reporte_at', ascending: false);
+    return List<Map<String, dynamic>>.from(
+      res as List,
+    ).map((row) => Map<String, dynamic>.from(row as Map)).toList();
+  }
+
+  /// Cierra un reporte. Los dos únicos finales posibles:
+  ///
+  ///  · `seDio = true`  — la reserva vuelve a `completada` y el estudio cobra.
+  ///  · `seDio = false` — pasa a `cancelada_por_estudio` (no se liquida) y se
+  ///    le devuelven los créditos a la alumna.
+  ///
+  /// La decisión y la devolución viven en la RPC `admin_resolver_reporte`, que
+  /// además frena el doble clic: sólo resuelve lo que sigue `en_revision`.
+  /// Devuelve null si salió bien, o el código de error.
+  Future<String?> resolverReporte(int reservaId, {required bool seDio}) async {
+    try {
+      final res = await _client.rpc(
+        'admin_resolver_reporte',
+        params: {'p_reserva_id': reservaId, 'p_se_dio': seDio},
+      );
+      final mapa = res is Map ? Map<String, dynamic>.from(res) : null;
+      if (mapa?['ok'] == true) return null;
+      return mapa?['error']?.toString() ?? 'desconocido';
+    } catch (_) {
+      return 'red';
+    }
   }
 }

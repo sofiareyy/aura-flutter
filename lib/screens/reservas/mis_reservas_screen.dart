@@ -27,7 +27,11 @@ const _successBg = Color(0xFFE8F5E9);
 const _successFg = Color(0xFF2E7D32);
 
 class MisReservasScreen extends StatefulWidget {
-  const MisReservasScreen({super.key});
+  /// La reserva que viene marcada desde el mail post-clase (`?reserva=`).
+  /// Null cuando se entra por el menú.
+  final int? reservaDestacada;
+
+  const MisReservasScreen({super.key, this.reservaDestacada});
 
   @override
   State<MisReservasScreen> createState() => _MisReservasScreenState();
@@ -852,6 +856,10 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                                   puedeReportar(reserva, ahora: DateTime.now())
                                   ? () => _reportarReserva(reserva)
                                   : null,
+                              destacada:
+                                  widget.reservaDestacada != null &&
+                                  (reserva['id'] as num?)?.toInt() ==
+                                      widget.reservaDestacada,
                             ),
                           ),
                         ),
@@ -1227,11 +1235,16 @@ class _HistorialCompactCard extends StatelessWidget {
   /// corresponde: pasaron las 48 h, ya avisó, o la reserva está cancelada.
   final VoidCallback? onReportar;
 
+  /// La que viene marcada desde el mail. Se resalta con un borde para que la
+  /// alumna la ubique sin leer toda la lista.
+  final bool destacada;
+
   const _HistorialCompactCard({
     required this.reserva,
     this.resena,
     this.onResenar,
     this.onReportar,
+    this.destacada = false,
   });
 
   @override
@@ -1287,7 +1300,12 @@ class _HistorialCompactCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(AuraRadio.boton),
-        border: Border.all(color: AppColors.lightGrey),
+        // La que viene marcada desde el mail lleva el borde naranja: es la
+        // única diferencia, no se le cambia el fondo ni se la mueve de lugar.
+        border: Border.all(
+          color: destacada ? AppColors.primary : AppColors.lightGrey,
+          width: destacada ? 1.5 : 1,
+        ),
       ),
       child: Row(
         children: [

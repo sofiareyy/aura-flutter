@@ -198,7 +198,13 @@ final appRouter = GoRouter(
         ),
         GoRoute(
           path: '/mis-reservas',
-          builder: (context, state) => const MisReservasScreen(),
+          // `?reserva=` lo manda el mail post-clase: marca la fila para que
+          // la alumna no tenga que buscarla entre todas (19/10/2026).
+          builder: (context, state) => MisReservasScreen(
+            reservaDestacada: int.tryParse(
+              state.uri.queryParameters['reserva'] ?? '',
+            ),
+          ),
         ),
         GoRoute(
           path: '/mis-clases',
