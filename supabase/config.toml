@@ -507,3 +507,16 @@ entrypoint = "./functions/cancelacion-email/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/bono-email/index.ts"
+
+# Mails que se disparan por pg_net con el anon key en Authorization +
+# `x-notif-secret` (como cancelacion-email): verify_jwt = true, igual que en
+# producción al 20/10/2026. Declaradas para que un deploy no se lo cambie.
+[functions.email-confirmacion]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/email-confirmacion/index.ts"
+
+[functions.resena-email]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/resena-email/index.ts"

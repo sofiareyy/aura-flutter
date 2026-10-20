@@ -15,6 +15,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { htmlATexto, REPLY_TO } from '../_shared/email.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -168,7 +169,7 @@ async function enviar(to: string[], subject: string, html: string) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: FROM_EMAIL, reply_to: 'aura.hola.app@gmail.com', to, subject, html }),
+    body: JSON.stringify({ from: FROM_EMAIL, reply_to: REPLY_TO, to, subject, html, text: htmlATexto(html) }),
   })
   if (!res.ok) {
     const detail = await res.text().catch(() => '')

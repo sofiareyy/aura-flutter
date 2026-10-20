@@ -6,6 +6,7 @@
 // Authorization, para que nadie con la anon key pueda mandar mails de regalo.
 
 import { corsHeaders } from '../_shared/cors.ts'
+import { htmlATexto, REPLY_TO } from '../_shared/email.ts'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 const FROM_EMAIL =
@@ -74,10 +75,11 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         from: FROM_EMAIL,
-        reply_to: 'aura.hola.app@gmail.com',
+        reply_to: REPLY_TO,
         to: String(destinatario_email).toLowerCase(),
         subject,
         html,
+        text: htmlATexto(html),
       }),
     })
 

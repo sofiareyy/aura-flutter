@@ -12,6 +12,7 @@
 // para arriba — un aviso perdido no puede romper un pago.
 
 import { corsHeaders } from '../_shared/cors.ts'
+import { htmlATexto, REPLY_TO } from '../_shared/email.ts'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 const FROM_EMAIL =
@@ -113,10 +114,11 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         from: FROM_EMAIL,
-        reply_to: 'aura.hola.app@gmail.com',
+        reply_to: REPLY_TO,
         to: testEmail || PARA,
         subject: asunto,
         html,
+        text: htmlATexto(html),
       }),
     })
 

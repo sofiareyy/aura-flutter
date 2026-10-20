@@ -5,6 +5,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { netoReserva } from '../_shared/liquidacion.ts'
 import { corsHeaders } from '../_shared/cors.ts'
+import { htmlATexto, REPLY_TO } from '../_shared/email.ts'
 import {
   limitesMesArgentino,
   mesAnio,
@@ -257,10 +258,11 @@ Deno.serve(async (req: Request) => {
         },
         body: JSON.stringify({
           from: Deno.env.get('AURA_FROM_EMAIL') ?? 'Aura <hola@somosaurapass.com>',
-          reply_to: 'aura.hola.app@gmail.com',
+          reply_to: REPLY_TO,
           to: [adminEmail],
           subject: 'Mañana recibís tu pago de Aura 🧡',
           html,
+          text: htmlATexto(html),
         }),
       })
 

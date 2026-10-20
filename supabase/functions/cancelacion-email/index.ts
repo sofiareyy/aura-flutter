@@ -16,6 +16,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { htmlATexto, REPLY_TO } from '../_shared/email.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -150,10 +151,11 @@ Deno.serve(async (req: Request) => {
         // `to` con UNA sola dirección: nunca el lote junto.
         body: JSON.stringify({
           from: FROM_EMAIL,
-          reply_to: 'aura.hola.app@gmail.com',
+          reply_to: REPLY_TO,
           to: email,
           subject,
           html,
+          text: htmlATexto(html),
         }),
       })
       if (res.ok) {
