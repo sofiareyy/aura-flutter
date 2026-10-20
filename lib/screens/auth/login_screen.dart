@@ -22,7 +22,7 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -36,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _detectEmailConfirmation();
   }
 
@@ -162,8 +163,39 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// El botón de Google/Apple dejaba de girar NUNCA (19/10/2026).
+  ///
+  /// `signInWithOAuth` con `externalApplication` abre el navegador y la
+  /// pantalla queda esperando el deep link. Si la persona vuelve sin
+  /// terminar —cerró la pestaña, tocó atrás, se arrepintió— no pasa
+  /// absolutamente nada: no hay error, no hay callback, y el botón se queda
+  /// girando para siempre. La única salida era matar la app.
+  ///
+  /// Ojo con el alcance: Apple NATIVO en iOS ya estaba bien, porque la
+  /// cancelación llega como `AuthorizationErrorCode.canceled` y ahí sí se
+  /// apaga el spinner. Lo que faltaba es el camino del navegador: Google en
+  /// todos lados y Apple en Android y web.
+  ///
+  /// Se resetea sin mirar si hay sesión, a propósito. Si el login SALIÓ
+  /// bien, `main.dart` navega a los ~200 ms y nadie llega a ver el botón; el
+  /// falso reseteo es invisible. Al revés, esperar a confirmar la sesión deja
+  /// la pantalla trabada cuando la cosa falló, que es justo el caso que se
+  /// quiere arreglar.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        (_loadingGoogle || _loadingApple)) {
+      setState(() {
+        _loadingGoogle = false;
+        _loadingApple = false;
+      });
+    }
+    super.didChangeAppLifecycleState(state);
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
