@@ -78,22 +78,19 @@ flutter:
 # `dart run sentry_dart_plugin`. El .map NO se publica con el sitio: se sube
 # acá y se borra antes del deploy (pesa 4,4 MB y no tiene por qué servirse).
 #
-# FALTAN TRES DATOS, que sólo los tiene Sofía:
-#   · org     — el slug de la organización en Sentry (NO el número del DSN).
-#               Está en la URL del dashboard: sentry.io/organizations/<slug>/
-#   · project — el slug del proyecto, en Settings → Projects.
-#   · el token — un Internal Integration token con permiso
+# FALTA UN DATO, que sólo lo tiene Sofía:
+#   · org y project ya están puestos (aura-pass / flutter).
+#   · FALTA el token — un Internal Integration token con permiso
 #               `project:releases`, guardado como secret SENTRY_AUTH_TOKEN en
 #               GitHub. NO va acá: el repo es público.
 #
-# Mientras falte cualquiera de los tres, el paso del CI se saltea solo y el
-# deploy sigue andando igual.
+# Mientras falte, el paso del CI se saltea solo y el deploy sigue andando.
 sentry:
   upload_source_maps: true
   upload_debug_symbols: false
   upload_sources: true
-  org: COMPLETAR_SLUG_DE_LA_ORG
-  project: COMPLETAR_SLUG_DEL_PROYECTO
+  org: aura-pass
+  project: flutter
   # El nombre de la release tiene que coincidir con el que manda el SDK, que
   # sale del pubspec: aura_app@<version>. Si se tocan por separado, los mapas
   # no matchean con los errores y es como no haberlos subido.

@@ -16,6 +16,7 @@ import 'core/theme/app_theme.dart';
 import 'providers/app_provider.dart';
 import 'services/auth_service.dart';
 import 'utils/destino_post_login.dart';
+import 'utils/sentry_bots.dart';
 import 'services/notificaciones_service.dart';
 import 'services/valor_credito.dart';
 import 'services/version_gate.dart';
@@ -89,6 +90,14 @@ void main() async {
       options.replay.onErrorSampleRate = 0;
       // Sin logs.
       options.enableLogs = false;
+
+      // Los crawlers no cuentan (20/10/2026). El primer día con Sentry
+      // prendido, los dos únicos errores fueron del bot de Facebook
+      // entrando a la portada: ejecuta JS a medias y Flutter revienta. No
+      // rompe nada —la vista previa del link sale del HTML, sin necesidad
+      // de que la app renderice— pero si no se filtra, el día que una
+      // usuaria tenga un crash real va a estar enterrado entre ruido.
+      options.beforeSend = (event, hint) => errorDeBot() ? null : event;
     }, appRunner: () => _runApp());
   } else {
     _runApp();
