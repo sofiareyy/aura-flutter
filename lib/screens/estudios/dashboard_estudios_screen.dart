@@ -32,6 +32,8 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
   List<Map<String, dynamic>> _clases = [];
   List<Map<String, dynamic>> _reservas = [];
   List<Map<String, dynamic>> _actividad = [];
+  // Quiénes vienen hoy: el estudio lo quiere ver antes que las clases.
+  List<Map<String, dynamic>> _anotadasHoy = const [];
   List<Map<String, dynamic>> _misEstudios = const [];
   bool _loading = true;
   String? _error;
@@ -192,6 +194,25 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
       final tutorialOk = results[3] as bool;
       final misEstudios = results[4] as List<Map<String, dynamic>>;
 
+      // Las anotadas de hoy. Si falla, el dashboard sigue: se ven las clases.
+      List<Map<String, dynamic>> anotadasHoy = const [];
+      try {
+        final hoy = DateTime.now();
+        final idsHoy = clases
+            .where((c) {
+              final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
+              return dt != null &&
+                  dt.year == hoy.year &&
+                  dt.month == hoy.month &&
+                  dt.day == hoy.day &&
+                  c['cancelada'] != true;
+            })
+            .map((c) => (c['id'] as num?)?.toInt())
+            .whereType<int>()
+            .toList();
+        anotadasHoy = await _service.getAnotadasDeClases(idsHoy);
+      } catch (_) {}
+
       int unread = 0;
       Map<int, int> desgloseResenas = const {};
       int favoritos = 0;
@@ -224,6 +245,7 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
         _clases = clases;
         _reservas = reservas;
         _actividad = _buildActividad(reservas, clases);
+        _anotadasHoy = anotadasHoy;
         _misEstudios = misEstudios;
         _loading = false;
         _error = estudio == null ? 'No encontramos un estudio asociado.' : null;
@@ -400,6 +422,14 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (_anotadasDelDia(clasesHoy).isNotEmpty) ...[
+                    _SectionLabel(
+                      'Anotadas hoy · ${_anotadasDelDia(clasesHoy).length}',
+                    ),
+                    const SizedBox(height: 10),
+                    _AnotadasHoyCard(filas: _anotadasDelDia(clasesHoy)),
+                    const SizedBox(height: 18),
+                  ],
                   const _SectionLabel('Clases de hoy'),
                   const SizedBox(height: 10),
                   Container(
@@ -880,6 +910,14 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
                       const SizedBox(height: 12),
                       _misProfesQuickAction(),
                       const SizedBox(height: 18),
+                      if (_anotadasDelDia(clasesHoy).isNotEmpty) ...[
+                        _SectionLabel(
+                          'Anotadas hoy · ${_anotadasDelDia(clasesHoy).length}',
+                        ),
+                        const SizedBox(height: 10),
+                        _AnotadasHoyCard(filas: _anotadasDelDia(clasesHoy)),
+                        const SizedBox(height: 18),
+                      ],
                       const _SectionLabel('Clases de hoy'),
                       const SizedBox(height: 10),
                       Container(
@@ -1024,6 +1062,32 @@ class _DashboardEstudiosScreenState extends State<DashboardEstudiosScreen> {
       final dt = DateTime.tryParse(c['fecha']?.toString() ?? '');
       return dt != null && !dt.isBefore(desde) && !dt.isAfter(ahora);
     }).length;
+  }
+
+  /// Una fila por persona anotada hoy, ordenada por hora de la clase.
+  List<({String hora, String nombre, String clase, String estado})>
+  _anotadasDelDia(List<Map<String, dynamic>> clasesHoy) {
+    final porId = {
+      for (final c in clasesHoy)
+        if ((c['id'] as num?) != null) (c['id'] as num).toInt(): c,
+    };
+    final filas =
+        <({String hora, String nombre, String clase, String estado})>[];
+    for (final r in _anotadasHoy) {
+      final clase = porId[(r['clase_id'] as num?)?.toInt()];
+      if (clase == null) continue;
+      filas.add((
+        hora: _timeForClass(clase),
+        nombre: r['nombre']?.toString() ?? 'Alumna',
+        clase: clase['nombre']?.toString() ?? 'Clase',
+        estado: r['estado']?.toString() ?? '',
+      ));
+    }
+    filas.sort((a, b) {
+      final h = a.hora.compareTo(b.hora);
+      return h != 0 ? h : a.nombre.compareTo(b.nombre);
+    });
+    return filas;
   }
 
   List<Map<String, dynamic>> _clasesDelDia(DateTime day) {
@@ -1903,6 +1967,104 @@ class _SectionLabel extends StatelessWidget {
         fontSize: 12,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
+      ),
+    );
+  }
+}
+
+/// Quiénes vienen hoy, con la hora y la clase. Va arriba de "Clases de hoy"
+/// y sólo aparece si hay alguien anotada.
+class _AnotadasHoyCard extends StatelessWidget {
+  final List<({String hora, String nombre, String clase, String estado})> filas;
+
+  const _AnotadasHoyCard({required this.filas});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          for (final f in filas)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.blackSoft,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      f.hora,
+                      style: const TextStyle(
+                        color: AppColors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          f.nombre,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.black,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          f.clase,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF8F877F),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Sólo el check-in: 'completada' la pone el cron a todas al terminar la
+                  // clase, haya venido o no.
+                  if (f.estado == 'presente')
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE3F3E5),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        'Presente',
+                        style: const TextStyle(
+                          color: Color(0xFF5F5953),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }

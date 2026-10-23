@@ -416,6 +416,57 @@ class EstudioAdminService {
     return filas;
   }
 
+  /// Quiénes están anotadas en estas clases (las de hoy, en el dashboard).
+  /// Devuelve una fila por reserva viva: `clase_id`, `estado` y `nombre`.
+  ///
+  /// Los nombres salen de la RPC `estudio_nombres_alumnas`, igual que en
+  /// Asistencia: leer `usuarios` directo lo niega la RLS y todas saldrían
+  /// "Alumna".
+  Future<List<Map<String, dynamic>>> getAnotadasDeClases(
+    List<int> claseIds,
+  ) async {
+    if (claseIds.isEmpty) return [];
+    final data = await _client
+        .from('reservas')
+        .select('id, clase_id, usuario_id, estado')
+        .inFilter('clase_id', claseIds);
+    final reservas = List<Map<String, dynamic>>.from(data as List)
+        .where((r) => !(r['estado']?.toString() ?? '').startsWith('cancelada'))
+        .toList();
+    if (reservas.isEmpty) return [];
+
+    final ids = reservas
+        .map((r) => r['usuario_id']?.toString())
+        .whereType<String>()
+        .toSet()
+        .toList();
+    final nombres = <String, String>{};
+    if (ids.isNotEmpty) {
+      final res = await _client.rpc(
+        'estudio_nombres_alumnas',
+        params: {'p_ids': ids},
+      );
+      for (final u in (res as List)) {
+        final m = Map<String, dynamic>.from(u as Map);
+        final nombre = m['nombre']?.toString().trim() ?? '';
+        final email = m['email']?.toString() ?? '';
+        nombres[m['id'].toString()] = nombre.isNotEmpty
+            ? nombre
+            : email.split('@').first;
+      }
+    }
+
+    return reservas
+        .map(
+          (r) => {
+            'clase_id': r['clase_id'],
+            'estado': r['estado'],
+            'nombre': nombres[r['usuario_id']?.toString()] ?? 'Alumna',
+          },
+        )
+        .toList();
+  }
+
   Future<List<Map<String, dynamic>>> getReservasDeEstudio({int? limit}) async {
     final clases = await getClasesDeEstudio();
     final classIds = clases
