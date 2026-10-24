@@ -142,7 +142,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     // El scanner (cámara) queda SIEMPRE visible, aunque no haya clase activa:
     // si desaparece, el estudio piensa que algo se rompió. En modo cámara nos
     // aseguramos de que esté prendida.
-    if (_usarCamara) _cameraController?.start();
+    if (_usarCamara) _encenderCamara();
   }
 
   // ── Buckets AHORA / HOY / PROXIMAS ────────────────────────────────────────
@@ -771,7 +771,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
           _ResultPopup(exito: exito, titulo: titulo, subtitulo: subtitulo),
     ).then((_) {
       if (_usarCamara) {
-        _cameraController?.start();
+        _encenderCamara();
       } else {
         _qrFocusNode.requestFocus();
       }
@@ -784,12 +784,33 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     });
   }
 
+  /// Prende la cámara sin pelearse con el arranque automático.
+  ///
+  /// El escáner arranca solo apenas se dibuja (`autoStart`), y acá además se
+  /// pedía `start()` a mano después de cargar, al cerrar el popup y al cambiar
+  /// de modo. Si ese pedido caía mientras la cámara todavía arrancaba, la
+  /// librería tiraba "still initializing" y, como nadie lo esperaba, terminaba
+  /// en Sentry (iPhone, 23/10/2026, 1.0.8+33). Ahora: si ya está prendida o
+  /// arrancando no se hace nada, y el choque con el arranque automático se
+  /// toma como lo que es, no un error. Un problema real de cámara (permiso
+  /// denegado) lo sigue mostrando el propio widget del escáner.
+  Future<void> _encenderCamara() async {
+    final c = _cameraController;
+    if (c == null || !mounted) return;
+    if (c.value.isRunning || c.value.isStarting) return;
+    try {
+      await c.start();
+    } on MobileScannerException catch (e) {
+      debugPrint('Escáner: start() omitido (${e.errorCode.name})');
+    }
+  }
+
   void _cambiarModo() {
     setState(() {
       _usarCamara = !_usarCamara;
       if (_usarCamara) {
         _cameraController ??= MobileScannerController();
-        _cameraController!.start();
+        _encenderCamara();
       } else {
         _cameraController?.stop();
         Future.delayed(const Duration(milliseconds: 100), () {
