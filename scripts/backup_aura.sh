@@ -5,7 +5,8 @@
 # mínima de cuentas de auth.users (id y mail, sin contraseñas).
 #
 # Uso:   ~/aura-flutter/scripts/backup_aura.sh
-# Deja:  ~/OneDrive/Aura-backups/aura-AAAA-MM-DD_HHMM.tar.gz
+# Deja:  ~/OneDrive/Aura-backups/aura-AAAA-MM-DD_HHMM.tar.gz (~300 KB c/u;
+#        no borra los viejos: un año son ~15 MB)
 #        (otra carpeta: AURA_BACKUP_DIR=/ruta ~/aura-flutter/scripts/backup_aura.sh)
 #
 # Necesita: el token de la Management API en ~/.supabase_token, curl y jq.
@@ -13,10 +14,11 @@
 # repo (tienen mails y datos de cobro).
 
 set -euo pipefail
+# Que nunca corte en silencio: dice en qué línea y qué comando falló.
+trap 'echo "❌ Falló en la línea $LINENO: $BASH_COMMAND" >&2' ERR
 
 PROYECTO="hvgqpzvornlnxmsbqnwg"
 DESTINO="${AURA_BACKUP_DIR:-$HOME/OneDrive/Aura-backups}"
-GUARDAR=30   # cuántos backups se conservan; los más viejos se borran
 TOKEN_FILE="$HOME/.supabase_token"
 
 [ -r "$TOKEN_FILE" ] || { echo "❌ No encuentro $TOKEN_FILE"; exit 1; }
@@ -90,12 +92,9 @@ if [ "$EN_ARCHIVO" != "$ESPERADAS" ]; then
   exit 1
 fi
 
-# Rotación: quedan los $GUARDAR más nuevos.
-ls -1t "$DESTINO"/aura-*.tar.gz 2>/dev/null | tail -n +$((GUARDAR + 1)) | while read -r viejo; do
-  rm -f "$viejo"
-done
+# Sin rotación ni conteo a propósito: cuando corre programado (launchd), macOS
+# deja escribir y leer un archivo en OneDrive pero NO listar la carpeta.
 
 echo
 echo "✅ Listo: $ESPERADAS tablas, $TOTAL filas, $(du -h "$ARCHIVO" | cut -f1 | tr -d ' ')"
 echo "   $ARCHIVO"
-echo "   Backups guardados en esa carpeta: $(ls -1 "$DESTINO"/aura-*.tar.gz | wc -l | tr -d ' ')"
