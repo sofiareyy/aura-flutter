@@ -97,7 +97,11 @@ void main() async {
       // rompe nada —la vista previa del link sale del HTML, sin necesidad
       // de que la app renderice— pero si no se filtra, el día que una
       // usuaria tenga un crash real va a estar enterrado entre ruido.
-      options.beforeSend = (event, hint) => errorDeBot() ? null : event;
+      //
+      // 24/10: además se filtra por ORIGEN del error (inject_content.js de
+      // Meta, iabjs://, extensiones), no sólo por user agent. Detalle y
+      // contador de descartes en `utils/sentry_bots.dart`.
+      options.beforeSend = (event, hint) => filtrarEvento(event, esWeb: kIsWeb);
     }, appRunner: () => _runApp());
   } else {
     _runApp();

@@ -15,6 +15,7 @@
 
 import 'package:aura_app/utils/sentry_bots.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 void main() {
   group('se filtran', () {
@@ -99,6 +100,92 @@ void main() {
       expect(esBot(null), isFalse);
       expect(esBot(''), isFalse);
       expect(esBot('Dart/3.11 (dart:io)'), isFalse);
+    });
+  });
+
+  // 24/10/2026: Meta rota de disfraz (Edge, Chrome Mobile...), así que se
+  // filtra por DÓNDE nace el error, no por el navegador.
+  group('filtro por origen del error', () {
+    SentryEvent evento(List<String?> archivos) => SentryEvent(
+      exceptions: [
+        SentryException(
+          type: 'StateError',
+          value: 'Bad state',
+          stackTrace: SentryStackTrace(
+            frames: [for (final a in archivos) SentryStackFrame(absPath: a)],
+          ),
+        ),
+      ],
+    );
+
+    test('el caso real: el stack nace en inject_content.js de Meta', () {
+      final e = evento([
+        'https://somosaurapass.com/main.dart.js',
+        'https://somosaurapass.com/main.dart.js',
+        'inject_content.js',
+      ]);
+      expect(filtrarEvento(e, esWeb: true), isNull);
+    });
+
+    test('iabjs:// y extensiones del navegador también se descartan', () {
+      for (final a in [
+        'iabjs://navigation_performance.js',
+        'chrome-extension://abcdef/content.js',
+        'moz-extension://123/inject.js',
+        'safari-web-extension://x/script.js',
+      ]) {
+        expect(
+          filtrarEvento(
+            evento(['https://somosaurapass.com/main.dart.js', a]),
+            esWeb: true,
+          ),
+          isNull,
+          reason: a,
+        );
+      }
+    });
+
+    test('un error nuestro SIEMPRE pasa', () {
+      for (final a in [
+        'https://somosaurapass.com/main.dart.js',
+        'https://www.gstatic.com/flutter-canvaskit/abc/canvaskit.js',
+        'https://somosaurapass.com/flutter_bootstrap.js',
+        'org-dartlang-sdk:///lib/async/future_impl.dart',
+        'package:aura_app/screens/auth/landing_screen.dart',
+      ]) {
+        final e = evento(['inject_content.js', a]);
+        expect(filtrarEvento(e, esWeb: true), same(e), reason: a);
+      }
+    });
+
+    test('se saltean los frames nativos para llegar al archivo real', () {
+      final e = evento([
+        'inject_content.js',
+        'https://somosaurapass.com/main.dart.js',
+        '<anonymous>',
+        'native',
+      ]);
+      expect(filtrarEvento(e, esWeb: true), same(e));
+    });
+
+    test('ante la duda no se descarta: sin stack o sin archivos', () {
+      final sinStack = SentryEvent(
+        exceptions: [SentryException(type: 'StateError', value: 'x')],
+      );
+      expect(filtrarEvento(sinStack, esWeb: true), same(sinStack));
+      final sinExcepcion = SentryEvent();
+      expect(filtrarEvento(sinExcepcion, esWeb: true), same(sinExcepcion));
+      final soloNativos = evento(['<anonymous>', 'native', null]);
+      expect(filtrarEvento(soloNativos, esWeb: true), same(soloNativos));
+    });
+
+    test('en iOS y Android no se filtra nada', () {
+      final e = evento(['inject_content.js']);
+      expect(filtrarEvento(e, esWeb: false), same(e));
+    });
+
+    test('el revisor de anuncios de Meta por user agent', () {
+      expect(esBot('meta-externalads/1.1'), isTrue);
     });
   });
 }

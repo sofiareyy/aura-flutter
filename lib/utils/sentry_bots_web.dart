@@ -18,3 +18,24 @@ String? userAgentActual() {
     return null;
   }
 }
+
+@JS('gtag')
+external JSFunction? get _gtag;
+
+/// Cuenta cada error que se descarta como evento de GA4 `sentry_descartado`
+/// (motivo + archivo de origen), para poder ver qué se está tapando.
+/// Si GA4 no cargó, no pasa nada.
+void registrarDescarte(String motivo, String origen) {
+  try {
+    final g = _gtag;
+    if (g == null) return;
+    final params = <String, Object>{
+      'motivo': motivo,
+      // GA4 corta los parámetros a 100 caracteres.
+      'origen': origen.length > 100
+          ? origen.substring(origen.length - 100)
+          : origen,
+    }.jsify();
+    g.callAsFunction(null, 'event'.toJS, 'sentry_descartado'.toJS, params);
+  } catch (_) {}
+}
