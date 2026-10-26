@@ -195,14 +195,16 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       final liq = liqMap[esId];
       if (delMes.isEmpty && liq?['estado'] != 'pagado') continue;
 
-      resultado.add(filaLiquidacion(
-        estudioId: esId,
-        nombre: e['nombre']?.toString() ?? 'Estudio',
-        mes: mes,
-        reservas: delMes,
-        estudio: e,
-        liquidacion: liq,
-      ));
+      resultado.add(
+        filaLiquidacion(
+          estudioId: esId,
+          nombre: e['nombre']?.toString() ?? 'Estudio',
+          mes: mes,
+          reservas: delMes,
+          estudio: e,
+          liquidacion: liq,
+        ),
+      );
     }
 
     // Ordenar: pendientes primero, luego por monto desc

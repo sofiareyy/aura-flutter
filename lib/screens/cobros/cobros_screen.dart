@@ -630,13 +630,17 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                                 ),
                                                 if (item['_correccion'] != null)
                                                   Padding(
-                                                    padding: const EdgeInsets
-                                                        .only(top: 2),
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          top: 2,
+                                                        ),
                                                     child: Text(
                                                       item['_correccion']
                                                           as String,
                                                       style: const TextStyle(
-                                                        color: Color(0xFF8F877F),
+                                                        color: Color(
+                                                          0xFF8F877F,
+                                                        ),
                                                         fontSize: 11,
                                                         height: 1.3,
                                                       ),
@@ -890,12 +894,20 @@ class _CobrosScreenState extends State<CobrosScreen> {
     // el historial (armarHistorialCobros). created_at sólo de respaldo.
     final reservas =
         _reservasNoCanceladas.where((r) {
-          final dt = Liquidacion.fechaDeClase(r) ??
+          final dt =
+              Liquidacion.fechaDeClase(r) ??
               DateTime.tryParse(r['created_at']?.toString() ?? '');
           return dt != null && mesArgentinoDe(dt) == mesObjetivo;
         }).toList()..sort(
-          (a, b) => (b['_clase_fecha']?.toString() ?? b['created_at']?.toString() ?? '')
-              .compareTo(a['_clase_fecha']?.toString() ?? a['created_at']?.toString() ?? ''),
+          (a, b) =>
+              (b['_clase_fecha']?.toString() ??
+                      b['created_at']?.toString() ??
+                      '')
+                  .compareTo(
+                    a['_clase_fecha']?.toString() ??
+                        a['created_at']?.toString() ??
+                        '',
+                  ),
         );
     final etiquetaMes =
         toBeginningOfSentenceCase(
@@ -1228,7 +1240,8 @@ class _CobrosScreenState extends State<CobrosScreen> {
     final mesActual = mesArgentinoDe(DateTime.now());
     return _reservasNoCanceladas.where((r) {
       // Por fecha de la CLASE (16/9), igual que el historial y el backoffice.
-      final dt = Liquidacion.fechaDeClase(r) ??
+      final dt =
+          Liquidacion.fechaDeClase(r) ??
           DateTime.tryParse(r['created_at']?.toString() ?? '');
       return dt != null && mesArgentinoDe(dt) == mesActual;
     }).toList();
@@ -1281,7 +1294,8 @@ class _CobrosScreenState extends State<CobrosScreen> {
       final mes = mesArgentinoDe(date);
       final total = _reservasNoCanceladas
           .where((reserva) {
-            final dt = Liquidacion.fechaDeClase(reserva) ??
+            final dt =
+                Liquidacion.fechaDeClase(reserva) ??
                 DateTime.tryParse(reserva['created_at']?.toString() ?? '');
             return dt != null && mesArgentinoDe(dt) == mes;
           })

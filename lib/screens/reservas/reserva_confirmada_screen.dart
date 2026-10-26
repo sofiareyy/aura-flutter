@@ -648,8 +648,11 @@ class _ComoLlegarCard extends StatelessWidget {
               Expanded(
                 child: InkWell(
                   onTap: () => abrirUrl(
-                    mapaUrl(direccion: hasAddress ? direccion : nombre,
-                        lat: lat, lng: lng),
+                    mapaUrl(
+                      direccion: hasAddress ? direccion : nombre,
+                      lat: lat,
+                      lng: lng,
+                    ),
                   ),
                   child: Text(
                     hasAddress ? direccion : nombre,
@@ -675,8 +678,11 @@ class _ComoLlegarCard extends StatelessWidget {
                   label: 'Google Maps',
                   icon: Icons.map_outlined,
                   onTap: () => abrirUrl(
-                    mapaUrl(direccion: hasAddress ? direccion : nombre,
-                        lat: lat, lng: lng),
+                    mapaUrl(
+                      direccion: hasAddress ? direccion : nombre,
+                      lat: lat,
+                      lng: lng,
+                    ),
                   ),
                 ),
               ),

@@ -109,9 +109,7 @@ class _AuthOnboardingScreenState extends State<AuthOnboardingScreen> {
                       ),
                       child: const Text(
                         'Ya tengo cuenta',
-                        style: TextStyle(
-                          color: Color(0xFF67615B),
-                        ),
+                        style: TextStyle(color: Color(0xFF67615B)),
                       ),
                     ),
                   ),
@@ -187,10 +185,7 @@ class _SlidePage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 10),
-                SizedBox(
-                  height: 250,
-                  child: _Artwork(graphic: slide.graphic),
-                ),
+                SizedBox(height: 250, child: _Artwork(graphic: slide.graphic)),
                 const SizedBox(height: 6),
                 RichText(
                   text: TextSpan(
@@ -247,10 +242,7 @@ class _Artwork extends StatelessWidget {
                 height: 198,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFF2D1A12),
-                    width: 10,
-                  ),
+                  border: Border.all(color: const Color(0xFF2D1A12), width: 10),
                 ),
               ),
             ),
@@ -291,28 +283,13 @@ class _Artwork extends StatelessWidget {
                 height: 132,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: const Color(0xFF2D1A12),
-                    width: 9,
-                  ),
+                  border: Border.all(color: const Color(0xFF2D1A12), width: 9),
                 ),
               ),
             ),
-            const Positioned(
-              left: 58,
-              top: 100,
-              child: _Bubble(size: 36),
-            ),
-            const Positioned(
-              left: 96,
-              top: 80,
-              child: _Bubble(size: 40),
-            ),
-            const Positioned(
-              left: 136,
-              top: 102,
-              child: _Bubble(size: 34),
-            ),
+            const Positioned(left: 58, top: 100, child: _Bubble(size: 36)),
+            const Positioned(left: 96, top: 80, child: _Bubble(size: 40)),
+            const Positioned(left: 136, top: 102, child: _Bubble(size: 34)),
           ],
         );
       case _SlideGraphic.places:
@@ -326,10 +303,7 @@ class _Artwork extends StatelessWidget {
                 height: 142,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFF2D1A12),
-                    width: 10,
-                  ),
+                  border: Border.all(color: const Color(0xFF2D1A12), width: 10),
                 ),
               ),
             ),

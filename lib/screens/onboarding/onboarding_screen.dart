@@ -70,8 +70,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   final page = _pageCtrl.hasClients
                       ? (_pageCtrl.page ?? index.toDouble())
                       : index.toDouble();
-                  final opacity =
-                      (1.0 - (page - index).abs()).clamp(0.0, 1.0);
+                  final opacity = (1.0 - (page - index).abs()).clamp(0.0, 1.0);
                   return Opacity(opacity: opacity, child: child!);
                 },
                 child: _SlideContent(slide: _slides[index]),

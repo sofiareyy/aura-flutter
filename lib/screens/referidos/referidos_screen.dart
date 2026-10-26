@@ -304,7 +304,8 @@ class _ReferidosScreenState extends State<ReferidosScreen> {
                       context,
                       'Te invito a Aura. Usá mi código $_codigoPropio cuando '
                       'crees tu cuenta y activamos créditos para los dos.',
-                      avisoCopiado: 'Invitación copiada: pegala donde quieras 🧡',
+                      avisoCopiado:
+                          'Invitación copiada: pegala donde quieras 🧡',
                     ),
               icon: const Icon(Icons.share_rounded),
               label: const Text('Compartir código'),

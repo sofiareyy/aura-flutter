@@ -243,7 +243,9 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
                             color: AppColors.white,
-                            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+                            borderRadius: BorderRadius.circular(
+                              AuraRadio.tarjeta,
+                            ),
                             boxShadow: const [
                               BoxShadow(
                                 color: Color(0x10000000),
@@ -256,7 +258,9 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+                                borderRadius: BorderRadius.circular(
+                                  AuraRadio.tarjeta,
+                                ),
                                 // Proporción en vez de alto fijo, la misma que
                                 // los heroes: una foto ancha de cabecera se
                                 // recorta igual en toda la app. En un teléfono
@@ -278,7 +282,9 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: AppColors.primary,
-                                    borderRadius: BorderRadius.circular(AuraRadio.pastilla),
+                                    borderRadius: BorderRadius.circular(
+                                      AuraRadio.pastilla,
+                                    ),
                                   ),
                                   child: Text(
                                     categoria,
@@ -348,7 +354,9 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
                           padding: const EdgeInsets.all(22),
                           decoration: BoxDecoration(
                             color: AppColors.blackSoft,
-                            borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
+                            borderRadius: BorderRadius.circular(
+                              AuraRadio.tarjeta,
+                            ),
                           ),
                           child: Column(
                             children: [
@@ -405,7 +413,9 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
                               color: AppColors.error.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(AuraRadio.boton),
+                              borderRadius: BorderRadius.circular(
+                                AuraRadio.boton,
+                              ),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -451,7 +461,9 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
                               color: AppColors.error.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(AuraRadio.boton),
+                              borderRadius: BorderRadius.circular(
+                                AuraRadio.boton,
+                              ),
                             ),
                             child: Text(
                               cierreMinutos > 0
@@ -600,7 +612,10 @@ class _CreditRow extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(color: Color(0xFFA39B94), fontSize: AuraTipo.cuerpo),
+            style: const TextStyle(
+              color: Color(0xFFA39B94),
+              fontSize: AuraTipo.cuerpo,
+            ),
           ),
         ),
         Text(

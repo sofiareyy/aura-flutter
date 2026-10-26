@@ -38,6 +38,9 @@ class _AuraGestionScreenState extends State<AuraGestionScreen> {
   }
 
   Future<void> _cargar() async {
+    // Se llama también después de guardar (tras un await): si la pantalla ya
+    // se cerró, setState explotaría en release. (26/10/2026)
+    if (!mounted) return;
     setState(() => _loading = true);
     try {
       final estudioId = await _estudioAdminService.getCurrentStudioId();

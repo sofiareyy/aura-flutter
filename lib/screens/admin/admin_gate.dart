@@ -45,8 +45,11 @@ class AdminGate extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: const [
-                    Icon(Icons.lock_outline_rounded,
-                        size: 42, color: AppColors.error),
+                    Icon(
+                      Icons.lock_outline_rounded,
+                      size: 42,
+                      color: AppColors.error,
+                    ),
                     SizedBox(height: 12),
                     Text(
                       'No tenés permisos para entrar a Admin Aura.',

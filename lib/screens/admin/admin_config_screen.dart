@@ -69,6 +69,9 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
   }
 
   Future<void> _load() async {
+    // Se llama también después de guardar (tras un await): si la pantalla ya
+    // se cerró, setState explotaría en release. (26/10/2026)
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -164,7 +167,8 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
   Future<void> _otorgarRegistradas() async {
     final cfg = _bono;
     if (cfg == null) return;
-    final cupo = (cfg['tope_registradas'] as num).toInt() -
+    final cupo =
+        (cfg['tope_registradas'] as num).toInt() -
         (cfg['dados_registradas'] as num).toInt();
     if (cupo <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -210,7 +214,10 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: _kCardBg,
         title: Text(titulo, style: const TextStyle(color: Colors.white)),
-        content: Text(cuerpo, style: const TextStyle(color: _kSubtle, height: 1.45)),
+        content: Text(
+          cuerpo,
+          style: const TextStyle(color: _kSubtle, height: 1.45),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -651,7 +658,8 @@ class _BonoCard extends StatelessWidget {
 
     return _DarkCard(
       title: 'Bono de bienvenida',
-      subtitle: '$monto créditos por cuenta, una sola vez, que vencen a los '
+      subtitle:
+          '$monto créditos por cuenta, una sola vez, que vencen a los '
           '$dias días. Dos grupos con topes separados.',
       children: [
         Row(
@@ -699,7 +707,9 @@ class _BonoCard extends StatelessWidget {
           width: double.infinity,
           height: 46,
           child: OutlinedButton(
-            onPressed: (!activo || saving || dadosReg >= topeReg) ? null : onOtorgar,
+            onPressed: (!activo || saving || dadosReg >= topeReg)
+                ? null
+                : onOtorgar,
             style: _darkOutlinedStyle(),
             child: Text(
               dadosReg >= topeReg
@@ -713,7 +723,7 @@ class _BonoCard extends StatelessWidget {
         Text(
           activo
               ? 'Arranca por las que entraron a la app más recientemente. Les '
-                  'avisa por campanita, push y mail.'
+                    'avisa por campanita, push y mail.'
               : 'Prendé el bono para poder otorgarlo.',
           style: const TextStyle(color: _kSubtle, fontSize: 12, height: 1.4),
         ),

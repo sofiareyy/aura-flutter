@@ -33,7 +33,9 @@ class _AuthSplashScreenState extends State<AuthSplashScreen>
   }
 
   Future<void> _runTransition() async {
-    await Future<void>.delayed(const Duration(milliseconds: kIsWeb ? 800 : 2200));
+    await Future<void>.delayed(
+      const Duration(milliseconds: kIsWeb ? 800 : 2200),
+    );
     if (!mounted || _navigating) return;
     _navigating = true;
 

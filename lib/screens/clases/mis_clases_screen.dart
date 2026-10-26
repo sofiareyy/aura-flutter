@@ -2820,6 +2820,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           (item['id'] as num).toInt(),
           payload,
         );
+        if (!mounted) return;
         setState(() {
           _horarios = _horarios
               .map(
@@ -2855,6 +2856,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
           fechaHora: fechaHora,
           payload: payload,
         );
+        if (!mounted) return;
         setState(() {
           _showFixed = false; // mostrar la solapa "Clases cargadas"
           _tablaOk = true;

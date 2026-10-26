@@ -44,6 +44,9 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
   }
 
   Future<void> _load() async {
+    // Se llama también después de guardar (tras un await): si la pantalla ya
+    // se cerró, setState explotaría en release. (26/10/2026)
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _error = null;

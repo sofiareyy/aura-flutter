@@ -41,6 +41,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<void> _load() async {
+    // Se llama también después de guardar (tras un await): si la pantalla ya
+    // se cerró, setState explotaría en release. (26/10/2026)
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -127,7 +130,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
       initialDateRange: DateTimeRange(start: _from, end: _to),
     );
-    if (picked == null) return;
+    if (picked == null || !mounted) return;
     setState(() {
       _from = picked.start;
       _to = picked.end;

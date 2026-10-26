@@ -116,6 +116,7 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
           : DatosCobro.aplanar(Map<String, dynamic>.from(rowRaw));
       _valorCredito = await _pricingService.getValorCreditoArs();
       await _cargarServicios();
+      if (!mounted) return;
 
       if (row == null) {
         setState(() {
@@ -161,6 +162,7 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
         _error = null;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _error = 'Error: ${e.toString()}';
