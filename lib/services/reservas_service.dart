@@ -778,6 +778,9 @@ class ReservasService {
         return 'Tu sesión expiró. Volvé a iniciar sesión y probá de nuevo.';
       case 'clase_no_encontrada':
         return 'No encontramos la clase.';
+      // 26/10/2026: el estudio se dio de baja de Aura.
+      case 'estudio_inactivo':
+        return 'Este estudio ya no está en Aura, así que la clase no se puede reservar.';
       case 'clase_cancelada':
         return 'Esta clase fue cancelada por el estudio.';
       case 'codigo_qr_invalido':

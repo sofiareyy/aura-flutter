@@ -12,6 +12,11 @@ String _toSupaDate(DateTime dt) {
       '${dt.minute.toString().padLeft(2, '0')}:00';
 }
 
+/// Filtro por estudio activo sin pisar `estudios`, que se completa aparte
+/// con `_attachEstudios`.
+const _kAliasActivo = 'estudio_activo';
+const _kFiltroActivo = '$_kAliasActivo:estudios!inner(activo)';
+
 class ClasesService {
   final _supabase = Supabase.instance.client;
 
@@ -35,7 +40,11 @@ class ClasesService {
     final semanasAdelante = ahora.add(Duration(days: diasVentana));
     var query = _supabase
         .from(AppConstants.tableClases)
-        .select()
+        // 26/10/2026: sólo de estudios activos. La RLS ya lo hace para las
+        // alumnas, pero deja ver sus clases a los admins del estudio, y en
+        // Explorar nadie tiene que ver clases de un estudio dado de baja.
+        .select('*, $_kFiltroActivo')
+        .eq('$_kAliasActivo.activo', true)
         // 2026-08-25: una clase cancelada por el estudio no se ofrece.
         .eq('cancelada', false);
     if (!incluirExperiencias) {
@@ -48,7 +57,10 @@ class ClasesService {
     // Pilates es el ~15% del catálogo, de esas 20 sobrevivían 2 o 3: el feed
     // parecía cortado y para ver las 155 clases de Pilates había que tocar
     // "Cargar más" unas 50 veces. Ahora la página trae 20 clases DE PILATES.
-    final filtroCat = filtroCategoriaPostgrest(categoria, estudiosDeLaCategoria);
+    final filtroCat = filtroCategoriaPostgrest(
+      categoria,
+      estudiosDeLaCategoria,
+    );
     if (filtroCat != null) query = query.or(filtroCat) as dynamic;
     final filtroTexto = filtroTextoPostgrest(texto, estudiosDelTexto);
     if (filtroTexto != null) query = query.or(filtroTexto) as dynamic;
@@ -63,8 +75,9 @@ class ClasesService {
         // (se dedupean) u OMITE otras, que se pierden en silencio.
         .order('id', ascending: true)
         .range(offset, offset + limit - 1);
-    final withEstudios =
-        await _attachEstudios(List<Map<String, dynamic>>.from(clases as List));
+    final withEstudios = await _attachEstudios(
+      List<Map<String, dynamic>>.from(clases as List),
+    );
     return _attachOcupacion(withEstudios);
   }
 
@@ -82,12 +95,16 @@ class ClasesService {
     final hasta = ahora.add(const Duration(days: 90));
     var query = _supabase
         .from(AppConstants.tableClases)
-        .select()
+        .select('*, $_kFiltroActivo')
+        .eq('$_kAliasActivo.activo', true)
         .eq('tipo', 'workshop')
         .eq('cancelada', false);
     // Mismos filtros que las clases (17/9): antes las experiencias se traían
     // todas juntas con tope 100 y sin paginar, y el chip se aplicaba después.
-    final filtroCat = filtroCategoriaPostgrest(categoria, estudiosDeLaCategoria);
+    final filtroCat = filtroCategoriaPostgrest(
+      categoria,
+      estudiosDeLaCategoria,
+    );
     if (filtroCat != null) query = query.or(filtroCat) as dynamic;
     final filtroTexto = filtroTextoPostgrest(texto, estudiosDelTexto);
     if (filtroTexto != null) query = query.or(filtroTexto) as dynamic;
@@ -98,12 +115,20 @@ class ClasesService {
         .order('fecha', ascending: true)
         .order('id', ascending: true)
         .range(offset, offset + limit - 1);
-    final withEstudios =
-        await _attachEstudios(List<Map<String, dynamic>>.from(clases as List));
+    final withEstudios = await _attachEstudios(
+      List<Map<String, dynamic>>.from(clases as List),
+    );
     return _attachOcupacion(withEstudios);
   }
 
-  Future<Map<String, dynamic>?> getClase(int id) async {
+  /// [soloEstudiosActivos]: para el lado de la alumna (detalle, confirmar
+  /// reserva). Si el estudio está dado de baja devuelve null, aunque quien
+  /// mira sea admin del estudio. Gestionar una reserva ya hecha NO lo usa:
+  /// esa reserva tiene que poder verse y cancelarse igual.
+  Future<Map<String, dynamic>?> getClase(
+    int id, {
+    bool soloEstudiosActivos = false,
+  }) async {
     final data = await _supabase
         .from(AppConstants.tableClases)
         .select()
@@ -116,9 +141,12 @@ class ClasesService {
         .select()
         .eq('id', data['estudio_id'])
         .maybeSingle();
+    if (soloEstudiosActivos && estudio?['activo'] == false) return null;
 
     // Recalcular ocupación real desde reservas activas
-    final withOcupacion = await _attachOcupacion([Map<String, dynamic>.from(data)]);
+    final withOcupacion = await _attachOcupacion([
+      Map<String, dynamic>.from(data),
+    ]);
     return {...withOcupacion.first, 'estudios': estudio};
   }
 
@@ -143,7 +171,10 @@ class ClasesService {
             .select()
             .eq('id', clase['estudio_id'])
             .maybeSingle();
-        result.add({...r, 'clases': {...clase, 'estudios': estudio}});
+        result.add({
+          ...r,
+          'clases': {...clase, 'estudios': estudio},
+        });
       }
     }
     return result;
@@ -203,11 +234,12 @@ class ClasesService {
           .from(AppConstants.tableClases)
           .select('estudio_id')
           .inFilter('id', claseIds);
-      final estudioIds = List<Map<String, dynamic>>.from(clasesReservadas as List)
-          .map((c) => (c['estudio_id'] as num?)?.toInt())
-          .whereType<int>()
-          .toSet()
-          .toList();
+      final estudioIds =
+          List<Map<String, dynamic>>.from(clasesReservadas as List)
+              .map((c) => (c['estudio_id'] as num?)?.toInt())
+              .whereType<int>()
+              .toSet()
+              .toList();
       if (estudioIds.isEmpty) return [];
 
       // 3 · Las próximas de esos estudios. Se piden de más (max * 4) porque
@@ -217,7 +249,8 @@ class ClasesService {
       final proximas = await _supabase
           .from(AppConstants.tableClases)
           .select(
-              '*, estudios!inner(id, nombre, categoria, categorias, barrio, foto_url, activo)')
+            '*, estudios!inner(id, nombre, categoria, categorias, barrio, foto_url, activo)',
+          )
           .inFilter('estudio_id', estudioIds)
           .eq('cancelada', false)
           .eq('estudios.activo', true)
@@ -278,8 +311,7 @@ class ClasesService {
           .expand((c) {
             final estudio = c['estudios'] as Map?;
             if (estudio == null) return const <String>[];
-            return Estudio.parseCategorias(
-                Map<String, dynamic>.from(estudio));
+            return Estudio.parseCategorias(Map<String, dynamic>.from(estudio));
           })
           .where((item) => item.isNotEmpty)
           .toSet()
@@ -287,13 +319,14 @@ class ClasesService {
       if (categorias.isEmpty) return [];
 
       // Query upcoming classes from those categories, excluding visited studios
-      final ahora =
-          DateTime.now().toUtc().subtract(const Duration(hours: 3));
+      final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
       final hasta = ahora.add(const Duration(days: 30));
       final resultado = await _supabase
           .from('clases')
           .select(
-              '*, estudios!inner(id, nombre, categoria, categorias, barrio, foto_url)')
+            '*, estudios!inner(id, nombre, categoria, categorias, barrio, foto_url, activo)',
+          )
+          .eq('estudios.activo', true)
           .eq('cancelada', false)
           .gte('fecha', _toSupaDate(ahora))
           .lte('fecha', _toSupaDate(hasta))
@@ -311,14 +344,16 @@ class ClasesService {
           .take(limit)
           .toList();
       return _attachOcupacion(
-          filtered.map((c) => {...c, 'estudios': c['estudios']}).toList());
+        filtered.map((c) => {...c, 'estudios': c['estudios']}).toList(),
+      );
     } catch (_) {
       return [];
     }
   }
 
   Future<List<Map<String, dynamic>>> _attachEstudios(
-      List<Map<String, dynamic>> clases) async {
+    List<Map<String, dynamic>> clases,
+  ) async {
     if (clases.isEmpty) return clases;
 
     final estudioIds = clases
@@ -334,9 +369,7 @@ class ClasesService {
         .select()
         .inFilter('id', estudioIds);
 
-    final estudiosMap = {
-      for (final e in (estudios as List)) e['id']: e,
-    };
+    final estudiosMap = {for (final e in (estudios as List)) e['id']: e};
 
     return clases.map((c) {
       return {...c, 'estudios': estudiosMap[c['estudio_id']]};
@@ -374,7 +407,9 @@ class ClasesService {
       final storedOcupados = total > 0 ? (total - storedDisp) : 0;
       final reserved = classId != null ? (countByClass[classId] ?? 0) : 0;
       final ocupados = reserved > storedOcupados ? reserved : storedOcupados;
-      final disponibles = total > 0 ? (total - ocupados).clamp(0, total) : storedDisp;
+      final disponibles = total > 0
+          ? (total - ocupados).clamp(0, total)
+          : storedDisp;
 
       return {
         ...c,

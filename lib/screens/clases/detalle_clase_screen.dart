@@ -204,7 +204,10 @@ class _DetalleClaseScreenState extends State<DetalleClaseScreen> {
   Future<void> _cargar() async {
     final provider = context.read<AppProvider>();
     try {
-      final clase = await _clasesService.getClase(widget.claseId);
+      final clase = await _clasesService.getClase(
+        widget.claseId,
+        soloEstudiosActivos: true,
+      );
       // Para el muro de créditos: "los otros N estudios". Se pide en paralelo
       // y si falla queda null, con lo que el mensaje cae al texto genérico.
       final totalEstudios = await EstudiosService().contarEstudiosActivos();

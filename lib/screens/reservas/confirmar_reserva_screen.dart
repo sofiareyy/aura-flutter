@@ -42,7 +42,10 @@ class _ConfirmarReservaScreenState extends State<ConfirmarReservaScreen> {
   }
 
   Future<void> _cargar() async {
-    final clase = await _clasesService.getClase(widget.claseId);
+    final clase = await _clasesService.getClase(
+      widget.claseId,
+      soloEstudiosActivos: true,
+    );
     final estudio = clase?['estudios'] as Map<String, dynamic>?;
     final estudioId =
         (estudio?['id'] as num?)?.toInt() ??
