@@ -23,6 +23,7 @@ class MisCreditosScreen extends StatefulWidget {
 
 class _MisCreditosScreenState extends State<MisCreditosScreen> {
   final _reservasService = ReservasService();
+
   /// Histórico: todas las clases tomadas, no sólo las del mes.
   List<Map<String, dynamic>> _reservas = [];
 
@@ -102,9 +103,12 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                         if (!ctx.mounted) return;
                         Navigator.of(ctx).pop();
                         if (mounted) {
-                          await context.read<AppProvider>().refrescarUsuario();
-                          final uid = context.read<AppProvider>().usuario?.id;
-                          if (uid != null) _loadReservas(uid);
+                          // El provider se lee antes del await: después la
+                          // pantalla puede ya no tener `context`.
+                          final provider = context.read<AppProvider>();
+                          await provider.refrescarUsuario();
+                          final uid = provider.usuario?.id;
+                          if (uid != null && mounted) _loadReservas(uid);
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -157,7 +161,6 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
       if (mounted) setState(() => _loadingReservas = false);
     }
   }
-
 
   // ── Build ─────────────────────────────────────────────────────────────────
 
@@ -488,8 +491,8 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
   Widget _buildReservaCard(Map<String, dynamic> reserva) {
     final clase = reserva['clases'] as Map<String, dynamic>?;
     final nombre = clase?['nombre']?.toString() ?? 'Clase';
-    final estudio =
-        (clase?['estudios'] as Map<String, dynamic>?)?['nombre']?.toString();
+    final estudio = (clase?['estudios'] as Map<String, dynamic>?)?['nombre']
+        ?.toString();
     final creditos = (reserva['creditos_usados'] as num?)?.toInt() ?? 0;
 
     return Container(

@@ -200,6 +200,9 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   Future<void> _register() async {
+    // Se lee ANTES de cualquier await: si la persona se va de la pantalla
+    // mientras se canjea el regalo o el referido, `context` ya no existe.
+    final appProvider = context.read<AppProvider>();
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
 
@@ -298,7 +301,7 @@ class _RegisterScreenState extends State<RegisterScreen>
         }
       }
 
-      await context.read<AppProvider>().refrescarUsuario();
+      await appProvider.refrescarUsuario();
       if (!mounted) return;
       if (giftError) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -80,6 +80,9 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
   }
 
   Future<void> _cargar() async {
+    // Se llama también después de un await (al guardar una reseña): si la
+    // pantalla ya se cerró, no hay `context` que leer.
+    if (!mounted) return;
     final userId = context.read<AppProvider>().userId;
     // Abrir un estudio hacía 6 idas y vueltas EN SERIE. Medido el 24/8: el
     // servidor tarda 53 ms en el panel más pesado (Citra, 368 clases), pero
@@ -1210,9 +1213,7 @@ class _RemoteImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final liviana = ancho == null
-        ? null
-        : fotoOptimizada(url, ancho: ancho!);
+    final liviana = ancho == null ? null : fotoOptimizada(url, ancho: ancho!);
     // La red de seguridad, igual que en FotoRed: si la liviana falla, se
     // muestra la original antes de rendirse al error.
     if (liviana != null && liviana != url) {
