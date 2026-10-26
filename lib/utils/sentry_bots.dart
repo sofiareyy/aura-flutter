@@ -149,10 +149,32 @@ SentryEvent? filtrarEvento(SentryEvent event, {required bool esWeb}) {
     plataforma.registrarDescarte('user_agent', '');
     return null;
   }
+  if (esScriptErrorCiego(event)) {
+    plataforma.registrarDescarte('script_error_cross_origin', '');
+    return null;
+  }
   final origen = archivoDeOrigen(archivosDelEvento(event));
   if (esArchivoAjeno(origen)) {
     plataforma.registrarDescarte('origen_ajeno', origen!);
     return null;
   }
   return event;
+}
+
+/// "Script error." sin stack (26/10/2026): es el navegador escondiendo un
+/// error de un script de OTRO dominio (política cross-origin). No trae ni
+/// archivo ni línea: no es diagnosticable y no es nuestro — los errores de
+/// main.dart.js, que se sirve desde nuestro dominio, siempre traen mensaje y
+/// stack. Se descarta SÓLO si el mensaje es exactamente ese y no hay frames.
+bool esScriptErrorCiego(SentryEvent event) {
+  bool esExacto(String? m) => m?.trim() == 'Script error.';
+  final excepciones = event.exceptions ?? const <SentryException>[];
+  final sinFrames = excepciones.every(
+    (e) => (e.stackTrace?.frames ?? const []).isEmpty,
+  );
+  if (!sinFrames) return false;
+  if (excepciones.isNotEmpty) {
+    return excepciones.every((e) => esExacto(e.value));
+  }
+  return esExacto(event.message?.formatted);
 }

@@ -188,4 +188,42 @@ void main() {
       expect(esBot('meta-externalads/1.1'), isTrue);
     });
   });
+
+  group('"Script error." de otro dominio', () {
+    test('exacto y sin stack: se descarta', () {
+      final e = SentryEvent(
+        exceptions: [SentryException(type: 'Error', value: 'Script error.')],
+      );
+      expect(filtrarEvento(e, esWeb: true), isNull);
+      final comoMensaje = SentryEvent(
+        message: SentryMessage('Script error.'),
+      );
+      expect(filtrarEvento(comoMensaje, esWeb: true), isNull);
+    });
+
+    test('con stack nuestro, o con otro mensaje: pasa', () {
+      final conStack = SentryEvent(
+        exceptions: [
+          SentryException(
+            type: 'Error',
+            value: 'Script error.',
+            stackTrace: SentryStackTrace(
+              frames: [
+                SentryStackFrame(
+                  absPath: 'https://somosaurapass.com/main.dart.js',
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+      expect(filtrarEvento(conStack, esWeb: true), same(conStack));
+      final otro = SentryEvent(
+        exceptions: [
+          SentryException(type: 'Error', value: 'Script error. en Perfil'),
+        ],
+      );
+      expect(filtrarEvento(otro, esWeb: true), same(otro));
+    });
+  });
 }
