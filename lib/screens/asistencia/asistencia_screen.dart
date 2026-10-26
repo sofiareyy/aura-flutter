@@ -622,6 +622,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
           titulo = 'QR inválido';
           subtitulo = 'No se encontró una reserva activa\n$normalizado';
         }
+        if (!mounted) return;
         setState(() {
           _debugResult =
               'NOT FOUND (countAll: $countAll, otherClass: $countOtherClass'
@@ -695,8 +696,8 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
         if (mounted) setState(() => _asistentes = list);
       });
     } catch (e) {
-      setState(() => _debugResult = 'EXCEPTION: $e');
       if (!mounted) return;
+      setState(() => _debugResult = 'EXCEPTION: $e');
 
       // Sólo se cae al modo offline si DE VERDAD no hubo conexión
       // (20/10/2026). Antes cualquier excepción entraba acá: un 42501 de
@@ -763,6 +764,10 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     required String titulo,
     required String subtitulo,
   }) {
+    // Lo llaman después de consultas a la base: si la pantalla ya se cerró,
+    // `context` no existe y el showDialog explotaría (mismo crash que Perfil,
+    // 26/10/2026).
+    if (!mounted) return;
     _cameraController?.stop();
     showDialog(
       context: context,

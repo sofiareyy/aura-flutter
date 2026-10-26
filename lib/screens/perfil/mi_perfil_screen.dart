@@ -162,20 +162,27 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
     } catch (_) {}
   }
 
+  // Carga de Perfil. Cada `await` puede terminar con la pantalla ya cerrada
+  // (la usuaria se fue a otra pestaña mientras cargaba). Sin el chequeo de
+  // `mounted`, el `context.read` de después explotaba con "Null check
+  // operator used on a null value": Sentry, iPhone, 1.0.8+33 (26/10/2026).
   Future<void> _cargarTodo() async {
     final provider = context.read<AppProvider>();
     await provider.cargarUsuario();
+    if (!mounted) return;
     final uid = provider.userId;
-    if (uid.isNotEmpty) {
-      _misEstudios = await _estudioAdminService.listMyStudios();
-    } else {
-      _misEstudios = const [];
-    }
-    await _cargarFavoritos();
-    _clasesTomadas = await _reservasService.contarClasesTomadas(
+    final estudios = uid.isNotEmpty
+        ? await _estudioAdminService.listMyStudios()
+        : const <Map<String, dynamic>>[];
+    if (!mounted) return;
+    _misEstudios = estudios;
+    await _cargarFavoritos(uid);
+    if (!mounted) return;
+    final tomadas = await _reservasService.contarClasesTomadas(
       uid.isEmpty ? null : uid,
     );
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() => _clasesTomadas = tomadas);
   }
 
   Future<void> _entrarAEstudio(int estudioId) async {
@@ -203,10 +210,17 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
     context.go('/estudio/dashboard');
   }
 
-  Future<void> _cargarFavoritos() async {
-    final userId = context.read<AppProvider>().userId;
-    if (userId.isEmpty) return;
-    final favoritos = await _favoritosService.getFavoritos(userId);
+  /// Recibe el id ya leído: no toca `context`, que puede no existir más.
+  /// Si falla la red, apaga el spinner igual (antes giraba para siempre).
+  Future<void> _cargarFavoritos(String userId) async {
+    if (userId.isEmpty) {
+      if (mounted) setState(() => _loadingFavoritos = false);
+      return;
+    }
+    List<Estudio> favoritos = _favoritos;
+    try {
+      favoritos = await _favoritosService.getFavoritos(userId);
+    } catch (_) {}
     if (!mounted) return;
     setState(() {
       _favoritos = favoritos;
