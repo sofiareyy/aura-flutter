@@ -1,5 +1,6 @@
 import 'analytics_stub.dart'
-    if (dart.library.js_interop) 'analytics_web.dart' as impl;
+    if (dart.library.js_interop) 'analytics_web.dart'
+    as impl;
 
 /// Google Analytics 4 de la web (somosaurapass.com).
 ///
@@ -51,4 +52,8 @@ class Analytics {
     if (!url.contains('apps.apple.com')) return;
     impl.appStoreClick(url, texto, placement);
   }
+
+  /// El clic de Meta guardado en el navegador (`fb.1.<ms>.<fbclid>`), o null.
+  /// Lo guarda aura-analytics.js al cargar la página. Ver AtribucionMeta.
+  static String? fbc() => impl.fbcGuardado();
 }
