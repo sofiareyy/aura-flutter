@@ -174,11 +174,86 @@
     } catch (e) {}
   }, true);
 
+  /*
+   * CLIC DE META (fbclid), 29/10/2026.
+   *
+   * Meta le agrega ?fbclid=... a cada clic de un anuncio. Si no se guarda en
+   * ESA carga, ese clic no se puede atribuir nunca más: GoRouter y los
+   * redirects lo sacan de la URL. Se guarda con el formato y la cookie
+   * estándar de Meta (_fbc = "fb.1.<ms del clic>.<fbclid>", 90 días), así el
+   * píxel —si algún día se instala— lo reconoce solo, y la app lo manda a la
+   * base apenas hay sesión (lib/services/analytics/atribucion_meta.dart) para
+   * los eventos de servidor (API de Conversiones).
+   *
+   * Con hash routing Meta puede pegar el fbclid antes o después del '#'
+   * (somosaurapass.com/?fbclid=X#/landing o .../#/landing?fbclid=X): se
+   * buscan los dos. Un clic nuevo reemplaza al anterior; recargar la misma
+   * URL no le cambia la fecha.
+   */
+  var FBC_COOKIE = "_fbc";
+  var FBC_STORAGE = "aura_fbc";
+  var FBC_DIAS = 90;
+
+  function fbclidDeLaUrl() {
+    var l = window.location;
+    var fuentes = [l.search];
+    var h = l.hash || "";
+    var q = h.indexOf("?");
+    if (q !== -1) fuentes.push(h.slice(q));
+    for (var i = 0; i < fuentes.length; i++) {
+      try {
+        var v = new URLSearchParams(fuentes[i] || "").get("fbclid");
+        if (v && /^[A-Za-z0-9_\-]{10,500}$/.test(v)) return v;
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  function fbcValido(v) {
+    return typeof v === "string" && /^fb\.1\.\d{13}\.[A-Za-z0-9_\-]{10,500}$/.test(v);
+  }
+
+  function leerFbc() {
+    try {
+      var m = document.cookie.match(/(?:^|;\s*)_fbc=([^;]+)/);
+      if (m && fbcValido(decodeURIComponent(m[1]))) return decodeURIComponent(m[1]);
+    } catch (e) {}
+    try {
+      var s = window.localStorage.getItem(FBC_STORAGE);
+      if (fbcValido(s)) return s;
+    } catch (e) {}
+    return null;
+  }
+
+  function guardarFbc(fbc) {
+    try {
+      document.cookie =
+        FBC_COOKIE + "=" + encodeURIComponent(fbc) +
+        "; max-age=" + FBC_DIAS * 86400 +
+        "; path=/; SameSite=Lax" +
+        (window.location.protocol === "https:" ? "; Secure" : "");
+    } catch (e) {}
+    // Respaldo por si la cookie no se pudo escribir.
+    try { window.localStorage.setItem(FBC_STORAGE, fbc); } catch (e) {}
+  }
+
+  try {
+    var fbclid = fbclidDeLaUrl();
+    if (fbclid) {
+      var actual = leerFbc();
+      if (!actual || actual.split(".").slice(3).join(".") !== fbclid) {
+        guardarFbc("fb.1." + Date.now() + "." + fbclid);
+      }
+    }
+  } catch (e) {}
+
   window.auraAnalytics = {
     measurementId: MEASUREMENT_ID,
     pageView: pageView,
-    appStoreClick: appStoreClick
+    appStoreClick: appStoreClick,
+    // El clic de Meta guardado ("fb.1.<ms>.<fbclid>") o null.
+    fbc: leerFbc
   };
 })();
-!function(){try{var e="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof globalThis?globalThis:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&(e._sentryDebugIds=e._sentryDebugIds||{},e._sentryDebugIds[n]="28101bc2-729d-5fc3-91f4-09ef3ee349f8")}catch(e){}}();
-//# debugId=28101bc2-729d-5fc3-91f4-09ef3ee349f8
+!function(){try{var e="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof globalThis?globalThis:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&(e._sentryDebugIds=e._sentryDebugIds||{},e._sentryDebugIds[n]="146f6dec-53d1-51e0-b88a-06105babcb4d")}catch(e){}}();
+//# debugId=146f6dec-53d1-51e0-b88a-06105babcb4d
