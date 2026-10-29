@@ -280,6 +280,65 @@ async function encolarYMandarCompra(
   enSegundoPlano(pedirEnvio(SUPABASE_URL, SERVICE_ROLE_KEY, evento))
 }
 
+/// Purchase de una SUSCRIPCIÓN (29/10/2026). Va UNA vez por suscripción: el
+/// primer cobro. Las renovaciones de cada mes no las decide nadie frente a un
+/// anuncio, y contarlas como compras nuevas le enseñaría mal a Meta.
+///
+/// El cobro llega en una fila de `pagos` nueva, sin plataforma. Desde dónde se
+/// suscribió está en la fila del checkout, que viaja en el external_reference
+/// como pago_id: de ahí salen la plataforma (sólo web), la IP y el navegador.
+/// El event_id es por checkout (`purchase:plan:<pago_id>`), así que aunque se
+/// llamara en una renovación, no se anota dos veces. Nunca lanza.
+async function compraDeSuscripcionParaMeta(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  input: {
+    userId: string
+    pagoIdCheckout: string
+    mpPaymentId: string
+    value: number
+    planNombre: string
+  },
+) {
+  try {
+    if (!input.pagoIdCheckout) return
+    const { data: checkout } = await supabase
+      .from('pagos')
+      .select('id, user_id, type, plataforma, meta_client_ip, meta_client_user_agent')
+      .eq('id', input.pagoIdCheckout)
+      .maybeSingle()
+    if (!checkout || checkout.user_id !== input.userId || checkout.type !== 'plan') return
+    if (checkout.plataforma !== 'web') return
+
+    const eventId = `purchase:plan:${checkout.id}`
+    const { data: ya } = await supabase
+      .from('meta_capi_eventos')
+      .select('event_id')
+      .eq('event_id', eventId)
+      .maybeSingle()
+    if (ya) return // renovación: la suscripción ya se contó
+
+    const evento: EventoMeta = {
+      event_name: 'Purchase',
+      event_id: eventId,
+      user_id: input.userId,
+      pago_id: checkout.id,
+      event_time: Math.floor(Date.now() / 1000),
+      value: input.value,
+      currency: 'ARS',
+      content_name: input.planNombre ? `Plan ${input.planNombre}` : 'Plan Aura',
+      content_type: 'product',
+      client_ip: checkout.meta_client_ip,
+      client_user_agent: checkout.meta_client_user_agent,
+      event_source_url: 'https://somosaurapass.com/',
+    }
+    await encolarEventoMeta(supabase, evento)
+    enSegundoPlano(pedirEnvio(SUPABASE_URL, SERVICE_ROLE_KEY, evento))
+  } catch (e) {
+    console.warn('mp-webhook: no se pudo anotar la compra de suscripción para Meta', e)
+  }
+}
+
 async function avisarCompra(pagoId: number | string) {
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/compra-aviso`, {
@@ -526,6 +585,14 @@ async function procesarPago(paymentId: string, eventType = 'payment') {
       return
     }
     console.log(`mp-webhook: acreditados ${creditos} créditos plan (${planNombre}) al usuario ${userId}`)
+    // Meta: Purchase de la suscripción. Los créditos YA están acreditados.
+    await compraDeSuscripcionParaMeta(supabase, {
+      userId,
+      pagoIdCheckout: params['pago_id'] ?? '',
+      mpPaymentId,
+      value: Number(payment.transaction_amount ?? 0),
+      planNombre,
+    })
   }
 
   if (targetPagoId) {
