@@ -27,8 +27,30 @@ class NotificacionesService {
   bool _initialized = false;
   void Function(String payload)? _onNotificationTap;
 
+  /// Toque que llegó antes de que hubiera handler (29/10/2026).
+  /// `initFirebaseMessaging` corre en main(), ANTES de runApp: el
+  /// `getInitialMessage` (app abierta desde un push estando cerrada) llegaba
+  /// cuando todavía nadie escuchaba, y el toque se perdía. Se guarda acá y se
+  /// entrega apenas se registra el handler.
+  String? _toquePendiente;
+
   void setNotificationTapHandler(void Function(String payload) handler) {
     _onNotificationTap = handler;
+    final p = _toquePendiente;
+    _toquePendiente = null;
+    if (p != null) handler(p);
+  }
+
+  @visibleForTesting
+  void simularToqueParaTest(String payload) => _entregarToque(payload);
+
+  void _entregarToque(String payload) {
+    final h = _onNotificationTap;
+    if (h != null) {
+      h(payload);
+    } else {
+      _toquePendiente = payload;
+    }
   }
 
   // IDs fijos para notificaciones únicas (no colisionan con reservaId que son ints pequeños)
@@ -62,7 +84,15 @@ class NotificacionesService {
     tz.setLocalLocation(tz.getLocation('America/Argentina/Buenos_Aires'));
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const ios = DarwinInitializationSettings();
+    // Los tres en false A PROPÓSITO (29/10/2026): por defecto el plugin pide
+    // el permiso al inicializar, o sea al abrir la app por primera vez, antes
+    // del login. Eso anulaba lo de abajo: el diálogo de iOS salía en frío y se
+    // quemaba el único intento. El permiso se pide en pedirPermisos().
+    const ios = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
     const settings = InitializationSettings(android: android, iOS: ios);
 
     await _plugin.initialize(
@@ -70,7 +100,7 @@ class NotificacionesService {
       onDidReceiveNotificationResponse: (details) {
         final payload = details.payload;
         if (payload != null && payload.isNotEmpty) {
-          _onNotificationTap?.call(payload);
+          _entregarToque(payload);
         }
       },
     );
@@ -134,14 +164,14 @@ class NotificacionesService {
     // 2) App en BACKGROUND y la tocaron.
     FirebaseMessaging.onMessageOpenedApp.listen((msg) {
       final p = _payloadDesdeData(msg.data);
-      if (p != null) _onNotificationTap?.call(p);
+      if (p != null) _entregarToque(p);
     });
 
     // 3) App CERRADA y la abrieron desde el push.
     final inicial = await FirebaseMessaging.instance.getInitialMessage();
     if (inicial != null) {
       final p = _payloadDesdeData(inicial.data);
-      if (p != null) _onNotificationTap?.call(p);
+      if (p != null) _entregarToque(p);
     }
 
     // El token rota solo; hay que re-registrarlo cuando pasa.

@@ -8,8 +8,23 @@ import '../../services/auth_service.dart';
 import '../../services/version_gate.dart';
 import 'onboarding_screen.dart';
 
+/// Reemplaza lo que el splash consulta afuera (versión mínima, sesión y
+/// destino por rol). Sólo para tests: en la app es siempre null.
+class SplashParaTest {
+  const SplashParaTest({
+    this.hayQueActualizar = false,
+    required this.conSesion,
+    required this.destino,
+  });
+  final bool hayQueActualizar;
+  final bool conSesion;
+  final Future<String> Function() destino;
+}
+
 class AuthSplashScreen extends StatefulWidget {
-  const AuthSplashScreen({super.key});
+  const AuthSplashScreen({super.key, this.paraTest});
+
+  final SplashParaTest? paraTest;
 
   @override
   State<AuthSplashScreen> createState() => _AuthSplashScreenState();
@@ -43,7 +58,11 @@ class _AuthSplashScreenState extends State<AuthSplashScreen>
     // la pantalla bloqueante y no sigue. Fail-open: si el chequeo no puede
     // confirmar que hay que actualizar (web, red caída, dato ilegible), sigue
     // de largo. No aplica en web. Va PRIMERO, antes de resolver sesión/destino.
-    if (!kIsWeb && await VersionGate.hayQueActualizar()) {
+    final t = widget.paraTest;
+    if (t != null
+        ? t.hayQueActualizar
+        : (!kIsWeb && await VersionGate.hayQueActualizar())) {
+      NavegacionNotificacion.descartar();
       if (mounted) context.go('/actualizar');
       return;
     }
@@ -57,25 +76,33 @@ class _AuthSplashScreenState extends State<AuthSplashScreen>
     // esperar nada (el splash nunca se cuelga por esto).
     if (AuthFlowState.pendingPasswordRecovery) {
       AuthFlowState.pendingPasswordRecovery = false;
+      NavegacionNotificacion.descartar();
       if (mounted) context.go('/reset-password');
       return;
     }
 
     // Si el usuario ya tiene sesión activa, redirigir según su rol
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
+    final conSesion =
+        t?.conSesion ?? Supabase.instance.client.auth.currentUser != null;
+    if (conSesion) {
       try {
         // destinoInicial crea la fila si es OAuth por primera vez y resuelve
         // la ruta según los accesos (usuario / estudio / profe / selector).
-        final destino = await AuthService().destinoInicial();
+        final destino =
+            await (t?.destino() ?? AuthService().destinoInicial());
         if (!mounted) return;
-        context.go(destino);
+        // Si la app se abrió tocando una notificación, va adonde apuntaba
+        // el aviso y no al destino del rol (ver NavegacionNotificacion).
+        context.go(NavegacionNotificacion.resolverDestino(destino));
         return;
       } catch (_) {
-        if (mounted) context.go('/home');
+        if (mounted) context.go(NavegacionNotificacion.resolverDestino('/home'));
         return;
       }
     }
+
+    // Sin sesión, un aviso no tiene adónde llevar: va al login/landing.
+    NavegacionNotificacion.descartar();
 
     // Sin sesión: en web ir a landing, en mobile ir a onboarding
     if (kIsWeb) {
@@ -99,6 +126,12 @@ class _AuthSplashScreenState extends State<AuthSplashScreen>
 
   @override
   void dispose() {
+    // Si el splash se va sin haber decidido (otra navegación lo reemplazó),
+    // no puede quedar "pendiente" para siempre: los toques siguientes de
+    // notificaciones tienen que navegar en el momento.
+    if (!NavegacionNotificacion.splashResuelto) {
+      NavegacionNotificacion.descartar();
+    }
     _controller.dispose();
     super.dispose();
   }

@@ -24,6 +24,7 @@ import 'services/version_gate.dart';
 import 'widgets/connectivity_banner.dart';
 import 'widgets/escala_texto.dart';
 import 'utils/onboarding_creditos.dart';
+import 'utils/ruta_de_notificacion.dart';
 
 /// Key global del ScaffoldMessenger para poder mostrar SnackBars desde fuera
 /// del árbol de un Scaffold (p. ej. al fallar el alta tras un callback OAuth).
@@ -239,10 +240,15 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
         // en frío y antes de saber qué es Aura — quemando el único intento
         // que da iOS. Y recién ahora hay usuario contra quien registrar el
         // token del dispositivo.
-        try {
-          await NotificacionesService.instance.pedirPermisos();
-          await NotificacionesService.instance.registrarDispositivo();
-        } catch (_) {}
+        // OJO (29/10/2026): `initialSession` llega en CADA arranque, también
+        // sin nadie logueado. Sin este chequeo el diálogo salía igual al abrir
+        // la app por primera vez, antes del login.
+        if (data.session != null) {
+          try {
+            await NotificacionesService.instance.pedirPermisos();
+            await NotificacionesService.instance.registrarDispositivo();
+          } catch (_) {}
+        }
       }
     }, onError: (Object e) => debugPrint('[authListener] error: $e'));
   }
@@ -264,69 +270,10 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
   void _handleNotificationPayload(String payload) {
     try {
       final data = jsonDecode(payload) as Map<String, dynamic>;
-      final tipo = data['tipo']?.toString();
-      if (tipo == 'recordatorio_clase') {
-        final codigoQr = data['codigo_qr']?.toString() ?? '';
-        if (codigoQr.isNotEmpty) {
-          Future.delayed(const Duration(milliseconds: 200), () {
-            try {
-              appRouter.go('/reserva-confirmada/$codigoQr?from_notif=true');
-            } catch (_) {}
-          });
-        }
-      } else if (tipo == 'recordatorio_resena') {
-        // Va a MIS RESERVAS (2/9). Antes iba al perfil del estudio, donde la
-        // reseña se guardaba SIN clase: por eso las 3 reseñas que existen
-        // tienen clase_id null. En Mis Reservas cada fila ES una reserva, así
-        // que la reseña queda atada a la asistencia concreta (modelo B).
-        //
-        // No se deep-linkea a la clase exacta porque la notificación no lleva
-        // contexto: `notificaciones_usuario` sólo guarda tipo/título/mensaje
-        // y el push no manda ids. Para el link exacto haría falta sumarle
-        // columnas a esa tabla + tocar push-enviar; anotado, no urgente: la
-        // clase recién tomada queda primera en la lista igual.
-        Future.delayed(const Duration(milliseconds: 200), () {
-          try {
-            appRouter.go('/mis-reservas');
-          } catch (_) {}
-        });
-      } else if (tipo == 'resena_nueva') {
-        // Le llega al ESTUDIO cuando una alumna deja una reseña. Antes caía
-        // al default y no llevaba a ningún lado: no había dónde verlas.
-        // `?dueno=1` sólo cambia el título a "Tus reseñas".
-        final estudioId = data['estudio_id'];
-        Future.delayed(const Duration(milliseconds: 200), () {
-          try {
-            if (estudioId != null) {
-              appRouter.go('/estudio/$estudioId/resenas?dueno=1');
-            } else {
-              // Sin el id en el payload (notificaciones viejas): el Dashboard
-              // tiene la tarjeta de reseñas, así que igual llega.
-              appRouter.go('/estudio/dashboard');
-            }
-          } catch (_) {}
-        });
-      } else if (tipo == 'inactividad_creditos') {
-        Future.delayed(const Duration(milliseconds: 200), () {
-          try {
-            appRouter.go('/explorar');
-          } catch (_) {}
-        });
-      } else if (tipo == 'pre_confirmada') {
-        // Push de "se liberó un lugar" (promoción de lista de espera). El
-        // codigo_qr lo manda la edge push-enviar en el `data`. Tiene 30 min
-        // para confirmar, así que el tap lo deja directo en la pantalla.
-        final codigoQr = data['codigo_qr']?.toString() ?? '';
-        Future.delayed(const Duration(milliseconds: 200), () {
-          try {
-            if (codigoQr.isNotEmpty) {
-              appRouter.go('/reserva-confirmada/$codigoQr?from_notif=true');
-            } else {
-              appRouter.go('/mis-reservas');
-            }
-          } catch (_) {}
-        });
-      }
+      final ruta = rutaDeNotificacion(data);
+      // Con la app recién abierta desde el aviso, la ruta queda guardada y
+      // el splash va ahí en vez de al destino del rol.
+      if (ruta != null) NavegacionNotificacion.ir(ruta, appRouter.go);
     } catch (_) {}
   }
 
