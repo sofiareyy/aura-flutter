@@ -2,6 +2,12 @@
 // Responde 200 inmediatamente y procesa en segundo plano.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import {
+  encolarEventoMeta,
+  enSegundoPlano,
+  pedirEnvio,
+  type EventoMeta,
+} from '../_shared/meta_capi.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -71,10 +77,11 @@ type PackPagoRow = {
   amount: number
   meta_client_ip: string | null
   meta_client_user_agent: string | null
+  plataforma: string | null
 }
 
 const packPagoSelect =
-  'id, user_id, type, status, creditos, pack_nombre, mp_payment_id, mp_preference_id, credits_granted_at, amount, meta_client_ip, meta_client_user_agent'
+  'id, user_id, type, status, creditos, pack_nombre, mp_payment_id, mp_preference_id, credits_granted_at, amount, meta_client_ip, meta_client_user_agent, plataforma'
 
 async function findPackPago(
   supabase: ReturnType<typeof createClient>,
@@ -221,55 +228,56 @@ async function processPackPayment(
   // RPC no devolvió la bandera (versión vieja), se manda igual: perder un
   // aviso es peor que repetirlo (4/10/2026).
   if (!r || r.already_processed !== true) {
-    await enviarMetaCompra({
-      userId: pago.user_id,
-      pagoId: pago.id,
-      mpPaymentId,
-      value: Number(payment.transaction_amount ?? pago.amount ?? 0),
-      contentName: packNombre || 'Pack de créditos Aura',
-      clientIp: pago.meta_client_ip,
-      clientUserAgent: pago.meta_client_user_agent,
-    })
     await avisarCompra(pago.id)
+    // Meta: Purchase. Los créditos YA están acreditados. Sólo compras web.
+    if (pago.plataforma === 'web') {
+      await encolarYMandarCompra(supabase, {
+        userId: pago.user_id,
+        pagoId: pago.id,
+        mpPaymentId,
+        value: Number(payment.transaction_amount ?? pago.amount ?? 0),
+        contentName: packNombre || 'Pack de créditos Aura',
+        clientIp: pago.meta_client_ip,
+        clientUserAgent: pago.meta_client_user_agent,
+      })
+    }
   }
 }
 
-async function enviarMetaCompra(input: {
-  userId: string
-  pagoId: string
-  mpPaymentId: string
-  value: number
-  contentName: string
-  clientIp: string | null
-  clientUserAgent: string | null
-}) {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/meta-capi-event`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        event_name: 'Purchase',
-        event_id: `purchase:${input.mpPaymentId}`,
-        user_id: input.userId,
-        pago_id: input.pagoId,
-        value: input.value,
-        currency: 'ARS',
-        content_name: input.contentName,
-        content_type: 'product',
-        client_ip: input.clientIp,
-        client_user_agent: input.clientUserAgent,
-        event_source_url: 'https://somosaurapass.com/#/landing',
-      }),
-    })
-    if (!res.ok) {
-      console.error('mp-webhook: Meta Purchase no enviado:', await res.text())
-    }
-  } catch (e) {
-    console.error('mp-webhook: excepción enviando Meta Purchase:', e)
+/// Purchase para la API de Conversiones (29/10/2026). Se ANOTA esperando
+/// (es nuestra base: así ninguna compra se pierde aunque Meta no conteste) y se
+/// MANDA en segundo plano, sin demorar la respuesta a Mercado Pago. Si el envío
+/// falla, lo reintenta el cron `meta-capi-reintentos`. Nunca lanza.
+async function encolarYMandarCompra(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  input: {
+    userId: string
+    pagoId: string
+    mpPaymentId: string
+    value: number
+    contentName: string
+    clientIp: string | null
+    clientUserAgent: string | null
+  },
+) {
+  const evento: EventoMeta = {
+    event_name: 'Purchase',
+    event_id: `purchase:${input.mpPaymentId}`,
+    user_id: input.userId,
+    pago_id: input.pagoId,
+    event_time: Math.floor(Date.now() / 1000),
+    // Lo que se cobró de verdad: con el descuento de primera compra, 17.600.
+    value: input.value,
+    currency: 'ARS',
+    content_name: input.contentName,
+    content_type: 'product',
+    client_ip: input.clientIp,
+    client_user_agent: input.clientUserAgent,
+    event_source_url: 'https://somosaurapass.com/',
   }
+  await encolarEventoMeta(supabase, evento)
+  enSegundoPlano(pedirEnvio(SUPABASE_URL, SERVICE_ROLE_KEY, evento))
 }
 
 async function avisarCompra(pagoId: number | string) {
