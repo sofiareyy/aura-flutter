@@ -158,17 +158,24 @@ Deno.serve(async (req) => {
     // Para el push de "se liberó un lugar" el tap tiene que dejar a la persona
     // en SU pre-reserva (tiene 30 min para confirmar). `notificaciones_usuario`
     // no guarda el código QR, así que se busca la pre_confirmada activa.
+    // Si esta búsqueda falla, el aviso sale IGUAL, sin el código: la app lo
+    // lleva a Mis reservas. Un aviso que no linkea bien es mejor que ninguno.
     if (tipo === 'pre_confirmada') {
-      const { data: pre } = await admin
-        .from('reservas')
-        .select('codigo_qr')
-        .eq('usuario_id', notif.usuario_id)
-        .eq('estado', 'pre_confirmada')
-        .gt('expires_at', new Date().toISOString())
-        .order('expires_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      if (pre?.codigo_qr) extra.codigo_qr = String(pre.codigo_qr)
+      try {
+        const { data: pre, error: preErr } = await admin
+          .from('reservas')
+          .select('codigo_qr')
+          .eq('usuario_id', notif.usuario_id)
+          .eq('estado', 'pre_confirmada')
+          .gt('expires_at', new Date().toISOString())
+          .order('expires_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (preErr) console.warn('push-enviar: no se encontró la pre-reserva:', preErr.message)
+        if (pre?.codigo_qr) extra.codigo_qr = String(pre.codigo_qr)
+      } catch (e) {
+        console.warn('push-enviar: falló la búsqueda de la pre-reserva, sale sin código:', String(e))
+      }
     }
 
     const { data: disp } = await admin
