@@ -8,7 +8,8 @@
 //
 // Dos formas de llamarla:
 //   · Un evento (body = EventoMeta). Con la clave de servidor: cualquiera de
-//     los tres. Con el token de una usuaria: sólo CompleteRegistration.
+//     los tres. Con el token de una usuaria: sólo CompleteRegistration, y
+//     sólo si la cuenta tiene menos de 7 días (lo pide la app web).
 //   · {"reintentar": true}, sólo con la clave de servidor: manda lo pendiente.
 //
 // SECRETOS (nunca en el repo, que es público). Los busca primero en los
@@ -257,6 +258,7 @@ Deno.serve(async (req: Request) => {
     if (!ALLOWED_EVENTS.has(eventName)) return json({ error: 'Evento no permitido' }, 400)
 
     let userId = serviceCall ? String(body.user_id ?? '') : ''
+    let ev: Evento
     if (!serviceCall) {
       const userClient = createClient(SUPABASE_URL, ANON_KEY)
       const { data: { user }, error } = await userClient.auth.getUser(bearer)
@@ -265,19 +267,42 @@ Deno.serve(async (req: Request) => {
         return json({ error: 'Evento no permitido para cliente' }, 403)
       }
       userId = user.id
+      // REGISTRO desde la app web (29/10/2026). La app lo pide en cada
+      // entrada de una cuenta nueva; acá se decide si de verdad es un
+      // registro: sólo cuentas de menos de 7 días (Meta rechaza eventos más
+      // viejos). Una cuenta vieja que entra desde un anuncio NO es un registro.
+      const altaMs = Date.parse(user.created_at ?? '')
+      if (!Number.isFinite(altaMs) || Date.now() - altaMs > 7 * 86_400_000) {
+        return json({ ok: true, status: 'ignored', motivo: 'la cuenta no es nueva' })
+      }
+      // Del cliente no se toma nada más que la página: un registro por
+      // cuenta (mismo event_id siempre), a la hora real del alta, con la IP y
+      // el navegador de este pedido (quedan anotados por si sale más tarde).
+      const fuente = String(body.event_source_url ?? '')
+      ev = {
+        event_name: eventName,
+        event_id: `registration:${userId}`,
+        user_id: userId,
+        event_time: Math.floor(altaMs / 1000),
+        client_ip: firstIp(req.headers.get('x-forwarded-for')),
+        client_user_agent: req.headers.get('user-agent'),
+        event_source_url: fuente.startsWith('https://somosaurapass.com/') && fuente.length <= 300
+          ? fuente
+          : DEFAULT_SOURCE_URL,
+      }
+    } else {
+      if (!userId) return json({ error: 'Falta user_id' }, 400)
+      ev = {
+        ...body,
+        event_name: eventName,
+        event_id: String(body.event_id ?? '').trim() || `${eventName.toLowerCase()}:${userId}`,
+        user_id: userId,
+        event_time: Number(body.event_time) || Math.floor(Date.now() / 1000),
+      }
     }
-    if (!userId) return json({ error: 'Falta user_id' }, 400)
 
-    eventId = String(body.event_id ?? '').trim() || `${eventName.toLowerCase()}:${userId}`
+    eventId = String(ev.event_id)
     if (eventId.length > 200) return json({ error: 'event_id demasiado largo' }, 400)
-
-    const ev: Evento = {
-      ...body,
-      event_name: eventName,
-      event_id: eventId,
-      user_id: userId,
-      event_time: Number(body.event_time) || Math.floor(Date.now() / 1000),
-    }
 
     // Anotarlo si quien llamó no lo hizo (no pisa uno ya anotado).
     await admin.from('meta_capi_eventos').upsert(
@@ -285,7 +310,7 @@ Deno.serve(async (req: Request) => {
         event_id: eventId,
         event_name: eventName,
         usuario_id: userId,
-        pago_id: body.pago_id || null,
+        pago_id: ev.pago_id || null,
         status: 'pending',
         payload: ev,
       },
