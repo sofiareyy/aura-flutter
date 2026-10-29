@@ -1,8 +1,16 @@
-﻿// Crea una preferencia de pago único en Mercado Pago y registra el pago pendiente en la DB.
+// Crea una preferencia de pago único en Mercado Pago y registra el pago pendiente en la DB.
 // Llamada desde Flutter con el JWT del usuario autenticado.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import {
+  encolarEventoMeta,
+  enSegundoPlano,
+  esWeb,
+  ipDelPedido,
+  pedirEnvio,
+  type EventoMeta,
+} from '../_shared/meta_capi.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -170,6 +178,11 @@ Deno.serve(async (req: Request) => {
         pack_nombre: packConfig.nombre,
         gift_email: isGift ? giftEmail : null,
         gift_mensaje: isGift && giftMensaje ? giftMensaje : null,
+        // Para Meta (29/10/2026): desde dónde se compró y quién abrió el
+        // checkout. Van en el MISMO alta: no suman un viaje a la base.
+        plataforma: esWeb(platform) ? 'web' : 'app',
+        meta_client_ip: ipDelPedido(req),
+        meta_client_user_agent: req.headers.get('user-agent'),
       })
       .select('id')
       .single()
@@ -262,6 +275,30 @@ Deno.serve(async (req: Request) => {
 
     if (updatePagoErr) {
       console.error('Error actualizando pago pack:', updatePagoErr.message)
+    }
+
+    // Meta: InitiateCheckout SIN demorar el link de pago. Se anota y se manda
+    // en segundo plano, después de responder; si falla, lo reintenta el cron.
+    // Sólo compras web.
+    if (esWeb(platform)) {
+      const evento: EventoMeta = {
+        event_name: 'InitiateCheckout',
+        event_id: `checkout:${pago.id}`,
+        user_id: user.id,
+        pago_id: pago.id,
+        event_time: Math.floor(Date.now() / 1000),
+        value: montoFinal,
+        currency: 'ARS',
+        content_name: packConfig.nombre,
+        content_type: 'product',
+        client_ip: ipDelPedido(req),
+        client_user_agent: req.headers.get('user-agent'),
+        event_source_url: 'https://somosaurapass.com/',
+      }
+      enSegundoPlano((async () => {
+        await encolarEventoMeta(adminSupabase, evento)
+        await pedirEnvio(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, evento)
+      })())
     }
 
     return json({

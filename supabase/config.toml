@@ -457,6 +457,28 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/crear-checkout-pack/index.ts"
 
+# Checkout de suscripciones. verify_jwt = true es lo que ya tenía en producción
+# (v67); se declara para que el deploy no lo cambie.
+[functions.crear-checkout-plan]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/crear-checkout-plan/index.ts"
+
+# API de Conversiones de Meta (29/10/2026). verify_jwt = false a propósito: la
+# llaman las funciones de pago y el cron con la clave de servidor, y valida a
+# mano (clave de servidor, o token de usuaria sólo para CompleteRegistration).
+[functions.meta-capi-event]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/meta-capi-event/index.ts"
+
+# Deshabilitada: responde 410 a todo. Quedó del armado del 29/10; se puede
+# borrar de Supabase. verify_jwt = false como estaba.
+[functions.meta-token-setup]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/meta-token-setup/index.ts"
+
 [functions.aviso-cobro-manana]
 enabled = true
 verify_jwt = true

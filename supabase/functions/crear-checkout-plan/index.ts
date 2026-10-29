@@ -1,5 +1,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import {
+  encolarEventoMeta,
+  enSegundoPlano,
+  esWeb,
+  ipDelPedido,
+  pedirEnvio,
+  type EventoMeta,
+} from '../_shared/meta_capi.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -76,6 +84,10 @@ Deno.serve(async (req: Request) => {
         amount: Math.round(planConfig.precio),
         creditos: planConfig.creditos,
         plan_nombre: planConfig.nombre,
+        // Para Meta (29/10/2026), en el mismo alta: desde dónde y quién.
+        plataforma: esWeb(platform) ? 'web' : 'app',
+        meta_client_ip: ipDelPedido(req),
+        meta_client_user_agent: req.headers.get('user-agent'),
       })
       .select('id')
       .single()
@@ -142,6 +154,29 @@ Deno.serve(async (req: Request) => {
       .from('pagos')
       .update({ mp_preapproval_id: String(mpData.id) })
       .eq('id', pago.id)
+
+    // Meta: InitiateCheckout SIN demorar el link (ver _shared/meta_capi.ts).
+    // Sólo compras web.
+    if (esWeb(platform)) {
+      const evento: EventoMeta = {
+        event_name: 'InitiateCheckout',
+        event_id: `checkout:${pago.id}`,
+        user_id: user.id,
+        pago_id: pago.id,
+        event_time: Math.floor(Date.now() / 1000),
+        value: Math.round(planConfig.precio),
+        currency: 'ARS',
+        content_name: planConfig.nombre,
+        content_type: 'product',
+        client_ip: ipDelPedido(req),
+        client_user_agent: req.headers.get('user-agent'),
+        event_source_url: 'https://somosaurapass.com/',
+      }
+      enSegundoPlano((async () => {
+        await encolarEventoMeta(adminSupabase, evento)
+        await pedirEnvio(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, evento)
+      })())
+    }
 
     return json({
       init_point: String(mpData.init_point ?? ''),
