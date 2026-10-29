@@ -15,7 +15,8 @@
 //   · Cancelar hasta 12 h antes devuelve los créditos en TODOS los estudios
 //     (la ventana es de 12 h, salvo tres que la tienen más corta: 8 y 10 h).
 //
-// Regla de diseño: un solo botón naranja por pantalla, y sólo tokens de marca.
+// Regla de diseño: un solo botón naranja por pantalla (por eso "Crear mi
+// cuenta" va en blanco), y sólo tokens de marca.
 
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform;
 import 'package:flutter/material.dart';
@@ -65,9 +66,7 @@ class LandingScreen extends StatelessWidget {
                     const _AsiFunciona(),
                     const SizedBox(height: 64),
                     _CuantoSale(onComprar: () => _irARegistro(context)),
-                    // Aire de sobra: así el botón de la tarjeta y el del
-                    // cierre no entran juntos en la pantalla del celular.
-                    const SizedBox(height: 120),
+                    const SizedBox(height: 64),
                     _Cierre(onCrear: () => _irARegistro(context)),
                     const SizedBox(height: 32),
                   ],
@@ -575,7 +574,28 @@ class _Cierre extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        _BotonNaranja(texto: 'Crear mi cuenta', onPressed: onCrear),
+        // Blanco, no naranja: en el celular entra en la misma pantalla que
+        // "Quiero mis créditos", y la regla es un solo naranja por pantalla.
+        SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: ElevatedButton(
+            onPressed: onCrear,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.white,
+              foregroundColor: AppColors.black,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AuraRadio.boton),
+              ),
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            child: const Text('Crear mi cuenta'),
+          ),
+        ),
         const _ChapitasTiendas(),
         const SizedBox(height: 36),
         // Los tres en una línea, del mismo tamaño. FittedBox: en un celular
