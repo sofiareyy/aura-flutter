@@ -3,6 +3,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/constants/app_constants.dart';
 
+/// Precio con descuento, redondeado al peso. Es la MISMA cuenta que hace el
+/// servidor en crear-checkout-pack (`precioConDescuento`): si cambiás una,
+/// cambiá la otra, o la app muestra un monto y Mercado Pago cobra otro.
+int precioConDescuento(int precio, int pct) {
+  if (pct <= 0 || pct >= 100) return precio;
+  return (precio * (100 - pct) + 50) ~/ 100;
+}
+
 /// Pricing dinamico de Aura.
 /// La unica variable que cambia con la inflacion es `valor_credito_ars`
 /// en `configuracion_global`. Todos los packs se calculan automaticamente:
@@ -60,6 +68,25 @@ class PricingService {
       descripcion: 'Máxima libertad para explorar · vence en 60 días',
     ),
   ];
+
+  /// 29/10/2026: el descuento de primera compra de la persona logueada, en
+  /// porcentaje (20) o 0 si no le corresponde. Lo decide la base
+  /// (`mi_descuento_primera_compra`), con el porcentaje de
+  /// configuracion_global; acá sólo se pregunta para MOSTRARLO. El que cobra
+  /// es crear-checkout-pack, que vuelve a preguntar por su cuenta.
+  ///
+  /// Si falla o no hay sesión devuelve 0: se muestra el precio de lista y, si
+  /// le correspondía, el servidor igual le cobra con descuento.
+  Future<int> descuentoPrimeraCompra() async {
+    try {
+      if (_client.auth.currentUser == null) return 0;
+      final res = await _client.rpc('mi_descuento_primera_compra');
+      final pct = (res as num?)?.toInt() ?? 0;
+      return pct > 0 && pct < 100 ? pct : 0;
+    } catch (_) {
+      return 0;
+    }
+  }
 
   /// Lee el valor de 1 credito en ARS desde configuracion_global.
   /// Si no esta seteado o falla, devuelve 1000.

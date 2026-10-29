@@ -91,6 +91,9 @@ class UsuariosService {
     required int creditos,
     required int amount,
     int? vigenciaDias,
+    // Descuento de primera compra que la app MOSTRÓ (29/10/2026). El servidor
+    // decide el suyo; esto sólo le permite avisar bien si dejó de aplicar.
+    int descuentoPct = 0,
     // Gift card: si vienen, el pago se marca type='gift' y al aprobarse se crea
     // el regalo y se mailea al destinatario en vez de acreditar al comprador.
     String? giftEmail,
@@ -104,6 +107,7 @@ class UsuariosService {
         'creditos': creditos,
         'amount': amount,
         'vigencia_dias': vigenciaDias,
+        'descuento_pct': descuentoPct,
         'platform': kIsWeb ? 'web' : 'mobile',
         if (giftEmail != null && giftEmail.trim().isNotEmpty)
           'gift_email': giftEmail.trim(),

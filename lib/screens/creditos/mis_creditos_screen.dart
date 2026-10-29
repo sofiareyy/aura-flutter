@@ -264,7 +264,7 @@ class _MisCreditosScreenState extends State<MisCreditosScreen> {
                     borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                   ),
                   child: const Text(
-                    'Tus packs vencen según su vigencia. El Pack Prueba dura 30 días. Los packs Esencial, Popular y Full duran 60 días. Siempre se descuentan primero los créditos que vencen antes.',
+                    'Tus packs vencen según su vigencia. El Pack Prueba dura 30 días, los packs Esencial y Popular duran 45 días y el Pack Full, 60. Siempre se descuentan primero los créditos que vencen antes.',
                     style: TextStyle(
                       color: AppColors.grey,
                       fontSize: AuraTipo.secundario,
