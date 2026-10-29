@@ -14,6 +14,7 @@ import 'core/constants/app_constants.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/app_provider.dart';
+import 'services/analytics/atribucion_meta.dart';
 import 'services/auth_service.dart';
 import 'utils/destino_post_login.dart';
 import 'utils/sentry_bots.dart';
@@ -204,6 +205,9 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
           // la necesitan) y, si no hay sesión, `ensureUsuarioCreado` corta
           // antes y los códigos quedan esperando al login. Nunca lanza.
           regaloFallo = await _authService.aplicarCodigosPendientes();
+          // El clic de Meta (fbclid) se asocia a la cuenta apenas hay sesión.
+          // Sin esperar: nunca demora la entrada.
+          unawaited(AtribucionMeta.sincronizar());
         } catch (e) {
           debugPrint('[authListener] ensureUsuarioCreado falló: $e');
         }

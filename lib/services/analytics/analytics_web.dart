@@ -9,7 +9,12 @@ external _AuraAnalytics? get _aura;
 
 extension type _AuraAnalytics._(JSObject _) implements JSObject {
   external void pageView(String ruta);
-  external void appStoreClick(String linkUrl, String linkText, String placement);
+  external void appStoreClick(
+    String linkUrl,
+    String linkText,
+    String placement,
+  );
+  external JSString? fbc();
 }
 
 /// La ruta con la que se abrió la página ("/#/clase/12" → "/clase/12"; sin
@@ -30,4 +35,14 @@ void appStoreClick(String url, String texto, String placement) {
   try {
     _aura?.appStoreClick(url, texto, placement);
   } catch (_) {}
+}
+
+/// El clic de Meta que guardó aura-analytics.js (`fb.1.<ms>.<fbclid>`), o
+/// null si la persona no llegó desde un anuncio (o el script no cargó).
+String? fbcGuardado() {
+  try {
+    return _aura?.fbc()?.toDart;
+  } catch (_) {
+    return null;
+  }
 }
