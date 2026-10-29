@@ -138,10 +138,44 @@ Deno.serve(async (req: Request) => {
 
     const mpData = await mpRes.json()
 
+    const metaClientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null
+    const metaClientUserAgent = req.headers.get('user-agent')
     await adminSupabase
       .from('pagos')
-      .update({ mp_preapproval_id: String(mpData.id) })
+      .update({
+        mp_preapproval_id: String(mpData.id),
+        meta_client_ip: metaClientIp,
+        meta_client_user_agent: metaClientUserAgent,
+      })
       .eq('id', pago.id)
+
+    try {
+      const metaRes = await fetch(`${supabaseUrl}/functions/v1/meta-capi-event`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event_name: 'InitiateCheckout',
+          event_id: `checkout:${pago.id}`,
+          user_id: user.id,
+          pago_id: pago.id,
+          value: Math.round(planConfig.precio),
+          currency: 'ARS',
+          content_name: planConfig.nombre,
+          content_type: 'product',
+          client_ip: metaClientIp,
+          client_user_agent: metaClientUserAgent,
+          event_source_url: 'https://somosaurapass.com/#/landing',
+        }),
+      })
+      if (!metaRes.ok) {
+        console.warn('crear-checkout-plan: Meta InitiateCheckout no enviado:', await metaRes.text())
+      }
+    } catch (metaError) {
+      console.warn('crear-checkout-plan: error enviando Meta InitiateCheckout:', metaError)
+    }
 
     return json({
       init_point: String(mpData.init_point ?? ''),

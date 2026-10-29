@@ -1,4 +1,4 @@
-﻿// Crea una preferencia de pago único en Mercado Pago y registra el pago pendiente en la DB.
+// Crea una preferencia de pago único en Mercado Pago y registra el pago pendiente en la DB.
 // Llamada desde Flutter con el JWT del usuario autenticado.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -262,6 +262,44 @@ Deno.serve(async (req: Request) => {
 
     if (updatePagoErr) {
       console.error('Error actualizando pago pack:', updatePagoErr.message)
+    }
+
+    const metaClientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null
+    const metaClientUserAgent = req.headers.get('user-agent')
+    await adminSupabase
+      .from('pagos')
+      .update({
+        meta_client_ip: metaClientIp,
+        meta_client_user_agent: metaClientUserAgent,
+      })
+      .eq('id', pago.id)
+
+    try {
+      const metaRes = await fetch(`${supabaseUrl}/functions/v1/meta-capi-event`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event_name: 'InitiateCheckout',
+          event_id: `checkout:${pago.id}`,
+          user_id: user.id,
+          pago_id: pago.id,
+          value: montoFinal,
+          currency: 'ARS',
+          content_name: packConfig.nombre,
+          content_type: 'product',
+          client_ip: metaClientIp,
+          client_user_agent: metaClientUserAgent,
+          event_source_url: 'https://somosaurapass.com/#/landing',
+        }),
+      })
+      if (!metaRes.ok) {
+        console.warn('crear-checkout-pack: Meta InitiateCheckout no enviado:', await metaRes.text())
+      }
+    } catch (metaError) {
+      console.warn('crear-checkout-pack: error enviando Meta InitiateCheckout:', metaError)
     }
 
     return json({

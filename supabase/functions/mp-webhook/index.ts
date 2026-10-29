@@ -68,10 +68,13 @@ type PackPagoRow = {
   mp_payment_id: string | null
   mp_preference_id: string | null
   credits_granted_at: string | null
+  amount: number
+  meta_client_ip: string | null
+  meta_client_user_agent: string | null
 }
 
 const packPagoSelect =
-  'id, user_id, type, status, creditos, pack_nombre, mp_payment_id, mp_preference_id, credits_granted_at'
+  'id, user_id, type, status, creditos, pack_nombre, mp_payment_id, mp_preference_id, credits_granted_at, amount, meta_client_ip, meta_client_user_agent'
 
 async function findPackPago(
   supabase: ReturnType<typeof createClient>,
@@ -218,7 +221,54 @@ async function processPackPayment(
   // RPC no devolvió la bandera (versión vieja), se manda igual: perder un
   // aviso es peor que repetirlo (4/10/2026).
   if (!r || r.already_processed !== true) {
+    await enviarMetaCompra({
+      userId: pago.user_id,
+      pagoId: pago.id,
+      mpPaymentId,
+      value: Number(payment.transaction_amount ?? pago.amount ?? 0),
+      contentName: packNombre || 'Pack de créditos Aura',
+      clientIp: pago.meta_client_ip,
+      clientUserAgent: pago.meta_client_user_agent,
+    })
     await avisarCompra(pago.id)
+  }
+}
+
+async function enviarMetaCompra(input: {
+  userId: string
+  pagoId: string
+  mpPaymentId: string
+  value: number
+  contentName: string
+  clientIp: string | null
+  clientUserAgent: string | null
+}) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/meta-capi-event`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        event_name: 'Purchase',
+        event_id: `purchase:${input.mpPaymentId}`,
+        user_id: input.userId,
+        pago_id: input.pagoId,
+        value: input.value,
+        currency: 'ARS',
+        content_name: input.contentName,
+        content_type: 'product',
+        client_ip: input.clientIp,
+        client_user_agent: input.clientUserAgent,
+        event_source_url: 'https://somosaurapass.com/#/landing',
+      }),
+    })
+    if (!res.ok) {
+      console.error('mp-webhook: Meta Purchase no enviado:', await res.text())
+    }
+  } catch (e) {
+    console.error('mp-webhook: excepción enviando Meta Purchase:', e)
   }
 }
 
