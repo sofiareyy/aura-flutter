@@ -71,6 +71,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    # Las fotos de estudios de la landing (29/10/2026). Flutter no entra solo
+    # a las subcarpetas: cada una se declara aparte.
+    - assets/images/landing/
 
 # ── Subida de source maps a Sentry ────────────────────────────────────────
 #

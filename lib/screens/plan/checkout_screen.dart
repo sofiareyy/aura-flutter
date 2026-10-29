@@ -94,6 +94,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
               creditos: creditos,
               amount: precio,
               vigenciaDias: vigenciaDias,
+              descuentoPct: (purchase['descuento_pct'] as num?)?.toInt() ?? 0,
               giftEmail: purchase['gift_email'] as String?,
               giftMensaje: purchase['gift_mensaje'] as String?,
             );
@@ -306,6 +307,11 @@ class _IdleView extends StatelessWidget {
     final nombre = (purchase['nombre'] ?? '').toString();
     final creditos = (purchase['creditos'] as num?)?.toInt() ?? 0;
     final precio = (purchase['precio'] as num?)?.toInt() ?? 0;
+    // Descuento de primera compra: sólo packs para sí, nunca gift ni plan.
+    final descuentoPct = (isPlan || isGift)
+        ? 0
+        : (purchase['descuento_pct'] as num?)?.toInt() ?? 0;
+    final precioLista = (purchase['precio_lista'] as num?)?.toInt() ?? precio;
     final vigenciaDias =
         (purchase['vigencia_dias'] as num?)?.toInt() ??
         (creditos <= 20 ? 30 : 60);
@@ -377,6 +383,18 @@ class _IdleView extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
+                        if (descuentoPct > 0 && precioLista > precio) ...[
+                          Text(
+                            '\$${_fmt(precioLista)}',
+                            style: const TextStyle(
+                              color: Colors.white60,
+                              fontSize: AuraTipo.cuerpo,
+                              decoration: TextDecoration.lineThrough,
+                              decorationColor: Colors.white60,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
                         Text(
                           isPlan
                               ? '\$${_fmt(precio)}/mes'
@@ -389,6 +407,17 @@ class _IdleView extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (descuentoPct > 0 && precioLista > precio) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        '$descuentoPct% off por ser tu primera compra',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: AuraTipo.secundario,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -405,18 +434,18 @@ class _IdleView extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AuraRadio.tarjeta),
                   border: Border.all(color: AppColors.primary, width: 1.6),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.account_balance_wallet_rounded,
                       color: AppColors.primary,
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             'Mercado Pago',
                             style: TextStyle(
                               fontSize: AuraTipo.cuerpo,
@@ -424,8 +453,12 @@ class _IdleView extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            'Tarjeta, débito, efectivo o saldo MP',
-                            style: TextStyle(
+                            // Con descuento el checkout no acepta efectivo
+                            // (crear-checkout-pack lo excluye).
+                            descuentoPct > 0
+                                ? 'Tarjeta, débito o saldo MP'
+                                : 'Tarjeta, débito, efectivo o saldo MP',
+                            style: const TextStyle(
                               fontSize: AuraTipo.secundario,
                               color: AppColors.grey,
                             ),

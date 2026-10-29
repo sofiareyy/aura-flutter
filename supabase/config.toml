@@ -448,6 +448,15 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/compra-aviso/index.ts"
 
+# El checkout de packs (29/10/2026, descuento de primera compra). verify_jwt =
+# true es el valor que ya tenía en producción (versión 56): el gateway pide un
+# JWT del proyecto y la función además valida al usuario por `x-aura-auth`.
+# Declarada para que el deploy no lo cambie en silencio y rompa los pagos.
+[functions.crear-checkout-pack]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/crear-checkout-pack/index.ts"
+
 [functions.aviso-cobro-manana]
 enabled = true
 verify_jwt = true

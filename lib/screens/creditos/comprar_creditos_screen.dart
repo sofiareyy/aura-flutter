@@ -57,16 +57,25 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
   /// Los créditos de las clases reales, para el rango de cada pack.
   List<int> _preciosDeClase = const [];
 
+  /// Descuento de primera compra (porcentaje) o 0. Sólo packs para sí: las
+  /// gift cards no llevan descuento.
+  int _descuentoPct = 0;
+
   Future<void> _loadPacks() async {
     final packs = await _pricingService.getPacks();
     final precios = await _pricingService.preciosDeClaseVigentes();
+    final descuento = await _pricingService.descuentoPrimeraCompra();
     if (!mounted) return;
     setState(() {
       _packs = packs;
       _preciosDeClase = precios;
+      _descuentoPct = descuento;
       _loadingPacks = false;
     });
   }
+
+  int _precioPack(Map<String, dynamic> pack) =>
+      precioConDescuento((pack['precio'] as num).toInt(), _descuentoPct);
 
   Future<void> _loadPlanes() async {
     final planes = await _pricingService.getPlanes();
@@ -102,7 +111,11 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
           'volver': widget.volver,
           'nombre': pack['nombre'],
           'creditos': creditos,
-          'precio': (pack['precio'] as num).toInt(),
+          // Con descuento, `precio` es lo que se cobra y `precio_lista` lo
+          // que vale el pack. El servidor recalcula los dos.
+          'precio': _precioPack(pack),
+          'precio_lista': (pack['precio'] as num).toInt(),
+          'descuento_pct': _descuentoPct,
           'vigencia_dias':
               (pack['vigencia_dias'] as num?)?.toInt() ??
               _vigenciaDiasPorCreditos(creditos),
@@ -133,8 +146,7 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
     }
     if (_isPackTab) {
       if (_selectedPack == null) return 'Seleccioná un pack';
-      final precio = (_packs[_selectedPack!]['precio'] as num).toInt();
-      return 'Pagar \$${_fmt(precio)}';
+      return 'Pagar \$${_fmt(_precioPack(_packs[_selectedPack!]))}';
     } else {
       if (_selectedPlan == null) return 'Seleccioná un plan';
       final precio = (_planes[_selectedPlan!]['precio'] as num).toInt();
@@ -317,6 +329,7 @@ class _ComprarCreditosScreenState extends State<ComprarCreditosScreen>
                   _PacksTab(
                     packs: _packs,
                     preciosDeClase: _preciosDeClase,
+                    descuentoPct: _descuentoPct,
                     loading: _loadingPacks,
                     selectedIndex: _selectedPack,
                     onSelect: (i) => setState(() => _selectedPack = i),
@@ -392,12 +405,16 @@ class _PacksTab extends StatelessWidget {
   /// Los créditos de las clases reales, para decir cuántas rinde cada pack.
   final List<int> preciosDeClase;
 
+  /// Descuento de primera compra (porcentaje) o 0. Con 0 no se dibuja nada.
+  final int descuentoPct;
+
   const _PacksTab({
     required this.packs,
     required this.loading,
     required this.selectedIndex,
     required this.onSelect,
     this.preciosDeClase = const [],
+    this.descuentoPct = 0,
   });
 
   @override
@@ -418,6 +435,25 @@ class _PacksTab extends StatelessWidget {
             context,
           ).textTheme.bodySmall?.copyWith(color: AppColors.grey),
         ),
+        if (descuentoPct > 0) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(AuraRadio.boton),
+            ),
+            child: Text(
+              'Tu primera compra tiene $descuentoPct% de descuento, en cualquier pack.',
+              style: const TextStyle(
+                color: AppColors.white,
+                fontSize: AuraTipo.secundario,
+                fontWeight: FontWeight.w700,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.all(14),
@@ -456,7 +492,9 @@ class _PacksTab extends StatelessWidget {
               ),
               SizedBox(height: 6),
               Text(
-                'Pack Prueba: vence a los 30 días. Pack Esencial, Popular y Full: vencen a los 60 días.',
+                // 29/10/2026: decía 60 días para los tres. En
+                // pricing_credit_packs.vencimiento_dias son 45, 45 y 60.
+                'Pack Prueba: vence a los 30 días. Pack Esencial y Popular: a los 45 días. Pack Full: a los 60 días.',
                 style: TextStyle(
                   color: AppColors.grey,
                   fontSize: AuraTipo.secundario,
@@ -544,13 +582,37 @@ class _PacksTab extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        Text(
-                          '\$${_fmt((pack['precio'] as num).toInt())}',
-                          style: TextStyle(
-                            color: selected ? AppColors.white : AppColors.black,
-                            fontSize: AuraTipo.titulo,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          children: [
+                            // Con descuento: el precio de lista tachado, al
+                            // lado el que se paga.
+                            if (descuentoPct > 0)
+                              Text(
+                                '\$${_fmt((pack['precio'] as num).toInt())}',
+                                style: TextStyle(
+                                  color: selected
+                                      ? Colors.white70
+                                      : AppColors.grey,
+                                  fontSize: AuraTipo.cuerpo,
+                                  decoration: TextDecoration.lineThrough,
+                                  decorationColor: selected
+                                      ? Colors.white70
+                                      : AppColors.grey,
+                                ),
+                              ),
+                            Text(
+                              '\$${_fmt(precioConDescuento((pack['precio'] as num).toInt(), descuentoPct))}',
+                              style: TextStyle(
+                                color: selected
+                                    ? AppColors.white
+                                    : AppColors.black,
+                                fontSize: AuraTipo.titulo,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
                         // Cuántas clases rinde, con los precios REALES de las
                         // clases cargadas. Antes la tarjeta decía sólo "50
