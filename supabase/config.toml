@@ -567,3 +567,10 @@ entrypoint = "./functions/mail-baja/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/regalo-email/index.ts"
+
+# Webhook de Resend: rebotes y quejas de spam → mail_bajas (3/11/2026).
+# Resend no manda JWT: autoriza la firma de Svix con RESEND_WEBHOOK_SECRET.
+[functions.resend-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/resend-webhook/index.ts"
