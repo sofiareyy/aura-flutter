@@ -19,6 +19,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { htmlATexto, REPLY_TO } from '../_shared/email.ts'
+import { lineaGoogle } from './linea_google.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -53,6 +54,11 @@ Deno.serve(async (req: Request) => {
     const numero = Number(data?.numero ?? 0)
     const fecha = String(data?.fecha ?? '')
     const m = (data?.metricas ?? {}) as Record<string, unknown>
+
+    // Último ingreso con Google (ver linea_google.ts). Aparte de las métricas
+    // guardadas: si falla la lectura, el resumen sale igual y la línea en rojo.
+    const { data: g } = await admin.rpc('ultimo_ingreso_google')
+    m.google_dias = typeof g?.dias === 'number' ? g.dias : null
 
     // Ya salió el de hoy: no se manda de nuevo (el cron puede correr dos veces).
     if (data?.ya_enviado === true && !testEmail && !dryRun) {
@@ -148,6 +154,9 @@ function render(numero: number, fecha: string, m: Record<string, unknown>): stri
   if (sinReservas.length) {
     actuar.push(`<b>${sinReservas.length}</b> estudios nunca tuvieron una reserva: ${nombres(sinReservas)}`)
   }
+  // Si el login con Google parece roto, va arriba de todo en "para actuar".
+  const google = lineaGoogle(m.google_dias as number | null)
+  if (google.alerta) actuar.unshift(google.html)
   if (!actuar.length) actuar.push('Nada pendiente. 🎉')
 
   return `<!doctype html>
@@ -179,6 +188,7 @@ function render(numero: number, fecha: string, m: Record<string, unknown>): stri
         ${bloque('ESTUDIOS', estudios)}
         ${bloque('PLATA', plata)}
         ${bloque('PARA ACTUAR', actuar, true)}
+        ${google.alerta ? '' : bloque('SISTEMA', [google.html])}
 
         <tr><td style="padding:8px 36px 34px">
           <p style="margin:0;color:#B8B0A9;font-size:11px;line-height:1.7">
