@@ -121,3 +121,27 @@ numeros o borrar el fallback directamente.
 
 **Verificado el 22/8:** la tabla y la formula coinciden en los 4 packs. El
 problema es solo del fallback de Dart, no de los datos.
+
+---
+
+## 7. Cobros → detalle de un mes pasado: sin nombres de alumnas ni de clases
+
+Anotado el 2026-11-03 (lo vio Sofía en el panel de Citra Barre).
+
+**Dónde:** `lib/screens/cobros/cobros_screen.dart`, `_loadDetalleData()`.
+
+**Qué pasa:** el detalle de un mes lista las reservas de `mesObjetivo` (el mes
+que se tocó en el historial), pero `_loadDetalleData()` arma los ids de
+alumnas y de clases desde `_reservasMesActual` (el mes EN CURSO). En un mes
+pasado solo tienen nombre las alumnas que también reservaron este mes; el
+resto sale "—". Lo mismo la columna de la clase. El mes en curso se ve bien.
+
+**No es la base ni la RLS:** simulado como citrabarre@gmail.com,
+`estudio_nombres_alumnas` devuelve las 5 alumnas del estudio.
+
+**Arreglo:** que `_loadDetalleData` reciba la lista de reservas del detalle
+(la misma que se dibuja) en vez de leer `_reservasMesActual`. Ojo que el
+`FutureBuilder` la llama en cada build: conviene memoizar por mes.
+
+**Probar:** con la cuenta de un estudio con reservas en dos meses distintos,
+abrir el detalle del mes pasado: todas las filas con nombre y clase.
