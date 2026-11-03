@@ -8,6 +8,7 @@ import '../../core/constants/app_constants.dart';
 import '../../utils/historial_cobros.dart';
 import '../../utils/mes_argentino.dart';
 import '../../utils/liquidacion.dart';
+import '../../utils/ids_detalle_cobros.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/estudio_admin_service.dart';
 import '../../widgets/ancho_maximo.dart';
@@ -828,19 +829,16 @@ class _CobrosScreenState extends State<CobrosScreen> {
     );
   }
 
-  Future<(Map<int, String>, Map<String, String>)> _loadDetalleData() async {
-    final reservas = _reservasMesActual;
-
-    final claseIds = reservas
-        .map((r) => (r['clase_id'] as num?)?.toInt())
-        .whereType<int>()
-        .toSet()
-        .toList();
-    final userIds = reservas
-        .map((r) => r['usuario_id']?.toString())
-        .whereType<String>()
-        .toSet()
-        .toList();
+  /// Nombres de clases y alumnas de las reservas que muestra el detalle.
+  ///
+  /// Recibe [reservas] — las MISMAS que se dibujan — en vez de leer el mes en
+  /// curso (3/11/2026): antes, en el detalle de un mes pasado solo tenían
+  /// nombre las alumnas que también habían reservado este mes; el resto
+  /// salía "—", y lo mismo la columna de la clase.
+  Future<(Map<int, String>, Map<String, String>)> _loadDetalleData(
+    List<Map<String, dynamic>> reservas,
+  ) async {
+    final (claseIds, userIds) = idsDelDetalle(reservas);
 
     final client = Supabase.instance.client;
 
@@ -866,7 +864,12 @@ class _CobrosScreenState extends State<CobrosScreen> {
       );
       for (final row in (data as List)) {
         final id = row['id']?.toString();
-        if (id != null) userNames[id] = row['nombre']?.toString() ?? '—';
+        if (id == null) continue;
+        final nombre = row['nombre']?.toString().trim() ?? '';
+        final email = row['email']?.toString() ?? '';
+        userNames[id] = nombre.isNotEmpty
+            ? nombre
+            : (email.isNotEmpty ? email : '—');
       }
     }
 
@@ -934,6 +937,12 @@ class _CobrosScreenState extends State<CobrosScreen> {
       (r) => r['_clase_tipo']?.toString() == 'workshop',
     );
 
+    // Una sola búsqueda por apertura: el FutureBuilder se redibuja al
+    // arrastrar la hoja y no tiene que volver a pedir los nombres.
+    final detalleFuture = reservas.isEmpty
+        ? null
+        : _loadDetalleData(reservas);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -992,7 +1001,7 @@ class _CobrosScreenState extends State<CobrosScreen> {
                         ),
                       )
                     : FutureBuilder<(Map<int, String>, Map<String, String>)>(
-                        future: _loadDetalleData(),
+                        future: detalleFuture,
                         builder: (context, snap) {
                           final claseNames = snap.data?.$1 ?? <int, String>{};
                           final userNames = snap.data?.$2 ?? <String, String>{};
