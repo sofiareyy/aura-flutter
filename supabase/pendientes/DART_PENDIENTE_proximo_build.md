@@ -124,7 +124,7 @@ problema es solo del fallback de Dart, no de los datos.
 
 ---
 
-## 7. Cobros → detalle de un mes pasado: sin nombres de alumnas ni de clases
+## 7. ✅ HECHO 3/11/2026 (web) — Cobros → detalle de un mes pasado: sin nombres de alumnas ni de clases
 
 Anotado el 2026-11-03 (lo vio Sofía en el panel de Citra Barre).
 
