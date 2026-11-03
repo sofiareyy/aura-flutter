@@ -77,7 +77,32 @@ revoke all on function public._compro_alguna_vez(uuid) from public, anon, authen
 -- cuenta, sin las internas ni las dadas de baja, elige p_cantidad al azar.
 -- Anota a TODAS: las elegidas como 'regalo' y el resto como 'sin_regalo'
 -- (sirve para comparar). No da créditos ni manda nada.
-create or replace function public.regalo_sortear(p_campana text, p_cantidad int, p_dias_minimos int)
+-- ¿Esta cuenta está o estuvo vinculada a un estudio? (3/11/2026, pedido de
+-- Sofía: "no quiero mandarle 'probá una clase gratis' a alguien que es dueño
+-- de un estudio"). Cualquier rastro alcanza: estudio asignado, administradora
+-- o profe en estudio_admins, avisos que solo recibe un estudio, o el rol
+-- elegido al registrarse.
+create or replace function public._vinculada_a_estudio(p_uid uuid)
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select exists (select 1 from public.usuarios u
+                  where u.id = p_uid
+                    and (coalesce(u.rol, 'usuario') <> 'usuario'
+                         or u.estudio_id is not null
+                         or u.estudio_asociado_id is not null))
+      or exists (select 1 from public.estudio_admins ea where ea.usuario_id = p_uid)
+      or exists (select 1 from public.notificaciones_usuario n
+                  where n.usuario_id = p_uid and n.tipo in ('reserva_profe', 'resena_nueva'))
+      or exists (select 1 from auth.users au
+                  where au.id = p_uid and coalesce(au.raw_user_meta_data->>'rol', 'usuario') <> 'usuario');
+$$;
+revoke all on function public._vinculada_a_estudio(uuid) from public, anon, authenticated;
+
+-- p_excluir: mails que se sacan a mano (casos dudosos que no detecta la regla).
+drop function if exists public.regalo_sortear(text, int, int);
+create or replace function public.regalo_sortear(p_campana text, p_cantidad int, p_dias_minimos int,
+                                                 p_excluir text[] default '{}')
 returns jsonb
 language plpgsql security definer set search_path = public
 as $$
@@ -101,6 +126,8 @@ begin
          and not public.es_cuenta_interna(u.email)
          and not public.mail_dado_de_baja(u.email)
          and not public._compro_alguna_vez(u.id)
+         and not public._vinculada_a_estudio(u.id)
+         and lower(trim(u.email)) <> all (select lower(trim(x)) from unnest(coalesce(p_excluir, '{}')) x)
          and au.created_at < now() - make_interval(days => p_dias_minimos)
     ) e;
   get diagnostics v_total = row_count;
@@ -110,7 +137,7 @@ begin
     'sin_regalo', (select count(*) from public.regalo_campana where campana = p_campana and grupo = 'sin_regalo'));
 end;
 $$;
-revoke all on function public.regalo_sortear(text, int, int) from public, anon, authenticated;
+revoke all on function public.regalo_sortear(text, int, int, text[]) from public, anon, authenticated;
 
 -- Pide a la edge function que mande los mails pendientes de una campaña.
 -- Fire-and-forget: los créditos ya están dados; si el mail falla, queda
