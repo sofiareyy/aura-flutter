@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<!-- Sin Google Analytics a propósito: la URL trae el id de la persona y su firma. -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>Mails de Aura</title>
+<style>
+  body { background: #0D0D0D; color: #F5F0E8; font-family: Arial, sans-serif;
+    max-width: 560px; margin: 0 auto; padding: 48px 20px; }
+  h1 { color: #E8763A; font-size: 15px; font-weight: 800; letter-spacing: 4px; margin: 0 0 32px; }
+  h2 { font-size: 24px; line-height: 1.3; margin: 0 0 16px; }
+  p { line-height: 1.6; color: #B8B0A9; margin: 0 0 16px; }
+  a { color: #E8763A; }
+  button { background: transparent; color: #F5F0E8; border: 1px solid rgba(245,240,232,.3);
+    border-radius: 12px; padding: 12px 22px; font-size: 15px; cursor: pointer; margin-top: 8px; }
+  button:hover, button:focus-visible { border-color: #E8763A; color: #E8763A; }
+  button:disabled { opacity: .5; cursor: default; }
+  [hidden] { display: none; }
+</style>
+</head>
+<body>
+<h1>AURA.</h1>
+
+<div id="cargando">
+  <h2>Un segundo…</h2>
+</div>
+
+<div id="baja" hidden>
+  <h2>Listo, no te vamos a mandar más estos mails.</h2>
+  <p>No vas a recibir más regalos, novedades ni invitaciones de Aura por mail.</p>
+  <p>Los avisos de tus reservas, pagos y cancelaciones te van a seguir llegando,
+     porque son parte de usar la app.</p>
+  <button id="btn-alta" type="button">Fue sin querer, quiero seguir recibiéndolos</button>
+</div>
+
+<div id="alta" hidden>
+  <h2>Listo, vas a seguir recibiendo nuestros mails.</h2>
+  <p>Gracias por avisarnos 🧡</p>
+</div>
+
+<div id="error" hidden>
+  <h2>No pudimos darte de baja.</h2>
+  <p id="error-detalle">El link parece estar incompleto.</p>
+  <p>Escribinos a <a href="mailto:aura.hola.app@gmail.com">aura.hola.app@gmail.com</a>
+     y te sacamos a mano.</p>
+</div>
+
+<script>
+(function () {
+  var FUNCION = 'https://hvgqpzvornlnxmsbqnwg.supabase.co/functions/v1/mail-baja';
+  var q = new URLSearchParams(location.search);
+  var u = q.get('u') || '';
+  var t = q.get('t') || '';
+
+  function mostrar(id) {
+    ['cargando', 'baja', 'alta', 'error'].forEach(function (x) {
+      document.getElementById(x).hidden = (x !== id);
+    });
+  }
+  function error(texto) {
+    if (texto) document.getElementById('error-detalle').textContent = texto;
+    mostrar('error');
+  }
+  function pedir(accion) {
+    return fetch(FUNCION, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ u: u, t: t, accion: accion })
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (b) {
+        if (!r.ok || !b.ok) throw new Error(b.error || ('Error ' + r.status));
+        return b;
+      });
+    });
+  }
+
+  if (!u || !t) { error(); return; }
+
+  // Un toque en el link alcanza: la baja se hace al abrir la página.
+  pedir('baja').then(function () { mostrar('baja'); })
+    .catch(function (e) { error(e.message === 'Link inválido' ? 'El link parece estar incompleto o cambiado.' : 'Hubo un problema de conexión. Probá de nuevo en un rato.'); });
+
+  document.getElementById('btn-alta').addEventListener('click', function () {
+    var b = this;
+    b.disabled = true;
+    pedir('alta').then(function () { mostrar('alta'); })
+      .catch(function () { b.disabled = false; alert('No pudimos guardarlo. Probá de nuevo.'); });
+  });
+})();
+</script>
+</body>
+</html>
