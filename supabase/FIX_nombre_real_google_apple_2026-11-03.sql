@@ -105,3 +105,20 @@ update public.usuarios u
    set nombre = g.nombre_nuevo
   from guardadas g
  where u.id = g.usuario_id;
+
+-- ── Aplicado después, con OK de Sofía (3/11/2026): estudios y profes ──────────
+-- 11 de 12 corregidas (reysofia19@ no tiene nombre de Google/Apple).
+with candidatas as (
+  select u.id, u.nombre as anterior,
+         coalesce(public._nombre_prolijo(au.raw_user_meta_data->>'full_name'),
+                  public._nombre_prolijo(au.raw_user_meta_data->>'name')) as nuevo
+    from public.usuarios u join auth.users au on au.id = u.id
+   where coalesce(u.rol, 'usuario') <> 'usuario'
+     and lower(trim(u.nombre)) = lower(split_part(u.email, '@', 1))
+), guardadas as (
+  insert into public._backup_nombres_2026_11_03 (usuario_id, nombre_anterior, nombre_nuevo)
+  select id, anterior, nuevo from candidatas where nuevo is not null and nuevo <> anterior
+  on conflict (usuario_id) do nothing
+  returning usuario_id, nombre_nuevo
+)
+update public.usuarios u set nombre = g.nombre_nuevo from guardadas g where u.id = g.usuario_id;
