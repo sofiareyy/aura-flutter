@@ -551,3 +551,19 @@ entrypoint = "./functions/email-confirmacion/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/resena-email/index.ts"
+
+# Baja de mails (regalos, invitaciones). Pública a propósito: la llaman la
+# página somosaurapass.com/baja.html y el botón "Anular suscripción" de Gmail
+# (List-Unsubscribe One-Click). Autoriza la firma HMAC del link
+# (MAIL_BAJA_SECRET), no un JWT.
+[functions.mail-baja]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/mail-baja/index.ts"
+
+# Mails del regalo de créditos por sorteo. La dispara la base por pg_net con
+# el anon key + `x-notif-secret`, igual que bono-email: verify_jwt = true.
+[functions.regalo-email]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/regalo-email/index.ts"
