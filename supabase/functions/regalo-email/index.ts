@@ -50,6 +50,47 @@ Deno.serve(async (req: Request) => {
 
     const body = await req.json().catch(() => null)
 
+    // ── Consultar en Resend qué pasó con los mails de una campaña ──────────
+    // {"consultar": "<campana>"}: pregunta por cada mail enviado, devuelve el
+    // último evento (delivered, bounced, complained...) y si rebotó o lo
+    // marcaron como spam, lo anota en mail_bajas para no volver a escribirle
+    // nunca (pedido de Sofía, 3/11/2026).
+    if (typeof body?.consultar === 'string' && body.consultar) {
+      const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
+      const { data: filas, error } = await admin.from('regalo_campana')
+        .select('usuario_id, email, mail_regalo_id, mail_recordatorio_id')
+        .eq('campana', body.consultar)
+      if (error) return json({ error: 'lectura_fallo', detalle: error.message }, 500)
+      const resultados: { email: string; mail: string; evento: string }[] = []
+      for (const f of filas ?? []) {
+        for (const [mail, id] of [['regalo', f.mail_regalo_id], ['recordatorio', f.mail_recordatorio_id]] as const) {
+          if (!id) continue
+          const r = await fetch(`https://api.resend.com/emails/${id}`, {
+            headers: { 'Authorization': `Bearer ${RESEND_API_KEY}` },
+          })
+          const d = await r.json().catch(() => ({})) as { last_event?: string }
+          const evento = r.ok ? String(d.last_event ?? 'desconocido') : `error_${r.status}`
+          resultados.push({ email: f.email, mail, evento })
+          const origen = evento === 'complained' ? 'queja'
+            : evento !== 'bounced' ? null
+            : String(f.email).toLowerCase().endsWith('@privaterelay.appleid.com') ? 'rebote_apple' : 'rebote'
+          if (origen) {
+            await admin.from('mail_bajas').upsert(
+              { email: String(f.email).toLowerCase(), usuario_id: f.usuario_id, origen },
+              { onConflict: 'email', ignoreDuplicates: true },
+            )
+            const col = mail === 'regalo' ? 'mail_regalo_estado' : 'mail_recordatorio_estado'
+            await admin.from('regalo_campana').update({ [col]: origen === 'queja' ? 'marcado_como_spam' : 'rebotó' })
+              .eq('campana', body.consultar).eq('usuario_id', f.usuario_id)
+          }
+          await new Promise((res) => setTimeout(res, PAUSA_MS))
+        }
+      }
+      const porEvento: Record<string, number> = {}
+      for (const r of resultados) porEvento[r.evento] = (porEvento[r.evento] ?? 0) + 1
+      return json({ ok: true, campana: body.consultar, por_evento: porEvento, resultados })
+    }
+
     // ── Modo test ──────────────────────────────────────────────────────────
     const testEmail = typeof body?.test_email === 'string' ? body.test_email.trim().toLowerCase() : ''
     if (testEmail) {
