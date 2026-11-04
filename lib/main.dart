@@ -159,6 +159,8 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
         VersionGate.hayQueActualizar().then((hay) {
           if (hay) appRouter.go('/actualizar');
         }).ignore();
+        // Por si prendió o apagó las notificaciones en Ajustes (4/11/2026).
+        NotificacionesService.instance.informarPermiso().ignore();
       }
     }
     super.didChangeAppLifecycleState(state);

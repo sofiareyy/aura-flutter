@@ -187,9 +187,49 @@ class NotificacionesService {
         'p_plataforma': Platform.isIOS ? 'ios' : 'android',
         'p_app_version': version,
       });
+      await informarPermiso(token: token);
     } catch (e) {
       debugPrint('[push] no se pudo registrar el dispositivo: $e');
     }
+  }
+
+  /// Le cuenta a la base si este celular tiene las notificaciones prendidas
+  /// (4/11/2026). Un token solo no alcanza: iOS lo da aunque la persona haya
+  /// dicho "No permitir". Se llama al registrar el aparato y cada vez que la
+  /// app vuelve a primer plano (el permiso se cambia en Ajustes). La base solo
+  /// escribe si cambió. Nunca rompe nada: cualquier error se ignora.
+  Future<void> informarPermiso({String? token}) async {
+    if (kIsWeb) return;
+    try {
+      final cliente = Supabase.instance.client;
+      if (cliente.auth.currentUser == null) return;
+      final t = token ?? await FirebaseMessaging.instance.getToken();
+      if (t == null || t.isEmpty) return;
+      final permiso = await _leerPermiso();
+      if (permiso == null) return;
+      await cliente.rpc('informar_permiso_notificaciones', params: {
+        'p_token': t,
+        'p_permiso': permiso,
+      });
+    } catch (e) {
+      debugPrint('[push] no se pudo informar el permiso: $e');
+    }
+  }
+
+  Future<String?> _leerPermiso() async {
+    if (Platform.isIOS) {
+      final ajustes = await FirebaseMessaging.instance.getNotificationSettings();
+      return permisoDesdeEstadoIos(ajustes.authorizationStatus);
+    }
+    if (Platform.isAndroid) {
+      final prendidas = await _plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.areNotificationsEnabled();
+      if (prendidas == null) return null;
+      return prendidas ? 'prendido' : 'apagado';
+    }
+    return null;
   }
 
   /// Da de baja este aparato. Se llama ANTES del signOut: si no, a la proxima
@@ -564,5 +604,19 @@ class NotificacionesService {
         enabled: notifEnabled,
       );
     }
+  }
+}
+
+/// El estado de iOS traducido a lo que guarda la base.
+String permisoDesdeEstadoIos(AuthorizationStatus estado) {
+  switch (estado) {
+    case AuthorizationStatus.authorized:
+      return 'prendido';
+    case AuthorizationStatus.provisional:
+      return 'provisorio';
+    case AuthorizationStatus.denied:
+      return 'apagado';
+    case AuthorizationStatus.notDetermined:
+      return 'sin_decidir';
   }
 }

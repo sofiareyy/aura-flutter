@@ -147,3 +147,5 @@ resto sale "—". Lo mismo la columna de la clase. El mes en curso se ve bien.
 abrir el detalle del mes pasado: todas las filas con nombre y clase.
 
 - ✅ HECHO 4/11/2026 en la web (falta en tiendas) — Backoffice → Registrar pago: N° de operación obligatorio + nota interna aparte; botón "Reenviar mail de pago". Cobros muestra el N° de operación.
+
+- PARA EL PRÓXIMO BUILD (4/11/2026) — La app informa si el permiso de notificaciones está prendido o apagado (informarPermiso en notificaciones_service.dart; al registrar y al volver a primer plano). Base ya lista: dispositivos.permiso_notificaciones + RPC informar_permiso_notificaciones + metricas.permiso_push_estudios. **Probar:** en un iPhone, apagar las notificaciones de Aura en Ajustes, volver a la app y ver "apagado" en la vista.
