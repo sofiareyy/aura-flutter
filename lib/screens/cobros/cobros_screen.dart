@@ -325,6 +325,15 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                           fontSize: 11,
                                         ),
                                       ),
+                                    if (item['_comprobante'] != null)
+                                      Text(
+                                        item['_comprobante'] as String,
+                                        style: const TextStyle(
+                                          color: Color(0xFF8F877F),
+                                          fontSize: 11,
+                                          height: 1.3,
+                                        ),
+                                      ),
                                   ],
                                 ),
                               ),
@@ -629,6 +638,24 @@ class _CobrosScreenState extends State<CobrosScreen> {
                                                     fontSize: 13,
                                                   ),
                                                 ),
+                                                if (item['_comprobante'] != null)
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          top: 2,
+                                                        ),
+                                                    child: Text(
+                                                      item['_comprobante']
+                                                          as String,
+                                                      style: const TextStyle(
+                                                        color: Color(
+                                                          0xFF8F877F,
+                                                        ),
+                                                        fontSize: 11,
+                                                        height: 1.3,
+                                                      ),
+                                                    ),
+                                                  ),
                                                 if (item['_correccion'] != null)
                                                   Padding(
                                                     padding:
