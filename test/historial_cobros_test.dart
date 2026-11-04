@@ -247,4 +247,43 @@ void main() {
     expect(agosto['estado'], kEstadoPagado);
     expect(agosto['_correccion'], contains('Corregido el 16/9'));
   });
+
+  test('el mes pagado muestra fecha de la transferencia y número de operación', () {
+    final filas = armarHistorialCobros(
+      reservas: const [],
+      liquidaciones: [
+        {
+          'mes': '2026-10',
+          'estado': 'pagado',
+          'cantidad_reservas': 3,
+          'monto_a_pagar': 30000,
+          'fecha_pago': '2026-11-03T19:46:40Z',
+          'comprobante_nota': '  numero de operación 186564950751 ',
+        },
+        {
+          'mes': '2026-09',
+          'estado': 'pagado',
+          'cantidad_reservas': 1,
+          'monto_a_pagar': 10000,
+          'fecha_pago': '2026-10-03T10:11:17Z',
+          'comprobante_nota': null,
+        },
+        {
+          'mes': '2026-08',
+          'estado': 'pendiente',
+          'cantidad_reservas': 1,
+          'monto_a_pagar': 10000,
+          'comprobante_nota': 'no se muestra',
+        },
+      ],
+      estudio: estudio(),
+      ahora: DateTime(2026, 11, 4),
+    );
+    final porMes = {for (final f in filas) f['_mes']: f};
+    expect(porMes['2026-10']!['_comprobante'],
+        'Transferido el 3/11 · numero de operación 186564950751');
+    expect(porMes['2026-09']!['_comprobante'], 'Transferido el 3/10');
+    expect(porMes['2026-08']!['_comprobante'], isNull,
+        reason: 'un mes sin pagar no muestra comprobante');
+  });
 }

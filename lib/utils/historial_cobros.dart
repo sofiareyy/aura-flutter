@@ -123,6 +123,18 @@ List<Map<String, dynamic>> armarHistorialCobros({
           'Corregido el ${_fechaCorta(ultima['created_at'])}: '
           '${ultima['motivo'] ?? ''}';
     }
+    // La constancia de la transferencia (4/11): fecha y la nota que Aura
+    // escribió al registrar el pago (el número de operación). Es lo que el
+    // estudio necesita si alguna vez dice que no le llegó la plata.
+    if (pagada) {
+      final fecha = _fechaCorta(l['fecha_pago']);
+      final nota = l['comprobante_nota']?.toString().trim() ?? '';
+      final partes = [
+        if (fecha.isNotEmpty) 'Transferido el $fecha',
+        if (nota.isNotEmpty) nota,
+      ];
+      if (partes.isNotEmpty) fila['_comprobante'] = partes.join(' · ');
+    }
   }
 
   final filas = porMes.values.toList()

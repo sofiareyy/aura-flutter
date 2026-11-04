@@ -157,6 +157,16 @@ Deno.serve(async (req: Request) => {
           continue
         }
 
+        // Cuentas internas (testers, revisores de Apple): nunca reciben campañas.
+        const { data: interna } = await admin.from('cuentas_internas').select('email').eq('email', email).maybeSingle()
+        if (interna) {
+          await admin.from('regalo_campana')
+            .update({ [colAt]: new Date().toISOString(), [colEstado]: 'omitido_interna' })
+            .eq('campana', campana).eq('usuario_id', p.usuario_id)
+          resumen[kind].omitidos++
+          continue
+        }
+
         // Para el recordatorio, lo que queda del lote (la base ya chequeó que esté entero).
         let monto = Number(p.monto ?? 20)
         let vence = String(p.vence ?? '')
