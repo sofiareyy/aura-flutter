@@ -258,7 +258,7 @@ void main() {
           'cantidad_reservas': 3,
           'monto_a_pagar': 30000,
           'fecha_pago': '2026-11-03T19:46:40Z',
-          'comprobante_nota': '  numero de operación 186564950751 ',
+          'numero_operacion': ' 186564950751 ',
         },
         {
           'mes': '2026-09',
@@ -266,14 +266,15 @@ void main() {
           'cantidad_reservas': 1,
           'monto_a_pagar': 10000,
           'fecha_pago': '2026-10-03T10:11:17Z',
-          'comprobante_nota': null,
+          'numero_operacion': null,
+          'comprobante_nota': 'nota vieja, privada',
         },
         {
           'mes': '2026-08',
           'estado': 'pendiente',
           'cantidad_reservas': 1,
           'monto_a_pagar': 10000,
-          'comprobante_nota': 'no se muestra',
+          'numero_operacion': '999999',
         },
       ],
       estudio: estudio(),
@@ -281,8 +282,9 @@ void main() {
     );
     final porMes = {for (final f in filas) f['_mes']: f};
     expect(porMes['2026-10']!['_comprobante'],
-        'Transferido el 3/11 · numero de operación 186564950751');
-    expect(porMes['2026-09']!['_comprobante'], 'Transferido el 3/10');
+        'Transferido el 3/11 · N° de operación 186564950751');
+    expect(porMes['2026-09']!['_comprobante'], 'Transferido el 3/10',
+        reason: 'la nota interna nunca se muestra al estudio');
     expect(porMes['2026-08']!['_comprobante'], isNull,
         reason: 'un mes sin pagar no muestra comprobante');
   });

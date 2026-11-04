@@ -574,3 +574,9 @@ entrypoint = "./functions/regalo-email/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/resend-webhook/index.ts"
+
+# "Ya te transferimos" al estudio (4/11/2026): trigger de liquidaciones o botón del backoffice.
+[functions.pago-estudio-email]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/pago-estudio-email/index.ts"

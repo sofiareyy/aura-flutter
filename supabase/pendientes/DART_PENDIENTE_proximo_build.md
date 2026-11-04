@@ -145,3 +145,5 @@ resto sale "—". Lo mismo la columna de la clase. El mes en curso se ve bien.
 
 **Probar:** con la cuenta de un estudio con reservas en dos meses distintos,
 abrir el detalle del mes pasado: todas las filas con nombre y clase.
+
+- ✅ HECHO 4/11/2026 en la web (falta en tiendas) — Backoffice → Registrar pago: N° de operación obligatorio + nota interna aparte; botón "Reenviar mail de pago". Cobros muestra el N° de operación.
