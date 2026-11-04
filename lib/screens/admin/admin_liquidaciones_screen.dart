@@ -178,11 +178,27 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       });
     }
 
+    // Las notas internas de Aura (4/11): tabla aparte, el estudio no la ve.
+    final ids = (liquidaciones as List).map((l) => l['id']).toList();
+    final Map<String, String> notaPorLiq = {};
+    if (ids.isNotEmpty) {
+      final notas = await _client
+          .from('liquidaciones_notas_internas')
+          .select('liquidacion_id, nota')
+          .inFilter('liquidacion_id', ids);
+      for (final n in (notas as List)) {
+        notaPorLiq[n['liquidacion_id'].toString()] = n['nota'].toString();
+      }
+    }
+
     // Mapa de liquidaciones registradas
     final Map<int, Map<String, dynamic>> liqMap = {};
-    for (final l in (liquidaciones as List)) {
+    for (final l in liquidaciones) {
       final esId = (l['estudio_id'] as num?)?.toInt();
-      if (esId != null) liqMap[esId] = Map<String, dynamic>.from(l);
+      if (esId != null) {
+        liqMap[esId] = Map<String, dynamic>.from(l)
+          ..['nota_interna'] = notaPorLiq[l['id'].toString()];
+      }
     }
 
     // 6. Una fila por estudio con reservas en el mes o con liquidación
@@ -282,13 +298,19 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
 
   // ── Registrar pago ───────────────────────────────────────────────────────
 
-  Future<void> _registrarPago(Map<String, dynamic> estudio, String nota) async {
+  Future<void> _registrarPago(
+    Map<String, dynamic> estudio,
+    String numeroOperacion,
+    String nota,
+  ) async {
+    final numero = numeroOperacion.trim().isEmpty ? null : numeroOperacion.trim();
     final esId = estudio['estudio_id'] as int;
     final montoPagar = estudio['monto_pagar'] as int;
     final montoTotal = estudio['monto_total'] as int;
     final cantReservas = estudio['cantidad_reservas'] as int;
     final liqId = estudio['liquidacion_id'] as String?;
 
+    String idPagada;
     try {
       if (liqId != null) {
         await _client
@@ -296,11 +318,14 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
             .update({
               'estado': 'pagado',
               'fecha_pago': DateTime.now().toIso8601String(),
-              'comprobante_nota': nota.trim().isEmpty ? null : nota.trim(),
+              // Va en el mismo update que el estado: el mail al estudio sale
+              // en ese momento y lleva este número.
+              'numero_operacion': numero,
             })
             .eq('id', liqId);
+        idPagada = liqId;
       } else {
-        await _client.from('liquidaciones').insert({
+        final nueva = await _client.from('liquidaciones').insert({
           'estudio_id': esId,
           // El mes de la FILA, no el del selector: desde "Pendientes" se paga
           // un mes que no es el seleccionado.
@@ -310,7 +335,14 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
           'cantidad_reservas': cantReservas,
           'estado': 'pagado',
           'fecha_pago': DateTime.now().toIso8601String(),
-          'comprobante_nota': nota.trim().isEmpty ? null : nota.trim(),
+          'numero_operacion': numero,
+        }).select('id').single();
+        idPagada = nueva['id'].toString();
+      }
+      if (nota.trim().isNotEmpty) {
+        await _client.from('liquidaciones_notas_internas').upsert({
+          'liquidacion_id': idPagada,
+          'nota': nota.trim(),
         });
       }
 
@@ -326,14 +358,16 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
             ..._estudios[idx],
             'estado': 'pagado',
             'fecha_pago': DateTime.now().toIso8601String(),
-            'comprobante_nota': nota.trim().isEmpty ? null : nota.trim(),
+            'numero_operacion': numero,
+            'nota_interna': nota.trim().isEmpty ? null : nota.trim(),
+            'liquidacion_id': idPagada,
           };
         }
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Pago registrado correctamente'),
+          content: const Text('Pago registrado. Le mandamos el mail al estudio.'),
           backgroundColor: const Color(0xFF1A1A1A),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -341,6 +375,10 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
           ),
         ),
       );
+      // Unos segundos después, para mostrar si el mail ya salió.
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) _cargar();
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -486,12 +524,110 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       ),
       builder: (ctx) => _PagoSheet(
         estudio: estudio,
-        onConfirmar: (nota) async {
+        onConfirmar: (numero, nota) async {
           Navigator.pop(ctx);
-          await _registrarPago(estudio, nota);
+          await _registrarPago(estudio, numero, nota);
         },
       ),
     );
+  }
+
+  String _textoMailPago(Map<String, dynamic> estudio) {
+    final at = DateTime.tryParse(estudio['mail_pago_at']?.toString() ?? '');
+    if (at == null) return 'no salió';
+    final envios = (estudio['mail_pago_envios'] as num?)?.toInt() ?? 1;
+    final fecha = DateFormat('d/M HH:mm').format(at.toLocal());
+    return envios > 1 ? 'enviado $envios veces, el último $fecha' : 'enviado el $fecha';
+  }
+
+  /// El botón para cuando un pago se marcó mal y se corrigió: manda el mail
+  /// de nuevo, con el monto efectivo (fila + correcciones) y el número que
+  /// quede en el diálogo. Nunca automático.
+  Future<void> _reenviarMailPago(Map<String, dynamic> estudio) async {
+    final liqId = estudio['liquidacion_id'].toString();
+    final ctrl = TextEditingController(
+      text: estudio['numero_operacion']?.toString() ?? '',
+    );
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Reenviar mail a ${estudio['nombre']}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Monto: ${_fmt(estudio['monto_pagar'] as int)} · '
+              '${_labelMes(estudio['mes'] as String)}',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Si el monto está mal, primero cargá la corrección. '
+              'El mail sale con el asunto "Corrección" y avisa que reemplaza al anterior.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF8F877F)),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              decoration: const InputDecoration(
+                labelText: 'N° de operación',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reenviar'),
+          ),
+        ],
+      ),
+    );
+    final numero = ctrl.text.trim();
+    ctrl.dispose();
+    if (ok != true || !mounted) return;
+    if (numero.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Falta el número de operación: el mail no sale sin él.')),
+      );
+      return;
+    }
+
+    try {
+      if (numero != (estudio['numero_operacion']?.toString() ?? '')) {
+        await _client
+            .from('liquidaciones')
+            .update({'numero_operacion': numero})
+            .eq('id', liqId);
+      }
+      final res = await _client.functions.invoke(
+        'pago-estudio-email',
+        body: {'liquidacion_id': liqId, 'reenvio': true},
+      );
+      final data = res.data is Map ? res.data as Map : const {};
+      if (data['ok'] != true) {
+        throw Exception(data['error'] ?? data['motivo'] ?? 'no salió');
+      }
+      if (!mounted) return;
+      final a = (data['destinatarios'] as List?)?.join(', ') ?? '';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Mail reenviado a $a')),
+      );
+      await _cargar();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo reenviar: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   // ── Formateo ─────────────────────────────────────────────────────────────
@@ -865,6 +1001,40 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
             ],
           ),
 
+          // Pagado: lo que ve el estudio, lo que solo ve Aura, y el mail.
+          if (pagado) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: Color(0xFFF0EDE8)),
+            const SizedBox(height: 10),
+            _LineaPagado(
+              etiqueta: 'N° de operación',
+              valor: (estudio['numero_operacion'] as String?)?.trim().isNotEmpty == true
+                  ? estudio['numero_operacion'] as String
+                  : 'sin número',
+            ),
+            if ((estudio['nota_interna'] as String?)?.isNotEmpty == true)
+              _LineaPagado(
+                etiqueta: 'Nota interna',
+                valor: estudio['nota_interna'] as String,
+              ),
+            _LineaPagado(
+              etiqueta: 'Mail al estudio',
+              valor: _textoMailPago(estudio),
+            ),
+            if (estudio['liquidacion_id'] != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => _reenviarMailPago(estudio),
+                  icon: const Icon(Icons.forward_to_inbox_rounded, size: 18),
+                  label: const Text('Reenviar mail de pago'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                  ),
+                ),
+              ),
+          ],
+
           // Row inferior (solo si pendiente)
           if (!pagado) ...[
             const SizedBox(height: 12),
@@ -1090,7 +1260,7 @@ class _EstadoBadge extends StatelessWidget {
 
 class _PagoSheet extends StatefulWidget {
   final Map<String, dynamic> estudio;
-  final Future<void> Function(String nota) onConfirmar;
+  final Future<void> Function(String numeroOperacion, String nota) onConfirmar;
 
   const _PagoSheet({required this.estudio, required this.onConfirmar});
 
@@ -1099,8 +1269,10 @@ class _PagoSheet extends StatefulWidget {
 }
 
 class _PagoSheetState extends State<_PagoSheet> {
+  final _numeroCtrl = TextEditingController();
   final _notaCtrl = TextEditingController();
   bool _confirmando = false;
+  bool _faltaNumero = false;
 
   static String _fmt(int amount) {
     final s = amount.toString();
@@ -1112,8 +1284,21 @@ class _PagoSheetState extends State<_PagoSheet> {
     return buf.toString();
   }
 
+  InputDecoration _decoracion(String hint) => InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Color(0xFF9A928B), fontSize: 14),
+        filled: true,
+        fillColor: const Color(0xFFF7F5F2),
+        contentPadding: const EdgeInsets.all(12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      );
+
   @override
   void dispose() {
+    _numeroCtrl.dispose();
     _notaCtrl.dispose();
     super.dispose();
   }
@@ -1166,35 +1351,45 @@ class _PagoSheetState extends State<_PagoSheet> {
               ),
             ),
             const SizedBox(height: 20),
-            // Campo nota
+            // Número de operación: lo ve el estudio (mail y Cobros).
+            const _EtiquetaCampo('N° DE OPERACIÓN'),
+            const SizedBox(height: 4),
             const Text(
-              'Nota o comprobante',
-              style: TextStyle(
-                color: Color(0xFF5F5953),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
+              'Obligatorio. Lo ve el estudio: sale en el mail y en Cobros.',
+              style: TextStyle(color: Color(0xFF8F877F), fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _numeroCtrl,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A1A)),
+              onChanged: (_) {
+                if (_faltaNumero) setState(() => _faltaNumero = false);
+              },
+              decoration: _decoracion('Ej: 186564950751').copyWith(
+                errorText: _faltaNumero
+                    ? 'Sin número no se puede marcar el pago.'
+                    : null,
               ),
+            ),
+            const SizedBox(height: 16),
+            // Nota interna: solo Aura.
+            const _EtiquetaCampo('NOTA INTERNA'),
+            const SizedBox(height: 4),
+            const Text(
+              'Solo la ves vos. El estudio no la ve.',
+              style: TextStyle(color: Color(0xFF8F877F), fontSize: 12),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _notaCtrl,
-              maxLines: 3,
+              maxLines: 2,
               style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A1A)),
-              decoration: InputDecoration(
-                hintText: 'Ej: Transferencia CBU 1234, comprobante MP #XXXXX',
-                hintStyle: const TextStyle(
-                  color: Color(0xFF9A928B),
-                  fontSize: 14,
-                ),
-                filled: true,
-                fillColor: const Color(0xFFF7F5F2),
-                contentPadding: const EdgeInsets.all(12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
+              decoration: _decoracion('Opcional'),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Al confirmar, al estudio le llega un mail con el monto, el mes y el número de operación.',
+              style: TextStyle(color: Color(0xFF5F5953), fontSize: 12),
             ),
             const SizedBox(height: 20),
             // Botón confirmar
@@ -1204,8 +1399,17 @@ class _PagoSheetState extends State<_PagoSheet> {
                 onPressed: _confirmando
                     ? null
                     : () async {
+                        // Sin número no se marca el pago (4/11): el
+                        // estudio no podría verificar la transferencia.
+                        if (_numeroCtrl.text.trim().isEmpty) {
+                          setState(() => _faltaNumero = true);
+                          return;
+                        }
                         setState(() => _confirmando = true);
-                        await widget.onConfirmar(_notaCtrl.text);
+                        await widget.onConfirmar(
+                          _numeroCtrl.text,
+                          _notaCtrl.text,
+                        );
                       },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -1251,4 +1455,49 @@ class _PagoSheetState extends State<_PagoSheet> {
       ),
     );
   }
+}
+
+class _EtiquetaCampo extends StatelessWidget {
+  final String texto;
+  const _EtiquetaCampo(this.texto);
+
+  @override
+  Widget build(BuildContext context) => Text(
+        texto,
+        style: const TextStyle(
+          color: Color(0xFF5F5953),
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+        ),
+      );
+}
+
+class _LineaPagado extends StatelessWidget {
+  final String etiqueta;
+  final String valor;
+  const _LineaPagado({required this.etiqueta, required this.valor});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 120,
+              child: Text(
+                etiqueta,
+                style: const TextStyle(color: Color(0xFF8F877F), fontSize: 12),
+              ),
+            ),
+            Expanded(
+              child: SelectableText(
+                valor,
+                style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      );
 }
