@@ -43,7 +43,10 @@ Deno.serve(async (req: Request) => {
       const uid = typeof body?.test_usuario_id === 'string' ? body.test_usuario_id : '00000000-0000-0000-0000-000000000000'
       const resultados = []
       for (const paso of pasos) {
-        resultados.push({ paso, ...(await enviar(paso, testEmail, uid, String(body?.test_nombre ?? 'Sofi'))) })
+        // Asunto propio en cada prueba: si no, Gmail junta las pruebas en una
+        // conversación y esconde detrás de "···" lo que se repite (el 20%, el botón).
+        const hora = new Date().toLocaleTimeString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit' })
+        resultados.push({ paso, ...(await enviar(paso, testEmail, uid, String(body?.test_nombre ?? 'Sofi'), `[Prueba ${hora}] `)) })
         await new Promise((r) => setTimeout(r, PAUSA_MS))
       }
       return json({ ok: resultados.every((r) => r.ok), test: true, resultados })
@@ -76,7 +79,7 @@ Deno.serve(async (req: Request) => {
   }
 })
 
-async function enviar(paso: Paso, email: string, usuarioId: string, nombre: string):
+async function enviar(paso: Paso, email: string, usuarioId: string, nombre: string, prefijo = ''):
   Promise<{ ok: boolean; resend_id?: string; detalle?: string; subject?: string }> {
   const baja = await linkDeBaja(usuarioId, BAJA_SECRET)
   const { subject, html } = armarMail(paso, nombre, baja)
@@ -87,7 +90,7 @@ async function enviar(paso: Paso, email: string, usuarioId: string, nombre: stri
       from: FROM_EMAIL,
       reply_to: REPLY_TO,
       to: email,
-      subject,
+      subject: prefijo + subject,
       html,
       text: htmlATexto(html),
       headers: await headersDeBaja(usuarioId, BAJA_SECRET),
