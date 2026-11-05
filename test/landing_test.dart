@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// La landing de la pauta (29/10/2026): pantalla grande desde 900 px y
-/// movimiento. Lo que NO se puede romper: el botón "Empezar ahora" visible
+/// movimiento. Lo que NO se puede romper: el botón "Crear mi cuenta gratis" visible
 /// antes del segundo, y nada moviéndose con "reducir movimiento".
 Future<void> _abrir(
   WidgetTester tester,
@@ -32,17 +32,17 @@ double _opacidad(WidgetTester tester, String texto) {
 }
 
 void main() {
-  testWidgets('el botón "Empezar ahora" se ve completo antes del segundo', (
+  testWidgets('el botón "Crear mi cuenta gratis" se ve completo antes del segundo', (
     tester,
   ) async {
     await _abrir(tester, const Size(390, 844));
     await tester.pump(const Duration(milliseconds: 100));
-    expect(_opacidad(tester, 'Empezar ahora'), lessThan(1));
+    expect(_opacidad(tester, 'Crear mi cuenta gratis'), lessThan(1));
     // Cuadro a cuadro, como el navegador, hasta el segundo justo.
     for (var ms = 100; ms < 1000; ms += 20) {
       await tester.pump(const Duration(milliseconds: 20));
     }
-    expect(_opacidad(tester, 'Empezar ahora'), 1);
+    expect(_opacidad(tester, 'Crear mi cuenta gratis'), 1);
     // Termina de entrar todo lo de arriba antes de cerrar el test.
     await tester.pump(const Duration(seconds: 1));
   });
@@ -50,7 +50,7 @@ void main() {
   testWidgets('con "reducir movimiento" se ve todo de entrada', (tester) async {
     await _abrir(tester, const Size(390, 844), sinMovimiento: true);
     await tester.pump();
-    expect(_opacidad(tester, 'Empezar ahora'), 1);
+    expect(_opacidad(tester, 'Crear mi cuenta gratis'), 1);
     expect(_opacidad(tester, 'Un pack.\nTodos los estudios.'), 1);
     expect(find.byType(Opacity), findsNothing);
   });
@@ -69,7 +69,7 @@ void main() {
     await _abrir(tester, const Size(390, 844));
     await tester.pump(const Duration(seconds: 2));
     final boton = tester.getSize(
-      find.widgetWithText(ElevatedButton, 'Empezar ahora'),
+      find.widgetWithText(ElevatedButton, 'Crear mi cuenta gratis'),
     );
     expect(boton.width, 350); // 390 menos 20 de cada lado
     final citra = tester.getTopLeft(find.text('Citra Barre'));
@@ -82,7 +82,7 @@ void main() {
     await _abrir(tester, const Size(1440, 900));
     await tester.pump(const Duration(seconds: 2));
     final boton = tester.getSize(
-      find.widgetWithText(ElevatedButton, 'Empezar ahora'),
+      find.widgetWithText(ElevatedButton, 'Crear mi cuenta gratis'),
     );
     expect(boton.width, 330);
     final citra = tester.getTopLeft(find.text('Citra Barre'));

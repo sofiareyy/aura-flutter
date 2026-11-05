@@ -25,7 +25,7 @@
 //
 // Movimiento (29/10/2026):
 //   · Al abrir, el bloque de arriba entra escalonado (80 ms entre cada pieza,
-//     500 ms cada una). "Empezar ahora" termina de aparecer a los 740 ms.
+//     500 ms cada una). "Crear mi cuenta gratis" termina de aparecer a los 740 ms.
 //   · El resplandor naranja de arriba late cada 8 s, casi imperceptible. Es lo
 //     ÚNICO que se mueve solo.
 //   · Cada bloque aparece una sola vez cuando entra en pantalla; las fotos y
@@ -595,7 +595,7 @@ class _ArribaState extends State<_Arriba> {
         _pieza(
           3,
           _BotonNaranja(
-            texto: 'Empezar ahora',
+            texto: 'Crear mi cuenta gratis',
             onPressed: widget.onEmpezar,
             grande: grande,
           ),
