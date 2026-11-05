@@ -580,3 +580,10 @@ entrypoint = "./functions/resend-webhook/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/pago-estudio-email/index.ts"
+
+# Secuencia de bienvenida (4/11/2026): 3 mails a quien se registra y no compra.
+# La dispara el cron secuencia-bienvenida por pg_net con el anon key + `x-notif-secret`.
+[functions.secuencia-email]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/secuencia-email/index.ts"
