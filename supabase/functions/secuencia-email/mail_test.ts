@@ -23,6 +23,15 @@ assert.match(t2, /^AURA\.\nHola,\n/)
 assert.match(t2, /20% de descuento en tu primera compra/)
 assert.match(t2, /Ver las clases \(.*#\/comprar-creditos\)/)
 assert.match(t2, /Nos vemos en Aura/)
+// Fotos: 4, cada una con alt, nombre debajo y el mismo link que el botón.
+assert.equal((m2.html.match(/<img /g) ?? []).length, 4)
+for (const n of ['Citra Barre', 'Rock Studios', 'YOYO Yoga', 'Fit Pilates']) {
+  assert.ok(m2.html.includes(`alt="${n}"`), n)
+  assert.match(t2, new RegExp(`${n} \\(.*#/comprar-creditos\\)`))
+}
+assert.equal((m2.html.match(/href="[^"]*#\/comprar-creditos"/g) ?? []).length, 5)
+// Los otros dos no llevan fotos.
+assert.ok(!m1.html.includes('<img') && !armarMail(3, '', baja).html.includes('<img'))
 
 const m3 = armarMail(3, '<b>x</b>', baja)
 assert.equal(m3.subject, 'Aura sigue acá para cuando quieras')

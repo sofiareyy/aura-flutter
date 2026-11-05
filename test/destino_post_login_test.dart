@@ -139,4 +139,34 @@ void main() {
       expect(DestinoPostLogin.conVolver('/login', 'https://evil.com'), '/login');
     });
   });
+
+  group('loginPara (link del mail 2 a los packs, 4/11/2026)', () {
+    test('desde los packs, el login vuelve a los packs', () {
+      expect(DestinoPostLogin.loginPara('/comprar-creditos', '/comprar-creditos'),
+          '/login?volver=%2Fcomprar-creditos');
+    });
+
+    test('conserva el query de la ruta', () {
+      expect(
+          DestinoPostLogin.loginPara(
+              '/comprar-creditos', '/comprar-creditos?tab=plan'),
+          '/login?volver=%2Fcomprar-creditos%3Ftab%3Dplan');
+    });
+
+    test('el resto de las rutas privadas sigue yendo al login a secas', () {
+      expect(DestinoPostLogin.loginPara('/perfil', '/perfil'), '/login');
+      expect(DestinoPostLogin.loginPara('/comprar-creditosX', '/comprar-creditosX'),
+          '/login');
+    });
+
+    test('después del login, una alumna cae en los packs', () {
+      final volver = Uri.parse(DestinoPostLogin.loginPara(
+              '/comprar-creditos', '/comprar-creditos'))
+          .queryParameters['volver'];
+      expect(DestinoPostLogin.resolver('/home', volver), '/comprar-creditos');
+      // Un estudio va igual a su panel.
+      expect(DestinoPostLogin.resolver('/estudio/dashboard', volver),
+          '/estudio/dashboard');
+    });
+  });
 }

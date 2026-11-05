@@ -123,6 +123,22 @@ class DestinoPostLogin {
     }
   }
 
+  /// Rutas privadas a las que se llega desde afuera (un link de mail) y a las
+  /// que hay que volver después de iniciar sesión. Lista corta a propósito:
+  /// con TODAS las rutas, cerrar sesión parada en /perfil haría que el login
+  /// siguiente (quizás de otra cuenta) caiga en /perfil sin que nadie lo pida.
+  static const rutasQueVuelvenTrasLogin = ['/comprar-creditos'];
+
+  /// A dónde manda el router a una invitada que abrió una ruta privada.
+  /// El mail 2 de la secuencia de bienvenida lleva a los packs (4/11/2026):
+  /// sin esto, después de iniciar sesión caía en Inicio.
+  static String loginPara(String loc, String uriCompleta) {
+    final vuelve = rutasQueVuelvenTrasLogin.any(
+      (r) => loc == r || loc.startsWith('$r/'),
+    );
+    return vuelve ? conVolver('/login', uriCompleta) : '/login';
+  }
+
   /// Pega `?volver=` a una ruta, si hay algo que recordar. Un solo lugar para
   /// no repetir el `Uri.encodeComponent` en cada pantalla.
   static String conVolver(String ruta, String? volver) {
