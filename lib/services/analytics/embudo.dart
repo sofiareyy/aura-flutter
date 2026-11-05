@@ -116,6 +116,17 @@ class Embudo {
         impl.usuario(_uid);
       }
       if (user == null) return;
+      // Paso 4 para quien se registró con Google o Apple. En la web la vuelta
+      // de OAuth recarga la página y entra por acá (no por el deep link de la
+      // app): la sesión no dice si fue registro o login, así que cuenta si la
+      // cuenta tiene menos de 10 minutos. El registro con mail ya lo anotó
+      // la pantalla de registro, y registroCompletado no repite (5/11/2026).
+      if (esCuentaNueva(user.createdAt)) {
+        await registroCompletado(
+          uid: user.id,
+          metodo: user.appMetadata['provider']?.toString() ?? 'email',
+        );
+      }
       if (kIsWeb && !_internaPorUid.containsKey(user.id)) {
         _internaPorUid[user.id] = false;
         final r = await Supabase.instance.client.rpc('soy_cuenta_interna');
