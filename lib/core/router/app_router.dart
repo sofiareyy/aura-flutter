@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../services/analytics/embudo.dart';
 import '../../utils/destino_post_login.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -532,4 +533,5 @@ void _medirRuta() {
   final config = appRouter.routerDelegate.currentConfiguration;
   if (config.isEmpty) return; // todavía resolviendo la primera ruta
   Analytics.rutaCambio(config.uri.path);
+  Embudo.rutaCambio(config.uri.path); // vio clases / vio packs
 }

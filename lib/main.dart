@@ -15,6 +15,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/app_provider.dart';
 import 'services/analytics/atribucion_meta.dart';
+import 'services/analytics/embudo.dart';
 import 'services/auth_service.dart';
 import 'utils/destino_post_login.dart';
 import 'utils/sentry_bots.dart';
@@ -175,6 +176,8 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
       data,
     ) async {
       final event = data.event;
+      // Al cerrar sesión, GA4 deja de asociar la visita a esa cuenta.
+      if (event == AuthChangeEvent.signedOut) unawaited(Embudo.sesion());
       // Recuperación de contraseña: el SDK ya estableció la sesión temporal
       // al procesar el deep link aura://reset-password. Llevamos a la pantalla
       // para elegir la clave nueva.
@@ -210,6 +213,9 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
           // El clic de Meta (fbclid) se asocia a la cuenta apenas hay sesión.
           // Sin esperar: nunca demora la entrada.
           unawaited(AtribucionMeta.sincronizar());
+          // Embudo: el usuario en GA4, el apagado de cuentas internas y los
+          // pasos que vio antes de entrar. Sin esperar.
+          unawaited(Embudo.sesion());
         } catch (e) {
           debugPrint('[authListener] ensureUsuarioCreado falló: $e');
         }
@@ -413,6 +419,13 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
       // Crear usuario si es primera vez con OAuth (Google o Apple) y resolver
       // el destino según los accesos (usuario / estudio / profe / selector).
       final destino = await _authService.destinoInicial();
+      // Embudo, paso 4, para quien se registró con Google o Apple: la vuelta
+      // de OAuth no distingue registro de login, así que cuenta si la cuenta
+      // tiene menos de 10 minutos.
+      if (Embudo.esCuentaNueva(user.createdAt)) {
+        final proveedor = user.appMetadata['provider']?.toString() ?? 'oauth';
+        unawaited(Embudo.registroCompletado(uid: user.id, metodo: proveedor));
+      }
       // Vuelta de OAuth: la pantalla de login ya no existe, así que el destino
       // que dejó guardado se consume acá. `tomar()` borra siempre (es de un
       // solo uso) y `resolver` sólo lo aplica si el rol daba el /home

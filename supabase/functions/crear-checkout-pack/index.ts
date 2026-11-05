@@ -3,6 +3,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { datosGaDelPedido } from '../_shared/ga4.ts'
 import {
   encolarEventoMeta,
   enSegundoPlano,
@@ -48,6 +49,7 @@ Deno.serve(async (req: Request) => {
       creditos,
       amount,
       platform,
+      ga,
       gift_email,
       gift_mensaje,
       // El descuento que la app LE MOSTRÓ (versiones desde el 29/10/2026). No
@@ -183,6 +185,9 @@ Deno.serve(async (req: Request) => {
         plataforma: esWeb(platform) ? 'web' : 'app',
         meta_client_ip: ipDelPedido(req),
         meta_client_user_agent: req.headers.get('user-agent'),
+        // Para GA4 (5/11/2026): el navegador y la campaña, para unir la compra
+        // a la visita. Sólo web; validado.
+        ...datosGaDelPedido(ga, esWeb(platform)),
       })
       .select('id')
       .single()

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
@@ -10,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
+import '../../services/analytics/embudo.dart';
 import '../../services/referidos_service.dart';
 import '../../utils/codigos_pendientes.dart';
 import '../../utils/destino_post_login.dart';
@@ -45,6 +48,18 @@ class _RegisterScreenState extends State<RegisterScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Embudo, paso 3: empezó a completar (no alcanza con abrir la pantalla).
+    for (final c in [_nombreCtrl, _emailCtrl, _passwordCtrl]) {
+      c.addListener(_empezoACompletar);
+    }
+  }
+
+  void _empezoACompletar() {
+    if (_nombreCtrl.text.isNotEmpty ||
+        _emailCtrl.text.isNotEmpty ||
+        _passwordCtrl.text.isNotEmpty) {
+      Embudo.inicioRegistro('email');
+    }
   }
 
   /// El botón de Google/Apple dejaba de girar NUNCA (19/10/2026).
@@ -95,6 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       GoRouterState.of(context).uri.queryParameters['volver'];
 
   Future<void> _loginWithGoogle() async {
+    Embudo.inicioRegistro('google');
     setState(() => _loadingGoogle = true);
     try {
       // OAuth destruye esta pantalla (en web recarga la página, en la app sale
@@ -137,6 +153,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   Future<void> _loginWithApple() async {
+    Embudo.inicioRegistro('apple');
     setState(() => _loadingApple = true);
     try {
       // iOS: flujo NATIVO (hoja de Apple, sin navegador ni redirect).
@@ -212,6 +229,11 @@ class _RegisterScreenState extends State<RegisterScreen>
         password: _passwordCtrl.text,
         nombre: _nombreCtrl.text.trim(),
       );
+      // Embudo, paso 4. Sin esperar: no demora el registro.
+      final nuevoUid = response.user?.id;
+      if (nuevoUid != null) {
+        unawaited(Embudo.registroCompletado(uid: nuevoUid, metodo: 'email'));
+      }
       if (!mounted) return;
 
       if (response.session == null) {

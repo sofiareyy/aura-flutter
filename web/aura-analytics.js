@@ -37,6 +37,16 @@
 
   var MEASUREMENT_ID = "G-CLBKV39C1M";
 
+  // Navegador de una cuenta interna o de prueba (5/11/2026): la app lo marca
+  // cuando esa cuenta inicia sesión, y desde ahí este navegador no le manda
+  // NADA a GA4 —tampoco page_view—, aunque después cierre sesión.
+  // `ga-disable-<ID>` es el apagado oficial de gtag.js.
+  var INTERNA_STORAGE = "aura_interna";
+  function esInterna() {
+    try { return window.localStorage.getItem(INTERNA_STORAGE) === "1"; } catch (e) { return false; }
+  }
+  if (esInterna()) window["ga-disable-" + MEASUREMENT_ID] = true;
+
   // Parámetros de la URL que SÍ se le pasan a GA. Todo lo demás se descarta:
   // por acá vuelve el login de Google (?code=...) y el de Mercado Pago
   // (?pago_id=...), y eso no tiene por qué terminar en Analytics.
@@ -247,7 +257,134 @@
     }
   } catch (e) {}
 
+  /*
+   * EMBUDO (5/11/2026): de la landing a la compra.
+   *
+   * La campaña con la que llegó la persona (utm_source, utm_medium,
+   * utm_campaign, utm_content, fbclid) se guarda al cargar, 30 días, y viaja
+   * en cada evento del embudo. Una llegada con campaña nueva reemplaza a la
+   * anterior; una sin campaña no la borra. Se buscan antes y después del '#'.
+   *
+   * Nunca se manda un mail, un nombre ni un teléfono: el usuario va como su
+   * número interno de cuenta (user_id), que no dice quién es.
+   */
+  var ATRIB_STORAGE = "aura_atribucion";
+  var ATRIB_DIAS = 30;
+  var ATRIB_CAMPOS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "fbclid"];
+
+  function atribucionDeLaUrl() {
+    var l = window.location;
+    var fuentes = [l.search];
+    var h = l.hash || "";
+    var q = h.indexOf("?");
+    if (q !== -1) fuentes.push(h.slice(q));
+    var out = {};
+    var hay = false;
+    for (var i = 0; i < fuentes.length; i++) {
+      try {
+        var sp = new URLSearchParams(fuentes[i] || "");
+        for (var j = 0; j < ATRIB_CAMPOS.length; j++) {
+          var v = sp.get(ATRIB_CAMPOS[j]);
+          if (v) { out[ATRIB_CAMPOS[j]] = String(v).slice(0, 100); hay = true; }
+        }
+      } catch (e) {}
+    }
+    return hay ? out : null;
+  }
+
+  function atribucion() {
+    try {
+      var raw = window.localStorage.getItem(ATRIB_STORAGE);
+      if (!raw) return {};
+      var a = JSON.parse(raw);
+      if (!a || typeof a !== "object" || !a.t || Date.now() - a.t > ATRIB_DIAS * 86400000) return {};
+      var out = {};
+      for (var i = 0; i < ATRIB_CAMPOS.length; i++) {
+        if (a[ATRIB_CAMPOS[i]]) out[ATRIB_CAMPOS[i]] = String(a[ATRIB_CAMPOS[i]]);
+      }
+      return out;
+    } catch (e) { return {}; }
+  }
+
+  try {
+    var nueva = atribucionDeLaUrl();
+    if (nueva) {
+      nueva.t = Date.now();
+      window.localStorage.setItem(ATRIB_STORAGE, JSON.stringify(nueva));
+    }
+  } catch (e) {}
+
+  var usuarioId = null;
+
+  /** Evento del embudo. `params` es un objeto JS plano (o un JSON en texto). */
+  function evento(nombre, params) {
+    try {
+      if (esInterna() || !nombre) return;
+      var p = {};
+      if (typeof params === "string") { try { p = JSON.parse(params) || {}; } catch (e) { p = {}; } }
+      else if (params && typeof params === "object") p = params;
+      var a = atribucion();
+      for (var k in a) if (Object.prototype.hasOwnProperty.call(a, k)) p[k] = a[k];
+      if (usuarioId) p.user_id = usuarioId;
+      p.page_location = esLaApp(window.location.pathname) ? ultimaUrl : window.location.href.split("?")[0];
+      window.gtag("event", String(nombre), p);
+    } catch (e) {}
+  }
+
+  /** La cuenta con sesión (su id interno), o null al cerrar sesión. */
+  function usuario(id) {
+    try {
+      usuarioId = id ? String(id) : null;
+      window.gtag("set", { user_id: usuarioId });
+    } catch (e) {}
+  }
+
+  /** Esta cuenta es interna: este navegador deja de medir, para siempre. */
+  function marcarInterna() {
+    try { window.localStorage.setItem(INTERNA_STORAGE, "1"); } catch (e) {}
+    window["ga-disable-" + MEASUREMENT_ID] = true;
+  }
+
+  /*
+   * Lo que el checkout guarda en el pago para que la compra (que la confirma
+   * Mercado Pago al servidor, sin navegador) se una a esta visita en GA4:
+   *  · client_id: el navegador, sacado de la cookie _ga ("GA1.1.<a>.<b>" → "<a>.<b>").
+   *  · session_id: la visita, de la cookie _ga_<ID> (formatos GS1 y GS2).
+   *  · la campaña guardada.
+   * En texto JSON para que el puente de Dart sea simple.
+   */
+  function leerCookie(nombre) {
+    try {
+      var m = document.cookie.match(new RegExp("(?:^|;\\s*)" + nombre + "=([^;]+)"));
+      return m ? decodeURIComponent(m[1]) : null;
+    } catch (e) { return null; }
+  }
+
+  function clientId() {
+    var c = leerCookie("_ga");
+    var m = c && c.match(/^GA\d\.\d\.(\d+\.\d+)$/);
+    return m ? m[1] : null;
+  }
+
+  function sessionId() {
+    var c = leerCookie("_ga_" + MEASUREMENT_ID.replace(/^G-/, ""));
+    if (!c) return null;
+    var m = c.match(/^GS2\.\d\.s(\d+)/) || c.match(/^GS1\.\d\.(\d+)\./);
+    return m ? m[1] : null;
+  }
+
+  function datosCheckout() {
+    try {
+      if (esInterna()) return "{}";
+      return JSON.stringify({ client_id: clientId(), session_id: sessionId(), atribucion: atribucion() });
+    } catch (e) { return "{}"; }
+  }
+
   window.auraAnalytics = {
+    evento: evento,
+    usuario: usuario,
+    marcarInterna: marcarInterna,
+    datosCheckout: datosCheckout,
     measurementId: MEASUREMENT_ID,
     pageView: pageView,
     appStoreClick: appStoreClick,

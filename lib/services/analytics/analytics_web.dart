@@ -15,6 +15,10 @@ extension type _AuraAnalytics._(JSObject _) implements JSObject {
     String placement,
   );
   external JSString? fbc();
+  external void evento(String nombre, String paramsJson);
+  external void usuario(String? id);
+  external void marcarInterna();
+  external JSString? datosCheckout();
 }
 
 /// La ruta con la que se abrió la página ("/#/clase/12" → "/clase/12"; sin
@@ -44,5 +48,32 @@ String? fbcGuardado() {
     return _aura?.fbc()?.toDart;
   } catch (_) {
     return null;
+  }
+}
+
+void evento(String nombre, String paramsJson) {
+  try {
+    _aura?.evento(nombre, paramsJson);
+  } catch (_) {}
+}
+
+void usuario(String? id) {
+  try {
+    _aura?.usuario(id);
+  } catch (_) {}
+}
+
+void marcarInterna() {
+  try {
+    _aura?.marcarInterna();
+  } catch (_) {}
+}
+
+/// JSON con client_id, session_id y la campaña guardada; "{}" si no hay nada.
+String datosCheckout() {
+  try {
+    return _aura?.datosCheckout()?.toDart ?? '{}';
+  } catch (_) {
+    return '{}';
   }
 }
