@@ -70474,7 +70474,7 @@ this.aj()},
 Fx(a,b){return new A.q1(this.d,A.d6(0,0,0,80*a,0,0),b,null)},
 q(a){var s=this,r=null,q=s.a.d,p=q?B.T:B.M,o=q?B.l:B.q,n=s.Fx(0,B.b4R),m=A.ag(r,q?64:36,r),l=s.Fx(1,A.bKc(B.aMf,A.bl(r,r,B.i,r,r,r,r,r,r,r,r,q?54:38,r,r,B.cc,r,1.1,!0,r,r,r,r,r,r,r,r),p)),k=A.ag(r,q?20:16,r),j=q?460:1/0
 j=s.Fx(2,new A.dC(new A.aw(0,j,0,1/0),A.f("Compr\xe1s cr\xe9ditos una vez y reserv\xe1s en estudios de Buenos Aires. Pilates, yoga, spinning, barre y m\xe1s.",r,r,r,r,A.bl(r,r,B.hj,r,r,r,r,r,r,r,r,q?19:17,r,r,r,r,1.45,!0,r,r,r,r,r,r,r,r),p,r,r),r))
-return A.H(A.a([n,m,l,k,j,A.ag(r,q?36:28,r),s.Fx(3,new A.Tp("Empezar ahora",s.a.c,q,r)),B.t,s.Fx(4,B.a5l)],t.p),o,B.e,B.f,0,B.k)}}
+return A.H(A.a([n,m,l,k,j,A.ag(r,q?36:28,r),s.Fx(3,new A.Tp("Crear mi cuenta gratis",s.a.c,q,r)),B.t,s.Fx(4,B.a5l)],t.p),o,B.e,B.f,0,B.k)}}
 A.agl.prototype={
 q(a){return A.H(A.a([A.acz(B.b6A),B.a7,new A.Bq(new A.bdI(this),null),B.a7,A.acz(B.aV6)],t.p),B.q,B.e,B.f,0,B.k)}}
 A.bdI.prototype={
@@ -179517,6 +179517,6 @@ return}var s=document.scripts
 function onLoad(b){for(var q=0;q<s.length;++q){s[q].removeEventListener("load",onLoad,false)}a(b.target)}for(var r=0;r<s.length;++r){s[r].addEventListener("load",onLoad,false)}})(function(a){v.currentScript=a
 var s=A.bG5
 if(typeof dartMainRunner==="function"){dartMainRunner(s,[])}else{s([])}})})()
-!function(){try{var e="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof globalThis?globalThis:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&(e._sentryDebugIds=e._sentryDebugIds||{},e._sentryDebugIds[n]="29166c5f-3801-5a65-9af2-ef94516460ff")}catch(e){}}();
+!function(){try{var e="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof globalThis?globalThis:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&(e._sentryDebugIds=e._sentryDebugIds||{},e._sentryDebugIds[n]="352a09e3-d1ee-5a0d-bef1-e4acd9b971fa")}catch(e){}}();
 //# sourceMappingURL=main.dart.js.map
-//# debugId=29166c5f-3801-5a65-9af2-ef94516460ff
+//# debugId=352a09e3-d1ee-5a0d-bef1-e4acd9b971fa
