@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../utils/destino_post_login.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_theme.dart';
@@ -130,7 +131,8 @@ final appRouter = GoRouter(
     // Sin sesión: un invitado puede ver el browse (marketplace de solo lectura);
     // cualquier otra ruta (cuenta, checkout, panel) lo manda a login.
     if (!isLoggedIn) {
-      return _esBrowsePublica(loc) ? null : '/login';
+      if (_esBrowsePublica(loc)) return null;
+      return DestinoPostLogin.loginPara(loc, state.uri.toString());
     }
 
     // Una profe solo accede a Mis Clases y Asistencia. El gate va acá, en el
