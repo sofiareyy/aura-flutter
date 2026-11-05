@@ -419,13 +419,6 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
       // Crear usuario si es primera vez con OAuth (Google o Apple) y resolver
       // el destino según los accesos (usuario / estudio / profe / selector).
       final destino = await _authService.destinoInicial();
-      // Embudo, paso 4, para quien se registró con Google o Apple: la vuelta
-      // de OAuth no distingue registro de login, así que cuenta si la cuenta
-      // tiene menos de 10 minutos.
-      if (Embudo.esCuentaNueva(user.createdAt)) {
-        final proveedor = user.appMetadata['provider']?.toString() ?? 'oauth';
-        unawaited(Embudo.registroCompletado(uid: user.id, metodo: proveedor));
-      }
       // Vuelta de OAuth: la pantalla de login ya no existe, así que el destino
       // que dejó guardado se consume acá. `tomar()` borra siempre (es de un
       // solo uso) y `resolver` sólo lo aplica si el rol daba el /home
