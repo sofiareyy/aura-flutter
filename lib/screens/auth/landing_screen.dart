@@ -41,6 +41,7 @@ import 'package:flutter/foundation.dart'
     show ValueListenable, kIsWeb, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../services/analytics/embudo.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -69,10 +70,16 @@ const double _kSubida = 18;
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});
 
-  void _irARegistro(BuildContext context) => context.go('/register');
+  /// [boton]: cuál de los tres de la landing (principal, precio, cierre), para
+  /// el evento `clic_crear_cuenta` del embudo.
+  void _irARegistro(BuildContext context, String boton) {
+    Embudo.clicCrearCuenta(boton);
+    context.go('/register');
+  }
 
   @override
   Widget build(BuildContext context) {
+    Embudo.landing(); // una vez por carga, aunque se reconstruya
     return Scaffold(
       backgroundColor: AppColors.black,
       body: SafeArea(
@@ -111,7 +118,7 @@ class LandingScreen extends StatelessWidget {
                             SizedBox(height: grande ? 36 : 28),
                             _Arriba(
                               grande: grande,
-                              onEmpezar: () => _irARegistro(context),
+                              onEmpezar: () => _irARegistro(context, 'principal'),
                             ),
                             SizedBox(height: entreBloques),
                             _Estudios(grande: grande),
@@ -120,12 +127,12 @@ class LandingScreen extends StatelessWidget {
                             SizedBox(height: entreBloques),
                             _CuantoSale(
                               grande: grande,
-                              onComprar: () => _irARegistro(context),
+                              onComprar: () => _irARegistro(context, 'precio'),
                             ),
                             SizedBox(height: entreBloques),
                             _Cierre(
                               grande: grande,
-                              onCrear: () => _irARegistro(context),
+                              onCrear: () => _irARegistro(context, 'cierre'),
                             ),
                             SizedBox(height: grande ? 48 : 32),
                           ],

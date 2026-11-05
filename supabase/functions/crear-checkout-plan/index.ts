@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { datosGaDelPedido } from '../_shared/ga4.ts'
 import {
   encolarEventoMeta,
   enSegundoPlano,
@@ -34,7 +35,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json().catch(() => null)
-    const { plan_nombre, plan_creditos, plan_precio, platform } = body ?? {}
+    const { plan_nombre, plan_creditos, plan_precio, platform, ga } = body ?? {}
 
     if (!plan_nombre || typeof plan_creditos !== 'number' || typeof plan_precio !== 'number') {
       return json({ error: 'Faltan campos: plan_nombre, plan_creditos, plan_precio' }, 400)
@@ -88,6 +89,8 @@ Deno.serve(async (req: Request) => {
         plataforma: esWeb(platform) ? 'web' : 'app',
         meta_client_ip: ipDelPedido(req),
         meta_client_user_agent: req.headers.get('user-agent'),
+        // Para GA4 (5/11/2026), igual que en crear-checkout-pack.
+        ...datosGaDelPedido(ga, esWeb(platform)),
       })
       .select('id')
       .single()

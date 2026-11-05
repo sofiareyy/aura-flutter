@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'analytics/embudo.dart';
 import '../core/constants/app_constants.dart';
 import '../models/usuario.dart';
 
@@ -109,6 +111,8 @@ class UsuariosService {
         'vigencia_dias': vigenciaDias,
         'descuento_pct': descuentoPct,
         'platform': kIsWeb ? 'web' : 'mobile',
+        // Para unir la compra a esta visita en GA4 (vacío fuera de la web).
+        'ga': Embudo.datosParaCheckout(),
         if (giftEmail != null && giftEmail.trim().isNotEmpty)
           'gift_email': giftEmail.trim(),
         if (giftMensaje != null && giftMensaje.trim().isNotEmpty)
@@ -120,7 +124,16 @@ class UsuariosService {
           ?? 'Error al crear checkout del pack';
       throw Exception(msg);
     }
-    return Map<String, dynamic>.from(res.data as Map);
+    final data = Map<String, dynamic>.from(res.data as Map);
+    // Embudo, paso 7: el link de pago ya está, sale a pagar.
+    if ((data['init_point'] ?? '').toString().isNotEmpty) {
+      Embudo.inicioCheckout(
+        tipo: giftEmail != null && giftEmail.trim().isNotEmpty ? 'regalo' : 'pack',
+        nombre: packNombre,
+        valor: (data['amount'] as num?)?.round() ?? amount,
+      );
+    }
+    return data;
   }
 
   Future<Map<String, dynamic>> crearCheckoutPlan({
@@ -136,6 +149,7 @@ class UsuariosService {
         'plan_creditos': planCreditos,
         'plan_precio': planPrecio,
         'platform': kIsWeb ? 'web' : 'mobile',
+        'ga': Embudo.datosParaCheckout(),
       },
     );
     if (res.status != 200) {
@@ -143,7 +157,11 @@ class UsuariosService {
           'Error al crear checkout del plan';
       throw Exception(msg);
     }
-    return Map<String, dynamic>.from(res.data as Map);
+    final data = Map<String, dynamic>.from(res.data as Map);
+    if ((data['init_point'] ?? '').toString().isNotEmpty) {
+      Embudo.inicioCheckout(tipo: 'plan', nombre: planNombre, valor: planPrecio);
+    }
+    return data;
   }
 
   /// Consulta el estado de un pago por su UUID interno.

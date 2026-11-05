@@ -2,6 +2,7 @@
 // Responde 200 inmediatamente y procesa en segundo plano.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { mandarCompraGa } from '../_shared/ga4.ts'
 import {
   encolarEventoMeta,
   enSegundoPlano,
@@ -240,6 +241,14 @@ async function processPackPayment(
         clientIp: pago.meta_client_ip,
         clientUserAgent: pago.meta_client_user_agent,
       })
+      // GA4: "Compró" (paso 8 del embudo). En segundo plano, como Meta.
+      enSegundoPlano(mandarCompraGa(supabase, {
+        pagoIdCheckout: String(pago.id),
+        userId: pago.user_id,
+        value: Number(payment.transaction_amount ?? pago.amount ?? 0),
+        itemName: packNombre || 'Pack de créditos Aura',
+        itemCategory: pago.type === 'gift' ? 'regalo' : 'pack',
+      }))
     }
   }
 }
@@ -593,6 +602,14 @@ async function procesarPago(paymentId: string, eventType = 'payment') {
       value: Number(payment.transaction_amount ?? 0),
       planNombre,
     })
+    // GA4: "Compró". Una vez por suscripción: se marca en la fila del checkout.
+    enSegundoPlano(mandarCompraGa(supabase, {
+      pagoIdCheckout: params['pago_id'] ?? '',
+      userId,
+      value: Number(payment.transaction_amount ?? 0),
+      itemName: planNombre ? `Plan ${planNombre}` : 'Plan Aura',
+      itemCategory: 'plan',
+    }))
   }
 
   if (targetPagoId) {
