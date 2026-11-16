@@ -73,13 +73,19 @@ const _estudios = [
 /// registro (arriba y en el cierre), no escondido entre los links grises del
 /// pie. Blanco y subrayado, no naranja: un solo naranja por pantalla.
 class _ExplorarSinCuenta extends StatelessWidget {
-  const _ExplorarSinCuenta();
+  /// 'principal' (arriba) o 'cierre' (al final), para GA4.
+  final String boton;
+
+  const _ExplorarSinCuenta({required this.boton});
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: TextButton(
-        onPressed: () => context.go('/explorar'),
+        onPressed: () {
+          Embudo.clicExplorarSinCuenta(boton);
+          context.go('/explorar');
+        },
         style: TextButton.styleFrom(
           foregroundColor: AppColors.white,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -644,7 +650,7 @@ class _ArribaState extends State<_Arriba> {
           ),
         ),
         const SizedBox(height: 6),
-        _pieza(4, const _ExplorarSinCuenta()),
+        _pieza(4, const _ExplorarSinCuenta(boton: 'principal')),
         const SizedBox(height: 6),
         _pieza(
           5,
@@ -1148,7 +1154,7 @@ class _Cierre extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          const _ExplorarSinCuenta(),
+          const _ExplorarSinCuenta(boton: 'cierre'),
           const _ChapitasTiendas(),
           const SizedBox(height: 36),
           // Los dos en una línea, del mismo tamaño. FittedBox: en un celular

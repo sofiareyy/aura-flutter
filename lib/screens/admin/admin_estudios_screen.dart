@@ -464,12 +464,19 @@ class _AdminEstudiosScreenState extends State<AdminEstudiosScreen> {
 
                   // ── SECCIÓN 4 — COBROS ──────────────────────────────────
                   const _FormSectionHeader('COBROS'),
+                  // Texto libre (16/11/2026): a veces el estudio pasa un
+                  // alias, el nombre de la cuenta o el CBU con el titular, y
+                  // va todo acá tal cual. Ni la base ni la función validan el
+                  // formato; lo único que lo limitaba era el teclado numérico.
                   TextField(
                     controller: cbuCtrl,
-                    keyboardType: TextInputType.number,
+                    keyboardType: TextInputType.multiline,
+                    textCapitalization: TextCapitalization.sentences,
+                    minLines: 1,
+                    maxLines: 4,
                     decoration: const InputDecoration(
-                      labelText: 'CBU',
-                      hintText: '22 dígitos',
+                      labelText: 'CBU, alias o cuenta',
+                      hintText: 'Lo que pase el estudio: CBU, alias, titular…',
                     ),
                   ),
                   const SizedBox(height: 10),

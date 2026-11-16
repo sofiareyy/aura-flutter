@@ -185,4 +185,37 @@ void main() {
       expect(masClasesDespuesDe(pozo, base, cuantas: 999).length, 6);
     });
   });
+
+  group('conTopePorEstudio (CLASES ESTA SEMANA, 16/11/2026)', () {
+    Map<String, dynamic> c(int id, int estudio) => {
+      'id': id,
+      'estudio_id': estudio,
+    };
+
+    test('2 por estudio, en rondas: primero una de cada uno', () {
+      final clases = [c(1, 7), c(2, 7), c(3, 7), c(4, 9), c(5, 7), c(6, 9)];
+      expect(conTopePorEstudio(clases).map((x) => x['id']).toList(), [
+        1,
+        4,
+        2,
+        6,
+      ]);
+    });
+
+    test('con tope 1 queda una por estudio', () {
+      final clases = [c(1, 7), c(2, 7), c(3, 9)];
+      expect(conTopePorEstudio(clases, max: 1).map((x) => x['id']).toList(), [
+        1,
+        3,
+      ]);
+    });
+
+    test('una clase sin estudio entra igual', () {
+      final clases = [
+        {'id': 1},
+        c(2, 7),
+      ];
+      expect(conTopePorEstudio(clases).length, 2);
+    });
+  });
 }

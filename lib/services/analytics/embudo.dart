@@ -12,6 +12,8 @@ import 'analytics_stub.dart'
 ///
 ///  1. ver_landing        LandingScreen, al abrirse.
 ///  2. clic_crear_cuenta  los botones de la landing que llevan al registro.
+///     clic_explorar_sin_cuenta  el link "Explorar sin cuenta" (no es un paso:
+///                        es la salida sin registro; parámetro `boton`).
 ///  3. inicio_registro    la pantalla de registro, cuando empieza a completar
 ///                        (escribe en un campo o toca Google / Apple).
 ///  4. sign_up            la cuenta se creó (mail, o la vuelta de Google/Apple).
@@ -48,6 +50,13 @@ class Embudo {
   /// `boton` para ver sólo el principal.
   static void clicCrearCuenta(String boton) =>
       _ga('clic_crear_cuenta', {'boton': boton});
+
+  /// "Explorar sin cuenta" de la landing (16/11/2026). [boton]: 'principal'
+  /// (debajo de "Crear mi cuenta gratis") o 'cierre' (debajo de "Crear mi
+  /// cuenta", al final). Mismo parámetro y mismos valores que
+  /// `clic_crear_cuenta`, para compararlos con una sola dimensión en GA4.
+  static void clicExplorarSinCuenta(String boton) =>
+      _ga('clic_explorar_sin_cuenta', {'boton': boton});
 
   /// [metodo]: 'email', 'google' o 'apple'. Una vez por carga.
   static void inicioRegistro(String metodo) {
@@ -145,10 +154,13 @@ class Embudo {
       if (client.auth.currentUser == null) return;
       for (final paso in _pasosVistos.difference(_pasosEnBase).toList()) {
         _pasosEnBase.add(paso);
-        await client.rpc('registrar_paso_embudo', params: {
-          'p_paso': paso,
-          'p_plataforma': kIsWeb ? 'web' : defaultTargetPlatform.name,
-        });
+        await client.rpc(
+          'registrar_paso_embudo',
+          params: {
+            'p_paso': paso,
+            'p_plataforma': kIsWeb ? 'web' : defaultTargetPlatform.name,
+          },
+        );
       }
     } catch (e) {
       debugPrint('[Embudo] no se pudo anotar el paso: $e');
@@ -165,7 +177,12 @@ class Embudo {
       'currency': 'ARS',
       'value': valor,
       'items': [
-        {'item_name': nombre, 'item_category': tipo, 'price': valor, 'quantity': 1},
+        {
+          'item_name': nombre,
+          'item_category': tipo,
+          'price': valor,
+          'quantity': 1,
+        },
       ],
     });
   }

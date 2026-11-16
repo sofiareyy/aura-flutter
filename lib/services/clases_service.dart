@@ -35,7 +35,11 @@ class ClasesService {
     String? texto,
     List<int> estudiosDelTexto = const [],
     List<int> estudiosDeLaCategoria = const [],
+    List<int>? soloEstudios,
   }) async {
+    // Filtro por barrio (16/11/2026): `null` = sin filtro; vacía = ningún
+    // estudio en el barrio elegido, así que no hay nada que pedir.
+    if (soloEstudios != null && soloEstudios.isEmpty) return [];
     final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
     final semanasAdelante = ahora.add(Duration(days: diasVentana));
     var query = _supabase
@@ -64,6 +68,9 @@ class ClasesService {
     if (filtroCat != null) query = query.or(filtroCat) as dynamic;
     final filtroTexto = filtroTextoPostgrest(texto, estudiosDelTexto);
     if (filtroTexto != null) query = query.or(filtroTexto) as dynamic;
+    if (soloEstudios != null) {
+      query = query.inFilter('estudio_id', soloEstudios) as dynamic;
+    }
 
     final clases = await query
         .gte('fecha', _toSupaDate(ahora))
@@ -90,7 +97,11 @@ class ClasesService {
     String? texto,
     List<int> estudiosDelTexto = const [],
     List<int> estudiosDeLaCategoria = const [],
+    List<int>? soloEstudios,
   }) async {
+    // Filtro por barrio (16/11/2026): `null` = sin filtro; vacía = ningún
+    // estudio en el barrio elegido, así que no hay nada que pedir.
+    if (soloEstudios != null && soloEstudios.isEmpty) return [];
     final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 3));
     final hasta = ahora.add(const Duration(days: 90));
     var query = _supabase
@@ -108,6 +119,9 @@ class ClasesService {
     if (filtroCat != null) query = query.or(filtroCat) as dynamic;
     final filtroTexto = filtroTextoPostgrest(texto, estudiosDelTexto);
     if (filtroTexto != null) query = query.or(filtroTexto) as dynamic;
+    if (soloEstudios != null) {
+      query = query.inFilter('estudio_id', soloEstudios) as dynamic;
+    }
 
     final clases = await query
         .gte('fecha', _toSupaDate(ahora))
