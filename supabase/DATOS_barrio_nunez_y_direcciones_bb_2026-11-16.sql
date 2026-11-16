@@ -13,3 +13,7 @@
 update public.estudios set barrio = 'Núñez' where id in (67, 69);
 update public.estudios set direccion = 'Av. Álvarez Thomas 1121, C1427 CABA' where id = 6;
 update public.estudios set direccion = 'Av. Olazábal 4810, C1431 CABA (timbre "BBestudio")' where id = 7;
+
+-- 16/11/2026 (después): Sofía pidió desactivar los dos BB, no van a cargar
+-- clases. Tenían 0 clases y 0 reservas. Volver atrás: activo = true.
+update public.estudios set activo = false where id in (6, 7);
