@@ -644,9 +644,11 @@ class AdminService {
     return Map<String, dynamic>.from(res as Map);
   }
 
+  /// v2 (16/11/2026): trae también la fecha de la clase, para no ofrecer
+  /// cancelar una reserva pasada.
   Future<List<Map<String, dynamic>>> listReservas({String? search}) async {
     final res = await _client.rpc(
-      'admin_list_reservas',
+      'admin_list_reservas_v2',
       params: {
         'p_search': (search ?? '').trim().isEmpty ? null : search!.trim(),
       },
@@ -654,11 +656,28 @@ class AdminService {
     return List<Map<String, dynamic>>.from(res as List);
   }
 
-  Future<void> cancelarReserva(int reservaId) async {
-    await _client.rpc(
-      'admin_cancel_reserva',
+  /// Cancela UNA reserva como lo hace el panel del estudio (16/11/2026):
+  /// devuelve créditos, libera el lugar, avisa (campanita + mail). Sólo
+  /// reservas vigentes de clases que no empezaron; lo controla la base.
+  /// Devuelve los créditos devueltos, o tira [Exception] con un mensaje
+  /// legible.
+  Future<int> cancelarReserva(int reservaId) async {
+    final res = await _client.rpc(
+      'admin_cancelar_reserva',
       params: {'p_reserva_id': reservaId},
     );
+    final map = res is Map ? Map<String, dynamic>.from(res) : const {};
+    if (map['ok'] == true) {
+      return (map['creditos_devueltos'] as num?)?.toInt() ?? 0;
+    }
+    throw Exception(switch (map['error']) {
+      'clase_pasada' => 'La clase ya empezó o pasó: no se puede cancelar.',
+      'estado_invalido' =>
+        'Esta reserva ya no está vigente (${map['estado'] ?? 'sin estado'}).',
+      'no_encontrada' => 'No encontramos la reserva.',
+      'no_autorizado' => 'No tenés permisos para esto.',
+      _ => 'No se pudo cancelar la reserva.',
+    });
   }
 
   // ── Servicios de precio fijo (backoffice, 3/9/2026) ────────────────────

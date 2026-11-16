@@ -55,12 +55,48 @@ class _AdminReservasScreenState extends State<AdminReservasScreen> {
     }
   }
 
-  Future<void> _cancelar(int id) async {
+  /// Hora argentina "ahora", en el mismo marco naive que `clases.fecha`.
+  DateTime get _ahoraAr =>
+      DateTime.now().toUtc().subtract(const Duration(hours: 3));
+
+  DateTime? _fechaClase(Map<String, dynamic> r) {
+    final raw = r['clase_fecha']?.toString() ?? '';
+    if (raw.isEmpty) return null;
+    // Naive en hora argentina: se parsea como UTC para comparar en el mismo
+    // marco que [_ahoraAr], sin depender de la zona del dispositivo.
+    return DateTime.tryParse('${raw.replaceFirst(' ', 'T')}Z');
+  }
+
+  /// Sólo una reserva vigente de una clase que todavía no empezó se puede
+  /// cancelar (16/11/2026). La base lo vuelve a controlar.
+  bool _cancelable(Map<String, dynamic> r) {
+    final estado = r['estado']?.toString();
+    if (estado != 'confirmada' && estado != 'pre_confirmada') return false;
+    final fecha = _fechaClase(r);
+    return fecha != null && fecha.isAfter(_ahoraAr);
+  }
+
+  String _cuando(Map<String, dynamic> r) {
+    final f = _fechaClase(r);
+    if (f == null) return 'sin fecha';
+    String dos(int n) => n.toString().padLeft(2, '0');
+    return '${dos(f.day)}/${dos(f.month)} ${dos(f.hour)}:${dos(f.minute)}';
+  }
+
+  Future<void> _cancelar(Map<String, dynamic> r) async {
+    final id = (r['id'] as num).toInt();
+    final creditos = (r['creditos_usados'] as num?)?.toInt() ?? 0;
+    final pagada = r['estado'] == 'confirmada' && creditos > 0;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Cancelar reserva'),
-        content: const Text('¿Querés cancelar esta reserva desde Admin Aura?'),
+        content: Text(
+          '${r['usuario_nombre'] ?? 'La alumna'} · ${r['clase_nombre'] ?? 'Clase'}'
+          ' en ${r['estudio_nombre'] ?? 'el estudio'}, ${_cuando(r)}.\n\n'
+          '${pagada ? 'Le devolvemos $creditos créditos (vencen en 90 días), ' : ''}'
+          'se libera el lugar y le avisamos con una notificación y un mail.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -68,13 +104,29 @@ class _AdminReservasScreenState extends State<AdminReservasScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sí'),
+            child: const Text('Cancelar reserva'),
           ),
         ],
       ),
     );
-    if (ok != true) return;
-    await _service.cancelarReserva(id);
+    if (ok != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final devueltos = await _service.cancelarReserva(id);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            devueltos > 0
+                ? 'Reserva cancelada. Le devolvimos $devueltos créditos.'
+                : 'Reserva cancelada.',
+          ),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
     await _load();
   }
 
@@ -164,14 +216,13 @@ class _AdminReservasScreenState extends State<AdminReservasScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Créditos: ${reserva['creditos_usados'] ?? 0}',
+                              'Clase: ${_cuando(reserva)} · Créditos: ${reserva['creditos_usados'] ?? 0}',
                               style: const TextStyle(color: AppColors.grey),
                             ),
-                            if (reserva['estado'] != 'cancelada') ...[
+                            if (_cancelable(reserva)) ...[
                               const SizedBox(height: 12),
                               OutlinedButton(
-                                onPressed: () =>
-                                    _cancelar((reserva['id'] as num).toInt()),
+                                onPressed: () => _cancelar(reserva),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: AppColors.error,
                                   side: const BorderSide(

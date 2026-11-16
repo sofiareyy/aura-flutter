@@ -275,35 +275,84 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
         },
       );
 
-      // Recalcula TODAS las clases del estudio (pasadas incluidas) para que no
-      // queden precios viejos mezclados.
-      int recalculadas = 0;
+      // Recalcula las clases DESDE HOY y los horarios fijos, y dice qué
+      // cambió (16/11/2026). Antes recalculaba también las pasadas, tragaba
+      // cualquier error y siempre decía "Configuración guardada". Lo que se
+      // le liquida al estudio sale de lo que pagó cada alumna al reservar
+      // (reservas.creditos_usados), no del precio de la clase: cambiar el
+      // precio no le cobra la diferencia a nadie.
+      Map<String, dynamic>? detalle;
+      String? errorRecalculo;
       try {
         final res = await _client.rpc(
-          'admin_recalcular_precios_estudio',
-          params: {'p_estudio_id': widget.estudioId, 'p_incluir_pasadas': true},
+          'admin_recalcular_precios_estudio_detalle',
+          params: {
+            'p_estudio_id': widget.estudioId,
+            'p_incluir_pasadas': false,
+          },
         );
-        recalculadas = (res as num?)?.toInt() ?? 0;
-      } catch (_) {}
+        detalle = res is Map ? Map<String, dynamic>.from(res) : null;
+      } catch (e) {
+        errorRecalculo = e is PostgrestException ? e.message : e.toString();
+      }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            recalculadas > 0
-                ? 'Configuración guardada. $recalculadas clase'
-                      '${recalculadas == 1 ? '' : 's'} actualizada'
-                      '${recalculadas == 1 ? '' : 's'}.'
-                : 'Configuración guardada.',
-          ),
-          backgroundColor: AppColors.success,
-        ),
-      );
+      await _mostrarResumenRecalculo(detalle, errorRecalculo);
     } catch (e) {
       _snack('No se pudo guardar: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Future<void> _mostrarResumenRecalculo(
+    Map<String, dynamic>? d,
+    String? error,
+  ) {
+    int n(String k) => (d?[k] as num?)?.toInt() ?? 0;
+    String plural(int x, String uno, String varios) =>
+        '$x ${x == 1 ? uno : varios}';
+    final String cuerpo;
+    if (error != null || d == null) {
+      cuerpo =
+          'La configuración se guardó, pero NO se pudieron recalcular las '
+          'clases${error != null ? ':\n$error' : '.'}\n\n'
+          'Las clases siguen con el precio que tenían.';
+    } else {
+      final lineas = <String>[
+        'Desde hoy:',
+        '· ${plural(n('cambiadas'), 'clase cambió', 'clases cambiaron')} de precio',
+        '· ${plural(n('iguales'), 'clase quedó', 'clases quedaron')} igual',
+        if (n('cambiadas_con_reservas') > 0)
+          '· ${plural(n('cambiadas_con_reservas'), 'de las que cambiaron ya tenía', 'de las que cambiaron ya tenían')} '
+              'reservas: esas alumnas mantienen lo que pagaron',
+        if (n('sin_precio') > 0)
+          '· ${plural(n('sin_precio'), 'clase no se pudo', 'clases no se pudieron')} '
+              'calcular y quedaron como estaban',
+        '· ${plural(n('horarios_cambiados'), 'horario fijo cambió', 'horarios fijos cambiaron')} '
+            '(las próximas clases que se generen)',
+        '',
+        'Las clases pasadas no se tocan.',
+      ];
+      cuerpo = lineas.join('\n');
+    }
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          error != null || d == null
+              ? 'Guardado a medias'
+              : 'Precios guardados',
+        ),
+        content: Text(cuerpo),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Listo'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _cargarServicios() async {

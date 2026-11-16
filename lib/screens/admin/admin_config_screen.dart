@@ -246,7 +246,28 @@ class _AdminConfigScreenState extends State<AdminConfigScreen> {
 
   Future<void> _guardarValorCredito() async {
     final value = int.tryParse(_creditValueCtrl.text.trim());
-    if (value == null || value <= 0) return;
+    if (value == null || value <= 0) {
+      _mostrarError('Poné un número mayor a 0, sin puntos ni signos.');
+      return;
+    }
+    if (value == _valorCreditoActual) return;
+
+    // Confirmación (16/11/2026): este número mueve plata en dos puntas a la
+    // vez y no se puede deshacer con un botón.
+    String pesos(num n) =>
+        '\$${n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.')}';
+    final seguro = await _confirmar(
+      titulo: 'Cambiar el valor del crédito',
+      cuerpo:
+          'De ${pesos(_valorCreditoActual)} a ${pesos(value)} por crédito.\n\n'
+          '· Se recalculan los precios de todos los packs y planes.\n'
+          '· Cambia lo que Aura le paga a TODOS los estudios por cada crédito, '
+          'también en los meses que todavía no se pagaron.\n\n'
+          'No se puede deshacer con un botón: para volver hay que cargar el '
+          'valor anterior a mano.',
+      confirmar: 'Cambiar a ${pesos(value)}',
+    );
+    if (!seguro || !mounted) return;
 
     setState(() => _savingCredit = true);
     try {

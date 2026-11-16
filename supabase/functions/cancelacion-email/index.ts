@@ -35,6 +35,11 @@ Deno.serve(async (req: Request) => {
     if (!claseId) return json({ error: 'Falta clase_id' }, 400)
 
     const dryRun = body?.dry_run === true
+    // 16/11/2026: `alcance: 'reserva'` = Aura canceló UNA reserva desde el
+    // backoffice (admin_cancelar_reserva). La clase sigue en pie, así que el
+    // mail no puede decir "el estudio canceló la clase". Sin el campo, todo
+    // igual que antes (cancelación de la clase entera).
+    const soloReserva = body?.alcance === 'reserva'
     const testEmail = typeof body?.test_email === 'string'
       ? body.test_email.trim().toLowerCase() : ''
     if (!RESEND_API_KEY && !dryRun) {
@@ -127,13 +132,15 @@ Deno.serve(async (req: Request) => {
       }
 
       const creditos = Number(r.creditos_usados ?? 0)
-      const subject = esExperiencia
+      const subject = soloReserva
+        ? `Cancelamos tu reserva en ${estudioNombre}`
+        : esExperiencia
         ? `Se canceló ${clase.nombre ?? 'la experiencia'}`
         : `Se canceló tu clase en ${estudioNombre}`
       const html = renderHtml({
         nombre,
         claseNombre: String(clase.nombre ?? (esExperiencia ? 'la experiencia' : 'tu clase')),
-        estudioNombre, fechaStr, horaStr, creditos, esExperiencia,
+        estudioNombre, fechaStr, horaStr, creditos, esExperiencia, soloReserva,
       })
 
       if (dryRun) {
@@ -208,6 +215,7 @@ function renderHtml(a: {
   horaStr: string
   creditos: number
   esExperiencia: boolean
+  soloReserva?: boolean
 }): string {
   const hola = a.nombre ? `¡Hola ${escape(a.nombre)}!` : '¡Hola!'
   const que = a.esExperiencia ? 'la experiencia' : 'la clase'
@@ -221,12 +229,14 @@ function renderHtml(a: {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px; margin:0 auto; background:#fff; border-radius:16px; overflow:hidden;">
     <tr><td style="background:#1A1A1A; padding:32px 24px; text-align:center;">
       <div style="color:#E8763A; font-size:28px; font-weight:800; letter-spacing:6px;">AURA.</div>
-      <div style="color:#888; font-size:11px; margin-top:8px; letter-spacing:2px;">CLASE CANCELADA</div>
+      <div style="color:#888; font-size:11px; margin-top:8px; letter-spacing:2px;">${a.soloReserva ? 'RESERVA CANCELADA' : 'CLASE CANCELADA'}</div>
     </td></tr>
     <tr><td style="padding:28px 24px;">
       <p style="margin:0 0 16px; color:#1A1A1A; font-size:16px; line-height:1.5;">${hola}</p>
       <p style="margin:0 0 16px; color:#1A1A1A; font-size:16px; line-height:1.5;">
-        <strong>${escape(a.estudioNombre)}</strong> canceló ${que} <strong>${escape(a.claseNombre)}</strong>${cuando}.
+        ${a.soloReserva
+          ? `Cancelamos tu reserva para ${que} <strong>${escape(a.claseNombre)}</strong> en <strong>${escape(a.estudioNombre)}</strong>${cuando}. Si no la pediste vos, respondé este mail y lo vemos.`
+          : `<strong>${escape(a.estudioNombre)}</strong> canceló ${que} <strong>${escape(a.claseNombre)}</strong>${cuando}.`}
       </p>
       <div style="background:#FFF1E8; border-left:4px solid #E8763A; padding:16px; border-radius:8px; margin:16px 0; color:#1A1A1A; font-size:15px; line-height:1.8;">
         ${devolucion}
