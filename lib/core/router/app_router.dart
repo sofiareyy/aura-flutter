@@ -1,3 +1,4 @@
+import '../../utils/vuelta_mp.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/analytics/embudo.dart';
@@ -503,12 +504,11 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/payment-result',
+      // MP agrega su propio `status` a la back_url: ver utils/vuelta_mp.dart.
       builder: (context, state) => PaymentResultScreen(
         pagoId: state.uri.queryParameters['pago_id'],
-        paymentId:
-            state.uri.queryParameters['payment_id'] ??
-            state.uri.queryParameters['collection_id'],
-        status: state.uri.queryParameters['status'],
+        paymentId: idDePagoMp(state.uri.queryParametersAll),
+        status: estadoDeVueltaMp(state.uri.queryParametersAll),
       ),
     ),
     GoRoute(

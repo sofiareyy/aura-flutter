@@ -86,7 +86,8 @@ class EstudiosService {
   /// vidriera como uno más — medido el 4/9: la cuenta de Aura veía Hot Clic,
   /// que está inactivo, mezclado con los reales.
   ///
-  /// `getEstudio(id)` NO filtra, a propósito: es la que usa la ficha.
+  /// `getEstudio(id)` filtra sólo con `soloActivos: true` (la ficha y el
+  /// estudio asociado lo usan desde el 16/11/2026).
   Future<List<Estudio>> getEstudios({String? categoria}) async {
     var query = _supabase
         .from(AppConstants.tableEstudios)
@@ -150,12 +151,17 @@ class EstudiosService {
     ].where((e) => vistos.add(e.id)).toList();
   }
 
-  Future<Estudio?> getEstudio(int id) async {
-    final data = await _supabase
+  /// [soloActivos] (16/11/2026): para lo que ve la alumna — la ficha por
+  /// link y el estudio asociado. La RLS ya esconde los desactivados a alumnas
+  /// e invitados, pero se los deja ver a quien es admin del estudio (la cuenta
+  /// aura.hola.app lo es de varios), así que hay que filtrar acá también.
+  Future<Estudio?> getEstudio(int id, {bool soloActivos = false}) async {
+    var query = _supabase
         .from(AppConstants.tableEstudios)
         .select()
-        .eq('id', id)
-        .maybeSingle();
+        .eq('id', id);
+    if (soloActivos) query = query.eq('activo', true);
+    final data = await query.maybeSingle();
     if (data == null) return null;
     return Estudio.fromMap(data);
   }
