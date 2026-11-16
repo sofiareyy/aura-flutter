@@ -54,14 +54,49 @@ import '../../utils/movimiento_reducido_stub.dart'
 const double kLandingCorteEscritorio = 900;
 
 /// Las 6 fotos, en el orden pedido. Las imágenes son de 600×600.
+///
+/// (nombre, barrio, foto, id del estudio). Desde el 16/11/2026 cada foto lleva
+/// al detalle del estudio (`/estudio/<id>`, que se ve sin cuenta). Rock Studios
+/// y Fit Pilates tienen dos sedes cada uno: van a Palermo (58) y a San Isidro
+/// Centro (65). Si un estudio se desactiva, su detalle queda vacío: sacarlo de
+/// acá también.
 const _estudios = [
-  ('Citra Barre', 'assets/images/landing/citra-barre.jpg'),
-  ('Ambra', 'assets/images/landing/ambra.jpg'),
-  ('Rock Studios', 'assets/images/landing/rock-studios.jpg'),
-  ('YOYO Yoga', 'assets/images/landing/yoyo-yoga.jpg'),
-  ('PUR Lagree', 'assets/images/landing/la-pur.jpg'),
-  ('Fit Pilates', 'assets/images/landing/fit-pilates.jpg'),
+  ('Citra Barre', 'Palermo', 'assets/images/landing/citra-barre.jpg', 4),
+  ('Ambra', 'Palermo', 'assets/images/landing/ambra.jpg', 8),
+  ('Rock Studios', 'Palermo', 'assets/images/landing/rock-studios.jpg', 58),
+  ('YOYO Yoga', 'Pilar', 'assets/images/landing/yoyo-yoga.jpg', 56),
+  ('PUR Lagree', 'Núñez', 'assets/images/landing/la-pur.jpg', 67),
+  ('Fit Pilates', 'San Isidro', 'assets/images/landing/fit-pilates.jpg', 65),
 ];
+
+/// "Explorar sin cuenta": desde el 16/11/2026 va debajo de los botones de
+/// registro (arriba y en el cierre), no escondido entre los links grises del
+/// pie. Blanco y subrayado, no naranja: un solo naranja por pantalla.
+class _ExplorarSinCuenta extends StatelessWidget {
+  const _ExplorarSinCuenta();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: TextButton(
+        onPressed: () => context.go('/explorar'),
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        ),
+        child: const Text(
+          'Explorar sin cuenta →',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            decoration: TextDecoration.underline,
+            decorationColor: AppColors.white,
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Lo que dura cada aparición, y la distancia desde la que sube.
 const _kDuracionAparicion = Duration(milliseconds: 500);
@@ -118,7 +153,8 @@ class LandingScreen extends StatelessWidget {
                             SizedBox(height: grande ? 36 : 28),
                             _Arriba(
                               grande: grande,
-                              onEmpezar: () => _irARegistro(context, 'principal'),
+                              onEmpezar: () =>
+                                  _irARegistro(context, 'principal'),
                             ),
                             SizedBox(height: entreBloques),
                             _Estudios(grande: grande),
@@ -607,9 +643,11 @@ class _ArribaState extends State<_Arriba> {
             grande: grande,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 6),
+        _pieza(4, const _ExplorarSinCuenta()),
+        const SizedBox(height: 6),
         _pieza(
-          4,
+          5,
           const Center(
             child: Text(
               'Sin permanencia · 20% off en tu primera compra',
@@ -649,11 +687,16 @@ class _Estudios extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             children: [
-              for (final (i, (nombre, foto)) in _estudios.indexed)
+              for (final (i, (nombre, barrio, foto, id)) in _estudios.indexed)
                 _Aparece(
                   disparo: disparo,
                   demora: Duration(milliseconds: 70 * i),
-                  child: _FotoEstudio(nombre: nombre, foto: foto),
+                  child: _FotoEstudio(
+                    nombre: nombre,
+                    barrio: barrio,
+                    foto: foto,
+                    onTap: () => context.push('/estudio/$id'),
+                  ),
                 ),
             ],
           ),
@@ -676,9 +719,16 @@ class _Estudios extends StatelessWidget {
 
 class _FotoEstudio extends StatefulWidget {
   final String nombre;
+  final String barrio;
   final String foto;
+  final VoidCallback onTap;
 
-  const _FotoEstudio({required this.nombre, required this.foto});
+  const _FotoEstudio({
+    required this.nombre,
+    required this.barrio,
+    required this.foto,
+    required this.onTap,
+  });
 
   @override
   State<_FotoEstudio> createState() => _FotoEstudioState();
@@ -692,58 +742,83 @@ class _FotoEstudioState extends State<_FotoEstudio> {
     // Con el mouse encima la FOTO se agranda un 7% dentro de su cuadrado: el
     // cuadrado no cambia de tamaño y no corre a los de al lado.
     final agrandar = _mouseEncima && !_sinMovimiento(context);
-    return MouseRegion(
-      onEnter: (_) => setState(() => _mouseEncima = true),
-      onExit: (_) => setState(() => _mouseEncima = false),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AuraRadio.boton),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            AnimatedScale(
-              scale: agrandar ? 1.07 : 1,
-              duration: const Duration(milliseconds: 350),
-              curve: Curves.easeOutCubic,
-              child: Image.asset(
-                widget.foto,
-                fit: BoxFit.cover,
-                // Si una foto no carga, queda el cuadrado oscuro con el nombre.
-                errorBuilder: (_, _, _) =>
-                    const ColoredBox(color: AppColors.blackSoft),
-              ),
-            ),
-            // Degradé oscuro abajo para que el nombre se lea sobre cualquier
-            // foto.
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: const [0.45, 1],
-                  colors: [
-                    AppColors.blackDeep.withValues(alpha: 0),
-                    AppColors.blackDeep.withValues(alpha: 0.85),
-                  ],
+    return Semantics(
+      button: true,
+      label: '${widget.nombre}, ${widget.barrio}',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _mouseEncima = true),
+        onExit: (_) => setState(() => _mouseEncima = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AuraRadio.boton),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                AnimatedScale(
+                  scale: agrandar ? 1.07 : 1,
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeOutCubic,
+                  child: Image.asset(
+                    widget.foto,
+                    fit: BoxFit.cover,
+                    // Si una foto no carga, queda el cuadrado oscuro con el nombre.
+                    errorBuilder: (_, _, _) =>
+                        const ColoredBox(color: AppColors.blackSoft),
+                  ),
                 ),
-              ),
-            ),
-            Positioned(
-              left: 8,
-              right: 8,
-              bottom: 7,
-              child: Text(
-                widget.nombre,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  height: 1.15,
+                // Degradé oscuro abajo para que el nombre se lea sobre cualquier
+                // foto.
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0.45, 1],
+                      colors: [
+                        AppColors.blackDeep.withValues(alpha: 0),
+                        AppColors.blackDeep.withValues(alpha: 0.85),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                Positioned(
+                  left: 8,
+                  right: 8,
+                  bottom: 7,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.nombre,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          height: 1.15,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.barrio,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppColors.white.withValues(alpha: 0.85),
+                          fontSize: 11,
+                          height: 1.15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1072,9 +1147,11 @@ class _Cierre extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 6),
+          const _ExplorarSinCuenta(),
           const _ChapitasTiendas(),
           const SizedBox(height: 36),
-          // Los tres en una línea, del mismo tamaño. FittedBox: en un celular
+          // Los dos en una línea, del mismo tamaño. FittedBox: en un celular
           // muy angosto se achican juntos en vez de partirse en dos renglones.
           FittedBox(
             fit: BoxFit.scaleDown,
@@ -1084,11 +1161,6 @@ class _Cierre extends StatelessWidget {
                 _LinkGris(
                   texto: 'Ya tengo cuenta',
                   onTap: () => context.go('/login'),
-                ),
-                const _Separador(),
-                _LinkGris(
-                  texto: 'Explorar sin cuenta',
-                  onTap: () => context.go('/explorar'),
                 ),
                 const _Separador(),
                 _LinkGris(
