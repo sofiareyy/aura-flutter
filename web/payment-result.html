@@ -1,0 +1,35 @@
+<!doctype html>
+<!--
+  Vuelta de Mercado Pago para las compras hechas desde la WEB (16/11/2026).
+
+  Las back_urls web son `APP_BASE_URL/payment-result?status=…&pago_id=…` (más
+  los parámetros que agrega MP). La app usa rutas con hash (`/#/...`) y GitHub
+  Pages no tiene reescrituras, así que sin este archivo esa URL daba 404.
+  Pages sirve `/payment-result` desde `payment-result.html` (igual que
+  `/baja`), y acá se pasa a la ruta de Flutter con el query intacto.
+
+  La app nativa NO pasa por acá: sus back_urls son `aura://payment-result`.
+-->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Aura</title>
+  <script>
+    location.replace('/#/payment-result' + location.search);
+  </script>
+  <style>
+    body { margin: 0; background: #F7F5F2; color: #1A1A1A;
+           font-family: -apple-system, Arial, sans-serif;
+           display: flex; min-height: 100vh; align-items: center; justify-content: center; }
+    a { color: #E8763A; }
+  </style>
+</head>
+<body>
+  <p>Volviendo a Aura… Si no pasa nada, <a id="seguir" href="/#/payment-result">tocá acá</a>.</p>
+  <script>
+    document.getElementById('seguir').href = '/#/payment-result' + location.search;
+  </script>
+</body>
+</html>
