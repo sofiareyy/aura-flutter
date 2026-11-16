@@ -465,7 +465,9 @@ function buildEmailHtml(params: {
   } = params
 
   const fmt = (n: number) => `$${n.toLocaleString('es-AR')}`
-  const panelUrl = 'https://somosaura.app/estudio/cobros'
+  // 16/11/2026: era somosaura.app/estudio/cobros, que redirige a otro sitio
+  // (auraagenda.com) y da 404. La web usa rutas con '#'.
+  const panelUrl = 'https://somosaurapass.com/#/estudio/cobros'
 
   const mensajeCrecimiento = cambioPct >= 0
     ? '¡Seguís creciendo! 🚀'

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
@@ -63,6 +64,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   Set<int> _diasFiltro = {};
   Set<String> _horarioFiltro = {};
 
+  /// Barrios elegidos (16/11/2026). Vacío = todos. Se aplica EN LA BASE.
+  Set<String> _barriosFiltro = {};
+
   /// Tope de créditos. `null` = TODOS, sin tope (17/9/2026).
   ///
   /// Antes era `int = 100` y el deslizador llegaba justo a 100: decía "Todos"
@@ -97,6 +101,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   int get _cantFiltrosActivos =>
       _diasFiltro.length +
       _horarioFiltro.length +
+      _barriosFiltro.length +
       (_maxCreditos != null ? 1 : 0) +
       (_tipoFiltro != 'todo' ? 1 : 0);
 
@@ -215,6 +220,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
     final texto = _searchCtrl.text.trim();
     final idsTexto = _idsEstudiosDelTexto;
     final idsCategoria = _idsEstudiosDeLaCategoria;
+    final idsBarrio = idsEstudiosDeBarrios(_estudios, _barriosFiltro);
 
     final results = await Future.wait([
       _estudiosService.getEstudios(),
@@ -225,6 +231,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
         texto: texto,
         estudiosDelTexto: idsTexto,
         estudiosDeLaCategoria: idsCategoria,
+        soloEstudios: idsBarrio,
       ),
       _clasesService.getProximasExperiencias(
         limit: _pageSize,
@@ -233,6 +240,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
         texto: texto,
         estudiosDelTexto: idsTexto,
         estudiosDeLaCategoria: idsCategoria,
+        soloEstudios: idsBarrio,
       ),
       _estudiosService.getCategorias(),
       _estudiosService.getRangoPublicado(),
@@ -299,6 +307,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
       final texto = _searchCtrl.text.trim();
       final idsTexto = _idsEstudiosDelTexto;
       final idsCategoria = _idsEstudiosDeLaCategoria;
+      final idsBarrio = idsEstudiosDeBarrios(_estudios, _barriosFiltro);
 
       final masClases = _hasMoreClases
           ? await _clasesService.getProximasClases(
@@ -308,6 +317,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
               texto: texto,
               estudiosDelTexto: idsTexto,
               estudiosDeLaCategoria: idsCategoria,
+              soloEstudios: idsBarrio,
             )
           : <Map<String, dynamic>>[];
       final masExp = _hasMoreExperiencias
@@ -318,6 +328,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
               texto: texto,
               estudiosDelTexto: idsTexto,
               estudiosDeLaCategoria: idsCategoria,
+              soloEstudios: idsBarrio,
             )
           : <Map<String, dynamic>>[];
       if (!mounted) return;
@@ -364,7 +375,9 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
           estudio.nombre.toLowerCase().contains(query) ||
           (estudio.barrio?.toLowerCase().contains(query) ?? false) ||
           estudio.categorias.any((c) => c.toLowerCase().contains(query));
-      return matchesCategory && matchesSearch;
+      return matchesCategory &&
+          matchesSearch &&
+          estudioEnBarrios(estudio, _barriosFiltro);
     }).toList();
 
     // Pinear estudio asociado al tope si está en los resultados
@@ -455,6 +468,8 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
         // El deslizador llega a 100 y ahí significa TODOS (sin tope).
         int creditosTemp = _maxCreditos ?? 100;
         String tipoTemp = _tipoFiltro;
+        Set<String> barriosTemp = Set.from(_barriosFiltro);
+        final barrios = barriosConEstudios(_estudios);
 
         const diasLabels = {
           1: 'Lun',
@@ -474,57 +489,173 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
 
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                16,
-                20,
-                MediaQuery.of(ctx).viewInsets.bottom + 24,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 42,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE0DBD6),
-                        borderRadius: BorderRadius.circular(AuraRadio.pastilla),
+            // Con el barrio la hoja creció: en un celular chico tiene que
+            // poder scrollear en vez de desbordarse.
+            return SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  16,
+                  20,
+                  MediaQuery.of(ctx).viewInsets.bottom + 24,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0DBD6),
+                          borderRadius: BorderRadius.circular(
+                            AuraRadio.pastilla,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Filtros',
-                    style: TextStyle(
-                      fontSize: AuraTipo.titulo,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.black,
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Filtros',
+                      style: TextStyle(
+                        fontSize: AuraTipo.titulo,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.black,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'Tipo',
-                    style: TextStyle(
-                      fontSize: AuraTipo.secundario,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textoSecundario,
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Tipo',
+                      style: TextStyle(
+                        fontSize: AuraTipo.secundario,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textoSecundario,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children:
-                        const {
-                          'todo': 'Todo',
-                          'clases': 'Clases',
-                          'experiencias': 'Experiencias',
-                        }.entries.map((e) {
-                          final selected = tipoTemp == e.key;
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children:
+                          const {
+                            'todo': 'Todo',
+                            'clases': 'Clases',
+                            'experiencias': 'Experiencias',
+                          }.entries.map((e) {
+                            final selected = tipoTemp == e.key;
+                            return GestureDetector(
+                              onTap: () =>
+                                  setSheetState(() => tipoTemp = e.key),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? AppColors.black
+                                      : AppColors.white,
+                                  borderRadius: BorderRadius.circular(
+                                    AuraRadio.pastilla,
+                                  ),
+                                  border: Border.all(
+                                    color: selected
+                                        ? AppColors.black
+                                        : AppColors.warmBorder,
+                                  ),
+                                ),
+                                child: Text(
+                                  e.value,
+                                  style: TextStyle(
+                                    color: selected
+                                        ? AppColors.white
+                                        : const Color(0xFF6E6761),
+                                    fontSize: AuraTipo.secundario,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Día',
+                      style: TextStyle(
+                        fontSize: AuraTipo.secundario,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textoSecundario,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: diasLabels.entries.map((e) {
+                        final selected = diasTemp.contains(e.key);
+                        return GestureDetector(
+                          onTap: () => setSheetState(() {
+                            if (selected) {
+                              diasTemp.remove(e.key);
+                            } else {
+                              diasTemp.add(e.key);
+                            }
+                          }),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? AppColors.black
+                                  : AppColors.white,
+                              borderRadius: BorderRadius.circular(
+                                AuraRadio.pastilla,
+                              ),
+                              border: Border.all(
+                                color: selected
+                                    ? AppColors.black
+                                    : AppColors.warmBorder,
+                              ),
+                            ),
+                            child: Text(
+                              e.value,
+                              style: TextStyle(
+                                color: selected
+                                    ? AppColors.white
+                                    : AppColors.textoSuave,
+                                fontSize: AuraTipo.secundario,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    if (barrios.isNotEmpty) ...[
+                      const SizedBox(height: 18),
+                      const Text(
+                        'Barrio',
+                        style: TextStyle(
+                          fontSize: AuraTipo.secundario,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textoSecundario,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: barrios.map((b) {
+                          final selected = barriosTemp.contains(b);
                           return GestureDetector(
-                            onTap: () => setSheetState(() => tipoTemp = e.key),
+                            onTap: () => setSheetState(() {
+                              if (selected) {
+                                barriosTemp.remove(b);
+                              } else {
+                                barriosTemp.add(b);
+                              }
+                            }),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 14,
@@ -544,220 +675,186 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                                 ),
                               ),
                               child: Text(
-                                e.value,
+                                b,
                                 style: TextStyle(
                                   color: selected
                                       ? AppColors.white
-                                      : const Color(0xFF6E6761),
+                                      : AppColors.textoSuave,
                                   fontSize: AuraTipo.secundario,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ),
                           );
                         }).toList(),
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'Día',
-                    style: TextStyle(
-                      fontSize: AuraTipo.secundario,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textoSecundario,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: diasLabels.entries.map((e) {
-                      final selected = diasTemp.contains(e.key);
-                      return GestureDetector(
-                        onTap: () => setSheetState(() {
-                          if (selected) {
-                            diasTemp.remove(e.key);
-                          } else {
-                            diasTemp.add(e.key);
-                          }
-                        }),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: selected ? AppColors.black : AppColors.white,
-                            borderRadius: BorderRadius.circular(
-                              AuraRadio.pastilla,
-                            ),
-                            border: Border.all(
-                              color: selected
-                                  ? AppColors.black
-                                  : AppColors.warmBorder,
-                            ),
-                          ),
-                          child: Text(
-                            e.value,
-                            style: TextStyle(
-                              color: selected
-                                  ? AppColors.white
-                                  : AppColors.textoSuave,
-                              fontSize: AuraTipo.secundario,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'Horario',
-                    style: TextStyle(
-                      fontSize: AuraTipo.secundario,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textoSecundario,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: horarioLabels.entries.map((e) {
-                      final selected = horarioTemp.contains(e.key);
-                      return GestureDetector(
-                        onTap: () => setSheetState(() {
-                          if (selected) {
-                            horarioTemp.remove(e.key);
-                          } else {
-                            horarioTemp.add(e.key);
-                          }
-                        }),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: selected ? AppColors.black : AppColors.white,
-                            borderRadius: BorderRadius.circular(
-                              AuraRadio.pastilla,
-                            ),
-                            border: Border.all(
-                              color: selected
-                                  ? AppColors.black
-                                  : AppColors.warmBorder,
-                            ),
-                          ),
-                          child: Text(
-                            e.value,
-                            style: TextStyle(
-                              color: selected
-                                  ? AppColors.white
-                                  : AppColors.textoSuave,
-                              fontSize: AuraTipo.secundario,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Créditos máximos',
-                        style: TextStyle(
-                          fontSize: AuraTipo.secundario,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textoSecundario,
-                        ),
-                      ),
-                      Text(
-                        creditosTemp < 100 ? '$creditosTemp cr' : 'Todos',
-                        style: const TextStyle(
-                          fontSize: AuraTipo.secundario,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
-                        ),
                       ),
                     ],
-                  ),
-                  Slider(
-                    value: creditosTemp.toDouble(),
-                    min: 5,
-                    max: 100,
-                    divisions: 19,
-                    activeColor: AppColors.primary,
-                    inactiveColor: const Color(0xFFE0DBD6),
-                    onChanged: (v) =>
-                        setSheetState(() => creditosTemp = v.toInt()),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            setState(() {
-                              _diasFiltro = {};
-                              _horarioFiltro = {};
-                              _maxCreditos = null; // Todos, sin tope
-                              _tipoFiltro = 'todo';
-                            });
-                            Navigator.of(ctx).pop();
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.black,
-                            side: const BorderSide(color: AppColors.warmBorder),
-                            shape: RoundedRectangleBorder(
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Horario',
+                      style: TextStyle(
+                        fontSize: AuraTipo.secundario,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textoSecundario,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: horarioLabels.entries.map((e) {
+                        final selected = horarioTemp.contains(e.key);
+                        return GestureDetector(
+                          onTap: () => setSheetState(() {
+                            if (selected) {
+                              horarioTemp.remove(e.key);
+                            } else {
+                              horarioTemp.add(e.key);
+                            }
+                          }),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? AppColors.black
+                                  : AppColors.white,
                               borderRadius: BorderRadius.circular(
-                                AuraRadio.boton,
+                                AuraRadio.pastilla,
+                              ),
+                              border: Border.all(
+                                color: selected
+                                    ? AppColors.black
+                                    : AppColors.warmBorder,
                               ),
                             ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: const Text(
-                            'Limpiar',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _diasFiltro = diasTemp;
-                              _horarioFiltro = horarioTemp;
-                              // 100 = el máximo del deslizador = sin tope.
-                              _maxCreditos = creditosTemp >= 100
-                                  ? null
-                                  : creditosTemp;
-                              _tipoFiltro = tipoTemp;
-                            });
-                            Navigator.of(ctx).pop();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.black,
-                            foregroundColor: AppColors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                AuraRadio.boton,
+                            child: Text(
+                              e.value,
+                              style: TextStyle(
+                                color: selected
+                                    ? AppColors.white
+                                    : AppColors.textoSuave,
+                                fontSize: AuraTipo.secundario,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          child: const Text(
-                            'Aplicar',
-                            style: TextStyle(fontWeight: FontWeight.w700),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Créditos máximos',
+                          style: TextStyle(
+                            fontSize: AuraTipo.secundario,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textoSecundario,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        Text(
+                          creditosTemp < 100 ? '$creditosTemp cr' : 'Todos',
+                          style: const TextStyle(
+                            fontSize: AuraTipo.secundario,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Slider(
+                      value: creditosTemp.toDouble(),
+                      min: 5,
+                      max: 100,
+                      divisions: 19,
+                      activeColor: AppColors.primary,
+                      inactiveColor: const Color(0xFFE0DBD6),
+                      onChanged: (v) =>
+                          setSheetState(() => creditosTemp = v.toInt()),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              final habiaBarrio = _barriosFiltro.isNotEmpty;
+                              setState(() {
+                                _diasFiltro = {};
+                                _horarioFiltro = {};
+                                _barriosFiltro = {};
+                                _maxCreditos = null; // Todos, sin tope
+                                _tipoFiltro = 'todo';
+                              });
+                              Navigator.of(ctx).pop();
+                              // El barrio va a la consulta: hay que volver a pedir.
+                              if (habiaBarrio) _cargar(mantenerScroll: true);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.black,
+                              side: const BorderSide(
+                                color: AppColors.warmBorder,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  AuraRadio.boton,
+                                ),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: const Text(
+                              'Limpiar',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              final cambioBarrio = !setEquals(
+                                barriosTemp,
+                                _barriosFiltro,
+                              );
+                              setState(() {
+                                _diasFiltro = diasTemp;
+                                _horarioFiltro = horarioTemp;
+                                _barriosFiltro = barriosTemp;
+                                // 100 = el máximo del deslizador = sin tope.
+                                _maxCreditos = creditosTemp >= 100
+                                    ? null
+                                    : creditosTemp;
+                                _tipoFiltro = tipoTemp;
+                                if (cambioBarrio) _showAllDestacados = false;
+                              });
+                              Navigator.of(ctx).pop();
+                              // El barrio va a la consulta: hay que volver a pedir.
+                              if (cambioBarrio) _cargar(mantenerScroll: true);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.black,
+                              foregroundColor: AppColors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  AuraRadio.boton,
+                                ),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: const Text(
+                              'Aplicar',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -1123,6 +1220,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                                 _maxCreditos = null;
                                 _diasFiltro = {};
                                 _horarioFiltro = {};
+                                _barriosFiltro = {};
                               });
                               _cargar();
                             },

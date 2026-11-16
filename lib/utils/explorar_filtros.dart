@@ -17,9 +17,9 @@ import 'mes_argentino.dart';
 List<String> catsBusquedaDe(Map<String, dynamic> clase) {
   List<String> limpiar(dynamic raw) => raw is List
       ? raw
-          .map((e) => e?.toString().trim() ?? '')
-          .where((e) => e.isNotEmpty)
-          .toList()
+            .map((e) => e?.toString().trim() ?? '')
+            .where((e) => e.isNotEmpty)
+            .toList()
       : const [];
   final etiquetas = limpiar(clase['etiquetas']);
   if (etiquetas.isNotEmpty) return etiquetas;
@@ -67,15 +67,15 @@ bool planVisible(
   if (q.isEmpty) return true;
 
   final estudio = clase['estudios'] as Map<String, dynamic>?;
-  List<String> catsEstudio(dynamic raw) => raw is List
-      ? raw.map((e) => e?.toString() ?? '').toList()
-      : const [];
+  List<String> catsEstudio(dynamic raw) =>
+      raw is List ? raw.map((e) => e?.toString() ?? '').toList() : const [];
   return (clase['nombre']?.toString().toLowerCase().contains(q) ?? false) ||
       cats.any((c) => c.toLowerCase().contains(q)) ||
       (estudio?['nombre']?.toString().toLowerCase().contains(q) ?? false) ||
       (estudio?['barrio']?.toString().toLowerCase().contains(q) ?? false) ||
-      catsEstudio(estudio?['categorias'])
-          .any((c) => c.toLowerCase().contains(q));
+      catsEstudio(
+        estudio?['categorias'],
+      ).any((c) => c.toLowerCase().contains(q));
 }
 
 /// Filtro de tipo: 'todo' · 'clases' · 'experiencias'.
@@ -127,8 +127,7 @@ int compararPlanes(Map<String, dynamic> a, Map<String, dynamic> b) {
 List<Map<String, dynamic>> experienciasDestacadas(
   List<Map<String, dynamic>> feed, {
   int max = 3,
-}) =>
-    feed.where((p) => p['tipo']?.toString() == 'workshop').take(max).toList();
+}) => feed.where((p) => p['tipo']?.toString() == 'workshop').take(max).toList();
 
 /// Los estudios de "DESTACADOS HOY", arriba de Explorar.
 ///
@@ -181,12 +180,17 @@ List<Estudio> destacadosDelDia({
     }
   }
 
-  final candidatos = estudios
-      .where((e) =>
-          e.id != null && !usados.contains(e.id) && (cuenta[e.id] ?? 0) > 0)
-      .toList()
-    // Por id: estable de verdad. Por nombre, un renombre movería la rueda.
-    ..sort((a, b) => a.id!.compareTo(b.id!));
+  final candidatos =
+      estudios
+          .where(
+            (e) =>
+                e.id != null &&
+                !usados.contains(e.id) &&
+                (cuenta[e.id] ?? 0) > 0,
+          )
+          .toList()
+        // Por id: estable de verdad. Por nombre, un renombre movería la rueda.
+        ..sort((a, b) => a.id!.compareTo(b.id!));
 
   // Y los que NO tienen clases, para el final (9/9/2026).
   //
@@ -200,11 +204,16 @@ List<Estudio> destacadosDelDia({
   // cierto. Por eso NO se cambia el orden: los que tienen oferta siguen
   // primero y los vacíos sólo entran si queda lugar. Así un estudio nuevo se
   // ve desde el día uno sin tapar a los que ya tienen clases.
-  final sinClases = estudios
-      .where((e) =>
-          e.id != null && !usados.contains(e.id) && (cuenta[e.id] ?? 0) == 0)
-      .toList()
-    ..sort((a, b) => a.id!.compareTo(b.id!));
+  final sinClases =
+      estudios
+          .where(
+            (e) =>
+                e.id != null &&
+                !usados.contains(e.id) &&
+                (cuenta[e.id] ?? 0) == 0,
+          )
+          .toList()
+        ..sort((a, b) => a.id!.compareTo(b.id!));
 
   if (candidatos.isEmpty) {
     // Ninguno tiene clases: mejor mostrar los vacíos que una tira en blanco
@@ -244,4 +253,43 @@ Map<int, int> clasesPorEstudio(List<Map<String, dynamic>> clases) {
     cuenta[id] = (cuenta[id] ?? 0) + 1;
   }
   return cuenta;
+}
+
+// ── Filtro por barrio (16/11/2026) ───────────────────────────────────────────
+//
+// La lista sale de los estudios ACTIVOS que ya carga Explorar: un barrio sin
+// estudios activos no aparece. El filtro se aplica EN LA BASE (los ids de los
+// estudios del barrio van a la consulta), no en memoria: filtrar las 20 clases
+// ya cargadas escondía catálogo (ver 17/9 en clases_service).
+
+/// Los barrios con al menos un estudio activo, sin repetidos (ignorando
+/// mayúsculas y espacios) y en orden alfabético.
+List<String> barriosConEstudios(List<Estudio> estudios) {
+  final porClave = <String, String>{};
+  for (final e in estudios) {
+    final b = e.barrio?.trim() ?? '';
+    if (b.isEmpty) continue;
+    porClave.putIfAbsent(b.toLowerCase(), () => b);
+  }
+  final lista = porClave.values.toList()
+    ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  return lista;
+}
+
+/// ¿El estudio está en alguno de los [barrios]? Sin barrios elegidos, todos.
+bool estudioEnBarrios(Estudio e, Set<String> barrios) {
+  if (barrios.isEmpty) return true;
+  final b = e.barrio?.trim().toLowerCase() ?? '';
+  return barrios.any((x) => x.trim().toLowerCase() == b);
+}
+
+/// Los ids que van a la consulta. `null` = sin filtro de barrio (no se toca la
+/// consulta); lista vacía = ningún estudio en esos barrios (no hay resultados).
+List<int>? idsEstudiosDeBarrios(List<Estudio> estudios, Set<String> barrios) {
+  if (barrios.isEmpty) return null;
+  return estudios
+      .where((e) => estudioEnBarrios(e, barrios))
+      .map((e) => e.id)
+      .whereType<int>()
+      .toList();
 }

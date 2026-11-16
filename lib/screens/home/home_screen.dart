@@ -371,14 +371,17 @@ class _HomeScreenState extends State<HomeScreen> {
         : ofrecibles
               .where((c) => claseEsDeCategoria(c, _categoriaSeleccionada))
               .toList();
-    final clasesEstaSemana = clasesFiltradas.where((clase) {
-      // Las fechas en DB estan en hora Argentina sin marker; forzamos UTC con
-      // 'Z' para comparar en el mismo frame que 'ahora'.
-      final raw = clase['fecha']?.toString() ?? '';
-      final fecha = DateTime.tryParse('${raw.replaceFirst(' ', 'T')}Z');
-      if (fecha == null) return false;
-      return !fecha.isBefore(ahora) && !fecha.isAfter(finSemana);
-    }).toList();
+    // Máximo 2 por estudio (16/11/2026): ver `conTopePorEstudio`.
+    final clasesEstaSemana = conTopePorEstudio(
+      clasesFiltradas.where((clase) {
+        // Las fechas en DB estan en hora Argentina sin marker; forzamos UTC con
+        // 'Z' para comparar en el mismo frame que 'ahora'.
+        final raw = clase['fecha']?.toString() ?? '';
+        final fecha = DateTime.tryParse('${raw.replaceFirst(' ', 'T')}Z');
+        if (fecha == null) return false;
+        return !fecha.isBefore(ahora) && !fecha.isAfter(finSemana);
+      }).toList(),
+    );
     // Las EXPERIENCIAS también siguen el chip (20/10/2026). Se dibujaban
     // desde `_experiencias` sin filtrar: tocabas "Yoga" y la sección no se
     // movía, así que el chip parecía roto. Mismo criterio que las clases —

@@ -135,17 +135,20 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
         .gte('clases.fecha', inicio)
         .lt('clases.fecha', finExclusivo);
 
-    // 2. Traer todos los estudios activos (con comisión + fecha inicio cobro)
+    // 2. Traer TODOS los estudios (con comisión + fecha inicio cobro).
+    // 16/11/2026: antes sólo los activos, y desactivar un estudio le sacaba
+    // la deuda de "Pendientes" aunque Aura le siguiera debiendo el mes. Un
+    // desactivado sólo aparece si tiene reservas en el mes o liquidación
+    // pagada (ver el paso 6), y se marca "(desactivado)".
     // comision_aura / comision_workshop / valor_credito viven en
     // estudios_datos_cobro; fecha_inicio_cobro sigue en estudios.
     // Se aplanan para que Liquidacion.* reciba la misma forma de mapa.
     final estudiosRaw = await _client
         .from('estudios')
         .select(
-          'id, nombre, fecha_inicio_cobro, '
+          'id, nombre, activo, fecha_inicio_cobro, '
           'estudios_datos_cobro(comision_aura, comision_workshop, valor_credito)',
         )
-        .eq('activo', true)
         .order('nombre', ascending: true);
     final estudiosData = DatosCobro.aplanarLista(estudiosRaw as List);
 
@@ -214,7 +217,9 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       resultado.add(
         filaLiquidacion(
           estudioId: esId,
-          nombre: e['nombre']?.toString() ?? 'Estudio',
+          nombre: e['activo'] == false
+              ? '${e['nombre'] ?? 'Estudio'} (desactivado)'
+              : e['nombre']?.toString() ?? 'Estudio',
           mes: mes,
           reservas: delMes,
           estudio: e,
@@ -303,7 +308,9 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
     String numeroOperacion,
     String nota,
   ) async {
-    final numero = numeroOperacion.trim().isEmpty ? null : numeroOperacion.trim();
+    final numero = numeroOperacion.trim().isEmpty
+        ? null
+        : numeroOperacion.trim();
     final esId = estudio['estudio_id'] as int;
     final montoPagar = estudio['monto_pagar'] as int;
     final montoTotal = estudio['monto_total'] as int;
@@ -325,18 +332,22 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
             .eq('id', liqId);
         idPagada = liqId;
       } else {
-        final nueva = await _client.from('liquidaciones').insert({
-          'estudio_id': esId,
-          // El mes de la FILA, no el del selector: desde "Pendientes" se paga
-          // un mes que no es el seleccionado.
-          'mes': (estudio['mes'] as String?) ?? _mesSeleccionado,
-          'monto_total_reservas': montoTotal,
-          'monto_a_pagar': montoPagar,
-          'cantidad_reservas': cantReservas,
-          'estado': 'pagado',
-          'fecha_pago': DateTime.now().toIso8601String(),
-          'numero_operacion': numero,
-        }).select('id').single();
+        final nueva = await _client
+            .from('liquidaciones')
+            .insert({
+              'estudio_id': esId,
+              // El mes de la FILA, no el del selector: desde "Pendientes" se paga
+              // un mes que no es el seleccionado.
+              'mes': (estudio['mes'] as String?) ?? _mesSeleccionado,
+              'monto_total_reservas': montoTotal,
+              'monto_a_pagar': montoPagar,
+              'cantidad_reservas': cantReservas,
+              'estado': 'pagado',
+              'fecha_pago': DateTime.now().toIso8601String(),
+              'numero_operacion': numero,
+            })
+            .select('id')
+            .single();
         idPagada = nueva['id'].toString();
       }
       if (nota.trim().isNotEmpty) {
@@ -367,7 +378,9 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Pago registrado. Le mandamos el mail al estudio.'),
+          content: const Text(
+            'Pago registrado. Le mandamos el mail al estudio.',
+          ),
           backgroundColor: const Color(0xFF1A1A1A),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -537,7 +550,9 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
     if (at == null) return 'no salió';
     final envios = (estudio['mail_pago_envios'] as num?)?.toInt() ?? 1;
     final fecha = DateFormat('d/M HH:mm').format(at.toLocal());
-    return envios > 1 ? 'enviado $envios veces, el último $fecha' : 'enviado el $fecha';
+    return envios > 1
+        ? 'enviado $envios veces, el último $fecha'
+        : 'enviado el $fecha';
   }
 
   /// El botón para cuando un pago se marcó mal y se corrigió: manda el mail
@@ -570,9 +585,7 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
             const SizedBox(height: 12),
             TextField(
               controller: ctrl,
-              decoration: const InputDecoration(
-                labelText: 'N° de operación',
-              ),
+              decoration: const InputDecoration(labelText: 'N° de operación'),
             ),
           ],
         ),
@@ -593,7 +606,11 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
     if (ok != true || !mounted) return;
     if (numero.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Falta el número de operación: el mail no sale sin él.')),
+        const SnackBar(
+          content: Text(
+            'Falta el número de operación: el mail no sale sin él.',
+          ),
+        ),
       );
       return;
     }
@@ -615,9 +632,9 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
       }
       if (!mounted) return;
       final a = (data['destinatarios'] as List?)?.join(', ') ?? '';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Mail reenviado a $a')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Mail reenviado a $a')));
       await _cargar();
     } catch (e) {
       if (!mounted) return;
@@ -1008,7 +1025,9 @@ class _AdminLiquidacionesScreenState extends State<AdminLiquidacionesScreen> {
             const SizedBox(height: 10),
             _LineaPagado(
               etiqueta: 'N° de operación',
-              valor: (estudio['numero_operacion'] as String?)?.trim().isNotEmpty == true
+              valor:
+                  (estudio['numero_operacion'] as String?)?.trim().isNotEmpty ==
+                      true
                   ? estudio['numero_operacion'] as String
                   : 'sin número',
             ),
@@ -1285,16 +1304,16 @@ class _PagoSheetState extends State<_PagoSheet> {
   }
 
   InputDecoration _decoracion(String hint) => InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFF9A928B), fontSize: 14),
-        filled: true,
-        fillColor: const Color(0xFFF7F5F2),
-        contentPadding: const EdgeInsets.all(12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-      );
+    hintText: hint,
+    hintStyle: const TextStyle(color: Color(0xFF9A928B), fontSize: 14),
+    filled: true,
+    fillColor: const Color(0xFFF7F5F2),
+    contentPadding: const EdgeInsets.all(12),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide.none,
+    ),
+  );
 
   @override
   void dispose() {
@@ -1463,14 +1482,14 @@ class _EtiquetaCampo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        texto,
-        style: const TextStyle(
-          color: Color(0xFF5F5953),
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-        ),
-      );
+    texto,
+    style: const TextStyle(
+      color: Color(0xFF5F5953),
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.5,
+    ),
+  );
 }
 
 class _LineaPagado extends StatelessWidget {
@@ -1480,24 +1499,24 @@ class _LineaPagado extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 120,
-              child: Text(
-                etiqueta,
-                style: const TextStyle(color: Color(0xFF8F877F), fontSize: 12),
-              ),
-            ),
-            Expanded(
-              child: SelectableText(
-                valor,
-                style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 12),
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 120,
+          child: Text(
+            etiqueta,
+            style: const TextStyle(color: Color(0xFF8F877F), fontSize: 12),
+          ),
         ),
-      );
+        Expanded(
+          child: SelectableText(
+            valor,
+            style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 12),
+          ),
+        ),
+      ],
+    ),
+  );
 }

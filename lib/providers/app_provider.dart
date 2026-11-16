@@ -28,8 +28,7 @@ class AppProvider extends ChangeNotifier {
   /// Asistencia; sin Cobros, Configuración ni gestión de usuarios).
   bool get esProfe => _usuario?.rol == 'profe';
 
-  String get userId =>
-      Supabase.instance.client.auth.currentUser?.id ?? '';
+  String get userId => Supabase.instance.client.auth.currentUser?.id ?? '';
 
   Future<void> cargarUsuario() async {
     final uid = userId;
@@ -113,12 +112,14 @@ class AppProvider extends ChangeNotifier {
           .maybeSingle();
       if (ultimaReserva == null) return; // Sin reservas, skip
       final fecha = DateTime.tryParse(
-          ultimaReserva['created_at']?.toString() ?? '');
+        ultimaReserva['created_at']?.toString() ?? '',
+      );
       if (fecha == null) return;
       final diasDesde = DateTime.now().difference(fecha).inDays;
       if (diasDesde >= 10) {
-        await NotificacionesService.instance
-            .scheduleInactividadReminder(creditos);
+        await NotificacionesService.instance.scheduleInactividadReminder(
+          creditos,
+        );
       }
     } catch (_) {}
   }
@@ -132,7 +133,7 @@ class AppProvider extends ChangeNotifier {
     // 1. Si ya tiene el id guardado, cargar directamente
     if (usuario.estudioAsociadoId != null) {
       _estudioAsociado = await _estudiosService
-          .getEstudio(usuario.estudioAsociadoId!)
+          .getEstudio(usuario.estudioAsociadoId!, soloActivos: true)
           .catchError((_) => null);
       return;
     }
@@ -164,7 +165,10 @@ class AppProvider extends ChangeNotifier {
           .update({'estudio_asociado_id': estudioId})
           .eq('id', usuario.id);
 
-      _estudioAsociado = await _estudiosService.getEstudio(estudioId);
+      _estudioAsociado = await _estudiosService.getEstudio(
+        estudioId,
+        soloActivos: true,
+      );
     } catch (_) {
       _estudioAsociado = null;
     }

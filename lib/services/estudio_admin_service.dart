@@ -468,18 +468,25 @@ class EstudioAdminService {
   }
 
   Future<List<Map<String, dynamic>>> getReservasDeEstudio({int? limit}) async {
-    final clases = await getClasesDeEstudio();
-    final classIds = clases
-        .map((c) => (c['id'] as num?)?.toInt())
-        .whereType<int>()
-        .toList();
+    final studioId = await getCurrentStudioId();
+    if (studioId == null) return [];
 
-    if (classIds.isEmpty) return [];
-
+    // UNA consulta, con la clase embebida y filtrada por estudio (16/11/2026).
+    //
+    // Antes pedía TODAS las clases del estudio (orden por fecha ascendente) y
+    // después las reservas `in (ids)`. PostgREST corta en 1000 filas
+    // (max_rows): un estudio con más de 1000 clases perdía las MÁS NUEVAS, o
+    // sea el mes en curso, y Cobros calculaba de menos sin avisar. Al 16/11
+    // Tiwar tenía 727 y suma ~200 por mes.
+    //
+    // Se adjuntan el tipo y la FECHA de la clase (16/9): el tipo porque los
+    // workshops liquidan con `comision_workshop`; la fecha porque decide la
+    // gracia y el mes de liquidación (sin ella `Liquidacion` cae a "hoy" y la
+    // comisión se aplica hacia atrás cuando termina la gracia).
     dynamic query = _client
         .from('reservas')
-        .select()
-        .inFilter('clase_id', classIds)
+        .select('*, _clase:clases!inner(tipo, fecha, estudio_id)')
+        .eq('_clase.estudio_id', studioId)
         .order('created_at', ascending: false);
 
     if (limit != null) {
@@ -488,30 +495,16 @@ class EstudioAdminService {
 
     final data = await query;
 
-    // Adjuntamos el tipo de la clase ('clase' | 'workshop') sin otra query:
-    // ya lo tenemos en `clases`. Cobros lo necesita porque los workshops
-    // liquidan con `comision_workshop` y no con `comision_aura`.
-    // Y la FECHA de la clase (16/9): es la que decide la gracia y el mes de
-    // liquidación. Sin ella, `Liquidacion` cae a "hoy" y la comisión se
-    // aplica hacia atrás cuando termina la gracia.
-    final tipoPorClase = <int, String>{};
-    final fechaPorClase = <int, String>{};
-    for (final c in clases) {
-      final id = (c['id'] as num?)?.toInt();
-      if (id != null) {
-        tipoPorClase[id] = c['tipo']?.toString() ?? 'clase';
-        final f = c['fecha']?.toString();
-        if (f != null && f.isNotEmpty) fechaPorClase[id] = f;
-      }
-    }
-
     return List<Map<String, dynamic>>.from(data as List).map((r) {
-      final claseId = (r['clase_id'] as num?)?.toInt();
+      final clase = r['_clase'] is Map
+          ? Map<String, dynamic>.from(r['_clase'] as Map)
+          : const <String, dynamic>{};
+      final fecha = clase['fecha']?.toString();
       return {
-        ...r,
-        '_clase_tipo': tipoPorClase[claseId] ?? 'clase',
-        if (fechaPorClase[claseId] != null)
-          '_clase_fecha': fechaPorClase[claseId],
+        for (final e in r.entries)
+          if (e.key != '_clase') e.key: e.value,
+        '_clase_tipo': clase['tipo']?.toString() ?? 'clase',
+        if (fecha != null && fecha.isNotEmpty) '_clase_fecha': fecha,
       };
     }).toList();
   }

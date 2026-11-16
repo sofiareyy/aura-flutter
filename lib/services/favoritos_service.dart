@@ -25,13 +25,10 @@ class FavoritosService {
     required bool favorito,
   }) async {
     if (favorito) {
-      await _client.from('favoritos_estudios').upsert(
-        {
-          'usuario_id': usuarioId,
-          'estudio_id': estudioId,
-        },
-        onConflict: 'usuario_id,estudio_id',
-      );
+      await _client.from('favoritos_estudios').upsert({
+        'usuario_id': usuarioId,
+        'estudio_id': estudioId,
+      }, onConflict: 'usuario_id,estudio_id');
       return;
     }
 
@@ -60,7 +57,10 @@ class FavoritosService {
       final estudios = await _client
           .from('estudios')
           .select()
-          .inFilter('id', ids);
+          .inFilter('id', ids)
+          // 16/11/2026: un estudio desactivado no se lista, ni siquiera a
+          // quien es admin de él (la RLS a esa cuenta se lo deja ver).
+          .eq('activo', true);
 
       final byId = {
         for (final row in (estudios as List))

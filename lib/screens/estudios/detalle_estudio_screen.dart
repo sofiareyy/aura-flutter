@@ -92,7 +92,10 @@ class _DetalleEstudioScreenState extends State<DetalleEstudioScreen> {
     // Sólo `getEstudio` tiene que ir primero (las otras necesitan su id); las
     // cinco que siguen no dependen entre sí, así que pasan de sumarse a costar
     // lo que la más lenta.
-    final estudio = await _service.getEstudio(widget.estudioId);
+    final estudio = await _service.getEstudio(
+      widget.estudioId,
+      soloActivos: true,
+    );
     final estudioId = estudio?.id;
 
     final resultados = await Future.wait([
