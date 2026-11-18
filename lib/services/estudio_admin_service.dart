@@ -522,6 +522,38 @@ class EstudioAdminService {
     return List<Map<String, dynamic>>.from(data as List);
   }
 
+  /// Clases del estudio para chequear superposición de horarios (18/11/2026,
+  /// sala obligatoria si dos clases se cruzan). Sólo las columnas que hacen
+  /// falta y PAGINADO: un estudio con grilla tiene cientos de clases futuras
+  /// y PostgREST corta en 1000 filas sin avisar. Las canceladas se filtran en
+  /// `superposicion_clases.dart`.
+  Future<List<Map<String, dynamic>>> clasesParaSuperposicion({
+    required DateTime desde,
+    DateTime? hasta,
+  }) async {
+    final studioId = await getCurrentStudioId();
+    if (studioId == null) return [];
+
+    const pagina = 1000;
+    final out = <Map<String, dynamic>>[];
+    for (var fila = 0; ; fila += pagina) {
+      var q = _client
+          .from('clases')
+          .select('id, fecha, duracion_min, cancelada, horario_fijo_id')
+          .eq('estudio_id', studioId)
+          .gte('fecha', _toSupaDate(desde));
+      if (hasta != null) q = q.lt('fecha', _toSupaDate(hasta));
+      // ascending explícito: en Dart .order() es descendente por defecto.
+      final data = await q
+          .order('id', ascending: true)
+          .range(fila, fila + pagina - 1);
+      final filas = List<Map<String, dynamic>>.from(data as List);
+      out.addAll(filas);
+      if (filas.length < pagina) break;
+    }
+    return out;
+  }
+
   Future<Map<String, dynamic>> crearHorarioFijo(
     Map<String, dynamic> payload,
   ) async {

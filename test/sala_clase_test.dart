@@ -56,12 +56,22 @@ void main() {
       expect(form.contains("hint: 'Sala 1'"), isFalse);
     });
 
-    test('sugiere nombrarlo por disciplina, en los dos formularios', () {
-      // Son dos: la clase suelta y la grilla.
+    test('sugiere nombrarlo por disciplina, en los tres formularios', () {
+      // Son tres: la clase suelta, la grilla y (desde el 18/11/2026) editar
+      // una clase ya cargada, que antes no tenía el campo.
       expect(
         "hint: 'Salón Cycle, Salón Pilates…'".allMatches(form).length,
-        2,
+        3,
       );
+    });
+
+    test('la sala es obligatoria si la clase se cruza con otra', () {
+      // Los tres formularios validan antes de cerrar la hoja (18/11/2026).
+      expect('_faltaSalaClase('.allMatches(form).length, 3,
+          reason: 'la definición + editar clase + clase suelta');
+      expect('_faltaSalaHorarios('.allMatches(form).length, 3,
+          reason: 'la definición + editar horario fijo + grilla');
+      expect('errorText: salaError'.allMatches(form).length, 3);
     });
   });
 }
