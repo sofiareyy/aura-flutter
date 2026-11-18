@@ -22,6 +22,7 @@ import '../../services/reservas_service.dart';
 import '../../services/admin_service.dart';
 import '../../widgets/ancho_maximo.dart';
 import '../../utils/textos_apagar_horario.dart';
+import '../../utils/superposicion_clases.dart';
 
 const String _kPrefsClasesGridView = 'mis_clases_grid_view';
 const String _kPrefsClasesShowPast = 'mis_clases_show_past';
@@ -1247,6 +1248,11 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final fechaOrig = DateTime.tryParse(clase['fecha']?.toString() ?? '');
     DateTime fechaSel = fechaOrig ?? DateTime.now();
     TimeOfDay horaSel = TimeOfDay(hour: fechaSel.hour, minute: fechaSel.minute);
+    // Sala (18/11/2026): este formulario no la tenía, así que una clase ya
+    // cargada no se podía completar. Obligatoria si se cruza con otra.
+    final s = TextEditingController(text: clase['sala']?.toString() ?? '');
+    String? salaError;
+    bool validandoSala = false;
     if (!mounted) return;
     final ok = await showModalBottomSheet<bool>(
       context: context,
@@ -1561,6 +1567,18 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                     ),
                                   ),
                                 ),
+                                const SizedBox(height: 12),
+                                _AuraTextField(
+                                  controller: s,
+                                  label: 'Sala',
+                                  errorText: salaError,
+                                  onChanged: (_) {
+                                    if (salaError != null) {
+                                      setD(() => salaError = null);
+                                    }
+                                  },
+                                  hint: 'Salón Cycle, Salón Pilates…',
+                                ),
                               ],
                             ),
                           ],
@@ -1578,7 +1596,30 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton(
-                          onPressed: () => Navigator.pop(ctx, true),
+                          onPressed: validandoSala
+                              ? null
+                              : () async {
+                                  setD(() => validandoSala = true);
+                                  final err = await _faltaSalaClase(
+                                    sala: s.text,
+                                    inicio: fechaSel,
+                                    duracionMin:
+                                        (clase['duracion_min'] as num?)
+                                            ?.toInt() ??
+                                        60,
+                                    excluirId: claseId,
+                                  );
+                                  if (!ctx.mounted) return;
+                                  setD(() {
+                                    validandoSala = false;
+                                    salaError = err;
+                                  });
+                                  if (err != null) {
+                                    await _avisarFaltaSala(ctx);
+                                    return;
+                                  }
+                                  if (ctx.mounted) Navigator.pop(ctx, true);
+                                },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
@@ -1612,6 +1653,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       galeria.dispose();
       cupos.dispose();
       cred.dispose();
+      s.dispose();
       return;
     }
     try {
@@ -1651,6 +1693,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
         // columna tiene constraint NOT NULL o si el dropdown quedo vacio.
         'categorias': cats,
         'reserva_cierre_minutos': cierreReserva,
+        'sala': s.text.trim().isEmpty ? null : s.text.trim(),
       };
       await _service.editarClase(claseId, payload);
       await _loadStudio();
@@ -1682,6 +1725,7 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       galeria.dispose();
       cupos.dispose();
       cred.dispose();
+      s.dispose();
     }
   }
 
@@ -1997,6 +2041,96 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     }
   }
 
+  /// Sala obligatoria cuando la clase se cruza en horario con otra del
+  /// estudio (18/11/2026). Devuelve el mensaje de error o null si se puede
+  /// guardar. Si la consulta falla deja guardar: la sala es opcional por
+  /// defecto y no trabamos al estudio por un problema de red.
+  Future<String?> _faltaSalaClase({
+    required String sala,
+    required DateTime inicio,
+    required int duracionMin,
+    int? excluirId,
+  }) async {
+    if (sala.trim().isNotEmpty) return null;
+    try {
+      final clases = await _service.clasesParaSuperposicion(
+        desde: inicio.subtract(const Duration(days: 1)),
+        hasta: inicio.add(Duration(minutes: duracionMin <= 0 ? 1 : duracionMin)),
+      );
+      final cruces = clasesQueSeCruzan(
+        inicio: inicio,
+        duracionMin: duracionMin,
+        clases: clases,
+        excluirId: excluirId,
+      );
+      return cruces.isEmpty ? null : kMsgSalaObligatoria;
+    } catch (e) {
+      debugPrint('[sala superposición clase] $e');
+      return null;
+    }
+  }
+
+  /// Igual que [_faltaSalaClase] para horarios fijos: se cruzan con otro
+  /// horario del mismo día, con una clase futura que cae ese día o (en la
+  /// grilla) entre ellos. [minutosPorDia]: día 1-7 → minutos del día.
+  Future<String?> _faltaSalaHorarios({
+    required String sala,
+    required Map<int, Iterable<int>> minutosPorDia,
+    required int duracionMin,
+    int? excluirHorarioId,
+  }) async {
+    if (sala.trim().isNotEmpty) return null;
+    try {
+      final datos = await Future.wait([
+        _service.getHorariosFijosDeEstudio(),
+        _service.clasesParaSuperposicion(desde: DateTime.now()),
+      ]);
+      final horarios = datos[0];
+      final clases = datos[1];
+      final cruza = excluirHorarioId == null
+          ? grillaSeCruza(
+              minutosPorDia: minutosPorDia,
+              duracionMin: duracionMin,
+              horarios: horarios,
+              clasesFuturas: clases,
+            )
+          : minutosPorDia.entries.any(
+              (e) => e.value.any(
+                (m) => horarioFijoSeCruza(
+                  dia: e.key,
+                  minuto: m,
+                  duracionMin: duracionMin,
+                  horarios: horarios,
+                  clasesFuturas: clases,
+                  excluirHorarioId: excluirHorarioId,
+                ),
+              ),
+            );
+      return cruza ? kMsgSalaObligatoria : null;
+    } catch (e) {
+      debugPrint('[sala superposición horarios] $e');
+      return null;
+    }
+  }
+
+  /// Aviso visible sobre la hoja del formulario (un SnackBar quedaría
+  /// tapado por la hoja). El campo Sala además queda marcado en rojo.
+  Future<void> _avisarFaltaSala(BuildContext ctx) {
+    return showDialog<void>(
+      context: ctx,
+      builder: (dCtx) => AlertDialog(
+        title: const Text('Falta la sala'),
+        content: const Text(kMsgSalaObligatoria),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openForm([
     Map<String, dynamic>? item,
     String? initialTipo,
@@ -2060,6 +2194,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
       minute: int.tryParse(hh.length > 1 ? hh[1] : '0') ?? 0,
     );
     int dur = (item?['duracion_min'] as num?)?.toInt() ?? 60;
+    String? salaError; // 18/11/2026: sala obligatoria si se cruza con otra.
+    bool validandoSala = false;
     final cats = item == null ? <String>[] : _parseCategorias(item);
     // Tipo de clase: 'clase' normal o 'workshop' (evento). Solo elegible al
     // crear una clase individual (no en horarios fijos ni edición).
@@ -2703,6 +2839,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 _AuraTextField(
                                   controller: s,
                                   label: 'Sala',
+                                  errorText: salaError,
+                                  onChanged: (_) {
+                                    if (salaError != null) {
+                                      setD(() => salaError = null);
+                                    }
+                                  },
                                   // Sugerencia descriptiva, no un número: un
                                   // estudio con dos clases simultáneas en
                                   // salones distintos necesita que la alumna
@@ -2726,7 +2868,44 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton(
-                          onPressed: () => Navigator.pop(ctx, true),
+                          onPressed: validandoSala
+                              ? null
+                              : () async {
+                                  setD(() => validandoSala = true);
+                                  // Crear = clase suelta en una fecha.
+                                  // Editar = horario fijo (día de la semana).
+                                  final err = edit
+                                      ? await _faltaSalaHorarios(
+                                          sala: s.text,
+                                          minutosPorDia: {
+                                            d: [t.hour * 60 + t.minute],
+                                          },
+                                          duracionMin: dur,
+                                          excluirHorarioId:
+                                              (item['id'] as num?)?.toInt(),
+                                        )
+                                      : await _faltaSalaClase(
+                                          sala: s.text,
+                                          inicio: DateTime(
+                                            fecha.year,
+                                            fecha.month,
+                                            fecha.day,
+                                            t.hour,
+                                            t.minute,
+                                          ),
+                                          duracionMin: dur,
+                                        );
+                                  if (!ctx.mounted) return;
+                                  setD(() {
+                                    validandoSala = false;
+                                    salaError = err;
+                                  });
+                                  if (err != null) {
+                                    await _avisarFaltaSala(ctx);
+                                    return;
+                                  }
+                                  if (ctx.mounted) Navigator.pop(ctx, true);
+                                },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
@@ -2943,6 +3122,8 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
     final cr = TextEditingController(text: '10');
     int? cierreReserva; // null = hereda el default del estudio.
     int dur = 60;
+    String? salaError; // 18/11/2026: sala obligatoria si se cruza con otra.
+    bool validandoSala = false;
     final cats = <String>[];
     final diasSeleccionados = <int>{1, 2, 3, 4, 5};
     // La lista de horarios POR DÍA es la fuente de verdad y la vista previa a
@@ -3371,6 +3552,12 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                 _AuraTextField(
                                   controller: s,
                                   label: 'Sala',
+                                  errorText: salaError,
+                                  onChanged: (_) {
+                                    if (salaError != null) {
+                                      setD(() => salaError = null);
+                                    }
+                                  },
                                   // Sugerencia descriptiva, no un número: un
                                   // estudio con dos clases simultáneas en
                                   // salones distintos necesita que la alumna
@@ -3406,8 +3593,34 @@ class _MisClasesScreenState extends State<MisClasesScreen> {
                                       .isNotEmpty,
                                 );
                             return ElevatedButton(
-                              onPressed: listo
-                                  ? () => Navigator.pop(ctx, true)
+                              onPressed: listo && !validandoSala
+                                  ? () async {
+                                      setD(() => validandoSala = true);
+                                      final err = await _faltaSalaHorarios(
+                                        sala: s.text,
+                                        minutosPorDia: {
+                                          for (final dia in diasSeleccionados)
+                                            dia: (horariosPorDia[dia] ??
+                                                    const <TimeOfDay>[])
+                                                .map(
+                                                  (h) => h.hour * 60 + h.minute,
+                                                ),
+                                        },
+                                        duracionMin: dur,
+                                      );
+                                      if (!ctx.mounted) return;
+                                      setD(() {
+                                        validandoSala = false;
+                                        salaError = err;
+                                      });
+                                      if (err != null) {
+                                        await _avisarFaltaSala(ctx);
+                                        return;
+                                      }
+                                      if (ctx.mounted) {
+                                        Navigator.pop(ctx, true);
+                                      }
+                                    }
                                   : null,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
@@ -8425,6 +8638,7 @@ class _AuraTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final int maxLines;
   final ValueChanged<String>? onChanged;
+  final String? errorText;
   const _AuraTextField({
     required this.controller,
     required this.label,
@@ -8432,6 +8646,7 @@ class _AuraTextField extends StatelessWidget {
     this.keyboardType,
     this.maxLines = 1,
     this.onChanged,
+    this.errorText,
   });
 
   @override
@@ -8442,7 +8657,10 @@ class _AuraTextField extends StatelessWidget {
       maxLines: maxLines,
       onChanged: onChanged,
       style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 15),
-      decoration: _formInputDecoration(label: label, hint: hint),
+      decoration: _formInputDecoration(
+        label: label,
+        hint: hint,
+      ).copyWith(errorText: errorText),
     );
   }
 }
