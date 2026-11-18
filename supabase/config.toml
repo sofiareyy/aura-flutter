@@ -587,3 +587,19 @@ entrypoint = "./functions/pago-estudio-email/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/secuencia-email/index.ts"
+
+# Integración con Kumaly (18/11/2026). Ver migración 20261118170000_kumaly.sql.
+# kumaly-webhook: la llama Kumaly, que no tiene JWT de Supabase. verify_jwt =
+# false y la auth real es KUMALY_CLAVE_ENTRADA en el header Authorization.
+[functions.kumaly-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/kumaly-webhook/index.ts"
+
+# kumaly-enviar: la llama el cron `kumaly-enviar` con la service key del Vault
+# (edge_service_key). verify_jwt = false como meta-capi-event: la función
+# compara el bearer contra la service role key a mano.
+[functions.kumaly-enviar]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/kumaly-enviar/index.ts"
