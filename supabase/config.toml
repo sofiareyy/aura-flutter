@@ -603,3 +603,11 @@ entrypoint = "./functions/kumaly-webhook/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/kumaly-enviar/index.ts"
+
+# Aviso diario de envíos a Kumaly trabados (19/11/2026). La llama el cron
+# `kumaly-aviso-trabados` con la service key del Vault, sólo si hay algo
+# trabado. verify_jwt = false como kumaly-enviar: compara el bearer a mano.
+[functions.kumaly-aviso]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/kumaly-aviso/index.ts"
