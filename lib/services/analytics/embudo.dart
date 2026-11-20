@@ -51,9 +51,10 @@ class Embudo {
   static void clicCrearCuenta(String boton) =>
       _ga('clic_crear_cuenta', {'boton': boton});
 
-  /// "Explorar sin cuenta" de la landing (16/11/2026). [boton]: 'principal'
-  /// (debajo de "Crear mi cuenta gratis") o 'cierre' (debajo de "Crear mi
-  /// cuenta", al final). Mismo parámetro y mismos valores que
+  /// "Explorar sin cuenta" (16/11/2026; botón desde el 20/11). [boton]:
+  /// 'principal' (landing, debajo de "Crear mi cuenta gratis"), 'cierre'
+  /// (landing, debajo de "Crear mi cuenta", al final), 'registro' (pantalla
+  /// de registro) o 'ingreso' (pantalla de ingresar). Mismo parámetro y mismos valores que
   /// `clic_crear_cuenta`, para compararlos con una sola dimensión en GA4.
   static void clicExplorarSinCuenta(String boton) =>
       _ga('clic_explorar_sin_cuenta', {'boton': boton});

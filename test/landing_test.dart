@@ -96,4 +96,23 @@ void main() {
     );
     expect(tarjeta.width, lessThanOrEqualTo(430));
   });
+
+  // 20/11/2026: "Explorar sin cuenta" es un botón con borde, del mismo tamaño
+  // que "Crear mi cuenta gratis" y justo debajo. No un link gris.
+  for (final (ancho, esperado) in [(390.0, 350.0), (1440.0, 330.0)]) {
+    testWidgets('a $ancho px "Explorar sin cuenta" mide lo mismo que el de '
+        'registro y va justo debajo', (tester) async {
+      await _abrir(tester, Size(ancho, 900));
+      await tester.pump(const Duration(seconds: 2));
+      final crear = find.widgetWithText(ElevatedButton, 'Crear mi cuenta gratis');
+      final explorar = find.widgetWithText(OutlinedButton, 'Explorar sin cuenta');
+      expect(explorar, findsNWidgets(2)); // arriba y en el cierre
+      final arriba = explorar.first;
+      expect(tester.getSize(arriba), tester.getSize(crear));
+      expect(tester.getSize(arriba).width, esperado);
+      final separacion =
+          tester.getTopLeft(arriba).dy - tester.getBottomLeft(crear).dy;
+      expect(separacion, inInclusiveRange(0, 16));
+    });
+  }
 }

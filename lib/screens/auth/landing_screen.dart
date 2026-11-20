@@ -47,6 +47,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/aura_tokens.dart';
 import '../../utils/descarga_app.dart';
+import '../../widgets/boton_explorar_sin_cuenta.dart';
 import '../../utils/movimiento_reducido_stub.dart'
     if (dart.library.js_interop) '../../utils/movimiento_reducido_web.dart';
 
@@ -69,37 +70,22 @@ const _estudios = [
   ('Fit Pilates', 'San Isidro', 'assets/images/landing/fit-pilates.jpg', 65),
 ];
 
-/// "Explorar sin cuenta": desde el 16/11/2026 va debajo de los botones de
-/// registro (arriba y en el cierre), no escondido entre los links grises del
-/// pie. Blanco y subrayado, no naranja: un solo naranja por pantalla.
+/// "Explorar sin cuenta" (20/11/2026): botón con borde, del mismo tamaño que
+/// el de registro y justo debajo (arriba y en el cierre). Antes era un link
+/// subrayado. El botón vive en widgets/ porque también va en Registrarse e
+/// Ingresar.
 class _ExplorarSinCuenta extends StatelessWidget {
   /// 'principal' (arriba) o 'cierre' (al final), para GA4.
   final String boton;
+  final bool grande;
 
-  const _ExplorarSinCuenta({required this.boton});
+  const _ExplorarSinCuenta({required this.boton, required this.grande});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: TextButton(
-        onPressed: () {
-          Embudo.clicExplorarSinCuenta(boton);
-          context.go('/explorar');
-        },
-        style: TextButton.styleFrom(
-          foregroundColor: AppColors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        ),
-        child: const Text(
-          'Explorar sin cuenta →',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            decoration: TextDecoration.underline,
-            decorationColor: AppColors.white,
-          ),
-        ),
-      ),
+    return _AnchoBoton(
+      grande: grande,
+      child: BotonExplorarSinCuenta(boton: boton),
     );
   }
 }
@@ -649,9 +635,9 @@ class _ArribaState extends State<_Arriba> {
             grande: grande,
           ),
         ),
-        const SizedBox(height: 6),
-        _pieza(4, const _ExplorarSinCuenta(boton: 'principal')),
-        const SizedBox(height: 6),
+        const SizedBox(height: 12),
+        _pieza(4, _ExplorarSinCuenta(boton: 'principal', grande: grande)),
+        const SizedBox(height: 14),
         _pieza(
           5,
           const Center(
@@ -1153,8 +1139,8 @@ class _Cierre extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 6),
-          const _ExplorarSinCuenta(boton: 'cierre'),
+          const SizedBox(height: 12),
+          _ExplorarSinCuenta(boton: 'cierre', grande: grande),
           const _ChapitasTiendas(),
           const SizedBox(height: 36),
           // Los dos en una línea, del mismo tamaño. FittedBox: en un celular
