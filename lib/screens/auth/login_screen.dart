@@ -14,6 +14,7 @@ import '../../services/auth_service.dart';
 import '../../utils/destino_post_login.dart';
 import '../../utils/onboarding_creditos.dart';
 import '../../widgets/ancho_maximo.dart';
+import '../../widgets/boton_explorar_sin_cuenta.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -681,6 +682,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                     loading: _loadingApple,
                     text: 'Continuar con Apple',
                   ),
+                  const SizedBox(height: 12),
+                  const BotonExplorarSinCuenta(boton: 'ingreso', alto: 48),
                   const SizedBox(height: 22),
                   Center(
                     child: GestureDetector(

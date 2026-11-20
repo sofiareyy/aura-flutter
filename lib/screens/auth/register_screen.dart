@@ -19,6 +19,7 @@ import '../../utils/destino_post_login.dart';
 import '../../utils/onboarding_creditos.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/ancho_maximo.dart';
+import '../../widgets/boton_explorar_sin_cuenta.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -598,6 +599,11 @@ class _RegisterScreenState extends State<RegisterScreen>
                                   )
                                 : const Text('Crear cuenta'),
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        const BotonExplorarSinCuenta(
+                          boton: 'registro',
+                          alto: 48,
                         ),
                       ],
                     ),
