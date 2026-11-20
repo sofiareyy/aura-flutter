@@ -25,6 +25,9 @@
   <script src="aura-analytics.js"></script>
 
   <meta charset="UTF-8">
+  <!-- Sin esto, la pantalla de carga de abajo se dibuja a 980 px en el celular
+       hasta que Flutter pone la suya (20/11/2026). -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="El primer marketplace de fitness y experiencias de Buenos Aires">
   <meta name="theme-color" content="#1A1A1A">
@@ -79,6 +82,77 @@
   </script>
 </head>
 <body>
+  <!--
+    Pantalla de carga en HTML puro (20/11/2026). Se ve apenas llega este
+    archivo, mientras se bajan los ~3 MB de Flutter. Sin fuentes ni imágenes
+    externas: todo va acá adentro. Imita la parte de arriba de la landing para
+    que el cambio a Flutter no salte. El título va sólo en la landing; en
+    cualquier otra ruta (#/clase/12, #/explorar) queda el logo solo. Se quita
+    con el primer cuadro de Flutter (evento flutter-first-frame).
+  -->
+  <style>
+    html, body { margin: 0; background: #1A1A1A; }
+    #aura-splash {
+      position: fixed; inset: 0; z-index: 1;
+      background: #1A1A1A; color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 28px 20px; box-sizing: border-box;
+      transition: opacity .25s ease;
+    }
+    #aura-splash .marca { display: flex; align-items: center; gap: 10px; }
+    #aura-splash .icono {
+      width: 40px; height: 40px; border-radius: 11px; background: #E8763A;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #aura-splash .nombre { font-size: 22px; font-weight: 800; letter-spacing: .5px; }
+    #aura-splash h1 {
+      margin: 36px 0 0; font-size: 38px; line-height: 1.1; font-weight: 800;
+    }
+    #aura-splash h1 span { color: #E8763A; }
+    #aura-splash p { margin: 16px 0 0; color: #B8B0A9; font-size: 17px; line-height: 1.45; }
+    #aura-splash .barra {
+      margin-top: 28px; height: 3px; border-radius: 2px; background: #2a2a2a; overflow: hidden;
+    }
+    #aura-splash .barra::after {
+      content: ""; display: block; width: 35%; height: 100%; background: #E8763A;
+      animation: aura-carga 1.2s ease-in-out infinite;
+    }
+    @keyframes aura-carga { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+    @media (prefers-reduced-motion: reduce) { #aura-splash .barra::after { animation: none; width: 100%; opacity: .5; } }
+    #aura-splash.solo-logo { display: flex; align-items: center; justify-content: center; }
+    #aura-splash.solo-logo .landing { display: none; }
+  </style>
+  <div id="aura-splash" aria-busy="true">
+    <div class="marca">
+      <div class="icono">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" fill="none" stroke="#1A1A1A" stroke-width="2"/>
+          <circle cx="8" cy="8" r="2.5" fill="#1A1A1A"/>
+        </svg>
+      </div>
+      <span class="nombre">AURA.</span>
+    </div>
+    <div class="landing">
+      <h1>Un pack.<br><span>Todos los estudios.</span></h1>
+      <p>Comprás créditos una vez y reservás en estudios de Buenos Aires. Pilates, yoga, spinning, barre y más.</p>
+      <div class="barra"></div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var h = location.hash;
+      if (h && h !== '#/' && h !== '#/landing' && h.indexOf('#/landing?') !== 0) {
+        document.getElementById('aura-splash').className = 'solo-logo';
+      }
+      window.addEventListener('flutter-first-frame', function () {
+        var s = document.getElementById('aura-splash');
+        if (!s) return;
+        s.style.opacity = '0';
+        setTimeout(function () { s.remove(); }, 300);
+      });
+    })();
+  </script>
+
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
